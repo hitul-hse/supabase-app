@@ -108,3 +108,5 @@ Every push to `master` on GitHub does **not** yet auto-deploy — see
   meant to be re-run, like the `netflix_users` import).
 - After pushing, redeploy to Vercel (`npx vercel deploy --prod --yes`) so
   production matches `master`.
+
+<!-- verifying GitHub -> Vercel auto-deploy -->

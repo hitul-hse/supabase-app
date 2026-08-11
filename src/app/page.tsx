@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 
 export default async function Home() {
@@ -39,6 +40,12 @@ export default async function Home() {
           components) or <code>src/utils/supabase/client.ts</code> (client
           components).
         </div>
+      )}
+
+      {envConfigured && !connectionError && (
+        <Link href="/netflix" className="text-sm font-medium underline text-black dark:text-zinc-50">
+          Browse Netflix users data →
+        </Link>
       )}
     </div>
   );

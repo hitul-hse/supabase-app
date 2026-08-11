@@ -24,3 +24,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.viz-root {
+  color-scheme: light;
+  --viz-surface: #fcfcfb;
+  --viz-border: rgba(11, 11, 11, 0.1);
+  --viz-text-primary: #0b0b0b;
+  --viz-text-secondary: #52514e;
+  --viz-gridline: #e1e0d9;
+  --viz-series-1: #2a78d6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --viz-surface: #1a1a19;
+    --viz-border: rgba(255, 255, 255, 0.1);
+    --viz-text-primary: #ffffff;
+    --viz-text-secondary: #c3c2b7;
+    --viz-gridline: #2c2c2a;
+    --viz-series-1: #3987e5;
+  }
+}
+
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --viz-surface: #1a1a19;
+  --viz-border: rgba(255, 255, 255, 0.1);
+  --viz-text-primary: #ffffff;
+  --viz-text-secondary: #c3c2b7;
+  --viz-gridline: #2c2c2a;
+  --viz-series-1: #3987e5;
+}

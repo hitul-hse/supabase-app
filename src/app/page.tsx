@@ -49,6 +49,12 @@ export default async function Home() {
       )}
 
       {envConfigured && !connectionError && (
+        <Link href="/dashboard" className="text-sm font-medium underline text-black dark:text-zinc-50">
+          View Netflix users dashboard →
+        </Link>
+      )}
+
+      {envConfigured && !connectionError && (
         <Link href="/uploads" className="text-sm font-medium underline text-black dark:text-zinc-50">
           Upload files to Google Cloud Storage →
         </Link>

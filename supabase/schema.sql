@@ -54,3 +54,40 @@ create policy "Allow anon full access to files"
   to anon
   using (true)
   with check (true);
+
+-- Aggregate views backing the /dashboard page. security_invoker means these
+-- run with the querying role's own permissions, so they respect the
+-- netflix_users RLS policy above rather than bypassing it as the view owner.
+
+create or replace view netflix_overview
+  with (security_invoker = true) as
+  select
+    count(*) as total_users,
+    avg(age) as avg_age,
+    avg(watch_time_hours) as avg_watch_time_hours,
+    count(distinct country) as country_count
+  from netflix_users;
+
+create or replace view netflix_country_stats
+  with (security_invoker = true) as
+  select country, count(*) as user_count
+  from netflix_users
+  group by country
+  order by user_count desc;
+
+create or replace view netflix_genre_stats
+  with (security_invoker = true) as
+  select favorite_genre, count(*) as user_count
+  from netflix_users
+  group by favorite_genre
+  order by user_count desc;
+
+create or replace view netflix_subscription_stats
+  with (security_invoker = true) as
+  select subscription_type, count(*) as user_count, avg(watch_time_hours) as avg_watch_time_hours
+  from netflix_users
+  group by subscription_type
+  order by user_count desc;
+
+grant select on netflix_overview, netflix_country_stats, netflix_genre_stats, netflix_subscription_stats
+  to anon, authenticated;

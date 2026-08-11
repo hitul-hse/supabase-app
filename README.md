@@ -94,8 +94,8 @@ Production env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 Vercel and are **not** derived from `.env.local` automatically — update both
 when a value changes.
 
-Every push to `master` on GitHub does **not** yet auto-deploy — see
-[Working procedure](#working-procedure) below.
+The GitHub repo is connected to this Vercel project, so every push to
+`master` auto-deploys to production — no manual `vercel deploy` needed.
 
 ## Working procedure
 
@@ -106,7 +106,5 @@ Every push to `master` on GitHub does **not** yet auto-deploy — see
   [`supabase/schema.sql`](supabase/schema.sql) (or documented as a one-off
   procedure in [`supabase/README.md`](supabase/README.md) if they're not
   meant to be re-run, like the `netflix_users` import).
-- After pushing, redeploy to Vercel (`npx vercel deploy --prod --yes`) so
-  production matches `master`.
-
-<!-- verifying GitHub -> Vercel auto-deploy -->
+- Pushing to `master` auto-deploys to production via the GitHub↔Vercel
+  connection — no manual deploy step required.

@@ -15,11 +15,30 @@ https://supabase-app-olive.vercel.app.
 
 ## Pages
 
-| Route       | What it does                                                                    |
-| ----------- | --------------------------------------------------------------------------------- |
-| `/`         | Home page; reports whether the Supabase connection is configured and working.    |
-| `/netflix`  | Browses/searches the 25,000-row `netflix_users` table (paginated).               |
-| `/uploads`  | Uploads a file to GCS and records its metadata in the Supabase `files` table.    |
+| Route        | What it does                                                                    |
+| ------------ | --------------------------------------------------------------------------------- |
+| `/`          | Home page; reports whether the Supabase connection is configured and working.    |
+| `/dashboard` | Aggregate stats + charts (stat tiles, bar charts) over the `netflix_users` sample dataset. |
+| `/netflix`   | Browses/searches the 25,000-row `netflix_users` table (paginated).               |
+| `/uploads`   | Uploads a file to GCS and records its metadata in the Supabase `files` table.    |
+
+## Design system
+
+All pages share a single dark theme, defined as CSS custom properties in
+[`src/app/globals.css`](src/app/globals.css) (`--page`, `--surface`, `--border`,
+`--text-primary/secondary/muted`, `--accent`, and status colors `--good`/`--warning`/`--critical`,
+each with a `-wash` variant for subtle banner backgrounds). It's intentionally a single
+committed theme rather than one gated behind `prefers-color-scheme` — with no in-app
+toggle, gating on OS preference means visitors with a light-mode browser would see an
+unintended light theme.
+
+[`src/components/Nav.tsx`](src/components/Nav.tsx) is the shared header (brand + route
+links, active-link highlighting) rendered once in [`src/app/layout.tsx`](src/app/layout.tsx)
+so every page gets consistent chrome. Chart components
+([`BarChart.tsx`](src/components/BarChart.tsx), [`StatTile.tsx`](src/components/StatTile.tsx))
+use a separate `.viz-root`-scoped token set (also in `globals.css`) that follows Anthropic's
+data-viz skill conventions: single-hue bars, thin marks, hover tooltips, and a table-view
+fallback for accessibility.
 
 ## Local setup
 

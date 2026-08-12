@@ -2,7 +2,13 @@
 
 A Next.js (App Router) frontend backed by Supabase (Postgres + Auth) and
 Google Cloud Storage (file uploads). Live at
-https://supabase-app-olive.vercel.app.
+https://supabase-app-olive.vercel.app and https://hseportal.hs-experts.com.
+
+Currently a working starter over a Netflix sample dataset. The intended production
+direction — a real internal BI portal aggregating Asana, TrackingTime, Samdock and
+FactorialHR — is documented in
+[`docs/architecture/HSE-HUB-PORTAL.md`](docs/architecture/HSE-HUB-PORTAL.md) (synced from the
+team's Miro architecture board).
 
 ## Stack
 

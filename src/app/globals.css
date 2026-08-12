@@ -1,8 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  --background: #0d0d0d;
+  --foreground: #ffffff;
+
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-hover: #212120;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+
+  --accent: #3987e5;
+  --accent-hover: #5a9dea;
+  --accent-contrast: #ffffff;
+  --accent-wash: rgba(57, 135, 229, 0.14);
+
+  --good: #0ca30c;
+  --good-wash: rgba(12, 163, 12, 0.14);
+  --critical: #e66767;
+  --critical-wash: rgba(230, 103, 103, 0.14);
+  --warning: #c98500;
+  --warning-wash: rgba(201, 133, 0, 0.14);
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
 }
 
 @theme inline {
@@ -12,42 +40,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--page);
+  color: var(--text-primary);
 }
 
 .viz-root {
-  color-scheme: light;
-  --viz-surface: #fcfcfb;
-  --viz-border: rgba(11, 11, 11, 0.1);
-  --viz-text-primary: #0b0b0b;
-  --viz-text-secondary: #52514e;
-  --viz-gridline: #e1e0d9;
-  --viz-series-1: #2a78d6;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) .viz-root {
-    color-scheme: dark;
-    --viz-surface: #1a1a19;
-    --viz-border: rgba(255, 255, 255, 0.1);
-    --viz-text-primary: #ffffff;
-    --viz-text-secondary: #c3c2b7;
-    --viz-gridline: #2c2c2a;
-    --viz-series-1: #3987e5;
-  }
-}
-
-:root[data-theme="dark"] .viz-root {
   color-scheme: dark;
   --viz-surface: #1a1a19;
   --viz-border: rgba(255, 255, 255, 0.1);

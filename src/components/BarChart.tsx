@@ -14,7 +14,7 @@ export function BarChart({ title, bars }: { title: string; bars: Bar[] }) {
   const max = Math.max(...bars.map((b) => b.value), 1);
 
   return (
-    <figure className="rounded-lg border border-[var(--viz-border)] bg-[var(--viz-surface)] p-4">
+    <figure className="rounded-[var(--radius)] border border-[var(--viz-border)] bg-[var(--viz-surface)] p-4">
       <div className="mb-3 flex items-center justify-between">
         <figcaption className="text-sm font-medium text-[var(--viz-text-primary)]">{title}</figcaption>
         <details className="relative">

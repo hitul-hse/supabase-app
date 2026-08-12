@@ -8,7 +8,9 @@ Currently a working starter over a Netflix sample dataset. The intended producti
 direction — a real internal BI portal aggregating Asana, TrackingTime, Samdock and
 FactorialHR — is documented in
 [`docs/architecture/HSE-HUB-PORTAL.md`](docs/architecture/HSE-HUB-PORTAL.md) (synced from the
-team's Miro architecture board).
+team's Miro architecture board), with the full warehouse data-model reference (tables,
+columns, referential integrity, RLS, open questions, glossary) in
+[`docs/architecture/HSE-HUB-SCHEMA.md`](docs/architecture/HSE-HUB-SCHEMA.md).
 
 ## Stack
 

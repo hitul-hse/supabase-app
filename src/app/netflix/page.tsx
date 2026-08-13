@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { PageHeader } from "@/components/PageHeader";
+import { getNetflixUsers } from "@/lib/queries/netflix";
 
 const PAGE_SIZE = 25;
 
@@ -29,25 +30,17 @@ export default async function NetflixUsersPage({
 }) {
   const { q = "", page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
 
   const supabase = await createClient();
 
-  let query = supabase
-    .from("netflix_users")
-    .select("user_id, name, age, country, subscription_type, watch_time_hours, favorite_genre, last_login", {
-      count: "exact",
-    })
-    .order("user_id", { ascending: true })
-    .range(from, to);
+  const result = await getNetflixUsers(supabase, {
+    page,
+    search: q,
+  });
 
-  if (q) {
-    query = query.or(`name.ilike.%${q}%,country.ilike.%${q}%,favorite_genre.ilike.%${q}%`);
-  }
-
-  const { data: rows, count, error } = await query;
-
+  const rows = result.data;
+  const count = result.count;
+  const error = result.error;
   const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 1;
 
   const navBtn = "border border-[var(--border)] px-3 py-1.5 text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]";
@@ -112,7 +105,7 @@ export default async function NetflixUsersPage({
                       <td className="px-3 py-2 font-mono tabular-nums">{row.age}</td>
                       <td className="px-3 py-2">{row.country}</td>
                       <td className="px-3 py-2">
-                        <TierBadge tier={row.subscription_type} />
+                        <TierBadge tier={row.subscription_type ?? ""} />
                       </td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums">{row.watch_time_hours}</td>
                       <td className="px-3 py-2">{row.favorite_genre}</td>

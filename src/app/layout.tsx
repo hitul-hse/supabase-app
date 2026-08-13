@@ -16,20 +16,25 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Supabase App",
-  description: "Next.js + Supabase starter with a Netflix users dashboard and GCS uploads.",
+  title: "HSE Hub — BI Portal & Analytics Console",
+  description:
+    "Internal operational BI portal aggregating Asana, TrackingTime, Samdock and FactorialHR into unified executive, team-lead, project, and timesheet dashboards.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
       className={`${roboto.variable} ${robotoMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full font-sans">
+      <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="min-w-0 flex-1 overflow-x-hidden">{children}</main>
         </div>
       </body>
     </html>

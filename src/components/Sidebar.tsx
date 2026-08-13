@@ -1,50 +1,101 @@
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { SidebarNav } from "./SidebarNav";
 import { LogoutButton } from "./LogoutButton";
 
-async function getUserEmail() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.email ?? null;
+async function getUserInfo() {
+  const envConfigured =
+    !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!envConfigured) {
+    return { status: "not configured" as const, email: null };
+  }
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    return {
+      status: error ? ("error" as const) : ("connected" as const),
+      email: user?.email ?? null,
+    };
+  } catch {
+    return { status: "error" as const, email: null };
+  }
 }
 
 export async function Sidebar() {
-  const email = await getUserEmail();
+  const { status, email } = await getUserInfo();
+  const dotColor =
+    status === "connected" ? "var(--good)" : status === "error" ? "var(--critical)" : "var(--warning)";
+  const statusLabel =
+    status === "connected" ? "Supabase Live" : status === "error" ? "Supabase Error" : "Not Configured";
 
   return (
-    <div className="flex w-[var(--sidebar-width)] flex-none flex-col gap-5 bg-[var(--sidebar)] py-4">
+    <aside className="flex w-[220px] flex-none flex-col gap-4 border-r border-[var(--border)] bg-[var(--sidebar)] py-4">
+      {/* Brand Header */}
       <Link href="/" className="flex items-center gap-2.5 px-4">
-        <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[var(--radius-sm)] bg-[var(--accent)] font-mono text-xs font-bold text-[var(--accent-contrast)]">
-          S
-        </span>
-        <span className="flex flex-col leading-[1.15]">
+        <div className="relative h-[26px] w-[26px] flex-none overflow-hidden rounded-[var(--radius-sm)]">
+          <Image
+            src="/hse-logo.png"
+            alt="HSE Logo"
+            width={26}
+            height={26}
+            className="h-full w-full object-contain"
+            priority
+          />
+        </div>
+        <div className="flex flex-col leading-[1.15]">
           <span className="font-sans text-[12.5px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
-            SUPABASE APP
+            HSE HUB
           </span>
-          <span className="font-mono text-[8.5px] tracking-[0.14em] text-[var(--text-faint)]">
-            NEXT.JS STARTER
+          <span className="font-mono text-[8px] tracking-[0.14em] text-[var(--text-faint)]">
+            HEALTH &amp; SAFETY EXPERTS
           </span>
-        </span>
+        </div>
       </Link>
 
-      <SidebarNav />
-
-      <div className="mt-auto flex flex-col gap-3 border-t border-[var(--border)] px-4 pt-4">
-        {email && (
-          <div className="flex flex-col gap-1">
-            <p className="font-mono text-[10px] tracking-[0.02em] text-[var(--text-faint)]">
-              LOGGED IN AS
-            </p>
-            <p className="truncate font-mono text-[11px] text-[var(--text-secondary)]">
-              {email}
-            </p>
-          </div>
-        )}
-        <LogoutButton />
+      {/* Navigation */}
+      <div className="flex-1 overflow-y-auto">
+        <SidebarNav />
       </div>
-    </div>
+
+      {/* User profile & Supabase status footer */}
+      <div className="mt-auto flex flex-col gap-2.5 border-t border-[var(--border)] px-4 pt-3">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="h-6 w-6 flex-none rounded-full"
+            style={{
+              background:
+                "repeating-linear-gradient(45deg, #4a525d, #4a525d 3px, #3c434e 3px, #3c434e 6px)",
+            }}
+          />
+          <div className="flex flex-col min-w-0">
+            <span className="text-[12px] font-medium text-[var(--text-primary)] truncate">
+              {email ?? "M. Keller"}
+            </span>
+            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
+              {email ? "AUTHENTICATED" : "ROLE: DIRECTOR"}
+            </span>
+          </div>
+        </div>
+
+        {email && <LogoutButton />}
+
+        <div className="flex items-center gap-2 pt-1">
+          <span
+            aria-hidden
+            className="h-1.5 w-1.5 flex-none rounded-full"
+            style={{ background: dotColor }}
+          />
+          <span className="font-mono text-[9.5px] tracking-[0.02em] text-[var(--text-faint)]">
+            {statusLabel.toUpperCase()}
+          </span>
+        </div>
+      </div>
+    </aside>
   );
 }

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#eceeef;font-family:'Roboto',system-ui,sans-serif;-webkit-font-smoothing:antialiased}a{color:#2a474b}a:hover{color:#91c2b7}</style></helmet>
+
+<section style="padding:44px 48px 34px">
+<div style="display:flex;align-items:baseline;gap:10px;margin:0 0 18px"><span style="font:600 10px 'Roboto Mono',monospace;padding:3px 7px;background:#313842;color:#fff;border-radius:4px">1</span><span style="font:600 13px 'Roboto',sans-serif;color:#313842">HSE Hub — read layer over Asana, TrackingTime, Factorial, Samdock, HubSpot</span></div>
+
+<div style="max-width:780px;display:flex;flex-direction:column;gap:14px;margin:0 0 36px">
+<p style="margin:0;font:400 13.5px/1.6 'Roboto',sans-serif;color:#4a5157;text-wrap:pretty">Dark analytics console for the data screens in HSE schwarz and mint, high-contrast technical treatment, all figures in monospace so columns line up. Two layout options for the leadership dashboard; the rest are single directions built on the same shell.</p>
+<div style="display:grid;grid-template-columns:132px 1fr;gap:8px 18px;font:400 12.5px/1.55 'Roboto',sans-serif;color:#4a5157">
+<span style="color:#a7aeb3;font-weight:500">Data spine</span><span>Samdock / HubSpot company → contract → project → Asana tasks → TrackingTime entries → Factorial person. Every screen reads that chain; nothing is authored in the Hub in phase one.</span>
+<span style="color:#a7aeb3;font-weight:500">Metrics used</span><span>Contracted vs. billable hours, billable vs. non-billable split, hours per user from timesheets, project record and timeline, workload per person.</span>
+<span style="color:#a7aeb3;font-weight:500">Roles</span><span>Leadership: all teams, money visible. Team lead: own team only, capacity and approvals, no cross-team rates. Employee: own timesheet and profile. Customer portal comes in phase two.</span>
+<span style="color:#a7aeb3;font-weight:500">Placeholders</span><span>Figures are plausible but invented. Hatched blocks are avatar/logo/document slots for real assets.</span>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:42px">
+
+<div id="1a" style="display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11.5px 'Roboto',sans-serif;color:rgba(0,0,0,.58)"><span style="font:600 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#313842;border-radius:5px">1a</span>Leadership analytics — console layout, metric strip over a project ledger</div>
+<div style="width:1440px;background:#2a3038;border:1px solid rgba(0,0,0,.14);border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.14);overflow:hidden;display:flex;color:#f2f3f4">
+
+<div style="width:210px;flex:none;background:#23282f;border-right:1px solid #414954;padding:16px 0;display:flex;flex-direction:column;gap:20px">
+<div style="padding:0 16px;display:flex;align-items:center;gap:9px"><img src="uploads/HSE%20Health%20%26%20Safety%20Experts%20GmbH%20_Logo%20ohne%20Hintergrund%20499x499px.png" alt="HSE" style="width:26px;height:26px;display:block"></img><span style="display:flex;flex-direction:column;line-height:1.15"><span style="font:700 12.5px 'Roboto',sans-serif;letter-spacing:.02em;color:#f2f3f4">HSE HUB</span><span style="font:400 8.5px 'Roboto Mono',monospace;letter-spacing:.14em;color:#8f979d">HEALTH &amp; SAFETY EXPERTS</span></span></div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="padding:7px 16px;font:400 9.5px 'Roboto Mono',monospace;letter-spacing:.12em;color:#8f979d">ANALYSE</div>
+<div style="padding:6px 16px;font:500 12.5px 'Roboto',sans-serif;background:#3d4550;border-left:2px solid #91c2b7">Overview</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Utilisation</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Billability</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Workload</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Pipeline</div>
+<div style="padding:15px 16px 7px;font:400 9.5px 'Roboto Mono',monospace;letter-spacing:.12em;color:#8f979d">RECORDS</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">People</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Customers</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Projects</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Contracts</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Timesheets</div>
+</div>
+<div style="margin-top:auto;padding:13px 16px 0;border-top:1px solid #414954;display:flex;align-items:center;gap:9px"><div style="width:25px;height:25px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="display:flex;flex-direction:column"><span style="font:500 12px 'Roboto',sans-serif">M. Keller</span><span style="font:400 10px 'Roboto Mono',monospace;color:#8f979d">ROLE: DIRECTOR</span></div></div>
+</div>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="padding:15px 24px;border-bottom:1px solid #414954;display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 16.5px 'Roboto',sans-serif">Business overview</span><span style="font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">Q3 2026 · 41 PEOPLE · 27 ACTIVE PROJECTS</span></div>
+<div style="margin-left:auto;display:flex;gap:8px">
+<div style="padding:6px 11px;border:1px solid #4d5661;border-radius:4px;font:500 11.5px 'Roboto',sans-serif;color:#dcdfe1">Quarter to date</div>
+<div style="padding:6px 11px;border:1px solid #4d5661;border-radius:4px;font:500 11.5px 'Roboto',sans-serif;color:#dcdfe1">All teams</div>
+<div style="padding:6px 11px;background:#91c2b7;border-radius:4px;font:600 11.5px 'Roboto',sans-serif;color:#1c2427">Export</div>
+</div>
+</div>
+
+<div style="padding:8px 24px;background:#0b0d0f;border-bottom:1px solid #414954;display:flex;align-items:center;gap:18px;flex-wrap:wrap;font:400 11px 'Roboto Mono',monospace">
+<span style="letter-spacing:.12em;color:#8f979d">SYNC</span>
+<span style="display:flex;align-items:center;gap:6px;color:#dcdfe1"><span style="width:5px;height:5px;background:#91c2b7"></span>ASANA 4m</span>
+<span style="display:flex;align-items:center;gap:6px;color:#dcdfe1"><span style="width:5px;height:5px;background:#91c2b7"></span>TRACKINGTIME 4m</span>
+<span style="display:flex;align-items:center;gap:6px;color:#dcdfe1"><span style="width:5px;height:5px;background:#91c2b7"></span>FACTORIAL 18m</span>
+<span style="display:flex;align-items:center;gap:6px;color:#d9a13b"><span style="width:5px;height:5px;background:#d9a13b"></span>SAMDOCK 2h RETRY</span>
+<span style="display:flex;align-items:center;gap:6px;color:#dcdfe1"><span style="width:5px;height:5px;background:#91c2b7"></span>HUBSPOT 11m</span>
+</div>
+
+<div style="padding:18px 24px;display:flex;flex-direction:column;gap:18px">
+
+<div style="display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #414954;background:#363d48">
+<div style="padding:13px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:6px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">BILLABLE UTILISATION</span><span style="font:600 25px 'Roboto Mono',monospace;letter-spacing:-.02em">73.4<span style="font-size:15px;color:#a7aeb3">%</span></span><span style="font:400 11px 'Roboto Mono',monospace;color:#91c2b7">+2.1 PTS · TARGET 75</span></div>
+<div style="padding:13px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:6px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">BILLABLE / CONTRACTED</span><span style="font:600 25px 'Roboto Mono',monospace;letter-spacing:-.02em">18 240<span style="font-size:14px;color:#a7aeb3"> / 24 900</span></span><div style="height:4px;background:#414954"><div style="width:73%;height:100%;background:#91c2b7"></div></div></div>
+<div style="padding:13px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:6px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">NON-BILLABLE SHARE</span><span style="font:600 25px 'Roboto Mono',monospace;letter-spacing:-.02em">26.6<span style="font-size:15px;color:#a7aeb3">%</span></span><span style="font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">4 850 H · INTERNAL + ADMIN</span></div>
+<div style="padding:13px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:6px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">OPEN TASKS</span><span style="font:600 25px 'Roboto Mono',monospace;letter-spacing:-.02em">612</span><span style="font:400 11px 'Roboto Mono',monospace;color:#e0603f">87 OVERDUE · 9 PROJECTS</span></div>
+<div style="padding:13px 15px;display:flex;flex-direction:column;gap:6px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">HOURS AT RISK</span><span style="font:600 25px 'Roboto Mono',monospace;letter-spacing:-.02em;color:#e0603f">1 480</span><span style="font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">4 PROJECTS PAST 90%</span></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px">
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:baseline;gap:10px"><span style="font:600 12.5px 'Roboto',sans-serif">Billable vs non-billable hours</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">PER WEEK · TRACKINGTIME</span><span style="margin-left:auto;display:flex;gap:12px;font:400 10.5px 'Roboto Mono',monospace;color:#bcc1c4"><span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#91c2b7"></span>BILLABLE</span><span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:#8a9197"></span>NON-BILLABLE</span></span></div>
+<div style="height:156px;display:flex;align-items:flex-end;gap:8px">
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:22%;background:#8a9197"></div><div style="height:58%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:18%;background:#8a9197"></div><div style="height:64%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:26%;background:#8a9197"></div><div style="height:52%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:16%;background:#8a9197"></div><div style="height:70%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:20%;background:#8a9197"></div><div style="height:66%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:14%;background:#8a9197"></div><div style="height:74%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:24%;background:#8a9197"></div><div style="height:56%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:19%;background:#8a9197"></div><div style="height:68%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:30%;background:#8a9197"></div><div style="height:44%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:17%;background:#8a9197"></div><div style="height:72%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:21%;background:#8a9197"></div><div style="height:63%;background:#91c2b7"></div></div>
+<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px"><div style="height:15%;background:#8a9197"></div><div style="height:60%;background:repeating-linear-gradient(135deg,#91c2b7,#91c2b7 4px,#6ba79b 4px,#6ba79b 8px)"></div></div>
+</div>
+<div style="display:flex;justify-content:space-between;font:400 10px 'Roboto Mono',monospace;color:#8f979d"><span>W20</span><span>W23</span><span>W26</span><span>W29</span><span>W31 OPEN</span></div>
+</div>
+
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:13px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Utilisation by team</span>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#dcdfe1"><span>Engineering</span><span style="font-family:'Roboto Mono',monospace;font-weight:500;color:#f2f3f4">81%</span></div><div style="height:5px;background:#414954"><div style="width:81%;height:100%;background:#91c2b7"></div></div></div>
+<div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#dcdfe1"><span>Safety consulting</span><span style="font-family:'Roboto Mono',monospace;font-weight:500;color:#f2f3f4">76%</span></div><div style="height:5px;background:#414954"><div style="width:76%;height:100%;background:#91c2b7"></div></div></div>
+<div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#dcdfe1"><span>Training</span><span style="font-family:'Roboto Mono',monospace;font-weight:500;color:#f2f3f4">69%</span></div><div style="height:5px;background:#414954"><div style="width:69%;height:100%;background:#91c2b7"></div></div></div>
+<div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#dcdfe1"><span>Lab &amp; measurement</span><span style="font-family:'Roboto Mono',monospace;font-weight:500;color:#d9a13b">58%</span></div><div style="height:5px;background:#414954"><div style="width:58%;height:100%;background:#d9a13b"></div></div></div>
+<div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#dcdfe1"><span>Back office</span><span style="font-family:'Roboto Mono',monospace;font-weight:500;color:#a7aeb3">n/a</span></div><div style="height:5px;background:repeating-linear-gradient(45deg,#414954,#414954 4px,#333a44 4px,#333a44 8px)"></div></div>
+</div>
+<div style="margin-top:auto;padding-top:11px;border-top:1px solid #414954;display:flex;flex-direction:column;gap:4px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#8f979d">WORKLOAD FLAGS</span><span style="font:400 11.5px/1.5 'Roboto',sans-serif;color:#dcdfe1">6 people over 105% planned capacity in W32 · 3 under 60%</span></div>
+</div>
+</div>
+
+<div style="border:1px solid #414954;background:#363d48">
+<div style="padding:11px 16px;border-bottom:1px solid #414954;display:flex;align-items:baseline;gap:10px"><span style="font:600 12.5px 'Roboto',sans-serif">Project ledger</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">CONTRACT · ASANA · TRACKINGTIME</span><span style="margin-left:auto;font:500 11.5px 'Roboto',sans-serif;color:#91c2b7">All 27 projects</span></div>
+<div style="display:grid;grid-template-columns:2.2fr 1.4fr .9fr .9fr 1.5fr 1fr 1fr;column-gap:14px;font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#8f979d;padding:8px 16px;border-bottom:1px solid #414954;background:#2b313a"><span>PROJECT</span><span>CUSTOMER</span><span style="text-align:right">CONTRACT H</span><span style="text-align:right">BILLABLE H</span><span>CONSUMED</span><span style="text-align:right">DUE</span><span>LEAD</span></div>
+<div style="display:grid;grid-template-columns:2.2fr 1.4fr .9fr .9fr 1.5fr 1fr 1fr;column-gap:14px;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:10px 16px;border-bottom:1px solid #3a414c"><span style="font-weight:500">Site risk assessment 2026</span><span style="color:#bcc1c4">Nordwerk AG</span><span style="text-align:right;font-family:'Roboto Mono',monospace">1 200</span><span style="text-align:right;font-family:'Roboto Mono',monospace">1 164</span><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:5px;background:#414954;display:block"><span style="display:block;width:97%;height:100%;background:#e0603f"></span></span><span style="font:500 11px 'Roboto Mono',monospace;color:#e0603f;width:30px">97%</span></span><span style="text-align:right;font:400 11.5px 'Roboto Mono',monospace;color:#bcc1c4">30 SEP</span><span style="color:#bcc1c4">S. Ott</span></div>
+<div style="display:grid;grid-template-columns:2.2fr 1.4fr .9fr .9fr 1.5fr 1fr 1fr;column-gap:14px;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:10px 16px;border-bottom:1px solid #3a414c"><span style="font-weight:500">ISO 45001 readiness</span><span style="color:#bcc1c4">Halbach Werke</span><span style="text-align:right;font-family:'Roboto Mono',monospace">840</span><span style="text-align:right;font-family:'Roboto Mono',monospace">771</span><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:5px;background:#414954;display:block"><span style="display:block;width:92%;height:100%;background:#d9a13b"></span></span><span style="font:500 11px 'Roboto Mono',monospace;color:#d9a13b;width:30px">92%</span></span><span style="text-align:right;font:400 11.5px 'Roboto Mono',monospace;color:#bcc1c4">14 OCT</span><span style="color:#bcc1c4">A. Brandt</span></div>
+<div style="display:grid;grid-template-columns:2.2fr 1.4fr .9fr .9fr 1.5fr 1fr 1fr;column-gap:14px;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:10px 16px;border-bottom:1px solid #3a414c"><span style="font-weight:500">Noise mapping – plant 2</span><span style="color:#bcc1c4">Rheinmetric GmbH</span><span style="text-align:right;font-family:'Roboto Mono',monospace">560</span><span style="text-align:right;font-family:'Roboto Mono',monospace">402</span><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:5px;background:#414954;display:block"><span style="display:block;width:72%;height:100%;background:#91c2b7"></span></span><span style="font:500 11px 'Roboto Mono',monospace;width:30px">72%</span></span><span style="text-align:right;font:400 11.5px 'Roboto Mono',monospace;color:#bcc1c4">21 NOV</span><span style="color:#bcc1c4">S. Ott</span></div>
+<div style="display:grid;grid-template-columns:2.2fr 1.4fr .9fr .9fr 1.5fr 1fr 1fr;column-gap:14px;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:10px 16px;border-bottom:1px solid #3a414c"><span style="font-weight:500">Safety training programme</span><span style="color:#bcc1c4">Stadtwerke Lohr</span><span style="text-align:right;font-family:'Roboto Mono',monospace">1 600</span><span style="text-align:right;font-family:'Roboto Mono',monospace">988</span><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:5px;background:#414954;display:block"><span style="display:block;width:62%;height:100%;background:#91c2b7"></span></span><span style="font:500 11px 'Roboto Mono',monospace;width:30px">62%</span></span><span style="text-align:right;font:400 11.5px 'Roboto Mono',monospace;color:#bcc1c4">31 DEC</span><span style="color:#bcc1c4">L. Fischer</span></div>
+<div style="display:grid;grid-template-columns:2.2fr 1.4fr .9fr .9fr 1.5fr 1fr 1fr;column-gap:14px;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:10px 16px"><span style="font-weight:500">Hazardous substances audit</span><span style="color:#bcc1c4">Kern Chemie</span><span style="text-align:right;font-family:'Roboto Mono',monospace">320</span><span style="text-align:right;font-family:'Roboto Mono',monospace">118</span><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:5px;background:#414954;display:block"><span style="display:block;width:37%;height:100%;background:#91c2b7"></span></span><span style="font:500 11px 'Roboto Mono',monospace;width:30px">37%</span></span><span style="text-align:right;font:400 11.5px 'Roboto Mono',monospace;color:#bcc1c4">15 JAN</span><span style="color:#bcc1c4">A. Brandt</span></div>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+<div id="1b" style="display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11.5px 'Roboto',sans-serif;color:rgba(0,0,0,.58)"><span style="font:600 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#313842;border-radius:5px">1b</span>Same data, light technical treatment — question-led panels instead of a metric strip</div>
+<div style="width:1440px;background:#fcfcfb;border:1px solid rgba(0,0,0,.14);border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.12);overflow:hidden;display:flex;color:#313842">
+<div style="width:56px;flex:none;background:#313842;padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:16px">
+<img src="uploads/HSE%20Health%20%26%20Safety%20Experts%20GmbH%20_Logo%20ohne%20Hintergrund%20499x499px.png" alt="HSE" style="width:24px;height:24px;display:block"></img>
+<div style="width:26px;height:26px;border:1px solid #616a75;display:flex;align-items:center;justify-content:center;font:500 10px 'Roboto Mono',monospace;color:#f2f3f4">AN</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font:500 10px 'Roboto Mono',monospace;color:#8f979d">PE</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font:500 10px 'Roboto Mono',monospace;color:#8f979d">CU</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font:500 10px 'Roboto Mono',monospace;color:#8f979d">PR</div>
+<div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font:500 10px 'Roboto Mono',monospace;color:#8f979d">TS</div>
+<div style="margin-top:auto;width:26px;height:26px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="padding:16px 26px 14px;border-bottom:2px solid #313842;display:flex;align-items:flex-end;gap:16px">
+<div style="display:flex;flex-direction:column;gap:3px"><span style="font:400 10.5px 'Roboto Mono',monospace;letter-spacing:.12em;color:#6f767c">HSE HUB / ANALYSE</span><span style="font:600 22px 'Roboto',sans-serif;letter-spacing:-.01em">Where are we losing billable time?</span></div>
+<div style="margin-left:auto;display:flex;gap:7px;font:500 11.5px 'Roboto',sans-serif"><span style="padding:6px 11px;border:1px solid #313842">Q3 2026</span><span style="padding:6px 11px;border:1px solid #bcc1c4;color:#5b6268">All teams</span><span style="padding:6px 11px;background:#313842;color:#fff">Export</span></div>
+</div>
+<div style="display:flex">
+<div style="width:250px;flex:none;border-right:1px solid #ced3d5;padding:18px 20px;display:flex;flex-direction:column;gap:18px;background:#f1f3f3">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.12em;color:#6f767c">BILLABLE UTILISATION</span><span style="font:600 38px 'Roboto Mono',monospace;letter-spacing:-.03em;line-height:1">73.4%</span><span style="font:400 11px 'Roboto Mono',monospace;color:#2a474b">+2.1 PTS VS Q2 · TARGET 75</span></div>
+<div style="height:1px;background:#c9ced0"></div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#3f4650"><span>Contracted hours</span><span style="font-family:'Roboto Mono',monospace;font-weight:500">24 900</span></div>
+<div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#3f4650"><span>Billable logged</span><span style="font-family:'Roboto Mono',monospace;font-weight:500">18 240</span></div>
+<div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#3f4650"><span>Non-billable logged</span><span style="font-family:'Roboto Mono',monospace;font-weight:500">4 850</span></div>
+<div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#3f4650"><span>Absence &amp; holiday</span><span style="font-family:'Roboto Mono',monospace;font-weight:500">1 810</span></div>
+<div style="display:flex;justify-content:space-between;font:400 12px 'Roboto',sans-serif;color:#a03c26"><span>Unlogged gap</span><span style="font-family:'Roboto Mono',monospace;font-weight:600">1 640</span></div>
+</div>
+<div style="height:1px;background:#c9ced0"></div>
+<div style="display:flex;flex-direction:column;gap:7px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.12em;color:#6f767c">STACK</span><div style="height:18px;display:flex"><div style="width:73%;background:#2a474b"></div><div style="width:19%;background:#8f979d"></div><div style="width:8%;background:repeating-linear-gradient(45deg,#bcc1c4,#bcc1c4 3px,#c9ced0 3px,#c9ced0 6px)"></div></div><span style="font:400 10.5px/1.5 'Roboto Mono',monospace;color:#6f767c">BILLABLE 73% · INTERNAL 19% · GAP 8%</span></div>
+</div>
+<div style="flex:1;min-width:0;padding:18px 22px;display:flex;flex-direction:column;gap:16px">
+<div style="border:1px solid #313842;padding:14px 15px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:10px"><span style="font:600 13px 'Roboto',sans-serif">Weekly billable share</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#6f767c">TARGET LINE AT 75%</span></div>
+<div style="height:120px;display:flex;align-items:flex-end;gap:7px;border-bottom:1px solid #313842;position:relative">
+<div style="position:absolute;left:0;right:0;bottom:75%;height:1px;background:repeating-linear-gradient(90deg,#a03c26,#a03c26 4px,transparent 4px,transparent 8px)"></div>
+<div style="flex:1;height:72%;background:#2a474b"></div><div style="flex:1;height:78%;background:#2a474b"></div><div style="flex:1;height:66%;background:#2a474b"></div><div style="flex:1;height:81%;background:#2a474b"></div><div style="flex:1;height:77%;background:#2a474b"></div><div style="flex:1;height:84%;background:#2a474b"></div><div style="flex:1;height:70%;background:#2a474b"></div><div style="flex:1;height:79%;background:#2a474b"></div><div style="flex:1;height:59%;background:#a03c26"></div><div style="flex:1;height:82%;background:#2a474b"></div><div style="flex:1;height:75%;background:#2a474b"></div><div style="flex:1;height:71%;background:repeating-linear-gradient(135deg,#2a474b,#2a474b 4px,#91c2b7 4px,#91c2b7 8px)"></div>
+</div>
+<div style="display:flex;justify-content:space-between;font:400 10px 'Roboto Mono',monospace;color:#8f979d"><span>W20</span><span>W23</span><span>W26</span><span>W29</span><span>W31</span></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="border:1px solid #bcc1c4;padding:13px 15px;display:flex;flex-direction:column;gap:10px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Workload next 4 weeks</span>
+<div style="display:flex;flex-direction:column;gap:8px;font:400 12px 'Roboto',sans-serif;color:#3f4650">
+<div style="display:flex;align-items:center;gap:10px"><span style="width:96px">Over 105%</span><span style="flex:1;height:14px;background:#e6e9ea;display:block"><span style="display:block;width:15%;height:100%;background:#a03c26"></span></span><span style="font:500 11.5px 'Roboto Mono',monospace;width:26px;text-align:right">6</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:96px">80–105%</span><span style="flex:1;height:14px;background:#e6e9ea;display:block"><span style="display:block;width:66%;height:100%;background:#2a474b"></span></span><span style="font:500 11.5px 'Roboto Mono',monospace;width:26px;text-align:right">27</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:96px">Under 60%</span><span style="flex:1;height:14px;background:#e6e9ea;display:block"><span style="display:block;width:8%;height:100%;background:#b5860f"></span></span><span style="font:500 11.5px 'Roboto Mono',monospace;width:26px;text-align:right">3</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:96px">On leave</span><span style="flex:1;height:14px;background:#e6e9ea;display:block"><span style="display:block;width:12%;height:100%;background:repeating-linear-gradient(45deg,#bcc1c4,#bcc1c4 3px,#c9ced0 3px,#c9ced0 6px)"></span></span><span style="font:500 11.5px 'Roboto Mono',monospace;width:26px;text-align:right">5</span></div>
+</div>
+</div>
+<div style="border:1px solid #bcc1c4;padding:13px 15px;display:flex;flex-direction:column;gap:10px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Projects needing a decision</span>
+<div style="display:flex;flex-direction:column;gap:9px;font:400 12px 'Roboto',sans-serif">
+<div style="display:flex;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px solid #e6e9ea"><span>Site risk assessment 2026<span style="color:#8f979d"> · Nordwerk</span></span><span style="font:600 11.5px 'Roboto Mono',monospace;color:#a03c26">97% · +148 H</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px solid #e6e9ea"><span>ISO 45001 readiness<span style="color:#8f979d"> · Halbach</span></span><span style="font:600 11.5px 'Roboto Mono',monospace;color:#b5860f">92% · +12 H</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px solid #e6e9ea"><span>Emissions review<span style="color:#8f979d"> · Kern Chemie</span></span><span style="font:600 11.5px 'Roboto Mono',monospace;color:#b5860f">91%</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px"><span>Fire safety retrofit<span style="color:#8f979d"> · Stadtwerke</span></span><span style="font:600 11.5px 'Roboto Mono',monospace;color:#b5860f">90%</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="1c" style="display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11.5px 'Roboto',sans-serif;color:rgba(0,0,0,.58)"><span style="font:600 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#313842;border-radius:5px">1c</span>Team-lead dashboard — own team, workload grid and approvals</div>
+<div style="width:1440px;background:#2a3038;border:1px solid rgba(0,0,0,.14);border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.14);overflow:hidden;display:flex;color:#f2f3f4">
+<div style="width:210px;flex:none;background:#23282f;border-right:1px solid #414954;padding:16px 0;display:flex;flex-direction:column;gap:18px">
+<div style="padding:0 16px;display:flex;align-items:center;gap:9px"><img src="uploads/HSE%20Health%20%26%20Safety%20Experts%20GmbH%20_Logo%20ohne%20Hintergrund%20499x499px.png" alt="HSE" style="width:26px;height:26px;display:block"></img><span style="display:flex;flex-direction:column;line-height:1.15"><span style="font:700 12.5px 'Roboto',sans-serif;letter-spacing:.02em;color:#f2f3f4">HSE HUB</span><span style="font:400 8.5px 'Roboto Mono',monospace;letter-spacing:.14em;color:#8f979d">HEALTH &amp; SAFETY EXPERTS</span></span></div>
+<div style="margin:0 16px;padding:9px 10px;border:1px solid #4d5661;display:flex;flex-direction:column;gap:3px"><span style="font:400 9.5px 'Roboto Mono',monospace;letter-spacing:.12em;color:#8f979d">SIGNED IN AS</span><span style="font:500 12px 'Roboto',sans-serif">Team lead · Safety consulting</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#8f979d">SCOPE: 8 PEOPLE</span></div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="padding:6px 16px;font:500 12.5px 'Roboto',sans-serif;background:#3d4550;border-left:2px solid #91c2b7">My team</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4;display:flex;align-items:center;gap:7px">Approvals <span style="font:500 10px 'Roboto Mono',monospace;background:#e0603f;color:#140805;padding:1px 5px">7</span></div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Team projects</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Absences</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Certificates</div>
+</div>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="padding:15px 24px;border-bottom:1px solid #414954;display:flex;align-items:center"><div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 16.5px 'Roboto',sans-serif">Safety consulting – week 31</span><span style="font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">LEAD S. OTT · 8 PEOPLE · 3 PROJECTS</span></div><div style="margin-left:auto;display:flex;gap:8px"><div style="padding:6px 11px;border:1px solid #4d5661;border-radius:4px;font:500 11.5px 'Roboto',sans-serif;color:#dcdfe1">Week 31</div><div style="padding:6px 11px;background:#91c2b7;border-radius:4px;font:600 11.5px 'Roboto',sans-serif;color:#1c2427">Approve all clean</div></div></div>
+<div style="padding:18px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #414954;background:#363d48">
+<div style="padding:12px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:5px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">TEAM UTILISATION</span><span style="font:600 23px 'Roboto Mono',monospace">76%</span></div>
+<div style="padding:12px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:5px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">UNSUBMITTED TIMESHEETS</span><span style="font:600 23px 'Roboto Mono',monospace;color:#d9a13b">3</span></div>
+<div style="padding:12px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:5px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">OVERDUE TASKS</span><span style="font:600 23px 'Roboto Mono',monospace;color:#e0603f">14</span></div>
+<div style="padding:12px 15px;display:flex;flex-direction:column;gap:5px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">ABSENCE NEXT 2 WEEKS</span><span style="font:600 23px 'Roboto Mono',monospace">2 <span style="font-size:12px;color:#a7aeb3">PEOPLE</span></span></div>
+</div>
+
+<div style="border:1px solid #414954;background:#363d48">
+<div style="padding:11px 16px;border-bottom:1px solid #414954;display:flex;align-items:baseline;gap:10px"><span style="font:600 12.5px 'Roboto',sans-serif">Workload &amp; booking</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">PLANNED H PER WEEK · CONTRACT H MINUS ABSENCE</span></div>
+<div style="display:grid;grid-template-columns:1.6fr repeat(4,.8fr) 1.1fr 1.4fr;font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#8f979d;padding:8px 16px;border-bottom:1px solid #414954;background:#2b313a"><span>PERSON</span><span style="text-align:center">W31</span><span style="text-align:center">W32</span><span style="text-align:center">W33</span><span style="text-align:center">W34</span><span style="text-align:right">TIMESHEET</span><span style="text-align:right">CERTIFICATES</span></div>
+<div style="display:grid;grid-template-columns:1.6fr repeat(4,.8fr) 1.1fr 1.4fr;align-items:center;padding:8px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span style="display:flex;align-items:center;gap:9px"><span style="width:23px;height:23px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px);display:block"></span><span style="font-weight:500">A. Brandt</span></span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#e0603f;color:#140805;padding:4px 0;margin:0 3px">46</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#4a251d;color:#f0a08c;padding:4px 0;margin:0 3px">42</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">36</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">32</span><span style="text-align:right;font:500 11px 'Roboto Mono',monospace;color:#91c2b7">SUBMITTED</span><span style="text-align:right;font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">OK</span></div>
+<div style="display:grid;grid-template-columns:1.6fr repeat(4,.8fr) 1.1fr 1.4fr;align-items:center;padding:8px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span style="display:flex;align-items:center;gap:9px"><span style="width:23px;height:23px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px);display:block"></span><span style="font-weight:500">J. Weiß</span></span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">38</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">37</span><span style="text-align:center;font:500 10.5px 'Roboto Mono',monospace;background:#3a414c;color:#a7aeb3;padding:4px 0;margin:0 3px">LEAVE</span><span style="text-align:center;font:500 10.5px 'Roboto Mono',monospace;background:#3a414c;color:#a7aeb3;padding:4px 0;margin:0 3px">LEAVE</span><span style="text-align:right;font:500 11px 'Roboto Mono',monospace;color:#d9a13b">MISSING 4 H</span><span style="text-align:right;font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">OK</span></div>
+<div style="display:grid;grid-template-columns:1.6fr repeat(4,.8fr) 1.1fr 1.4fr;align-items:center;padding:8px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span style="display:flex;align-items:center;gap:9px"><span style="width:23px;height:23px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px);display:block"></span><span style="font-weight:500">P. Novak</span></span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">34</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#3a2f11;color:#e5be6a;padding:4px 0;margin:0 3px">22</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#3a2f11;color:#e5be6a;padding:4px 0;margin:0 3px">18</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#3a2f11;color:#e5be6a;padding:4px 0;margin:0 3px">14</span><span style="text-align:right;font:500 11px 'Roboto Mono',monospace;color:#91c2b7">SUBMITTED</span><span style="text-align:right;font:500 11px 'Roboto Mono',monospace;color:#e0603f">SIFA EXP 12 SEP</span></div>
+<div style="display:grid;grid-template-columns:1.6fr repeat(4,.8fr) 1.1fr 1.4fr;align-items:center;padding:8px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span style="display:flex;align-items:center;gap:9px"><span style="width:23px;height:23px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px);display:block"></span><span style="font-weight:500">R. Yilmaz</span></span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">40</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">39</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">36</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#3a2f11;color:#e5be6a;padding:4px 0;margin:0 3px">24</span><span style="text-align:right;font:500 11px 'Roboto Mono',monospace;color:#d9a13b">NOT SUBMITTED</span><span style="text-align:right;font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">OK</span></div>
+<div style="display:grid;grid-template-columns:1.6fr repeat(4,.8fr) 1.1fr 1.4fr;align-items:center;padding:8px 16px;font:400 12.5px 'Roboto',sans-serif"><span style="display:flex;align-items:center;gap:9px"><span style="width:23px;height:23px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px);display:block"></span><span style="font-weight:500">C. Haas</span></span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">36</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">35</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">38</span><span style="text-align:center;font:500 11.5px 'Roboto Mono',monospace;background:#2a474b;color:#b4d6ce;padding:4px 0;margin:0 3px">34</span><span style="text-align:right;font:500 11px 'Roboto Mono',monospace;color:#91c2b7">SUBMITTED</span><span style="text-align:right;font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">OK</span></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:11px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Needs your decision</span>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:#2b313a;border:1px solid #414954"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:500 12px 'Roboto',sans-serif">A. Brandt – 46 h in week 30</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">6 H OVER CONTRACT · NORDWERK AG</span></div><span style="font:500 11px 'Roboto',sans-serif;color:#dcdfe1;padding:5px 9px;border:1px solid #4d5661">Review</span><span style="font:600 11px 'Roboto',sans-serif;color:#1c2427;padding:5px 9px;background:#91c2b7">Approve</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:#2b313a;border:1px solid #414954"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:500 12px 'Roboto',sans-serif">Holiday request – J. Weiß, W33–W34</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">CLASHES WITH HALBACH MILESTONE</span></div><span style="font:500 11px 'Roboto',sans-serif;color:#dcdfe1;padding:5px 9px;border:1px solid #4d5661">Review</span><span style="font:600 11px 'Roboto',sans-serif;color:#1c2427;padding:5px 9px;background:#91c2b7">Approve</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:#2b313a;border:1px solid #414954"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:500 12px 'Roboto',sans-serif">SiFa certificate expiring – P. Novak</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">BLOCKS 3 ASSIGNMENTS AFTER 12 SEP</span></div><span style="font:500 11px 'Roboto',sans-serif;color:#dcdfe1;padding:5px 9px;border:1px solid #4d5661">Schedule</span></div>
+</div>
+</div>
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:11px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Team projects</span>
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between;font:400 12.5px 'Roboto',sans-serif"><span style="font-weight:500">Site risk assessment 2026</span><span style="font-family:'Roboto Mono',monospace;color:#e0603f">1 164 / 1 200 h</span></div><div style="height:5px;background:#414954"><div style="width:97%;height:100%;background:#e0603f"></div></div><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">18 OPEN TASKS · 6 OVERDUE</span></div>
+<div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between;font:400 12.5px 'Roboto',sans-serif"><span style="font-weight:500">Noise mapping – plant 2</span><span style="font-family:'Roboto Mono',monospace;color:#dcdfe1">402 / 560 h</span></div><div style="height:5px;background:#414954"><div style="width:72%;height:100%;background:#91c2b7"></div></div><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">11 OPEN TASKS · ON PLAN</span></div>
+<div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between;font:400 12.5px 'Roboto',sans-serif"><span style="font-weight:500">Hazardous substances audit</span><span style="font-family:'Roboto Mono',monospace;color:#dcdfe1">118 / 320 h</span></div><div style="height:5px;background:#414954"><div style="width:37%;height:100%;background:#91c2b7"></div></div><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">KICK-OFF 18 AUG</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="1d" style="display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11.5px 'Roboto',sans-serif;color:rgba(0,0,0,.58)"><span style="font:600 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#313842;border-radius:5px">1d</span>Employee directory with the profile open — Factorial record joined to hours and assignments</div>
+<div style="width:1440px;background:#2a3038;border:1px solid rgba(0,0,0,.14);border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.14);overflow:hidden;display:flex;color:#f2f3f4">
+<div style="width:210px;flex:none;background:#23282f;border-right:1px solid #414954;padding:16px 0;display:flex;flex-direction:column;gap:20px">
+<div style="padding:0 16px;display:flex;align-items:center;gap:9px"><img src="uploads/HSE%20Health%20%26%20Safety%20Experts%20GmbH%20_Logo%20ohne%20Hintergrund%20499x499px.png" alt="HSE" style="width:26px;height:26px;display:block"></img><span style="display:flex;flex-direction:column;line-height:1.15"><span style="font:700 12.5px 'Roboto',sans-serif;letter-spacing:.02em;color:#f2f3f4">HSE HUB</span><span style="font:400 8.5px 'Roboto Mono',monospace;letter-spacing:.14em;color:#8f979d">HEALTH &amp; SAFETY EXPERTS</span></span></div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="padding:7px 16px;font:400 9.5px 'Roboto Mono',monospace;letter-spacing:.12em;color:#8f979d">RECORDS</div>
+<div style="padding:6px 16px;font:500 12.5px 'Roboto',sans-serif;background:#3d4550;border-left:2px solid #91c2b7">People</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Customers</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Projects</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Contracts</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Timesheets</div>
+</div>
+</div>
+
+<div style="width:330px;flex:none;border-right:1px solid #414954;display:flex;flex-direction:column">
+<div style="padding:14px 16px;border-bottom:1px solid #414954;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 15px 'Roboto',sans-serif">People</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">41 ACTIVE</span></div>
+<div style="padding:7px 10px;border:1px solid #4d5661;font:400 12px 'Roboto',sans-serif;color:#8f979d">Search name, role, certificate…</div>
+<div style="display:flex;gap:6px;font:400 10.5px 'Roboto Mono',monospace"><span style="padding:4px 8px;background:#91c2b7;color:#1c2427">ALL</span><span style="padding:4px 8px;border:1px solid #4d5661;color:#bcc1c4">SAFETY</span><span style="padding:4px 8px;border:1px solid #4d5661;color:#bcc1c4">ENG</span><span style="padding:4px 8px;border:1px solid #4d5661;color:#bcc1c4">LAB</span></div>
+</div>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #3a414c;background:#3d4550;border-left:2px solid #91c2b7"><div style="width:30px;height:30px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="flex:1;display:flex;flex-direction:column"><span style="font:500 12.5px 'Roboto',sans-serif">A. Brandt</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">SENIOR SAFETY CONSULTANT</span></div><span style="font:500 11px 'Roboto Mono',monospace;color:#e0603f">115%</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #3a414c"><div style="width:30px;height:30px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="flex:1;display:flex;flex-direction:column"><span style="font:500 12.5px 'Roboto',sans-serif">C. Haas</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">SAFETY CONSULTANT</span></div><span style="font:500 11px 'Roboto Mono',monospace;color:#91c2b7">92%</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #3a414c"><div style="width:30px;height:30px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="flex:1;display:flex;flex-direction:column"><span style="font:500 12.5px 'Roboto',sans-serif">L. Fischer</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">TEAM LEAD TRAINING</span></div><span style="font:500 11px 'Roboto Mono',monospace;color:#91c2b7">88%</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #3a414c"><div style="width:30px;height:30px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="flex:1;display:flex;flex-direction:column"><span style="font:500 12.5px 'Roboto',sans-serif">P. Novak</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">MEASUREMENT ENGINEER</span></div><span style="font:500 11px 'Roboto Mono',monospace;color:#d9a13b">58%</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #3a414c"><div style="width:30px;height:30px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="flex:1;display:flex;flex-direction:column"><span style="font:500 12.5px 'Roboto',sans-serif">R. Yilmaz</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">SAFETY CONSULTANT</span></div><span style="font:500 11px 'Roboto Mono',monospace;color:#91c2b7">97%</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #3a414c"><div style="width:30px;height:30px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="flex:1;display:flex;flex-direction:column"><span style="font:500 12.5px 'Roboto',sans-serif">S. Ott</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">TEAM LEAD SAFETY</span></div><span style="font:500 11px 'Roboto Mono',monospace;color:#91c2b7">74%</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #3a414c"><div style="width:30px;height:30px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="flex:1;display:flex;flex-direction:column"><span style="font:500 12.5px 'Roboto',sans-serif">T. Bergmann</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">LAB TECHNICIAN</span></div><span style="font:500 11px 'Roboto Mono',monospace;color:#91c2b7">81%</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 16px"><div style="width:30px;height:30px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px)"></div><div style="flex:1;display:flex;flex-direction:column"><span style="font:500 12.5px 'Roboto',sans-serif">J. Weiß</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">JUNIOR CONSULTANT</span></div><span style="font:500 11px 'Roboto Mono',monospace;color:#a7aeb3">LEAVE</span></div>
+</div>
+</div>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="padding:16px 24px;border-bottom:1px solid #414954;display:flex;align-items:flex-start;gap:16px">
+<div style="width:56px;height:56px;border-radius:50%;background:repeating-linear-gradient(45deg,#4a525d,#4a525d 3px,#3c434e 3px,#3c434e 6px);flex:none"></div>
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font:600 19px 'Roboto',sans-serif">Anna Brandt</span><span style="font:400 11px 'Roboto Mono',monospace;color:#a7aeb3">SENIOR SAFETY CONSULTANT · SAFETY CONSULTING · SINCE 03/2021</span><div style="display:flex;gap:7px;margin-top:3px"><span style="font:500 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:#4a251d;color:#f0a08c">OVER CAPACITY</span><span style="font:500 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:#3a414c;color:#bcc1c4">40 H CONTRACT</span><span style="font:500 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:#3a414c;color:#bcc1c4">EMP-0142</span></div></div>
+<div style="margin-left:auto;display:flex;gap:8px"><span style="padding:6px 11px;border:1px solid #4d5661;font:500 11.5px 'Roboto',sans-serif;color:#dcdfe1">Open in Factorial</span><span style="padding:6px 11px;background:#91c2b7;font:600 11.5px 'Roboto',sans-serif;color:#1c2427">Assign to project</span></div>
+</div>
+<div style="padding:18px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #414954;background:#363d48">
+<div style="padding:12px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:5px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">LOGGED THIS MONTH</span><span style="font:600 22px 'Roboto Mono',monospace">168 <span style="font-size:12px;color:#a7aeb3">/ 160 H</span></span></div>
+<div style="padding:12px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:5px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">BILLABLE SHARE</span><span style="font:600 22px 'Roboto Mono',monospace">84%</span></div>
+<div style="padding:12px 15px;border-right:1px solid #414954;display:flex;flex-direction:column;gap:5px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">OPEN TASKS</span><span style="font:600 22px 'Roboto Mono',monospace">23 <span style="font-size:12px;color:#e0603f">· 4 OVERDUE</span></span></div>
+<div style="padding:12px 15px;display:flex;flex-direction:column;gap:5px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">HOLIDAY LEFT</span><span style="font:600 22px 'Roboto Mono',monospace">11 <span style="font-size:12px;color:#a7aeb3">/ 30 D</span></span></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px">
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:10px"><span style="font:600 12.5px 'Roboto',sans-serif">Assignments</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">ASANA · HOURS FROM TRACKINGTIME</span></div>
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#8f979d;padding-bottom:7px;border-bottom:1px solid #414954"><span>PROJECT</span><span style="text-align:right">LOGGED</span><span style="text-align:right">TASKS</span><span style="text-align:right">SHARE</span></div>
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:7px 0;border-bottom:1px solid #3a414c"><span>ISO 45001 readiness</span><span style="text-align:right;font-family:'Roboto Mono',monospace">412 h</span><span style="text-align:right;font-family:'Roboto Mono',monospace">12</span><span style="text-align:right;font-family:'Roboto Mono',monospace">48%</span></div>
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:7px 0;border-bottom:1px solid #3a414c"><span>Site risk assessment 2026</span><span style="text-align:right;font-family:'Roboto Mono',monospace">288 h</span><span style="text-align:right;font-family:'Roboto Mono',monospace">7</span><span style="text-align:right;font-family:'Roboto Mono',monospace">33%</span></div>
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:7px 0;border-bottom:1px solid #3a414c"><span>Hazardous substances audit</span><span style="text-align:right;font-family:'Roboto Mono',monospace">61 h</span><span style="text-align:right;font-family:'Roboto Mono',monospace">4</span><span style="text-align:right;font-family:'Roboto Mono',monospace">7%</span></div>
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;align-items:center;font:400 12.5px 'Roboto',sans-serif;padding:7px 0;color:#bcc1c4"><span>Internal · admin, training</span><span style="text-align:right;font-family:'Roboto Mono',monospace">104 h</span><span style="text-align:right;font-family:'Roboto Mono',monospace">–</span><span style="text-align:right;font-family:'Roboto Mono',monospace">12%</span></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Qualifications</span>
+<div style="display:flex;flex-direction:column;gap:8px;font:400 12px 'Roboto',sans-serif">
+<div style="display:flex;justify-content:space-between"><span>SiFa (Sicherheitsfachkraft)</span><span style="font:400 11px 'Roboto Mono',monospace;color:#91c2b7">VALID 2028</span></div>
+<div style="display:flex;justify-content:space-between"><span>ISO 45001 lead auditor</span><span style="font:400 11px 'Roboto Mono',monospace;color:#91c2b7">VALID 2027</span></div>
+<div style="display:flex;justify-content:space-between"><span>Hazardous substances</span><span style="font:400 11px 'Roboto Mono',monospace;color:#d9a13b">RENEW 03/2027</span></div>
+<div style="display:flex;justify-content:space-between"><span>First aid</span><span style="font:400 11px 'Roboto Mono',monospace;color:#91c2b7">VALID 2027</span></div>
+</div>
+</div>
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:9px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Documents</span>
+<div style="display:flex;gap:8px"><div style="flex:1;height:52px;background:repeating-linear-gradient(45deg,#3a414c,#3a414c 4px,#15191c 4px,#15191c 8px);display:flex;align-items:flex-end;padding:5px"><span style="font:400 9.5px 'Roboto Mono',monospace;color:#8f979d">CONTRACT</span></div><div style="flex:1;height:52px;background:repeating-linear-gradient(45deg,#3a414c,#3a414c 4px,#15191c 4px,#15191c 8px);display:flex;align-items:flex-end;padding:5px"><span style="font:400 9.5px 'Roboto Mono',monospace;color:#8f979d">SIFA CERT</span></div><div style="flex:1;height:52px;background:repeating-linear-gradient(45deg,#3a414c,#3a414c 4px,#15191c 4px,#15191c 8px);display:flex;align-items:flex-end;padding:5px"><span style="font:400 9.5px 'Roboto Mono',monospace;color:#8f979d">NDA</span></div></div>
+<span style="font:400 10.5px 'Roboto Mono',monospace;color:#8f979d">PLACEHOLDER SLOTS · SOURCE FACTORIAL</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="1e" style="display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11.5px 'Roboto',sans-serif;color:rgba(0,0,0,.58)"><span style="font:600 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#313842;border-radius:5px">1e</span>Project record — contract, timeline, burn-down and task-level hours. Same view is the basis of the phase-two customer portal, minus rates.</div>
+<div style="width:1440px;background:#2a3038;border:1px solid rgba(0,0,0,.14);border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.14);overflow:hidden;display:flex;color:#f2f3f4">
+<div style="width:210px;flex:none;background:#23282f;border-right:1px solid #414954;padding:16px 0;display:flex;flex-direction:column;gap:20px">
+<div style="padding:0 16px;display:flex;align-items:center;gap:9px"><img src="uploads/HSE%20Health%20%26%20Safety%20Experts%20GmbH%20_Logo%20ohne%20Hintergrund%20499x499px.png" alt="HSE" style="width:26px;height:26px;display:block"></img><span style="display:flex;flex-direction:column;line-height:1.15"><span style="font:700 12.5px 'Roboto',sans-serif;letter-spacing:.02em;color:#f2f3f4">HSE HUB</span><span style="font:400 8.5px 'Roboto Mono',monospace;letter-spacing:.14em;color:#8f979d">HEALTH &amp; SAFETY EXPERTS</span></span></div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="padding:7px 16px;font:400 9.5px 'Roboto Mono',monospace;letter-spacing:.12em;color:#8f979d">RECORDS</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">People</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Customers</div>
+<div style="padding:6px 16px;font:500 12.5px 'Roboto',sans-serif;background:#3d4550;border-left:2px solid #91c2b7">Projects</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Contracts</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Timesheets</div>
+</div>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="padding:15px 24px;border-bottom:1px solid #414954;display:flex;align-items:flex-start;gap:16px">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font:400 10.5px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">NORDWERK AG · PRJ-2026-014 · T&amp;M</span><span style="font:600 19px 'Roboto',sans-serif">Site risk assessment 2026</span><div style="display:flex;gap:7px;margin-top:3px"><span style="font:500 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:#4a251d;color:#f0a08c">BUDGET CRITICAL</span><span style="font:500 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:#3a414c;color:#bcc1c4">LEAD S. OTT</span><span style="font:500 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:#3a414c;color:#bcc1c4">5 PEOPLE</span></div></div>
+<div style="margin-left:auto;display:flex;gap:20px;padding-top:2px">
+<div style="display:flex;flex-direction:column;gap:2px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">CONTRACTED</span><span style="font:600 18px 'Roboto Mono',monospace">1 200 h</span></div>
+<div style="display:flex;flex-direction:column;gap:2px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">LOGGED</span><span style="font:600 18px 'Roboto Mono',monospace">1 164 h</span></div>
+<div style="display:flex;flex-direction:column;gap:2px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">REMAINING</span><span style="font:600 18px 'Roboto Mono',monospace;color:#e0603f">36 h</span></div>
+<div style="display:flex;flex-direction:column;gap:2px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">FORECAST</span><span style="font:600 18px 'Roboto Mono',monospace;color:#e0603f">+148 h</span></div>
+</div>
+</div>
+<div style="padding:18px 24px;display:flex;flex-direction:column;gap:16px">
+
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:10px"><span style="font:600 12.5px 'Roboto',sans-serif">Hours burn-down</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">SIGNED 12 JAN · PLANNED END 30 SEP</span><span style="margin-left:auto;display:flex;gap:14px;font:400 10.5px 'Roboto Mono',monospace;color:#bcc1c4"><span style="display:flex;align-items:center;gap:5px"><span style="width:14px;height:2px;background:#8f979d"></span>PLANNED</span><span style="display:flex;align-items:center;gap:5px"><span style="width:14px;height:2px;background:#91c2b7"></span>ACTUAL</span><span style="display:flex;align-items:center;gap:5px"><span style="width:14px;height:2px;background:#e0603f"></span>FORECAST</span></span></div>
+<div style="height:170px;position:relative;border-left:1px solid #4d5661;border-bottom:1px solid #4d5661">
+<div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 24.5%,#3a414c 24.5%,#3a414c 25%,transparent 25%,transparent 49.5%,#3a414c 49.5%,#3a414c 50%,transparent 50%,transparent 74.5%,#3a414c 74.5%,#3a414c 75%,transparent 75%)"></div>
+<svg viewBox="0 0 900 170" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+<polyline points="0,4 100,23 200,42 300,61 400,80 500,99 600,118 700,137 800,156 900,166" fill="none" stroke="#8f979d" stroke-width="2" stroke-dasharray="6 5"></polyline>
+<polyline points="0,4 90,16 180,32 270,41 360,63 450,72 540,92 630,104 700,128 760,161" fill="none" stroke="#91c2b7" stroke-width="2.5"></polyline>
+<polyline points="760,161 830,190 900,214" fill="none" stroke="#e0603f" stroke-width="2.5" stroke-dasharray="5 4"></polyline>
+<circle cx="760" cy="161" r="4" fill="#91c2b7"></circle>
+</svg>
+<div style="position:absolute;left:78%;top:0;bottom:0;width:1px;background:#616a75"></div>
+<div style="position:absolute;left:calc(78% + 8px);top:6px;font:400 10px 'Roboto Mono',monospace;color:#bcc1c4">TODAY · 36 H LEFT</div>
+</div>
+<div style="display:flex;justify-content:space-between;font:400 10px 'Roboto Mono',monospace;color:#8f979d"><span>JAN</span><span>MAR</span><span>MAY</span><span>JUL</span><span>SEP</span><span style="color:#e0603f">OVERRUN NOV</span></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px">
+<div style="border:1px solid #414954;background:#363d48">
+<div style="padding:11px 16px;border-bottom:1px solid #414954;display:flex;align-items:baseline;gap:10px"><span style="font:600 12.5px 'Roboto',sans-serif">Tasks &amp; hours</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">ASANA SECTIONS · 18 OPEN OF 64</span></div>
+<div style="display:grid;grid-template-columns:2.4fr .9fr .9fr 1fr 1fr;font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#8f979d;padding:8px 16px;border-bottom:1px solid #414954;background:#2b313a"><span>TASK</span><span style="text-align:right">EST</span><span style="text-align:right">LOGGED</span><span style="text-align:right">STATUS</span><span style="text-align:right">OWNER</span></div>
+<div style="display:grid;grid-template-columns:2.4fr .9fr .9fr 1fr 1fr;align-items:center;padding:9px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span>Walkthrough plant 1–4</span><span style="text-align:right;font-family:'Roboto Mono',monospace;color:#bcc1c4">320</span><span style="text-align:right;font-family:'Roboto Mono',monospace">341</span><span style="text-align:right;font:500 10.5px 'Roboto Mono',monospace;color:#91c2b7">DONE</span><span style="text-align:right;color:#bcc1c4">A. Brandt</span></div>
+<div style="display:grid;grid-template-columns:2.4fr .9fr .9fr 1fr 1fr;align-items:center;padding:9px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span>Hazard register update</span><span style="text-align:right;font-family:'Roboto Mono',monospace;color:#bcc1c4">280</span><span style="text-align:right;font-family:'Roboto Mono',monospace">294</span><span style="text-align:right;font:500 10.5px 'Roboto Mono',monospace;color:#91c2b7">DONE</span><span style="text-align:right;color:#bcc1c4">R. Yilmaz</span></div>
+<div style="display:grid;grid-template-columns:2.4fr .9fr .9fr 1fr 1fr;align-items:center;padding:9px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span>Measurement campaign</span><span style="text-align:right;font-family:'Roboto Mono',monospace;color:#bcc1c4">240</span><span style="text-align:right;font-family:'Roboto Mono',monospace">318</span><span style="text-align:right;font:500 10.5px 'Roboto Mono',monospace;color:#e0603f">OVER 33%</span><span style="text-align:right;color:#bcc1c4">P. Novak</span></div>
+<div style="display:grid;grid-template-columns:2.4fr .9fr .9fr 1fr 1fr;align-items:center;padding:9px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span>Report &amp; recommendations</span><span style="text-align:right;font-family:'Roboto Mono',monospace;color:#bcc1c4">240</span><span style="text-align:right;font-family:'Roboto Mono',monospace">168</span><span style="text-align:right;font:500 10.5px 'Roboto Mono',monospace;color:#d9a13b">IN PROGRESS</span><span style="text-align:right;color:#bcc1c4">A. Brandt</span></div>
+<div style="display:grid;grid-template-columns:2.4fr .9fr .9fr 1fr 1fr;align-items:center;padding:9px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span>Customer workshop</span><span style="text-align:right;font-family:'Roboto Mono',monospace;color:#bcc1c4">80</span><span style="text-align:right;font-family:'Roboto Mono',monospace">43</span><span style="text-align:right;font:500 10.5px 'Roboto Mono',monospace;color:#d9a13b">IN PROGRESS</span><span style="text-align:right;color:#bcc1c4">S. Ott</span></div>
+<div style="display:grid;grid-template-columns:2.4fr .9fr .9fr 1fr 1fr;align-items:center;padding:9px 16px;font:400 12.5px 'Roboto',sans-serif"><span>Sign-off &amp; handover</span><span style="text-align:right;font-family:'Roboto Mono',monospace;color:#bcc1c4">40</span><span style="text-align:right;font-family:'Roboto Mono',monospace">0</span><span style="text-align:right;font:500 10.5px 'Roboto Mono',monospace;color:#a7aeb3">NOT STARTED</span><span style="text-align:right;color:#bcc1c4">S. Ott</span></div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:11px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Timeline</span>
+<div style="display:flex;flex-direction:column;gap:8px;font:400 11.5px 'Roboto',sans-serif">
+<div style="display:flex;align-items:center;gap:9px"><span style="width:74px;font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">JAN–MAR</span><span style="flex:1;height:11px;background:#414954;display:block"><span style="display:block;width:100%;height:100%;background:#91c2b7"></span></span><span style="width:74px;text-align:right;color:#bcc1c4">Survey</span></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:74px;font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">MAR–JUN</span><span style="flex:1;height:11px;background:#414954;display:block"><span style="display:block;width:100%;height:100%;background:#91c2b7"></span></span><span style="width:74px;text-align:right;color:#bcc1c4">Register</span></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:74px;font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">JUN–AUG</span><span style="flex:1;height:11px;background:#414954;display:block"><span style="display:block;width:82%;height:100%;background:#d9a13b"></span></span><span style="width:74px;text-align:right;color:#bcc1c4">Reporting</span></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:74px;font:400 10.5px 'Roboto Mono',monospace;color:#a7aeb3">SEP</span><span style="flex:1;height:11px;background:#414954;display:block"><span style="display:block;width:0;height:100%;background:#91c2b7"></span></span><span style="width:74px;text-align:right;color:#bcc1c4">Handover</span></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:74px;font:400 10.5px 'Roboto Mono',monospace;color:#e0603f">OCT–NOV</span><span style="flex:1;height:11px;background:repeating-linear-gradient(45deg,#4a251d,#4a251d 4px,#2a1613 4px,#2a1613 8px);display:block"></span><span style="width:74px;text-align:right;color:#f0a08c">Forecast</span></div>
+</div>
+</div>
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:9px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Contract &amp; documents</span>
+<div style="display:flex;flex-direction:column;gap:7px;font:400 12px 'Roboto',sans-serif">
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">Contract value</span><span style="font-family:'Roboto Mono',monospace">€138 000</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">Invoiced to date</span><span style="font-family:'Roboto Mono',monospace">€121 400</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">Change requests</span><span style="font-family:'Roboto Mono',monospace;color:#d9a13b">1 pending</span></div>
+</div>
+<div style="display:flex;gap:8px;margin-top:2px"><div style="flex:1;height:48px;background:repeating-linear-gradient(45deg,#3a414c,#3a414c 4px,#15191c 4px,#15191c 8px);display:flex;align-items:flex-end;padding:5px"><span style="font:400 9.5px 'Roboto Mono',monospace;color:#8f979d">CONTRACT</span></div><div style="flex:1;height:48px;background:repeating-linear-gradient(45deg,#3a414c,#3a414c 4px,#15191c 4px,#15191c 8px);display:flex;align-items:flex-end;padding:5px"><span style="font:400 9.5px 'Roboto Mono',monospace;color:#8f979d">CR-01</span></div><div style="flex:1;height:48px;background:repeating-linear-gradient(45deg,#3a414c,#3a414c 4px,#15191c 4px,#15191c 8px);display:flex;align-items:flex-end;padding:5px"><span style="font:400 9.5px 'Roboto Mono',monospace;color:#8f979d">REPORT</span></div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="1f" style="display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11.5px 'Roboto',sans-serif;color:rgba(0,0,0,.58)"><span style="font:600 10.5px 'Roboto Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#313842;border-radius:5px">1f</span>Timesheet — own week, entries mirrored from TrackingTime, submitted to the team lead</div>
+<div style="width:1440px;background:#2a3038;border:1px solid rgba(0,0,0,.14);border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.14);overflow:hidden;display:flex;color:#f2f3f4">
+<div style="width:210px;flex:none;background:#23282f;border-right:1px solid #414954;padding:16px 0;display:flex;flex-direction:column;gap:18px">
+<div style="padding:0 16px;display:flex;align-items:center;gap:9px"><img src="uploads/HSE%20Health%20%26%20Safety%20Experts%20GmbH%20_Logo%20ohne%20Hintergrund%20499x499px.png" alt="HSE" style="width:26px;height:26px;display:block"></img><span style="display:flex;flex-direction:column;line-height:1.15"><span style="font:700 12.5px 'Roboto',sans-serif;letter-spacing:.02em;color:#f2f3f4">HSE HUB</span><span style="font:400 8.5px 'Roboto Mono',monospace;letter-spacing:.14em;color:#8f979d">HEALTH &amp; SAFETY EXPERTS</span></span></div>
+<div style="margin:0 16px;padding:9px 10px;border:1px solid #4d5661;display:flex;flex-direction:column;gap:3px"><span style="font:400 9.5px 'Roboto Mono',monospace;letter-spacing:.12em;color:#8f979d">SIGNED IN AS</span><span style="font:500 12px 'Roboto',sans-serif">A. Brandt</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#8f979d">ROLE: EMPLOYEE</span></div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">My week</div>
+<div style="padding:6px 16px;font:500 12.5px 'Roboto',sans-serif;background:#3d4550;border-left:2px solid #91c2b7">Timesheet</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">My tasks</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">Absence</div>
+<div style="padding:6px 18px;font:400 12.5px 'Roboto',sans-serif;color:#bcc1c4">My profile</div>
+</div>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="padding:15px 24px;border-bottom:1px solid #414954;display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 16.5px 'Roboto',sans-serif">Week 31 · 27 Jul – 2 Aug</span><span style="font:400 11px 'Roboto Mono',monospace;color:#d9a13b">DRAFT · DUE MONDAY 09:00</span></div>
+<div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">LOGGED / CONTRACT</span><span style="font:600 18px 'Roboto Mono',monospace;color:#e0603f">46.0 / 40.0 h</span></div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#a7aeb3">BILLABLE</span><span style="font:600 18px 'Roboto Mono',monospace">39.5 h · 86%</span></div>
+<span style="padding:7px 12px;border:1px solid #4d5661;font:500 11.5px 'Roboto',sans-serif;color:#dcdfe1">Add entry</span>
+<span style="padding:7px 12px;background:#91c2b7;font:600 11.5px 'Roboto',sans-serif;color:#1c2427">Submit week</span>
+</div>
+</div>
+<div style="padding:18px 24px;display:flex;flex-direction:column;gap:16px">
+
+<div style="border:1px solid #414954;background:#363d48">
+<div style="display:grid;grid-template-columns:2.4fr 1.3fr repeat(7,.62fr) .8fr;font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#8f979d;padding:9px 16px;border-bottom:1px solid #414954;background:#2b313a"><span>PROJECT / TASK</span><span>CUSTOMER</span><span style="text-align:center">MO 27</span><span style="text-align:center">TU 28</span><span style="text-align:center">WE 29</span><span style="text-align:center">TH 30</span><span style="text-align:center">FR 31</span><span style="text-align:center">SA 1</span><span style="text-align:center">SU 2</span><span style="text-align:right">TOTAL</span></div>
+
+<div style="display:grid;grid-template-columns:2.4fr 1.3fr repeat(7,.62fr) .8fr;align-items:center;padding:10px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">Report &amp; recommendations</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#8f979d">SITE RISK ASSESSMENT 2026 · BILLABLE</span></span><span style="color:#bcc1c4">Nordwerk AG</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace">6.0</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace">7.5</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace">4.0</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace">8.0</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace">2.0</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:right;font:600 12.5px 'Roboto Mono',monospace">27.5</span></div>
+
+<div style="display:grid;grid-template-columns:2.4fr 1.3fr repeat(7,.62fr) .8fr;align-items:center;padding:10px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">Gap analysis workshop</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#8f979d">ISO 45001 READINESS · BILLABLE</span></span><span style="color:#bcc1c4">Halbach Werke</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace">2.0</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace">4.5</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace">5.5</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:right;font:600 12.5px 'Roboto Mono',monospace">12.0</span></div>
+
+<div style="display:grid;grid-template-columns:2.4fr 1.3fr repeat(7,.62fr) .8fr;align-items:center;padding:10px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">Internal · team meeting, admin</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#8f979d">NON-BILLABLE</span></span><span style="color:#616a75">–</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace;color:#bcc1c4">1.5</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace;color:#bcc1c4">1.0</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace;color:#bcc1c4">2.0</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:right;font:600 12.5px 'Roboto Mono',monospace;color:#bcc1c4">4.5</span></div>
+
+<div style="display:grid;grid-template-columns:2.4fr 1.3fr repeat(7,.62fr) .8fr;align-items:center;padding:10px 16px;border-bottom:1px solid #3a414c;font:400 12.5px 'Roboto',sans-serif;background:#3d4550;border-left:2px solid #d9a13b"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">Travel · plant 2 site visit</span><span style="font:400 10.5px 'Roboto Mono',monospace;color:#d9a13b">NEEDS PROJECT ASSIGNMENT</span></span><span style="color:#616a75">–</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:500 12px 'Roboto Mono',monospace;color:#e5be6a">2.0</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:center;font:400 12px 'Roboto Mono',monospace;color:#616a75">–</span><span style="text-align:right;font:600 12.5px 'Roboto Mono',monospace;color:#e5be6a">2.0</span></div>
+
+<div style="display:grid;grid-template-columns:2.4fr 1.3fr repeat(7,.62fr) .8fr;align-items:center;padding:11px 16px;background:#2b313a;font:400 12.5px 'Roboto',sans-serif"><span style="font:400 10px 'Roboto Mono',monospace;letter-spacing:.1em;color:#8f979d">DAY TOTAL</span><span></span><span style="text-align:center;font:600 12.5px 'Roboto Mono',monospace">7.5</span><span style="text-align:center;font:600 12.5px 'Roboto Mono',monospace">9.5</span><span style="text-align:center;font:600 12.5px 'Roboto Mono',monospace">9.5</span><span style="text-align:center;font:600 12.5px 'Roboto Mono',monospace;color:#e0603f">10.0</span><span style="text-align:center;font:600 12.5px 'Roboto Mono',monospace">9.5</span><span style="text-align:center;font:600 12.5px 'Roboto Mono',monospace;color:#616a75">0.0</span><span style="text-align:center;font:600 12.5px 'Roboto Mono',monospace;color:#616a75">0.0</span><span style="text-align:right;font:600 14px 'Roboto Mono',monospace;color:#e0603f">46.0</span></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:11px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Before you submit</span>
+<div style="display:flex;flex-direction:column;gap:8px;font:400 12px 'Roboto',sans-serif">
+<div style="display:flex;gap:9px;align-items:flex-start"><span style="width:5px;height:5px;background:#d9a13b;margin-top:6px;flex:none"></span><span>2.0 h travel not assigned to a project</span></div>
+<div style="display:flex;gap:9px;align-items:flex-start"><span style="width:5px;height:5px;background:#e0603f;margin-top:6px;flex:none"></span><span>6.0 h over contracted week – lead approval required</span></div>
+<div style="display:flex;gap:9px;align-items:flex-start"><span style="width:5px;height:5px;background:#e0603f;margin-top:6px;flex:none"></span><span>Thursday exceeds 10 h daily limit (ArbZG)</span></div>
+<div style="display:flex;gap:9px;align-items:flex-start"><span style="width:5px;height:5px;background:#91c2b7;margin-top:6px;flex:none"></span><span>All billable entries carry a customer</span></div>
+</div>
+</div>
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:11px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Split this week</span>
+<div style="height:16px;display:flex"><div style="width:86%;background:#91c2b7"></div><div style="width:14%;background:#8a9197"></div></div>
+<div style="display:flex;flex-direction:column;gap:7px;font:400 12px 'Roboto',sans-serif">
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">Billable</span><span style="font-family:'Roboto Mono',monospace">39.5 h</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">Non-billable</span><span style="font-family:'Roboto Mono',monospace">6.5 h</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">Target billable</span><span style="font-family:'Roboto Mono',monospace">75%</span></div>
+</div>
+</div>
+<div style="border:1px solid #414954;background:#363d48;padding:14px 16px;display:flex;flex-direction:column;gap:11px">
+<span style="font:600 12.5px 'Roboto',sans-serif">Recent weeks</span>
+<div style="display:flex;flex-direction:column;gap:8px;font:400 12px 'Roboto',sans-serif">
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">W30</span><span style="font-family:'Roboto Mono',monospace">46.0 h</span><span style="font:500 10.5px 'Roboto Mono',monospace;color:#d9a13b">AWAITING</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">W29</span><span style="font-family:'Roboto Mono',monospace">40.5 h</span><span style="font:500 10.5px 'Roboto Mono',monospace;color:#91c2b7">APPROVED</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">W28</span><span style="font-family:'Roboto Mono',monospace">38.0 h</span><span style="font:500 10.5px 'Roboto Mono',monospace;color:#91c2b7">APPROVED</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:#bcc1c4">W27</span><span style="font-family:'Roboto Mono',monospace">41.0 h</span><span style="font:500 10.5px 'Roboto Mono',monospace;color:#91c2b7">APPROVED</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+<p style="margin:30px 0 0;max-width:760px;font:400 12.5px/1.6 'Roboto',sans-serif;color:rgba(0,0,0,.55);text-wrap:pretty">Phase two (employees working inside the Hub, customer login for contracts, hours and task status) reuses <a href="#1e">1e</a> as its base view with rates and internal notes stripped. Say which of <a href="#1a">1a</a> / <a href="#1b">1b</a> you want to carry forward and I'll take the rest of the screens in that direction.</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-props="{}"></script>
+</body>
+</html>

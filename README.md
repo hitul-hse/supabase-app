@@ -10,7 +10,9 @@ FactorialHR — is documented in
 [`docs/architecture/HSE-HUB-PORTAL.md`](docs/architecture/HSE-HUB-PORTAL.md) (synced from the
 team's Miro architecture board), with the full warehouse data-model reference (tables,
 columns, referential integrity, RLS, open questions, glossary) in
-[`docs/architecture/HSE-HUB-SCHEMA.md`](docs/architecture/HSE-HUB-SCHEMA.md).
+[`docs/architecture/HSE-HUB-SCHEMA.md`](docs/architecture/HSE-HUB-SCHEMA.md). UI direction
+is being explored in [`docs/design/hse-hub-mockup/`](docs/design/hse-hub-mockup/) (open
+`HSE Hub.dc.html` in a browser).
 
 ## Stack
 

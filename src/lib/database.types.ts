@@ -103,8 +103,8 @@ export type Database = {
         Relationships: [];
       };
     };
-    Functions: Record<string, unknown>;
-    Enums: Record<string, unknown>;
-    CompositeTypes: Record<string, unknown>;
+    Functions: { [_ in never]: never };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
   };
 };

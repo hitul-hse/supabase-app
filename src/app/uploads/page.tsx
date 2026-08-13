@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { getBucket } from "@/utils/gcs/client";
 import { createClient } from "@/utils/supabase/server";
+import { requireUser } from "@/utils/supabase/require-user";
 import { PageHeader } from "@/components/PageHeader";
 import { UploadForm } from "./UploadForm";
 import { FileList } from "./FileList";
@@ -21,6 +22,7 @@ export default async function UploadsPage({
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
+  await requireUser("/uploads");
   const supabase = await createClient();
   const { data: files, count, error } = await supabase
     .from("files")

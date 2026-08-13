@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored, generated runtime for the design mockup — not part of the
+    // app and explicitly marked "do not edit" at its own source.
+    "docs/design/hse-hub-mockup/support.js",
   ]),
 ]);
 

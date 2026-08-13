@@ -46,3 +46,6 @@ next-env.d.ts
 
 # secrets (never commit)
 .secrets/
+
+.vercel
+.env*

@@ -2,19 +2,10 @@
 
 import Link from "next/link";
 import { formatBytes } from "@/utils/uploads/validation";
-
-type File = {
-  id: number;
-  object_path: string;
-  original_name: string;
-  content_type: string;
-  size_bytes: number;
-  uploaded_at: string;
-  url: string;
-};
+import type { FileRecord } from "@/lib/queries/types";
 
 type Props = {
-  files: File[];
+  files: (FileRecord & { url: string })[];
   page: number;
   totalPages: number;
 };
@@ -43,7 +34,7 @@ export function FileList({ files, page, totalPages }: Props) {
                 {f.original_name}
               </a>
               <div className="font-mono text-[11px] text-[var(--text-muted)]">
-                {formatBytes(f.size_bytes)} · {new Date(f.uploaded_at).toLocaleString()}
+                {formatBytes(f.size_bytes ?? 0)} · {new Date(f.uploaded_at).toLocaleString()}
               </div>
             </div>
           </li>

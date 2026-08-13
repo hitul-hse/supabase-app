@@ -16,7 +16,7 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Supabase App",
+  title: "HSE Hub",
   description: "Next.js + Supabase starter with a Netflix users dashboard and GCS uploads.",
 };
 

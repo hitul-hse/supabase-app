@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
+import { requireUser } from "@/utils/supabase/require-user";
 import { PageHeader } from "@/components/PageHeader";
 import { getNetflixUsers } from "@/lib/queries/netflix";
 
@@ -31,6 +32,7 @@ export default async function NetflixUsersPage({
   const { q = "", page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
+  await requireUser("/netflix");
   const supabase = await createClient();
 
   const result = await getNetflixUsers(supabase, {

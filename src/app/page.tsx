@@ -36,7 +36,7 @@ export default async function Home() {
 
   return (
     <div>
-      <PageHeader title="Overview" meta="Next.js + Supabase starter" />
+      <PageHeader title="Overview" meta="HSE Hub · Next.js + Supabase starter" />
 
       <div className="p-6">
         {!envConfigured && (

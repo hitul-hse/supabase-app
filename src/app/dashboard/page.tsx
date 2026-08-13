@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { requireUser } from "@/utils/supabase/require-user";
 import { StatTile } from "@/components/StatTile";
 import { BarChart } from "@/components/BarChart";
 import { PageHeader } from "@/components/PageHeader";
@@ -15,6 +16,7 @@ function compact(n: number) {
 }
 
 export default async function DashboardPage() {
+  await requireUser("/dashboard");
   const supabase = await createClient();
 
   const [overview, countries, genres, subscriptions] = await Promise.all([

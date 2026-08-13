@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/utils/supabase/server";
 import { SidebarNav } from "./SidebarNav";
 import { LogoutButton } from "./LogoutButton";
@@ -17,23 +18,27 @@ export async function Sidebar() {
   return (
     <div className="flex w-[var(--sidebar-width)] flex-none flex-col gap-5 bg-[var(--sidebar)] py-4">
       <Link href="/" className="flex items-center gap-2.5 px-4">
-        <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[var(--radius-sm)] bg-[var(--accent)] font-mono text-xs font-bold text-[var(--accent-contrast)]">
-          S
-        </span>
+        <Image
+          src="/hse-logo.png"
+          alt="HSE"
+          width={26}
+          height={26}
+          className="flex-none rounded-[var(--radius-sm)]"
+        />
         <span className="flex flex-col leading-[1.15]">
           <span className="font-sans text-[12.5px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
-            SUPABASE APP
+            HSE HUB
           </span>
           <span className="font-mono text-[8.5px] tracking-[0.14em] text-[var(--text-faint)]">
-            NEXT.JS STARTER
+            HEALTH &amp; SAFETY EXPERTS
           </span>
         </span>
       </Link>
 
       <SidebarNav />
 
-      <div className="mt-auto flex flex-col gap-3 border-t border-[var(--border)] px-4 pt-4">
-        {email && (
+      {email && (
+        <div className="mt-auto flex flex-col gap-3 border-t border-[var(--border)] px-4 pt-4">
           <div className="flex flex-col gap-1">
             <p className="font-mono text-[10px] tracking-[0.02em] text-[var(--text-faint)]">
               LOGGED IN AS
@@ -42,9 +47,9 @@ export async function Sidebar() {
               {email}
             </p>
           </div>
-        )}
-        <LogoutButton />
-      </div>
+          <LogoutButton />
+        </div>
+      )}
     </div>
   );
 }

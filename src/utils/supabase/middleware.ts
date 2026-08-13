@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const PUBLIC_ROUTES = new Set(["/", "/auth/login", "/auth/signup", "/auth/callback"]);
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -25,9 +27,20 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Refresh the auth token if needed. Do not add logic between
-  // createServerClient and this call, and do not remove getUser().
-  await supabase.auth.getUser();
+  // Refresh the auth token if needed and read the verified user. Do not add
+  // logic between createServerClient and this call, and do not remove
+  // getUser() — it's what actually validates the session against Supabase's
+  // auth server rather than trusting a cookie's mere presence.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user && !PUBLIC_ROUTES.has(request.nextUrl.pathname)) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/auth/login";
+    loginUrl.searchParams.set("redirect_to", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
   return supabaseResponse;
 }

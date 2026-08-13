@@ -23,6 +23,7 @@ create policy "Allow anon read access to netflix_users"
 
 create table if not exists files (
   id bigint generated always as identity primary key,
+  owner_id uuid not null references auth.users(id) on delete cascade,
   object_path text not null unique,
   original_name text not null,
   content_type text,
@@ -32,12 +33,23 @@ create table if not exists files (
 
 alter table files enable row level security;
 
-create policy "Allow anon full access to files"
+create policy "Allow users to read their own files"
   on files
-  for all
-  to anon
-  using (true)
-  with check (true);
+  for select
+  to authenticated
+  using (auth.uid() = owner_id);
+
+create policy "Allow users to insert their own files"
+  on files
+  for insert
+  to authenticated
+  with check (auth.uid() = owner_id);
+
+create policy "Allow users to delete their own files"
+  on files
+  for delete
+  to authenticated
+  using (auth.uid() = owner_id);
 
 -- Aggregate views backing the /dashboard page. security_invoker means these
 -- run with the querying role's own permissions, so they respect the

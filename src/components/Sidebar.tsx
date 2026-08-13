@@ -1,23 +1,18 @@
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { SidebarNav } from "./SidebarNav";
+import { LogoutButton } from "./LogoutButton";
 
-async function getConnectionStatus() {
-  const envConfigured =
-    !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!envConfigured) return "not configured" as const;
-
+async function getUserEmail() {
   const supabase = await createClient();
-  const { error } = await supabase.auth.getSession();
-  return error ? ("error" as const) : ("connected" as const);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.email ?? null;
 }
 
 export async function Sidebar() {
-  const status = await getConnectionStatus();
-  const dotColor =
-    status === "connected" ? "var(--good)" : status === "error" ? "var(--critical)" : "var(--warning)";
-  const statusLabel =
-    status === "connected" ? "Supabase connected" : status === "error" ? "Supabase unreachable" : "Not configured";
+  const email = await getUserEmail();
 
   return (
     <div className="flex w-[var(--sidebar-width)] flex-none flex-col gap-5 bg-[var(--sidebar)] py-4">
@@ -37,15 +32,18 @@ export async function Sidebar() {
 
       <SidebarNav />
 
-      <div className="mt-auto flex items-center gap-2 border-t border-[var(--border)] px-4 pt-3">
-        <span
-          aria-hidden
-          className="h-[7px] w-[7px] flex-none rounded-full"
-          style={{ background: dotColor }}
-        />
-        <span className="font-mono text-[10px] tracking-[0.02em] text-[var(--text-faint)]">
-          {statusLabel.toUpperCase()}
-        </span>
+      <div className="mt-auto flex flex-col gap-3 border-t border-[var(--border)] px-4 pt-4">
+        {email && (
+          <div className="flex flex-col gap-1">
+            <p className="font-mono text-[10px] tracking-[0.02em] text-[var(--text-faint)]">
+              LOGGED IN AS
+            </p>
+            <p className="truncate font-mono text-[11px] text-[var(--text-secondary)]">
+              {email}
+            </p>
+          </div>
+        )}
+        <LogoutButton />
       </div>
     </div>
   );

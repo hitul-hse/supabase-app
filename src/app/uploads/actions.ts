@@ -60,7 +60,16 @@ export async function uploadFile(
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return failure("Not authenticated. Please log in.");
+  }
+
   const { error } = await supabase.from("files").insert({
+    owner_id: user.id,
     object_path: objectPath,
     original_name: file.name,
     content_type: contentType,

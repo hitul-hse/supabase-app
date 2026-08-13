@@ -42,6 +42,7 @@ export type Database = {
       files: {
         Row: {
           id: number;
+          owner_id: string;
           object_path: string;
           original_name: string;
           content_type: string | null;
@@ -50,6 +51,7 @@ export type Database = {
         };
         Insert: {
           id?: number;
+          owner_id: string;
           object_path: string;
           original_name: string;
           content_type?: string | null;
@@ -58,6 +60,7 @@ export type Database = {
         };
         Update: {
           id?: number;
+          owner_id?: string;
           object_path?: string;
           original_name?: string;
           content_type?: string | null;

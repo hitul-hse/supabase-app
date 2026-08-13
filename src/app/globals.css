@@ -3,41 +3,48 @@
 :root {
   color-scheme: dark;
 
-  --background: #0d0d0d;
-  --foreground: #ffffff;
+  --background: #2a3038;
+  --foreground: #f2f3f4;
 
-  --page: #0d0d0d;
-  --surface: #1a1a19;
-  --surface-hover: #212120;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.18);
+  --page: #2a3038;
+  --sidebar: #23282f;
+  --surface: #363d48;
+  --surface-2: #2b313a;
+  --surface-hover: #3d4550;
+  --border: #414954;
+  --border-strong: #4d5661;
 
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --text-muted: #898781;
+  --text-primary: #f2f3f4;
+  --text-secondary: #bcc1c4;
+  --text-muted: #a7aeb3;
+  --text-faint: #8f979d;
 
-  --accent: #3987e5;
-  --accent-hover: #5a9dea;
-  --accent-contrast: #ffffff;
-  --accent-wash: rgba(57, 135, 229, 0.14);
+  --accent: #91c2b7;
+  --accent-hover: #a8d0c6;
+  --accent-contrast: #1c2427;
+  --accent-wash: rgba(145, 194, 183, 0.14);
 
-  --good: #0ca30c;
-  --good-wash: rgba(12, 163, 12, 0.14);
-  --critical: #e66767;
-  --critical-wash: rgba(230, 103, 103, 0.14);
-  --warning: #c98500;
-  --warning-wash: rgba(201, 133, 0, 0.14);
+  --chart-hue: #3aa88e;
 
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
+  --good: #3aa88e;
+  --good-wash: rgba(58, 168, 142, 0.14);
+  --critical: #e0603f;
+  --critical-wash: rgba(224, 96, 63, 0.14);
+  --warning: #d9a13b;
+  --warning-wash: rgba(217, 161, 59, 0.14);
+
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+
+  --sidebar-width: 220px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-roboto);
+  --font-mono: var(--font-roboto-mono);
 }
 
 body {
@@ -47,10 +54,10 @@ body {
 
 .viz-root {
   color-scheme: dark;
-  --viz-surface: #1a1a19;
-  --viz-border: rgba(255, 255, 255, 0.1);
-  --viz-text-primary: #ffffff;
-  --viz-text-secondary: #c3c2b7;
-  --viz-gridline: #2c2c2a;
-  --viz-series-1: #3987e5;
+  --viz-surface: #363d48;
+  --viz-border: #414954;
+  --viz-text-primary: #f2f3f4;
+  --viz-text-secondary: #a7aeb3;
+  --viz-gridline: #414954;
+  --viz-series-1: #3aa88e;
 }

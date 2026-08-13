@@ -2,22 +2,6 @@
 -- project's SQL Editor to create every table and policy the app expects.
 -- See supabase/README.md for how netflix_users was originally populated.
 
-create table if not exists todos (
-  id bigint generated always as identity primary key,
-  task text not null,
-  is_complete boolean not null default false,
-  inserted_at timestamptz not null default now()
-);
-
-alter table todos enable row level security;
-
-create policy "Allow anon full access to todos"
-  on todos
-  for all
-  to anon
-  using (true)
-  with check (true);
-
 create table if not exists netflix_users (
   user_id bigint primary key,
   name text,

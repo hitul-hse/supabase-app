@@ -497,3 +497,64 @@ insert into app_role (role_key, display_name, seniority) values
   ('project_manager', 'Project Manager', 2),
   ('employee', 'Employee', 1)
 on conflict (role_key) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- 6. Vendor-sourced data
+-- ---------------------------------------------------------------------------
+-- Everything above is seeded demo data. This table is the first fed by a real
+-- source: the hs-experts/timesheet-automation service publishes one row per
+-- employee per Monday-to-Friday week from Factorial and TrackingTime.
+--
+-- Units are stored exactly as the upstream aggregator reports them (Factorial
+-- in minutes, TrackingTime in seconds). Normalising on write would bake one
+-- presentation choice into the only copy and lose precision irreversibly.
+
+create table if not exists weekly_employee_summary (
+  id bigint generated always as identity primary key,
+
+  period_start date not null,
+  period_end date not null,
+
+  -- Identity as the source systems know it. person_id is the join into this
+  -- app's own people table and stays null until an identity mapping exists;
+  -- Factorial employee ids do not resemble the ids used here. The sync
+  -- deliberately omits this column from its payload so a re-run cannot clear
+  -- a mapping made by hand.
+  factorial_employee_id text not null,
+  trackingtime_user_id text,
+  employee_name text not null,
+  person_id text references people(id) on delete set null,
+
+  worked_minutes int not null,
+  worked_day_count int not null,
+  expected_minutes int not null,
+
+  -- Null means the absence duration could not be determined (no duration on
+  -- the record, or it straddles the period boundary). That is meaningfully
+  -- different from zero absence and must not collapse into it.
+  absence_minutes int,
+  absence_label text,
+
+  billable_seconds int not null,
+  travel_time_seconds int not null,
+  internal_project_seconds int not null,
+  empty_tasks_seconds int not null,
+
+  review_entry_count int not null default 0,
+  synced_at timestamptz not null default now(),
+
+  -- Makes re-running a week idempotent instead of duplicating it.
+  unique (period_start, factorial_employee_id)
+);
+
+create index if not exists weekly_employee_summary_period_idx
+  on weekly_employee_summary (period_start desc);
+
+alter table weekly_employee_summary enable row level security;
+
+-- Individual hours are management data, so this follows approval_decisions
+-- rather than the company-wide reference tables. Writes arrive via the service
+-- role, which bypasses RLS, so no write policy is granted.
+create policy "exec and dept_head can read weekly_employee_summary"
+  on weekly_employee_summary for select to authenticated
+  using (app_user_role() in ('exec', 'dept_head'));

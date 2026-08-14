@@ -637,6 +637,77 @@ export type Database = {
           },
         ]
       }
+      weekly_employee_summary: {
+        Row: {
+          absence_label: string | null
+          absence_minutes: number | null
+          billable_seconds: number
+          empty_tasks_seconds: number
+          employee_name: string
+          expected_minutes: number
+          factorial_employee_id: string
+          id: number
+          internal_project_seconds: number
+          period_end: string
+          period_start: string
+          person_id: string | null
+          review_entry_count: number
+          synced_at: string
+          trackingtime_user_id: string | null
+          travel_time_seconds: number
+          worked_day_count: number
+          worked_minutes: number
+        }
+        Insert: {
+          absence_label?: string | null
+          absence_minutes?: number | null
+          billable_seconds: number
+          empty_tasks_seconds: number
+          employee_name: string
+          expected_minutes: number
+          factorial_employee_id: string
+          id?: never
+          internal_project_seconds: number
+          period_end: string
+          period_start: string
+          person_id?: string | null
+          review_entry_count?: number
+          synced_at?: string
+          trackingtime_user_id?: string | null
+          travel_time_seconds: number
+          worked_day_count: number
+          worked_minutes: number
+        }
+        Update: {
+          absence_label?: string | null
+          absence_minutes?: number | null
+          billable_seconds?: number
+          empty_tasks_seconds?: number
+          employee_name?: string
+          expected_minutes?: number
+          factorial_employee_id?: string
+          id?: never
+          internal_project_seconds?: number
+          period_end?: string
+          period_start?: string
+          person_id?: string | null
+          review_entry_count?: number
+          synced_at?: string
+          trackingtime_user_id?: string | null
+          travel_time_seconds?: number
+          worked_day_count?: number
+          worked_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_employee_summary_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_trends: {
         Row: {
           billable_hours: number

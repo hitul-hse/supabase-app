@@ -19,6 +19,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_permission: {
+        Row: {
+          action: string
+          description: string | null
+          display_name: string
+          permission_key: string
+          resource: string
+          sort_order: number
+        }
+        Insert: {
+          action: string
+          description?: string | null
+          display_name: string
+          permission_key: string
+          resource: string
+          sort_order?: number
+        }
+        Update: {
+          action?: string
+          description?: string | null
+          display_name?: string
+          permission_key?: string
+          resource?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       app_role: {
         Row: {
           display_name: string
@@ -36,6 +63,39 @@ export type Database = {
           seniority?: number
         }
         Relationships: []
+      }
+      app_role_permission: {
+        Row: {
+          granted_at: string
+          permission_key: string
+          role_key: string
+        }
+        Insert: {
+          granted_at?: string
+          permission_key: string
+          role_key: string
+        }
+        Update: {
+          granted_at?: string
+          permission_key?: string
+          role_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_role_permission_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "app_permission"
+            referencedColumns: ["permission_key"]
+          },
+          {
+            foreignKeyName: "app_role_permission_role_key_fkey"
+            columns: ["role_key"]
+            isOneToOne: false
+            referencedRelation: "app_role"
+            referencedColumns: ["role_key"]
+          },
+        ]
       }
       app_user_profile: {
         Row: {
@@ -803,6 +863,7 @@ export type Database = {
     }
     Functions: {
       app_user_department: { Args: never; Returns: string }
+      app_user_has_permission: { Args: { p_key: string }; Returns: boolean }
       app_user_person_id: { Args: never; Returns: string }
       app_user_role: { Args: never; Returns: string }
       can_view_person: { Args: { target_person_id: string }; Returns: boolean }

@@ -149,14 +149,32 @@ export async function getPeopleDirectory(supabase: SupabaseTyped): Promise<Perso
   return data ?? [];
 }
 
+/**
+ * Derive the current 4-week window dynamically from the ISO week of today.
+ * Returns an array of 4 week labels like ["W32", "W33", "W34", "W35"].
+ */
+function currentFourWeeks(): string[] {
+  const today = new Date();
+  const thursday = thursdayOf(today);
+  const jan4 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
+  const firstThursday = thursdayOf(jan4);
+  const currentWeek = 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000);
+  // Show current week and 3 preceding — the most useful window for a team lead
+  return [-3, -2, -1, 0].map((offset) => `W${currentWeek + offset}`);
+}
+
 /** Workload/booking board plus pending approvals, for the Team Lead page. */
 export async function getTeamLeadBoard(supabase: SupabaseTyped): Promise<{
   bookings: TeamLeadBooking[];
   decisions: ApprovalDecisionRow[];
+  weeks: string[];
 }> {
+  const weeks = currentFourWeeks();
+
   const { data: rows } = await supabase
     .from("weekly_bookings")
     .select("*, people(id, name, timesheet_status, certificate_status, certificate_text)")
+    .in("week", weeks)
     .order("id");
 
   const byPerson = new Map<string, TeamLeadBooking>();
@@ -179,20 +197,12 @@ export async function getTeamLeadBoard(supabase: SupabaseTyped): Promise<{
 
     const entry = byPerson.get(person.id)!;
     const week = { hours: row.hours, status: row.status };
-    switch (row.week) {
-      case "W31":
-        entry.w31 = week;
-        break;
-      case "W32":
-        entry.w32 = week;
-        break;
-      case "W33":
-        entry.w33 = week;
-        break;
-      case "W34":
-        entry.w34 = week;
-        break;
-    }
+    // Map to the entry keys using the weeks array index
+    const idx = weeks.indexOf(row.week);
+    if (idx === 0) entry.w31 = week;
+    else if (idx === 1) entry.w32 = week;
+    else if (idx === 2) entry.w33 = week;
+    else if (idx === 3) entry.w34 = week;
   }
 
   const { data: decisions } = await supabase
@@ -201,7 +211,30 @@ export async function getTeamLeadBoard(supabase: SupabaseTyped): Promise<{
     .eq("status", "pending")
     .order("sort_order");
 
-  return { bookings: Array.from(byPerson.values()), decisions: decisions ?? [] };
+  return { bookings: Array.from(byPerson.values()), decisions: decisions ?? [], weeks };
+}
+
+/** Live counts for the Overview page header — replaces hardcoded "41 PEOPLE · 27 ACTIVE PROJECTS". */
+export async function getOverviewCounts(supabase: SupabaseTyped): Promise<{
+  activePeople: number;
+  activeProjects: number;
+  currentQuarter: string;
+}> {
+  const [{ count: peopleCount }, { count: projectCount }] = await Promise.all([
+    // people.is_active is a real column on the people table
+    supabase.from("people").select("id", { count: "exact", head: true }),
+    supabase.from("projects").select("id", { count: "exact", head: true }),
+  ]);
+
+  const now = new Date();
+  const q = Math.ceil((now.getMonth() + 1) / 3);
+  const currentQuarter = `Q${q} ${now.getFullYear()}`;
+
+  return {
+    activePeople: peopleCount ?? 0,
+    activeProjects: projectCount ?? 0,
+    currentQuarter,
+  };
 }
 
 /** Current week's timesheet entries, grouped back into one row per task with a 7-day hours array. */

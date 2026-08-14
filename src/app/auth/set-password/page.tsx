@@ -15,6 +15,42 @@ import {
 
 const MIN_PASSWORD_LENGTH = 8;
 
+/** 0-4 password strength score based on length, digits, uppercase, and symbols. */
+function getPasswordStrength(pwd: string): { score: number; label: string; color: string } {
+  if (!pwd) return { score: 0, label: "", color: "" };
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (pwd.length >= 14) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  const clamp = Math.min(score, 4);
+  const labels = ["Weak", "Fair", "Good", "Strong", "Very strong"];
+  const colors = ["var(--critical)", "var(--warning)", "var(--warning)", "var(--good)", "var(--good)"];
+  return { score: clamp, label: labels[clamp], color: colors[clamp] };
+}
+
+function PasswordStrengthBar({ password }: { password: string }) {
+  const { score, label, color } = getPasswordStrength(password);
+  if (!password) return null;
+  return (
+    <div className="mt-1.5 flex flex-col gap-1">
+      <div className="flex gap-1">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="h-1 flex-1 rounded-full transition-all"
+            style={{ background: i <= score ? color : "var(--border)" }}
+          />
+        ))}
+      </div>
+      <span className="font-mono text-[10px]" style={{ color }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 /**
  * Where an invited colleague finishes creating their account, and where a
  * password reset lands. Both cases are the same job: there is a valid session
@@ -163,6 +199,7 @@ function SetPasswordForm() {
             className={authInputClass}
             placeholder="At least 8 characters"
           />
+          <PasswordStrengthBar password={password} />
         </div>
 
         <div>

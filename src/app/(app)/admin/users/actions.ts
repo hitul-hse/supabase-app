@@ -7,29 +7,28 @@ import { getSiteUrl } from "@/utils/site-url";
 
 export type InviteState = { status: "idle" | "success" | "error"; message?: string };
 
-export async function inviteUser(
-  _prevState: InviteState,
-  formData: FormData,
-): Promise<InviteState> {
+/** Shared exec guard — re-checks role server-side, never trusts the page gate alone. */
+async function assertExec(): Promise<{ userId: string } | { error: string }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
 
-  if (!user) {
-    return { status: "error", message: "Not authenticated." };
-  }
-
-  // Re-check the caller is exec server-side — don't just trust the page gate.
-  const { data: callerProfile } = await supabase
+  const { data: profile } = await supabase
     .from("app_user_profile")
     .select("role_key")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (callerProfile?.role_key !== "exec") {
-    return { status: "error", message: "Only execs can invite users." };
-  }
+  if (profile?.role_key !== "exec") return { error: "Only executives can perform this action." };
+  return { userId: user.id };
+}
+
+export async function inviteUser(
+  _prevState: InviteState,
+  formData: FormData,
+): Promise<InviteState> {
+  const guard = await assertExec();
+  if ("error" in guard) return { status: "error", message: guard.error };
 
   const email = String(formData.get("email") || "").trim();
   const roleKey = String(formData.get("role_key") || "").trim();
@@ -47,10 +46,6 @@ export async function inviteUser(
     return { status: "error", message: err instanceof Error ? err.message : "Admin client unavailable." };
   }
 
-  // Without an explicit redirectTo, Supabase falls back to the project's Site
-  // URL — which is how an invited colleague ends up with a localhost link they
-  // cannot open. The target must also be listed under the project's redirect
-  // allowlist, or Supabase silently substitutes the Site URL again.
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: `${getSiteUrl()}/auth/callback?next=%2Fauth%2Fset-password`,
   });
@@ -75,4 +70,61 @@ export async function inviteUser(
 
   revalidatePath("/admin/users");
   return { status: "success", message: `Invited ${email}.` };
+}
+
+/** Activate or deactivate a user account. */
+export async function setUserActive(
+  userId: string,
+  isActive: boolean,
+): Promise<{ error?: string }> {
+  const guard = await assertExec();
+  if ("error" in guard) return { error: guard.error };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("app_user_profile")
+    .update({ is_active: isActive })
+    .eq("user_id", userId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/users");
+  return {};
+}
+
+/** Change a user's role. */
+export async function changeUserRole(
+  userId: string,
+  newRoleKey: string,
+): Promise<{ error?: string }> {
+  const guard = await assertExec();
+  if ("error" in guard) return { error: guard.error };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("app_user_profile")
+    .update({ role_key: newRoleKey })
+    .eq("user_id", userId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/users");
+  return {};
+}
+
+/** Change a user's department. */
+export async function changeUserDepartment(
+  userId: string,
+  department: string,
+): Promise<{ error?: string }> {
+  const guard = await assertExec();
+  if ("error" in guard) return { error: guard.error };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("app_user_profile")
+    .update({ department: department || null })
+    .eq("user_id", userId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/users");
+  return {};
 }

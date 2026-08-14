@@ -7,12 +7,12 @@ import { TeamLeadBoard } from "./TeamLeadBoard";
 export default async function TeamLeadPage() {
   await requireProfile("/team-lead", ["exec", "dept_head"]);
   const supabase = await createClient();
-  const { bookings, decisions } = await getTeamLeadBoard(supabase);
+  const { bookings, decisions, weeks } = await getTeamLeadBoard(supabase);
 
   return (
     <div className="flex flex-col">
       <SyncBar />
-      <TeamLeadBoard bookings={bookings} initialDecisions={decisions} />
+      <TeamLeadBoard bookings={bookings} initialDecisions={decisions} weeks={weeks} />
     </div>
   );
 }

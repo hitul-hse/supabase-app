@@ -1,5 +1,20 @@
 import type { SupabaseTyped } from "./types";
 
+export type AppPermission = {
+  permissionKey: string;
+  displayName: string;
+  resource: string;
+  action: string;
+  description: string | null;
+  sortOrder: number;
+};
+
+export type RolePermissionMatrix = {
+  permissions: AppPermission[];
+  /** Map from role_key → Set of granted permission_keys */
+  grantedByRole: Record<string, Set<string>>;
+};
+
 export type CurrentProfile = {
   userId: string;
   email: string | null;
@@ -78,4 +93,34 @@ export async function listUserProfiles(supabase: SupabaseTyped): Promise<UserPro
 export async function getRoles(supabase: SupabaseTyped) {
   const { data } = await supabase.from("app_role").select("*").order("seniority", { ascending: false });
   return data ?? [];
+}
+
+/** All permissions and their current role assignments — for the role editor UI. */
+export async function getRolePermissionMatrix(supabase: SupabaseTyped): Promise<RolePermissionMatrix> {
+  const [{ data: perms }, { data: grants }] = await Promise.all([
+    supabase
+      .from("app_permission")
+      .select("permission_key, display_name, resource, action, description, sort_order")
+      .order("sort_order"),
+    supabase
+      .from("app_role_permission")
+      .select("role_key, permission_key"),
+  ]);
+
+  const permissions: AppPermission[] = (perms ?? []).map((p) => ({
+    permissionKey: p.permission_key,
+    displayName: p.display_name,
+    resource: p.resource,
+    action: p.action,
+    description: p.description,
+    sortOrder: p.sort_order,
+  }));
+
+  const grantedByRole: Record<string, Set<string>> = {};
+  for (const g of grants ?? []) {
+    if (!grantedByRole[g.role_key]) grantedByRole[g.role_key] = new Set();
+    grantedByRole[g.role_key].add(g.permission_key);
+  }
+
+  return { permissions, grantedByRole };
 }

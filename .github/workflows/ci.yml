@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── 1. Lint ───────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  # ─── 2. Type-check ─────────────────────────────────────────────────────────
+  typecheck:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+  # ─── 3. Build ──────────────────────────────────────────────────────────────
+  # Validates the Next.js build succeeds with production env vars.
+  # The build fails loudly on type errors, missing modules, and bad imports —
+  # a cleaner signal than running tests against a broken bundle.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    env:
+      # Provide dummy values so the build doesn't error on missing env checks.
+      # The real secrets are in Vercel — these exist only to let `next build`
+      # reach the env-var validation gate without bailing before even starting.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  # ─── 4. Schema + RLS tests ─────────────────────────────────────────────────
+  # Runs the PGlite-backed schema and RLS test suite.
+  # These do NOT hit the live Supabase project — they spin up an in-process
+  # Postgres-compatible instance, apply schema.sql, and assert access patterns.
+  # The live Supabase credentials are NOT needed here and must NOT be added.
+  db-tests:
+    name: DB Tests (schema + RLS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run schema check
+        run: npm run test:schema
+
+      - name: Run RLS behaviour tests
+        run: npm run test:rls
+
+      - name: Run RLS negative-control tests
+        run: npm run test:rls-control
+
+      - name: Run policy count control
+        run: npm run test:policy-control
+
+  # ─── 5. Summary ────────────────────────────────────────────────────────────
+  # A single required status check that depends on all jobs. Branch protection
+  # rules point at this instead of each individual job, so adding a new job
+  # only requires updating this list.
+  all-checks:
+    name: All checks passed
+    needs: [lint, typecheck, build, db-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ||
+                "${{ needs.typecheck.result }}" != "success" ||
+                "${{ needs.build.result }}" != "success" ||
+                "${{ needs.db-tests.result }}" != "success" ]]; then
+            echo "One or more required checks failed."
+            exit 1
+          fi
+          echo "All checks passed."

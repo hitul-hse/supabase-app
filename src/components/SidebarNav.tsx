@@ -32,7 +32,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: "ADMIN",
-    items: [{ href: "/admin/users", label: "Users & Roles", roles: ["exec"] }],
+    items: [
+      { href: "/admin/users", label: "Users & Roles", roles: ["exec", "dept_head"] },
+      { href: "/admin/roles", label: "Role Permissions", roles: ["exec", "dept_head"] },
+    ],
   },
 ];
 

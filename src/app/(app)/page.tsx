@@ -2,14 +2,14 @@ import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { getExecutiveOverview } from "@/lib/queries/hse";
+import { getExecutiveOverview, getOverviewCounts } from "@/lib/queries/hse";
 import { requireUser } from "@/utils/supabase/require-user";
 
 export default async function OverviewPage() {
   await requireUser("/");
   const supabase = await createClient();
-  const { metrics, billableTrend, teamUtilisations, projects } =
-    await getExecutiveOverview(supabase);
+  const [{ metrics, billableTrend, teamUtilisations, projects }, { activePeople, activeProjects, currentQuarter }] =
+    await Promise.all([getExecutiveOverview(supabase), getOverviewCounts(supabase)]);
 
   const chartMax = Math.max(
     0,
@@ -38,7 +38,7 @@ export default async function OverviewPage() {
       <PageHeader
         category="HSE HUB / ANALYSE"
         title="Business overview"
-        meta="Q3 2026 · 41 PEOPLE · 27 ACTIVE PROJECTS"
+        meta={`${currentQuarter} · ${activePeople} PEOPLE · ${activeProjects} ACTIVE PROJECTS`}
         actions={
           <>
             <button className="rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">

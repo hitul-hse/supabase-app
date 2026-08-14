@@ -12,9 +12,11 @@ function weekCell(week: WeekBooking) {
 export function TeamLeadBoard({
   bookings,
   initialDecisions,
+  weeks = ["W31", "W32", "W33", "W34"],
 }: {
   bookings: TeamLeadBooking[];
   initialDecisions: ApprovalDecisionRow[];
+  weeks?: string[];
 }) {
   const [decisions, setDecisions] = useState(initialDecisions);
   const [approvedAll, setApprovedAll] = useState(false);
@@ -53,13 +55,13 @@ export function TeamLeadBoard({
     <>
       <PageHeader
         category="HSE HUB / TEAM LEAD"
-        title="Safety consulting – week 31"
-        meta="LEAD S. OTT · 8 PEOPLE · 3 PROJECTS"
+        title="Workload board"
+        meta={`${weeks[0]}–${weeks[3]} · ${bookings.length} PEOPLE`}
         actions={
           <>
-            <button className="rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
-              Week 31
-            </button>
+            <span className="font-mono text-[11px] text-[var(--text-muted)] border border-[var(--border)] px-3 py-1.5">
+              {weeks[0]}–{weeks[3]}
+            </span>
             <button
               onClick={handleApproveAll}
               disabled={approvedAll || decisions.length === 0}
@@ -126,10 +128,10 @@ export function TeamLeadBoard({
             {/* Table Header */}
             <div className="grid min-w-[700px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
               <span className="col-span-3">PERSON</span>
-              <span className="col-span-1 text-center">W31</span>
-              <span className="col-span-1 text-center">W32</span>
-              <span className="col-span-1 text-center">W33</span>
-              <span className="col-span-1 text-center">W34</span>
+              <span className="col-span-1 text-center">{weeks[0]}</span>
+              <span className="col-span-1 text-center">{weeks[1]}</span>
+              <span className="col-span-1 text-center">{weeks[2]}</span>
+              <span className="col-span-1 text-center">{weeks[3]}</span>
               <span className="col-span-2 text-right">TIMESHEET</span>
               <span className="col-span-3 text-right">CERTIFICATES</span>
             </div>

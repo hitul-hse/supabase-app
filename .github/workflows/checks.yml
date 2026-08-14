@@ -39,7 +39,9 @@ jobs:
         run: npm run test:db
 
       - name: Verify agent prompt claims
-        run: node scripts/check-agent-claims.cjs
+        run: |
+          node scripts/check-agent-claims.cjs
+          node scripts/check-agent-references.cjs
 
       # The build needs Supabase env vars present but never contacts Supabase.
       # Dummy values are correct here: the route probes assert that

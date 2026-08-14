@@ -45,6 +45,9 @@ step("npx tsc --noEmit", () => run("npx tsc --noEmit"));
 step("npx eslint src scripts", () => run("npx eslint src scripts"));
 step("npm run test:db", () => run("npm run test:db"));
 step("node scripts/check-agent-claims.cjs", () => run("node scripts/check-agent-claims.cjs"));
+step("node scripts/check-agent-references.cjs", () =>
+  run("node scripts/check-agent-references.cjs"),
+);
 
 // The critical one: does the build actually succeed with DUMMY credentials?
 // If it needs real ones, the workflow is broken and this catches it now.

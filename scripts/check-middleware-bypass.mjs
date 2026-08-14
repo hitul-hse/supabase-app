@@ -23,7 +23,10 @@ for (const path of protectedRoutes) {
     });
 
     const body = res.status === 200 ? await res.text() : "";
-    const leaked = /Business overview|Needs your decision|EMPLOYEE NUMBER|Users &amp; Roles|PENDING/.test(
+    // Match on real record data, not on shared chrome. "HSE HUB" appears in the
+    // logo wordmark on the public login page too, so keying off it produces
+    // false alarms; these strings only ever appear in rendered table rows.
+    const leaked = /Needs your decision|EMPLOYEE NUMBER|Users &amp; Roles|Business overview/.test(
       body,
     );
 

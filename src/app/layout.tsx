@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Roboto, Roboto_Mono } from "next/font/google";
-import { Sidebar } from "@/components/Sidebar";
 import "./globals.css";
 
 const roboto = Roboto({
@@ -32,10 +31,7 @@ export default function RootLayout({
       className={`${roboto.variable} ${robotoMono.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="min-w-0 flex-1 overflow-x-hidden">{children}</main>
-        </div>
+        {children}
       </body>
     </html>
   );

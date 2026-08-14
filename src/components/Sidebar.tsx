@@ -80,10 +80,10 @@ export async function Sidebar() {
           />
           <div className="flex flex-col min-w-0">
             <span className="text-[12px] font-medium text-[var(--text-primary)] truncate">
-              {email ?? "M. Keller"}
+              {email ?? "Not signed in"}
             </span>
             <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
-              {roleDisplayName ? roleDisplayName.toUpperCase() : email ? "PENDING ACCESS" : "ROLE: DIRECTOR"}
+              {roleDisplayName ? roleDisplayName.toUpperCase() : email ? "PENDING ACCESS" : "—"}
             </span>
           </div>
         </div>

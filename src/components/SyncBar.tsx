@@ -1,17 +1,22 @@
 import { createClient } from "@/utils/supabase/server";
 import { getSyncSources } from "@/lib/queries/hse";
 
+/**
+ * SyncBar — shows freshness of each external data source.
+ * On mobile: horizontally scrollable single row to save vertical space.
+ * On desktop: wraps naturally.
+ */
 export async function SyncBar() {
   const supabase = await createClient();
   const sources = await getSyncSources(supabase);
 
   return (
-    <div className="flex flex-wrap items-center gap-4 border-b border-[var(--border)] bg-[#0b0d0f] px-6 py-2 font-mono text-[11px]">
-      <span className="tracking-[0.12em] text-[var(--text-faint)]">SYNC</span>
+    <div className="flex items-center gap-4 overflow-x-auto border-b border-[var(--border)] bg-[#0b0d0f] px-4 py-2 font-mono text-[11px] sm:px-6 [&::-webkit-scrollbar]:hidden">
+      <span className="flex-none tracking-[0.12em] text-[var(--text-faint)]">SYNC</span>
       {sources.map((item) => (
         <span
           key={item.source}
-          className={`flex items-center gap-1.5 ${
+          className={`flex flex-none items-center gap-1.5 ${
             item.status === "warning"
               ? "text-[var(--warning)]"
               : item.status === "error"
@@ -20,7 +25,7 @@ export async function SyncBar() {
           }`}
         >
           <span
-            className="h-1.5 w-1.5"
+            className="h-1.5 w-1.5 flex-none"
             style={{
               background:
                 item.status === "warning"

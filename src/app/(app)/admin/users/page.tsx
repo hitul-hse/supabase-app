@@ -51,7 +51,7 @@ export default async function AdminUsersPage() {
         }
       />
 
-      <div className="flex flex-col gap-5 p-6">
+      <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
         {adminUnavailable && (
           <div
             className="flex items-start gap-3 border border-[var(--border)] p-3 text-sm"
@@ -68,7 +68,7 @@ export default async function AdminUsersPage() {
 
         <div className="border border-[var(--border)] bg-[var(--surface)]">
           {/* Table header */}
-          <div className="grid grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+          <div className="hidden grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)] sm:grid">
             <span className="col-span-3">EMAIL</span>
             <span className="col-span-2">ROLE</span>
             <span className="col-span-2">DEPARTMENT</span>

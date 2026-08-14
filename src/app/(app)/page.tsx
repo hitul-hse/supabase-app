@@ -16,9 +16,6 @@ export default async function OverviewPage() {
     ...billableTrend.points.map((p) => p.billableHours + p.nonBillableHours),
   );
 
-  // First, last, and two evenly spaced weeks between them — deduplicated,
-  // since with only a couple of synced weeks those four positions collapse
-  // onto the same bars and would print the same label repeatedly.
   const tickIndexes = Array.from(
     new Set(
       [0, 0.33, 0.66, 1].map((fraction) =>
@@ -44,7 +41,7 @@ export default async function OverviewPage() {
             <button className="rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
               Quarter to date
             </button>
-            <button className="rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
+            <button className="hidden rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] sm:block">
               All teams
             </button>
             <button className="rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-1.5 text-[11.5px] font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]">
@@ -54,22 +51,22 @@ export default async function OverviewPage() {
         }
       />
 
-      <div className="flex flex-col gap-5 p-6">
-        {/* 5-Column Metric Strip */}
-        <div className="grid grid-cols-1 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+        {/* 5-Column Metric Strip — 2 cols mobile, 3 cols md, 5 cols lg */}
+        <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-3 lg:grid-cols-5">
           {metrics.map((metric, idx) => (
             <div
               key={metric.label}
-              className={`flex flex-col gap-1.5 p-3.5 ${
+              className={`flex flex-col gap-1.5 p-3 sm:p-3.5 ${
                 idx < metrics.length - 1
                   ? "border-b border-[var(--border)] lg:border-b-0 lg:border-r"
                   : ""
               }`}
             >
-              <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
+              <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
                 {metric.label}
               </span>
-              <span className="font-mono text-[24px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
+              <span className="font-mono text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-primary)] sm:text-[24px]">
                 {metric.value}
               </span>
               {metric.progress_percent !== null ? (
@@ -84,7 +81,7 @@ export default async function OverviewPage() {
                 </div>
               ) : (
                 <span
-                  className="font-mono text-[11px]"
+                  className="font-mono text-[10.5px]"
                   style={{ color: metric.subtext_color || "var(--text-faint)" }}
                 >
                   {metric.subtext}
@@ -94,9 +91,9 @@ export default async function OverviewPage() {
           ))}
         </div>
 
-        {/* Charts Grid: Weekly Billable vs Non-Billable & Team Utilisation */}
+        {/* Charts Grid — stacked on mobile, side-by-side on lg */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {/* Left: Weekly Stacked Bars (7 cols) */}
+          {/* Billable vs non-billable bar chart */}
           <div className="flex flex-col gap-3.5 border border-[var(--border)] bg-[var(--surface)] p-4 lg:col-span-7">
             <div className="flex flex-wrap items-baseline gap-2.5">
               <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
@@ -119,10 +116,7 @@ export default async function OverviewPage() {
               </div>
             </div>
 
-            {/* Bars container. Scaled to the tallest week actually present:
-                a fixed ceiling suits the ~2000h sample weeks but would flatten
-                a real Operations roster's few hundred hours into slivers. */}
-            <div className="flex h-[160px] items-end gap-2 pt-4">
+            <div className="flex h-[140px] items-end gap-1.5 pt-4 sm:h-[160px] sm:gap-2">
               {chartMax === 0 ? (
                 <p className="self-center font-mono text-[11px] text-[var(--text-faint)]">
                   No hours recorded for these weeks yet.
@@ -137,20 +131,16 @@ export default async function OverviewPage() {
                       key={point.label}
                       className="group relative flex h-full flex-1 flex-col justify-end gap-0.5"
                     >
-                      {/* Tooltip on hover */}
                       <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#1c2427] px-2 py-1 font-mono text-[10px] text-white shadow group-hover:block">
                         {point.label}
                         {billablePercent === null
                           ? ": no hours"
                           : `: ${billablePercent}% (${point.billableHours}h / ${total}h)`}
                       </div>
-
-                      {/* Non-billable segment */}
                       <div
                         className="w-full bg-[#8a9197] transition-all"
                         style={{ height: `${(point.nonBillableHours / chartMax) * 100}%` }}
                       />
-                      {/* Billable segment */}
                       <div
                         className="w-full transition-all"
                         style={{
@@ -166,8 +156,6 @@ export default async function OverviewPage() {
               )}
             </div>
 
-            {/* Axis ticks come from the data rather than being written in, so
-                they cannot drift out of step with the bars above them. */}
             <div className="flex justify-between border-t border-[var(--border)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
               {axisTicks.map((tick, index) => (
                 <span
@@ -181,7 +169,7 @@ export default async function OverviewPage() {
             </div>
           </div>
 
-          {/* Right: Utilisation by Team (5 cols) */}
+          {/* Utilisation by team */}
           <div className="flex flex-col gap-3.5 border border-[var(--border)] bg-[var(--surface)] p-4 lg:col-span-5">
             <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
               Utilisation by team
@@ -230,14 +218,14 @@ export default async function OverviewPage() {
           </div>
         </div>
 
-        {/* Project Ledger Table */}
+        {/* Project Ledger */}
         <div className="border border-[var(--border)] bg-[var(--surface)]">
           <div className="flex items-baseline justify-between border-b border-[var(--border)] px-4 py-3">
             <div className="flex items-baseline gap-2.5">
               <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
                 Project ledger
               </span>
-              <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+              <span className="hidden font-mono text-[10.5px] text-[var(--text-muted)] sm:inline">
                 CONTRACT · ASANA · TRACKINGTIME
               </span>
             </div>
@@ -245,12 +233,55 @@ export default async function OverviewPage() {
               href="/projects"
               className="text-[11.5px] font-medium text-[var(--accent)] hover:underline"
             >
-              All 27 projects →
+              All projects →
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
-            {/* Table Header */}
+          {/* Mobile card list — shown below sm */}
+          <div className="flex flex-col divide-y divide-[var(--border)] sm:hidden">
+            {projects.map((prj) => {
+              const barColor =
+                prj.status === "CRITICAL"
+                  ? "var(--critical)"
+                  : prj.status === "WARNING"
+                  ? "var(--warning)"
+                  : "var(--accent)";
+              return (
+                <div key={prj.id} className="flex flex-col gap-2 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      href="/projects"
+                      className="text-[13px] font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
+                    >
+                      {prj.name}
+                    </Link>
+                    <span
+                      className="shrink-0 font-mono text-[11px] font-semibold"
+                      style={{ color: barColor }}
+                    >
+                      {prj.consumed_percent}%
+                    </span>
+                  </div>
+                  <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+                    {prj.customer} · DUE {prj.due}
+                  </span>
+                  <div className="h-1.5 w-full bg-[var(--border)]">
+                    <div
+                      className="h-full"
+                      style={{ width: `${Math.min(prj.consumed_percent, 100)}%`, background: barColor }}
+                    />
+                  </div>
+                  <div className="flex gap-4 font-mono text-[10.5px] text-[var(--text-secondary)]">
+                    <span>{prj.contract_hours.toLocaleString("de-DE")} H CONTRACT</span>
+                    <span>{prj.billable_hours.toLocaleString("de-DE")} H BILLABLE</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table — shown from sm up */}
+          <div className="hidden overflow-x-auto sm:block">
             <div className="grid min-w-[700px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
               <span className="col-span-4">PROJECT</span>
               <span className="col-span-2">CUSTOMER</span>
@@ -261,7 +292,6 @@ export default async function OverviewPage() {
               <span className="col-span-1 text-right">LEAD</span>
             </div>
 
-            {/* Table Rows */}
             {projects.map((prj) => {
               const barColor =
                 prj.status === "CRITICAL"
@@ -276,7 +306,7 @@ export default async function OverviewPage() {
                   className="grid min-w-[700px] grid-cols-12 items-center gap-3 border-b border-[#3a414c] px-4 py-2.5 text-[12.5px] hover:bg-[var(--surface-hover)]"
                 >
                   <Link
-                    href={`/projects`}
+                    href="/projects"
                     className="col-span-4 font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
                   >
                     {prj.name}

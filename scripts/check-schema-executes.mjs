@@ -96,9 +96,26 @@ const check = (name, ok, detail = "") => {
   if (!ok) failed = true;
 };
 
-check("all 17 expected tables created", missingTables.length === 0, missingTables.join(", "));
+// This is an allowlist of tables the app REQUIRES, not an exhaustive list of
+// what the schema contains. It correctly fails if one disappears and correctly
+// ignores new ones, so the label must not imply a fixed total.
+check(
+  `all ${expectedTables.length} required tables present`,
+  missingTables.length === 0,
+  missingTables.length ? `missing: ${missingTables.join(", ")}` : `(schema has ${got.length})`,
+);
 check("all 5 role helper functions created", missingFns.length === 0, missingFns.join(", "));
-check("24 policies created", policies.length === 24, `got ${policies.length}`);
+// Count the policies schema.sql actually declares rather than hardcoding a
+// number. A fixed count breaks on every legitimate schema addition (it did:
+// a parallel session added weekly_employee_summary and this went red), which
+// trains people to edit the expected number instead of reading the failure.
+// The real property is that every declared policy exists in the database.
+const declaredPolicies = (sql.match(/^create policy/gim) || []).length;
+check(
+  `every declared policy was created (${declaredPolicies})`,
+  policies.length === declaredPolicies,
+  `declared ${declaredPolicies}, found ${policies.length}`,
+);
 check(
   "app_role seeded with 4 roles",
   seeded.length === 4 && seeded[0].role_key === "exec",

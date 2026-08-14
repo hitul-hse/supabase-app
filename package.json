@@ -6,10 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:schema": "node scripts/check-schema-executes.mjs",
+    "test:rls": "node scripts/check-rls-behaviour.mjs",
+    "test:rls-control": "node scripts/check-rls-negative-control.mjs",
+    "test:backfill": "node scripts/check-backfill.mjs",
+    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:backfill"
   },
   "dependencies": {
-    "@google-cloud/storage": "^7.22.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
     "next": "16.3.0",
@@ -17,6 +21,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

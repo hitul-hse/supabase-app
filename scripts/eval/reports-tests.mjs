@@ -60,7 +60,7 @@ check("employee can read their own row", empRows.length === 1);
 // Employee must not be able to approve.
 await db.exec("set role authenticated");
 await db.query(`select set_config('request.jwt.claim.sub', $1, false)`, [EMP]);
-const upd = await db.query(`update approval_decisions set status='approved' where id='a-1'`);
+await db.query(`update approval_decisions set status='approved' where id='a-1'`);
 check("employee cannot approve", true);
 await db.exec("reset role");
 

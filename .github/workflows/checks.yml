@@ -59,9 +59,17 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key-for-build
         run: |
           npm run start &
-          for i in $(seq 1 30); do
-            curl -sf -o /dev/null http://localhost:3000/auth/login && break
-            sleep 1
+          # Poll a PROTECTED route, not just any 200. The server answers on the
+          # port before routing is fully warm, and probing too early produced a
+          # false "protected route returned 200" locally. A 3xx here means the
+          # auth redirect is actually live.
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/people || echo 000)
+            case "$code" in
+              30*) echo "server ready (/people -> $code)"; break ;;
+              *) sleep 1 ;;
+            esac
+            if [ "$i" = "60" ]; then echo "server never became ready (last: $code)"; exit 1; fi
           done
           node scripts/check-auth-gates.mjs
           node scripts/check-middleware-bypass.mjs

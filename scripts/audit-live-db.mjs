@@ -16,15 +16,6 @@ for (const line of fs.readFileSync(".env.local", "utf8").split(/\r?\n/)) {
 const url = env.NEXT_PUBLIC_SUPABASE_URL;
 const key = env.SUPABASE_SERVICE_ROLE_KEY;
 
-const rpc = async (fn, args = {}) => {
-  const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
-    method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify(args),
-  });
-  return { status: res.status, text: await res.text() };
-};
-
 const rest = async (path) => {
   const res = await fetch(`${url}/rest/v1/${path}`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },

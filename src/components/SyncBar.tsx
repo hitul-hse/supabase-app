@@ -1,10 +1,14 @@
-import { SYNC_SOURCES } from "@/data/hse-data";
+import { createClient } from "@/utils/supabase/server";
+import { getSyncSources } from "@/lib/queries/hse";
 
-export function SyncBar() {
+export async function SyncBar() {
+  const supabase = await createClient();
+  const sources = await getSyncSources(supabase);
+
   return (
     <div className="flex flex-wrap items-center gap-4 border-b border-[var(--border)] bg-[#0b0d0f] px-6 py-2 font-mono text-[11px]">
       <span className="tracking-[0.12em] text-[var(--text-faint)]">SYNC</span>
-      {SYNC_SOURCES.map((item) => (
+      {sources.map((item) => (
         <span
           key={item.source}
           className={`flex items-center gap-1.5 ${

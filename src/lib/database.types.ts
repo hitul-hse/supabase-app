@@ -1,110 +1,754 @@
 /**
  * Auto-generated database types from Supabase schema.
- * Reflects the current state of netflix_users, files, and aggregate views.
+ * Reflects the current state of netflix_users, files, the HSE Hub tables,
+ * and aggregate views.
  */
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   public: {
     Tables: {
-      netflix_users: {
+      approval_decisions: {
         Row: {
-          user_id: number;
-          name: string | null;
-          age: number | null;
-          country: string | null;
-          subscription_type: string | null;
-          watch_time_hours: number | null;
-          favorite_genre: string | null;
-          last_login: string | null;
-        };
+          id: string
+          primary_action: string
+          secondary_action: string | null
+          sort_order: number
+          status: string
+          subtitle: string
+          title: string
+          type: string
+        }
         Insert: {
-          user_id: number;
-          name?: string | null;
-          age?: number | null;
-          country?: string | null;
-          subscription_type?: string | null;
-          watch_time_hours?: number | null;
-          favorite_genre?: string | null;
-          last_login?: string | null;
-        };
+          id: string
+          primary_action: string
+          secondary_action?: string | null
+          sort_order: number
+          status?: string
+          subtitle: string
+          title: string
+          type: string
+        }
         Update: {
-          user_id?: number;
-          name?: string | null;
-          age?: number | null;
-          country?: string | null;
-          subscription_type?: string | null;
-          watch_time_hours?: number | null;
-          favorite_genre?: string | null;
-          last_login?: string | null;
-        };
-        Relationships: [];
-      };
+          id?: string
+          primary_action?: string
+          secondary_action?: string | null
+          sort_order?: number
+          status?: string
+          subtitle?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      executive_metrics: {
+        Row: {
+          id: number
+          label: string
+          progress_color: string | null
+          progress_percent: number | null
+          sort_order: number
+          subtext: string
+          subtext_color: string | null
+          value: string
+        }
+        Insert: {
+          id?: never
+          label: string
+          progress_color?: string | null
+          progress_percent?: number | null
+          sort_order: number
+          subtext: string
+          subtext_color?: string | null
+          value: string
+        }
+        Update: {
+          id?: never
+          label?: string
+          progress_color?: string | null
+          progress_percent?: number | null
+          sort_order?: number
+          subtext?: string
+          subtext_color?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       files: {
         Row: {
-          id: number;
-          owner_id: string;
-          object_path: string;
-          original_name: string;
-          content_type: string | null;
-          size_bytes: number | null;
-          uploaded_at: string;
-        };
+          content_type: string | null
+          id: number
+          object_path: string
+          original_name: string
+          owner_id: string
+          size_bytes: number | null
+          uploaded_at: string
+        }
         Insert: {
-          id?: number;
-          owner_id: string;
-          object_path: string;
-          original_name: string;
-          content_type?: string | null;
-          size_bytes?: number | null;
-          uploaded_at?: string;
-        };
+          content_type?: string | null
+          id?: never
+          object_path: string
+          original_name: string
+          owner_id: string
+          size_bytes?: number | null
+          uploaded_at?: string
+        }
         Update: {
-          id?: number;
-          owner_id?: string;
-          object_path?: string;
-          original_name?: string;
-          content_type?: string | null;
-          size_bytes?: number | null;
-          uploaded_at?: string;
-        };
-        Relationships: [];
-      };
-    };
-    Views: {
-      netflix_overview: {
+          content_type?: string | null
+          id?: never
+          object_path?: string
+          original_name?: string
+          owner_id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
+      netflix_users: {
         Row: {
-          total_users: number | null;
-          avg_age: number | null;
-          avg_watch_time_hours: number | null;
-          country_count: number | null;
-        };
-        Relationships: [];
-      };
+          age: number | null
+          country: string | null
+          favorite_genre: string | null
+          last_login: string | null
+          name: string | null
+          subscription_type: string | null
+          user_id: number
+          watch_time_hours: number | null
+        }
+        Insert: {
+          age?: number | null
+          country?: string | null
+          favorite_genre?: string | null
+          last_login?: string | null
+          name?: string | null
+          subscription_type?: string | null
+          user_id: number
+          watch_time_hours?: number | null
+        }
+        Update: {
+          age?: number | null
+          country?: string | null
+          favorite_genre?: string | null
+          last_login?: string | null
+          name?: string | null
+          subscription_type?: string | null
+          user_id?: number
+          watch_time_hours?: number | null
+        }
+        Relationships: []
+      }
+      people: {
+        Row: {
+          billable_share: number
+          capacity_status: string
+          certificate_status: string | null
+          certificate_text: string | null
+          contract_hours: number
+          department: string
+          employee_number: string
+          holiday_left: number
+          id: string
+          logged_this_month: number
+          name: string
+          open_tasks: number
+          overdue_tasks: number
+          role: string
+          since: string
+          timesheet_status: string | null
+          total_holiday: number
+          total_monthly_hours: number
+        }
+        Insert: {
+          billable_share: number
+          capacity_status: string
+          certificate_status?: string | null
+          certificate_text?: string | null
+          contract_hours: number
+          department: string
+          employee_number: string
+          holiday_left: number
+          id: string
+          logged_this_month: number
+          name: string
+          open_tasks: number
+          overdue_tasks: number
+          role: string
+          since: string
+          timesheet_status?: string | null
+          total_holiday: number
+          total_monthly_hours: number
+        }
+        Update: {
+          billable_share?: number
+          capacity_status?: string
+          certificate_status?: string | null
+          certificate_text?: string | null
+          contract_hours?: number
+          department?: string
+          employee_number?: string
+          holiday_left?: number
+          id?: string
+          logged_this_month?: number
+          name?: string
+          open_tasks?: number
+          overdue_tasks?: number
+          role?: string
+          since?: string
+          timesheet_status?: string | null
+          total_holiday?: number
+          total_monthly_hours?: number
+        }
+        Relationships: []
+      }
+      person_assignments: {
+        Row: {
+          id: number
+          logged_hours: number
+          person_id: string
+          project_name: string
+          share_percent: number
+          sort_order: number
+          tasks_count: number
+        }
+        Insert: {
+          id?: never
+          logged_hours: number
+          person_id: string
+          project_name: string
+          share_percent: number
+          sort_order: number
+          tasks_count: number
+        }
+        Update: {
+          id?: never
+          logged_hours?: number
+          person_id?: string
+          project_name?: string
+          share_percent?: number
+          sort_order?: number
+          tasks_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_qualifications: {
+        Row: {
+          id: number
+          name: string
+          person_id: string
+          sort_order: number
+          status: string
+          validity: string
+        }
+        Insert: {
+          id?: never
+          name: string
+          person_id: string
+          sort_order: number
+          status: string
+          validity: string
+        }
+        Update: {
+          id?: never
+          name?: string
+          person_id?: string
+          sort_order?: number
+          status?: string
+          validity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_qualifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_tasks: {
+        Row: {
+          estimate_hours: number
+          id: number
+          logged_hours: number
+          name: string
+          owner: string
+          project_id: string
+          sort_order: number
+          status: string
+        }
+        Insert: {
+          estimate_hours: number
+          id?: never
+          logged_hours: number
+          name: string
+          owner: string
+          project_id: string
+          sort_order: number
+          status: string
+        }
+        Update: {
+          estimate_hours?: number
+          id?: never
+          logged_hours?: number
+          name?: string
+          owner?: string
+          project_id?: string
+          sort_order?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_timeline: {
+        Row: {
+          id: number
+          period: string
+          progress_percent: number
+          project_id: string
+          sort_order: number
+          status: string
+          title: string
+        }
+        Insert: {
+          id?: never
+          period: string
+          progress_percent: number
+          project_id: string
+          sort_order: number
+          status: string
+          title: string
+        }
+        Update: {
+          id?: never
+          period?: string
+          progress_percent?: number
+          project_id?: string
+          sort_order?: number
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_timeline_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          billable_hours: number
+          change_requests: string | null
+          code: string
+          consumed_percent: number
+          contract_hours: number
+          contract_type: string | null
+          contract_value_eur: number | null
+          customer: string
+          due: string
+          forecast_overrun: number | null
+          id: string
+          invoiced_eur: number | null
+          lead: string
+          logged_hours: number | null
+          name: string
+          remaining_hours: number | null
+          status: string
+          team_size: number | null
+        }
+        Insert: {
+          billable_hours: number
+          change_requests?: string | null
+          code: string
+          consumed_percent: number
+          contract_hours: number
+          contract_type?: string | null
+          contract_value_eur?: number | null
+          customer: string
+          due: string
+          forecast_overrun?: number | null
+          id: string
+          invoiced_eur?: number | null
+          lead: string
+          logged_hours?: number | null
+          name: string
+          remaining_hours?: number | null
+          status: string
+          team_size?: number | null
+        }
+        Update: {
+          billable_hours?: number
+          change_requests?: string | null
+          code?: string
+          consumed_percent?: number
+          contract_hours?: number
+          contract_type?: string | null
+          contract_value_eur?: number | null
+          customer?: string
+          due?: string
+          forecast_overrun?: number | null
+          id?: string
+          invoiced_eur?: number | null
+          lead?: string
+          logged_hours?: number | null
+          name?: string
+          remaining_hours?: number | null
+          status?: string
+          team_size?: number | null
+        }
+        Relationships: []
+      }
+      sync_sources: {
+        Row: {
+          freshness: string
+          message: string | null
+          sort_order: number
+          source: string
+          status: string
+        }
+        Insert: {
+          freshness: string
+          message?: string | null
+          sort_order: number
+          source: string
+          status: string
+        }
+        Update: {
+          freshness?: string
+          message?: string | null
+          sort_order?: number
+          source?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      team_utilisations: {
+        Row: {
+          id: number
+          percent: number | null
+          sort_order: number
+          status_color: string | null
+          team: string
+        }
+        Insert: {
+          id?: never
+          percent?: number | null
+          sort_order: number
+          status_color?: string | null
+          team: string
+        }
+        Update: {
+          id?: never
+          percent?: number | null
+          sort_order?: number
+          status_color?: string | null
+          team?: string
+        }
+        Relationships: []
+      }
+      timesheet_entries: {
+        Row: {
+          customer: string | null
+          day_of_week: number
+          entry_group: number
+          hours: number
+          id: number
+          is_billable: boolean
+          project_name: string
+          task_name: string
+          warning: string | null
+        }
+        Insert: {
+          customer?: string | null
+          day_of_week: number
+          entry_group: number
+          hours: number
+          id?: never
+          is_billable: boolean
+          project_name: string
+          task_name: string
+          warning?: string | null
+        }
+        Update: {
+          customer?: string | null
+          day_of_week?: number
+          entry_group?: number
+          hours?: number
+          id?: never
+          is_billable?: boolean
+          project_name?: string
+          task_name?: string
+          warning?: string | null
+        }
+        Relationships: []
+      }
+      todos: {
+        Row: {
+          id: number
+          inserted_at: string
+          is_complete: boolean
+          task: string
+        }
+        Insert: {
+          id?: never
+          inserted_at?: string
+          is_complete?: boolean
+          task: string
+        }
+        Update: {
+          id?: never
+          inserted_at?: string
+          is_complete?: boolean
+          task?: string
+        }
+        Relationships: []
+      }
+      weekly_bookings: {
+        Row: {
+          hours: number | null
+          id: number
+          person_id: string
+          status: string
+          week: string
+        }
+        Insert: {
+          hours?: number | null
+          id?: never
+          person_id: string
+          status: string
+          week: string
+        }
+        Update: {
+          hours?: number | null
+          id?: never
+          person_id?: string
+          status?: string
+          week?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_bookings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_trends: {
+        Row: {
+          billable_hours: number
+          id: number
+          is_open: boolean
+          non_billable_hours: number
+          sort_order: number
+          week: string
+        }
+        Insert: {
+          billable_hours: number
+          id?: never
+          is_open?: boolean
+          non_billable_hours: number
+          sort_order: number
+          week: string
+        }
+        Update: {
+          billable_hours?: number
+          id?: never
+          is_open?: boolean
+          non_billable_hours?: number
+          sort_order?: number
+          week?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
       netflix_country_stats: {
         Row: {
-          country: string | null;
-          user_count: number | null;
-        };
-        Relationships: [];
-      };
+          country: string | null
+          user_count: number | null
+        }
+        Relationships: []
+      }
       netflix_genre_stats: {
         Row: {
-          favorite_genre: string | null;
-          user_count: number | null;
-        };
-        Relationships: [];
-      };
+          favorite_genre: string | null
+          user_count: number | null
+        }
+        Relationships: []
+      }
+      netflix_overview: {
+        Row: {
+          avg_age: number | null
+          avg_watch_time_hours: number | null
+          country_count: number | null
+          total_users: number | null
+        }
+        Relationships: []
+      }
       netflix_subscription_stats: {
         Row: {
-          subscription_type: string | null;
-          user_count: number | null;
-          avg_watch_time_hours: number | null;
-        };
-        Relationships: [];
-      };
-    };
-    Functions: { [_ in never]: never };
-    Enums: { [_ in never]: never };
-    CompositeTypes: { [_ in never]: never };
-  };
-};
+          avg_watch_time_hours: number | null
+          subscription_type: string | null
+          user_count: number | null
+        }
+        Relationships: []
+      }
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never

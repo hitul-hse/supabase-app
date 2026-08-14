@@ -1,9 +1,20 @@
 import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
-import { PROJECT_DETAILS } from "@/data/hse-data";
+import { createClient } from "@/utils/supabase/server";
+import { getProjectDetail } from "@/lib/queries/hse";
 
-export default function ProjectsPage() {
-  const prj = PROJECT_DETAILS["prj-1"];
+export default async function ProjectsPage() {
+  const supabase = await createClient();
+  const prj = await getProjectDetail(supabase, "prj-1");
+
+  if (!prj) {
+    return (
+      <div>
+        <PageHeader category="HSE HUB / RECORDS" title="Project Record" />
+        <div className="p-6 text-[var(--text-secondary)]">Project not found.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">
@@ -20,7 +31,7 @@ export default function ProjectsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4 border border-[var(--border)] bg-[var(--surface)] p-5">
           <div className="flex flex-col gap-1.5">
             <span className="font-mono text-[10.5px] tracking-[0.1em] text-[var(--text-muted)]">
-              {prj.customer.toUpperCase()} · {prj.code} · {prj.contractType}
+              {prj.customer.toUpperCase()} · {prj.code} · {prj.contract_type}
             </span>
             <h2 className="text-[20px] font-semibold text-[var(--text-primary)]">{prj.name}</h2>
             <div className="flex flex-wrap gap-2 pt-1 font-mono text-[10.5px]">
@@ -31,7 +42,7 @@ export default function ProjectsPage() {
                 LEAD {prj.lead}
               </span>
               <span className="bg-[var(--surface-2)] px-2 py-0.5 text-[var(--text-secondary)]">
-                {prj.teamSize} PEOPLE ASSIGNED
+                {prj.team_size} PEOPLE ASSIGNED
               </span>
             </div>
           </div>
@@ -43,14 +54,14 @@ export default function ProjectsPage() {
                 CONTRACTED
               </span>
               <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-                {prj.contractHours} h
+                {prj.contract_hours} h
               </span>
             </div>
 
             <div className="flex flex-col">
               <span className="text-[10px] tracking-[0.1em] text-[var(--text-muted)]">LOGGED</span>
               <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-                {prj.loggedHours} h
+                {prj.logged_hours} h
               </span>
             </div>
 
@@ -59,14 +70,14 @@ export default function ProjectsPage() {
                 REMAINING
               </span>
               <span className="text-[18px] font-semibold text-[var(--critical)]">
-                {prj.remainingHours} h
+                {prj.remaining_hours} h
               </span>
             </div>
 
             <div className="flex flex-col">
               <span className="text-[10px] tracking-[0.1em] text-[var(--text-muted)]">FORECAST</span>
               <span className="text-[18px] font-semibold text-[var(--critical)]">
-                +{prj.forecastOverrun} h
+                +{prj.forecast_overrun} h
               </span>
             </div>
           </div>
@@ -173,7 +184,7 @@ export default function ProjectsPage() {
                 <span className="col-span-3 text-right">STATUS / OWNER</span>
               </div>
 
-              {prj.tasks.map((task) => (
+              {prj.project_tasks.map((task) => (
                 <div
                   key={task.name}
                   className="grid min-w-[420px] grid-cols-12 items-center border-b border-[#3a414c] px-4 py-2.5 text-[12.5px] hover:bg-[var(--surface-hover)]"
@@ -182,10 +193,10 @@ export default function ProjectsPage() {
                     {task.name}
                   </span>
                   <span className="col-span-2 text-right font-mono text-[var(--text-muted)]">
-                    {task.estimateHours}
+                    {task.estimate_hours}
                   </span>
                   <span className="col-span-2 text-right font-mono text-[var(--text-primary)]">
-                    {task.loggedHours}
+                    {task.logged_hours}
                   </span>
                   <div className="col-span-3 flex flex-col items-end">
                     <span
@@ -216,7 +227,7 @@ export default function ProjectsPage() {
                 Milestone Timeline
               </span>
               <div className="flex flex-col gap-2.5">
-                {prj.timeline.map((t) => (
+                {prj.project_timeline.map((t) => (
                   <div key={t.period} className="flex items-center gap-3 text-[11.5px]">
                     <span className="w-16 font-mono text-[10.5px] text-[var(--text-muted)]">
                       {t.period}
@@ -225,7 +236,7 @@ export default function ProjectsPage() {
                       <div
                         className="h-full"
                         style={{
-                          width: `${t.progressPercent}%`,
+                          width: `${t.progress_percent}%`,
                           background:
                             t.status === "forecast"
                               ? "repeating-linear-gradient(45deg, #4a251d, #4a251d 4px, #2a1613 4px, #2a1613 8px)"
@@ -252,18 +263,18 @@ export default function ProjectsPage() {
                 <div className="flex justify-between">
                   <span className="text-[var(--text-muted)]">Contract value:</span>
                   <span className="font-mono text-[var(--text-primary)]">
-                    €{prj.contractValueEur.toLocaleString("de-DE")}
+                    €{(prj.contract_value_eur ?? 0).toLocaleString("de-DE")}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[var(--text-muted)]">Invoiced to date:</span>
                   <span className="font-mono text-[var(--text-primary)]">
-                    €{prj.invoicedEur.toLocaleString("de-DE")}
+                    €{(prj.invoiced_eur ?? 0).toLocaleString("de-DE")}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[var(--text-muted)]">Change requests:</span>
-                  <span className="font-mono text-[var(--warning)]">{prj.changeRequests}</span>
+                  <span className="font-mono text-[var(--warning)]">{prj.change_requests}</span>
                 </div>
               </div>
 

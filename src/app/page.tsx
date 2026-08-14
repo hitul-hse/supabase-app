@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
-import {
-  EXECUTIVE_METRICS,
-  WEEKLY_TRENDS,
-  TEAM_UTILISATIONS,
-  ACTIVE_PROJECTS_LEDGER,
-} from "@/data/hse-data";
+import { createClient } from "@/utils/supabase/server";
+import { getExecutiveOverview } from "@/lib/queries/hse";
 
-export default function OverviewPage() {
+export default async function OverviewPage() {
+  const supabase = await createClient();
+  const { metrics, weeklyTrends, teamUtilisations, projects } =
+    await getExecutiveOverview(supabase);
+
   return (
     <div className="flex flex-col">
       <SyncBar />
@@ -35,11 +35,11 @@ export default function OverviewPage() {
       <div className="flex flex-col gap-5 p-6">
         {/* 5-Column Metric Strip */}
         <div className="grid grid-cols-1 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          {EXECUTIVE_METRICS.map((metric, idx) => (
+          {metrics.map((metric, idx) => (
             <div
               key={metric.label}
               className={`flex flex-col gap-1.5 p-3.5 ${
-                idx < EXECUTIVE_METRICS.length - 1
+                idx < metrics.length - 1
                   ? "border-b border-[var(--border)] lg:border-b-0 lg:border-r"
                   : ""
               }`}
@@ -50,20 +50,20 @@ export default function OverviewPage() {
               <span className="font-mono text-[24px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
                 {metric.value}
               </span>
-              {metric.progressPercent !== undefined ? (
+              {metric.progress_percent !== null ? (
                 <div className="mt-1 h-1 w-full bg-[var(--border)]">
                   <div
                     className="h-full"
                     style={{
-                      width: `${metric.progressPercent}%`,
-                      background: metric.progressColor || "var(--accent)",
+                      width: `${metric.progress_percent}%`,
+                      background: metric.progress_color || "var(--accent)",
                     }}
                   />
                 </div>
               ) : (
                 <span
                   className="font-mono text-[11px]"
-                  style={{ color: metric.subtextColor || "var(--text-faint)" }}
+                  style={{ color: metric.subtext_color || "var(--text-faint)" }}
                 >
                   {metric.subtext}
                 </span>
@@ -97,36 +97,41 @@ export default function OverviewPage() {
 
             {/* Bars container */}
             <div className="flex h-[160px] items-end gap-2 pt-4">
-              {WEEKLY_TRENDS.map((item) => (
-                <div
-                  key={item.week}
-                  className="group relative flex h-full flex-1 flex-col justify-end gap-0.5"
-                >
-                  {/* Tooltip on hover */}
-                  <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#1c2427] px-2 py-1 font-mono text-[10px] text-white shadow group-hover:block">
-                    {item.week}: {item.billablePercent}% ({item.billableHours}h /{" "}
-                    {item.billableHours + item.nonBillableHours}h)
-                  </div>
+              {weeklyTrends.map((item) => {
+                const billablePercent = Math.round(
+                  (item.billable_hours / (item.billable_hours + item.non_billable_hours)) * 100,
+                );
+                return (
+                  <div
+                    key={item.week}
+                    className="group relative flex h-full flex-1 flex-col justify-end gap-0.5"
+                  >
+                    {/* Tooltip on hover */}
+                    <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#1c2427] px-2 py-1 font-mono text-[10px] text-white shadow group-hover:block">
+                      {item.week}: {billablePercent}% ({item.billable_hours}h /{" "}
+                      {item.billable_hours + item.non_billable_hours}h)
+                    </div>
 
-                  {/* Non-billable segment */}
-                  <div
-                    className="w-full bg-[#8a9197] transition-all"
-                    style={{
-                      height: `${(item.nonBillableHours / 2000) * 100}%`,
-                    }}
-                  />
-                  {/* Billable segment */}
-                  <div
-                    className="w-full transition-all"
-                    style={{
-                      height: `${(item.billableHours / 2000) * 100}%`,
-                      background: item.isOpen
-                        ? "repeating-linear-gradient(135deg, #91c2b7, #91c2b7 4px, #6ba79b 4px, #6ba79b 8px)"
-                        : "var(--accent)",
-                    }}
-                  />
-                </div>
-              ))}
+                    {/* Non-billable segment */}
+                    <div
+                      className="w-full bg-[#8a9197] transition-all"
+                      style={{
+                        height: `${(item.non_billable_hours / 2000) * 100}%`,
+                      }}
+                    />
+                    {/* Billable segment */}
+                    <div
+                      className="w-full transition-all"
+                      style={{
+                        height: `${(item.billable_hours / 2000) * 100}%`,
+                        background: item.is_open
+                          ? "repeating-linear-gradient(135deg, #91c2b7, #91c2b7 4px, #6ba79b 4px, #6ba79b 8px)"
+                          : "var(--accent)",
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             <div className="flex justify-between border-t border-[var(--border)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
@@ -145,7 +150,7 @@ export default function OverviewPage() {
             </span>
 
             <div className="flex flex-col gap-2.5">
-              {TEAM_UTILISATIONS.map((team) => (
+              {teamUtilisations.map((team) => (
                 <div key={team.team} className="flex flex-col gap-1">
                   <div className="flex justify-between text-[12px] text-[var(--text-secondary)]">
                     <span>{team.team}</span>
@@ -159,7 +164,7 @@ export default function OverviewPage() {
                         className="h-full"
                         style={{
                           width: `${team.percent}%`,
-                          background: team.statusColor || "var(--accent)",
+                          background: team.status_color || "var(--accent)",
                         }}
                       />
                     ) : (
@@ -219,7 +224,7 @@ export default function OverviewPage() {
             </div>
 
             {/* Table Rows */}
-            {ACTIVE_PROJECTS_LEDGER.map((prj) => {
+            {projects.map((prj) => {
               const barColor =
                 prj.status === "CRITICAL"
                   ? "var(--critical)"
@@ -240,23 +245,23 @@ export default function OverviewPage() {
                   </Link>
                   <span className="col-span-2 text-[var(--text-secondary)]">{prj.customer}</span>
                   <span className="col-span-1 text-right font-mono text-[var(--text-primary)]">
-                    {prj.contractHours.toLocaleString("de-DE")}
+                    {prj.contract_hours.toLocaleString("de-DE")}
                   </span>
                   <span className="col-span-1 text-right font-mono text-[var(--text-primary)]">
-                    {prj.billableHours.toLocaleString("de-DE")}
+                    {prj.billable_hours.toLocaleString("de-DE")}
                   </span>
                   <div className="col-span-2 flex items-center gap-2">
                     <div className="h-1.5 flex-1 bg-[var(--border)]">
                       <div
                         className="h-full"
-                        style={{ width: `${Math.min(prj.consumedPercent, 100)}%`, background: barColor }}
+                        style={{ width: `${Math.min(prj.consumed_percent, 100)}%`, background: barColor }}
                       />
                     </div>
                     <span
                       className="w-8 font-mono text-[11px] font-medium"
                       style={{ color: barColor }}
                     >
-                      {prj.consumedPercent}%
+                      {prj.consumed_percent}%
                     </span>
                   </div>
                   <span className="col-span-1 text-right font-mono text-[11.5px] text-[var(--text-secondary)]">

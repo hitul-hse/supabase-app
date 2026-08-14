@@ -8,8 +8,28 @@ import { requireUser } from "@/utils/supabase/require-user";
 export default async function OverviewPage() {
   await requireUser("/");
   const supabase = await createClient();
-  const { metrics, weeklyTrends, teamUtilisations, projects } =
+  const { metrics, billableTrend, teamUtilisations, projects } =
     await getExecutiveOverview(supabase);
+
+  const chartMax = Math.max(
+    0,
+    ...billableTrend.points.map((p) => p.billableHours + p.nonBillableHours),
+  );
+
+  // First, last, and two evenly spaced weeks between them — deduplicated,
+  // since with only a couple of synced weeks those four positions collapse
+  // onto the same bars and would print the same label repeatedly.
+  const tickIndexes = Array.from(
+    new Set(
+      [0, 0.33, 0.66, 1].map((fraction) =>
+        Math.round(fraction * Math.max(0, billableTrend.points.length - 1)),
+      ),
+    ),
+  );
+  const axisTicks = tickIndexes
+    .map((index) => billableTrend.points[index])
+    .filter((point): point is NonNullable<typeof point> => point !== undefined)
+    .map((point) => ({ label: point.label, isOpen: point.isOpen }));
 
   return (
     <div className="flex flex-col">
@@ -83,7 +103,9 @@ export default async function OverviewPage() {
                 Billable vs non-billable hours
               </span>
               <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-                PER WEEK · TRACKINGTIME
+                {billableTrend.source === "synced"
+                  ? "PER WEEK · TRACKINGTIME"
+                  : "PER WEEK · SAMPLE DATA"}
               </span>
               <div className="ml-auto flex items-center gap-3 font-mono text-[10.5px] text-[var(--text-secondary)]">
                 <span className="flex items-center gap-1.5">
@@ -97,51 +119,65 @@ export default async function OverviewPage() {
               </div>
             </div>
 
-            {/* Bars container */}
+            {/* Bars container. Scaled to the tallest week actually present:
+                a fixed ceiling suits the ~2000h sample weeks but would flatten
+                a real Operations roster's few hundred hours into slivers. */}
             <div className="flex h-[160px] items-end gap-2 pt-4">
-              {weeklyTrends.map((item) => {
-                const billablePercent = Math.round(
-                  (item.billable_hours / (item.billable_hours + item.non_billable_hours)) * 100,
-                );
-                return (
-                  <div
-                    key={item.week}
-                    className="group relative flex h-full flex-1 flex-col justify-end gap-0.5"
-                  >
-                    {/* Tooltip on hover */}
-                    <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#1c2427] px-2 py-1 font-mono text-[10px] text-white shadow group-hover:block">
-                      {item.week}: {billablePercent}% ({item.billable_hours}h /{" "}
-                      {item.billable_hours + item.non_billable_hours}h)
-                    </div>
+              {chartMax === 0 ? (
+                <p className="self-center font-mono text-[11px] text-[var(--text-faint)]">
+                  No hours recorded for these weeks yet.
+                </p>
+              ) : (
+                billableTrend.points.map((point) => {
+                  const total = point.billableHours + point.nonBillableHours;
+                  const billablePercent =
+                    total === 0 ? null : Math.round((point.billableHours / total) * 100);
+                  return (
+                    <div
+                      key={point.label}
+                      className="group relative flex h-full flex-1 flex-col justify-end gap-0.5"
+                    >
+                      {/* Tooltip on hover */}
+                      <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#1c2427] px-2 py-1 font-mono text-[10px] text-white shadow group-hover:block">
+                        {point.label}
+                        {billablePercent === null
+                          ? ": no hours"
+                          : `: ${billablePercent}% (${point.billableHours}h / ${total}h)`}
+                      </div>
 
-                    {/* Non-billable segment */}
-                    <div
-                      className="w-full bg-[#8a9197] transition-all"
-                      style={{
-                        height: `${(item.non_billable_hours / 2000) * 100}%`,
-                      }}
-                    />
-                    {/* Billable segment */}
-                    <div
-                      className="w-full transition-all"
-                      style={{
-                        height: `${(item.billable_hours / 2000) * 100}%`,
-                        background: item.is_open
-                          ? "repeating-linear-gradient(135deg, #91c2b7, #91c2b7 4px, #6ba79b 4px, #6ba79b 8px)"
-                          : "var(--accent)",
-                      }}
-                    />
-                  </div>
-                );
-              })}
+                      {/* Non-billable segment */}
+                      <div
+                        className="w-full bg-[#8a9197] transition-all"
+                        style={{ height: `${(point.nonBillableHours / chartMax) * 100}%` }}
+                      />
+                      {/* Billable segment */}
+                      <div
+                        className="w-full transition-all"
+                        style={{
+                          height: `${(point.billableHours / chartMax) * 100}%`,
+                          background: point.isOpen
+                            ? "repeating-linear-gradient(135deg, #91c2b7, #91c2b7 4px, #6ba79b 4px, #6ba79b 8px)"
+                            : "var(--accent)",
+                        }}
+                      />
+                    </div>
+                  );
+                })
+              )}
             </div>
 
+            {/* Axis ticks come from the data rather than being written in, so
+                they cannot drift out of step with the bars above them. */}
             <div className="flex justify-between border-t border-[var(--border)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
-              <span>W20</span>
-              <span>W23</span>
-              <span>W26</span>
-              <span>W29</span>
-              <span className="text-[var(--accent)] font-medium">W31 OPEN</span>
+              {axisTicks.map((tick, index) => (
+                <span
+                  key={`${tick.label}-${index}`}
+                  className={tick.isOpen ? "font-medium text-[var(--accent)]" : undefined}
+                >
+                  {tick.label}
+                  {tick.isOpen ? " OPEN" : ""}
+                </span>
+              ))}
             </div>
           </div>
 

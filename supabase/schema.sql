@@ -156,22 +156,32 @@ alter table team_utilisations enable row level security;
 -- people is created before projects because projects.owner_person_id
 -- references it.
 
+-- Only identity is required. Everything else is either derived from synced
+-- data or comes from a system that is not integrated yet (task counts are
+-- Asana; holiday balances are not in the pipeline), so those columns are
+-- nullable: "not known yet" has to be representable instead of being filled
+-- with a plausible-looking number.
 create table if not exists people (
   id text primary key,
   name text not null,
-  role text not null,
-  department text not null,
-  since text not null,
-  contract_hours numeric not null,
-  employee_number text not null,
-  capacity_status text not null,
-  logged_this_month numeric not null,
-  total_monthly_hours numeric not null,
-  billable_share numeric not null,
-  open_tasks int not null,
-  overdue_tasks int not null,
-  holiday_left numeric not null,
-  total_holiday numeric not null,
+  factorial_employee_id text unique,
+  trackingtime_user_id text,
+  is_active boolean not null default true,
+  -- Distinguishes the demo roster from rows the vendor sync created.
+  source text not null default 'seed' check (source in ('seed', 'factorial')),
+  role text,
+  department text,
+  since text,
+  contract_hours numeric,
+  employee_number text,
+  capacity_status text,
+  logged_this_month numeric,
+  total_monthly_hours numeric,
+  billable_share numeric,
+  open_tasks int,
+  overdue_tasks int,
+  holiday_left numeric,
+  total_holiday numeric,
   timesheet_status text,
   certificate_status text,
   certificate_text text
@@ -555,6 +565,68 @@ alter table weekly_employee_summary enable row level security;
 -- Individual hours are management data, so this follows approval_decisions
 -- rather than the company-wide reference tables. Writes arrive via the service
 -- role, which bypasses RLS, so no write policy is granted.
-create policy "exec and dept_head can read weekly_employee_summary"
+-- Reuse the person scoping so an employee can see their own timesheet:
+-- can_view_person already encodes exec-sees-all, dept_head-sees-department and
+-- everyone-sees-themselves. The exec branch also covers rows whose employee has
+-- no people row yet, which would otherwise be invisible to everyone.
+create policy "role-scoped read on weekly_employee_summary"
   on weekly_employee_summary for select to authenticated
-  using (app_user_role() in ('exec', 'dept_head'));
+  using (
+    app_user_role() = 'exec'
+    or exists (
+      select 1 from people p
+      where p.factorial_employee_id = weekly_employee_summary.factorial_employee_id
+        and can_view_person(p.id)
+    )
+  );
+
+-- Derived reporting views. security_invoker so the caller's RLS on the
+-- underlying tables still applies rather than the view owner's.
+
+create or replace view person_week_metrics
+  with (security_invoker = true) as
+  select
+    p.id as person_id,
+    p.name,
+    p.department,
+    s.factorial_employee_id,
+    s.period_start,
+    s.period_end,
+    round(s.worked_minutes / 60.0, 1) as worked_hours,
+    round(s.expected_minutes / 60.0, 1) as expected_hours,
+    s.worked_day_count,
+    round(s.billable_seconds / 3600.0, 1) as billable_hours,
+    round((s.travel_time_seconds + s.internal_project_seconds
+           + s.empty_tasks_seconds) / 3600.0, 1) as non_billable_hours,
+    -- Null rather than a misleading 0% when no time was tracked at all.
+    case when (s.billable_seconds + s.travel_time_seconds
+               + s.internal_project_seconds + s.empty_tasks_seconds) = 0 then null
+         else round(100.0 * s.billable_seconds
+              / (s.billable_seconds + s.travel_time_seconds
+                 + s.internal_project_seconds + s.empty_tasks_seconds)) end
+      as billable_share_percent,
+    case when s.absence_minutes is null then null
+         else round(s.absence_minutes / 60.0, 1) end as absence_hours,
+    s.absence_label,
+    case when s.expected_minutes = 0 then null
+         when s.worked_minutes > s.expected_minutes then 'over'
+         when s.worked_minutes < s.expected_minutes * 0.8 then 'under'
+         else 'normal' end as capacity_status,
+    s.review_entry_count,
+    s.synced_at
+  from weekly_employee_summary s
+  left join people p on p.factorial_employee_id = s.factorial_employee_id;
+
+create or replace view weekly_billable_trend
+  with (security_invoker = true) as
+  select
+    s.period_start,
+    s.period_end,
+    round(sum(s.billable_seconds) / 3600.0, 1) as billable_hours,
+    round(sum(s.travel_time_seconds + s.internal_project_seconds
+              + s.empty_tasks_seconds) / 3600.0, 1) as non_billable_hours,
+    count(*) as employee_count
+  from weekly_employee_summary s
+  group by s.period_start, s.period_end;
+
+grant select on person_week_metrics, weekly_billable_trend to authenticated;

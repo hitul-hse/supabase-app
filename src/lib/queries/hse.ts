@@ -10,6 +10,8 @@ import type {
   ApprovalDecisionRow,
   TeamLeadBooking,
   TimesheetDayEntry,
+  BillableTrend,
+  WeeklyBillableTrendRow,
 } from "./types";
 
 /** Sync status strip shown at the top of every HSE Hub page. */
@@ -21,24 +23,102 @@ export async function getSyncSources(supabase: SupabaseTyped): Promise<SyncSourc
 /** Metric cards, weekly billable/non-billable trend, and team utilisation for the Overview page. */
 export async function getExecutiveOverview(supabase: SupabaseTyped): Promise<{
   metrics: ExecutiveMetricRow[];
-  weeklyTrends: WeeklyTrendRow[];
+  billableTrend: BillableTrend;
   teamUtilisations: TeamUtilisationRow[];
   projects: ProjectRow[];
 }> {
-  const [{ data: metrics }, { data: weeklyTrends }, { data: teamUtilisations }, { data: projects }] =
-    await Promise.all([
-      supabase.from("executive_metrics").select("*").order("sort_order"),
-      supabase.from("weekly_trends").select("*").order("sort_order"),
-      supabase.from("team_utilisations").select("*").order("sort_order"),
-      supabase.from("projects").select("*").order("id"),
-    ]);
+  const [
+    { data: metrics },
+    { data: syncedTrend },
+    { data: seededTrend },
+    { data: teamUtilisations },
+    { data: projects },
+  ] = await Promise.all([
+    supabase.from("executive_metrics").select("*").order("sort_order"),
+    // Real Factorial/TrackingTime figures, once the sync has run at least once.
+    supabase
+      .from("weekly_billable_trend")
+      .select("*")
+      .order("period_start")
+      .limit(WEEKS_ON_TREND_CHART),
+    supabase.from("weekly_trends").select("*").order("sort_order"),
+    supabase.from("team_utilisations").select("*").order("sort_order"),
+    supabase.from("projects").select("*").order("id"),
+  ]);
 
   return {
     metrics: metrics ?? [],
-    weeklyTrends: weeklyTrends ?? [],
+    billableTrend: buildBillableTrend(syncedTrend ?? [], seededTrend ?? []),
     teamUtilisations: teamUtilisations ?? [],
     projects: projects ?? [],
   };
+}
+
+const WEEKS_ON_TREND_CHART = 12;
+
+/**
+ * Prefer synced data, fall back to the seeded rows, and say which it is.
+ *
+ * The fallback exists so the page still demonstrates its layout before the
+ * first sync, but the caller is told the numbers are sample data so it can
+ * label them. Silently swapping invented figures in where real ones are
+ * expected is the failure mode worth avoiding on a page people read to make
+ * decisions.
+ */
+function buildBillableTrend(
+  synced: WeeklyBillableTrendRow[],
+  seeded: WeeklyTrendRow[],
+): BillableTrend {
+  if (synced.length > 0) {
+    return {
+      source: "synced",
+      points: synced.map((row) => ({
+        // Weeks are identified by their Monday, which is what the report
+        // period is keyed on upstream.
+        label: formatWeekLabel(row.period_start),
+        billableHours: Number(row.billable_hours ?? 0),
+        nonBillableHours: Number(row.non_billable_hours ?? 0),
+        isOpen: false,
+      })),
+    };
+  }
+
+  return {
+    source: "sample",
+    points: seeded.map((row) => ({
+      label: row.week,
+      // The seeded table stores hours directly.
+      billableHours: Number(row.billable_hours),
+      nonBillableHours: Number(row.non_billable_hours),
+      isOpen: row.is_open,
+    })),
+  };
+}
+
+/** "2026-08-03" -> "W32". ISO week, so it lines up with how the team refers to weeks. */
+function formatWeekLabel(periodStart: string | null): string {
+  if (!periodStart) return "—";
+  const date = new Date(`${periodStart}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  // ISO-8601: a week belongs to the year containing its Thursday, and week 1
+  // is the week containing 4 January. Compare this week's Thursday against
+  // that week's Thursday, so both sides are the same weekday and the gap is a
+  // whole number of weeks.
+  const thursday = thursdayOf(date);
+  const jan4 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
+  const firstThursday = thursdayOf(jan4);
+  const week =
+    1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000);
+  return `W${week}`;
+}
+
+/** The Thursday of the ISO week containing `date`. */
+function thursdayOf(date: Date): Date {
+  const result = new Date(date);
+  // (day + 6) % 7 maps Monday to 0 ... Sunday to 6.
+  result.setUTCDate(result.getUTCDate() + 3 - ((date.getUTCDay() + 6) % 7));
+  return result;
 }
 
 /** Single project with its timeline and task breakdown, for the Projects page. */

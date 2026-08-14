@@ -38,6 +38,34 @@ export type TeamLeadBooking = {
   certificates: { status: string | null; text: string | null };
 };
 
+/** Company-wide billable split per synced week, from the vendor pipeline. */
+export type WeeklyBillableTrendRow =
+  Database["public"]["Views"]["weekly_billable_trend"]["Row"];
+
+/** Per-person weekly figures derived from synced Factorial/TrackingTime data. */
+export type PersonWeekMetricsRow =
+  Database["public"]["Views"]["person_week_metrics"]["Row"];
+
+/**
+ * One bar in the Overview trend chart.
+ *
+ * `source` records where the numbers came from, because the two are not
+ * interchangeable: "synced" is real Factorial/TrackingTime data, "sample" is
+ * the seeded demo row. A BI page that renders them identically invites someone
+ * to make a decision on invented figures.
+ */
+export type BillableTrendPoint = {
+  label: string;
+  billableHours: number;
+  nonBillableHours: number;
+  isOpen: boolean;
+};
+
+export type BillableTrend = {
+  points: BillableTrendPoint[];
+  source: "synced" | "sample";
+};
+
 export type TimesheetDayEntry = {
   taskName: string;
   projectName: string;

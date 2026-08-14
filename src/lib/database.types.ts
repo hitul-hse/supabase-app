@@ -737,6 +737,38 @@ export type Database = {
       }
     }
     Views: {
+      person_week_metrics: {
+        Row: {
+          absence_hours: number | null
+          absence_label: string | null
+          billable_hours: number | null
+          billable_share_percent: number | null
+          capacity_status: string | null
+          department: string | null
+          expected_hours: number | null
+          factorial_employee_id: string | null
+          name: string | null
+          non_billable_hours: number | null
+          period_end: string | null
+          period_start: string | null
+          person_id: string | null
+          review_entry_count: number | null
+          synced_at: string | null
+          worked_day_count: number | null
+          worked_hours: number | null
+        }
+        Relationships: []
+      }
+      weekly_billable_trend: {
+        Row: {
+          billable_hours: number | null
+          employee_count: number | null
+          non_billable_hours: number | null
+          period_end: string | null
+          period_start: string | null
+        }
+        Relationships: []
+      }
       netflix_country_stats: {
         Row: {
           country: string | null

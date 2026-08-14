@@ -5,15 +5,39 @@ const { execFileSync } = require("node:child_process");
 const show = (path) =>
   execFileSync("git", ["show", `origin/master:${path}`], { encoding: "utf8" });
 
+// Page paths move around (e.g. into an (app) route group), so resolve each page
+// by name from the remote tree instead of hardcoding a directory. A gate that
+// silently disappears in a refactor is exactly what this needs to catch.
+const remoteFiles = execFileSync("git", ["ls-tree", "-r", "--name-only", "origin/master"], {
+  encoding: "utf8",
+})
+  .split(/\r?\n/)
+  .filter(Boolean);
+
+const findPage = (suffix) => {
+  const hits = remoteFiles.filter((f) => f.startsWith("src/app/") && f.endsWith(suffix));
+  if (hits.length !== 1) {
+    throw new Error(`expected exactly one ${suffix} under src/app/, found: ${hits.join(", ") || "none"}`);
+  }
+  return hits[0];
+};
+
+// The homepage is the one page.tsx whose directory is a route group or app root.
+const findHomePage = () => {
+  const hits = remoteFiles.filter((f) => /^src\/app\/(\([^)]+\)\/)?page\.tsx$/.test(f));
+  if (hits.length !== 1) throw new Error(`expected one root page.tsx, found: ${hits.join(", ") || "none"}`);
+  return hits[0];
+};
+
 const checks = [
   // Bug #2: server-side auth gates on every protected page.
   ...[
-    ["src/app/page.tsx", "requireUser"],
-    ["src/app/people/page.tsx", "requireUser"],
-    ["src/app/projects/page.tsx", "requireUser"],
-    ["src/app/timesheets/page.tsx", "requireUser"],
-    ["src/app/team-lead/page.tsx", "requireProfile"],
-    ["src/app/admin/users/page.tsx", "requireProfile"],
+    [findHomePage(), "requireUser"],
+    [findPage("people/page.tsx"), "requireUser"],
+    [findPage("projects/page.tsx"), "requireUser"],
+    [findPage("timesheets/page.tsx"), "requireUser"],
+    [findPage("team-lead/page.tsx"), "requireProfile"],
+    [findPage("admin/users/page.tsx"), "requireProfile"],
   ].map(([file, fn]) => ({
     name: `${file} gated with ${fn}()`,
     ok: new RegExp(`await ${fn}\\(`).test(show(file)),
@@ -67,11 +91,11 @@ const checks = [
   // Bug #7: approvals surface failures.
   {
     name: "approval actions return a result instead of swallowing errors",
-    ok: show("src/app/team-lead/actions.ts").includes("Promise<ApprovalResult>"),
+    ok: show(findPage("team-lead/actions.ts")).includes("Promise<ApprovalResult>"),
   },
   {
     name: "team lead board rolls back a failed approval",
-    ok: show("src/app/team-lead/TeamLeadBoard.tsx").includes("setDecisions(previous)"),
+    ok: show(findPage("team-lead/TeamLeadBoard.tsx")).includes("setDecisions(previous)"),
   },
 
   // Tooling + migration.

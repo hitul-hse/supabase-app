@@ -11,7 +11,7 @@ export async function SyncBar() {
   const sources = await getSyncSources(supabase);
 
   return (
-    <div className="flex items-center gap-4 overflow-x-auto border-b border-[var(--border)] bg-[#0b0d0f] px-4 py-2 font-mono text-[11px] sm:px-6 [&::-webkit-scrollbar]:hidden">
+    <div data-tour="tour-sync" className="flex items-center gap-4 overflow-x-auto border-b border-[var(--border)] bg-[#0b0d0f] px-4 py-2 font-mono text-[11px] sm:px-6 [&::-webkit-scrollbar]:hidden">
       <span className="flex-none tracking-[0.12em] text-[var(--text-faint)]">SYNC</span>
       {sources.map((item) => (
         <span

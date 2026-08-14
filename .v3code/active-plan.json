@@ -1,0 +1,36 @@
+{
+  "threadId": "vscode-chat-session://local/MjQ1YTVhYjctN2E3ZS00ZjNhLWEzYWEtMTcyMTY5ZDJiOWYw",
+  "updatedAt": 1786748519705,
+  "todos": [
+    {
+      "id": "deps",
+      "content": "Install framer-motion",
+      "status": "in_progress"
+    },
+    {
+      "id": "animations",
+      "content": "Page transitions, nav hover, stat counter animations, card micro-interactions",
+      "status": "pending"
+    },
+    {
+      "id": "tour",
+      "content": "First-time onboarding tour component with spotlight overlay",
+      "status": "pending"
+    },
+    {
+      "id": "tour-steps",
+      "content": "Tour steps for all 6 main features + DB persistence",
+      "status": "pending"
+    },
+    {
+      "id": "demo",
+      "content": "Animated product showcase page /demo",
+      "status": "pending"
+    },
+    {
+      "id": "build-push",
+      "content": "Build clean, push to GitHub, verify deploy",
+      "status": "pending"
+    }
+  ]
+}

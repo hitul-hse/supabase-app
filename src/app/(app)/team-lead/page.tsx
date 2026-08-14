@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { requireProfile } from "@/utils/supabase/require-profile";
 import { getTeamLeadBoard } from "@/lib/queries/hse";
 import { TeamLeadBoard } from "./TeamLeadBoard";
+import PageTransition from "@/components/animations/PageTransition";
 
 export default async function TeamLeadPage() {
   await requireProfile("/team-lead", ["exec", "dept_head"]);
@@ -10,9 +11,11 @@ export default async function TeamLeadPage() {
   const { bookings, decisions, weeks } = await getTeamLeadBoard(supabase);
 
   return (
-    <div className="flex flex-col">
-      <SyncBar />
-      <TeamLeadBoard bookings={bookings} initialDecisions={decisions} weeks={weeks} />
-    </div>
+    <PageTransition>
+      <div className="flex flex-col">
+        <SyncBar />
+        <TeamLeadBoard bookings={bookings} initialDecisions={decisions} weeks={weeks} />
+      </div>
+    </PageTransition>
   );
 }

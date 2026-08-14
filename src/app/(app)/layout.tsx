@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/Sidebar";
 import { MobileSidebarDrawer } from "@/components/MobileSidebar";
+import OnboardingTour from "@/components/OnboardingTour";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="min-w-0 flex-1 overflow-x-hidden pt-12 lg:pt-0">
         {children}
       </main>
+
+      {/* First-time onboarding tour — renders only once, client-side */}
+      <OnboardingTour />
     </div>
   );
 }

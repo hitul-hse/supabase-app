@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getCurrentProfile } from "@/lib/queries/auth";
 import { SidebarNav } from "./SidebarNav";
 import { LogoutButton } from "./LogoutButton";
+import { TourReplayButton } from "./TourReplayButton";
 
 async function getUserInfo() {
   const envConfigured =
@@ -89,6 +90,7 @@ export async function Sidebar() {
         </div>
 
         {email && <LogoutButton />}
+        {email && <TourReplayButton />}
 
         <div className="flex items-center gap-2 pt-1">
           <span

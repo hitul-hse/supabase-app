@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 interface NavGroup {
   title: string;
-  items: { href: string; label: string; badge?: string; badgeColor?: string }[];
+  items: { href: string; label: string; badge?: string; badgeColor?: string; roles?: string[] }[];
 }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -13,7 +13,13 @@ const NAV_GROUPS: NavGroup[] = [
     title: "ANALYSE",
     items: [
       { href: "/", label: "Overview" },
-      { href: "/team-lead", label: "Team Lead View", badge: "7", badgeColor: "var(--critical)" },
+      {
+        href: "/team-lead",
+        label: "Team Lead View",
+        badge: "7",
+        badgeColor: "var(--critical)",
+        roles: ["exec", "dept_head"],
+      },
     ],
   },
   {
@@ -25,6 +31,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: "ADMIN",
+    items: [{ href: "/admin/users", label: "Users & Roles", roles: ["exec"] }],
+  },
+  {
     title: "STORAGE & LEGACY",
     items: [
       { href: "/uploads", label: "File Storage" },
@@ -33,12 +43,17 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ roleKey }: { roleKey: string | null }) {
   const pathname = usePathname();
+
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.roles || (roleKey && item.roles.includes(roleKey))),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <nav className="flex flex-col gap-4">
-      {NAV_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.title} className="flex flex-col gap-0.5">
           <div className="px-4 pb-1 font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)]">
             {group.title}

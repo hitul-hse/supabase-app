@@ -3,19 +3,37 @@
 ## Fresh setup
 
 Run [`schema.sql`](./schema.sql) once in the Supabase SQL Editor (Dashboard →
-SQL Editor → New query → paste → Run). It creates all three tables this app
+SQL Editor → New query → paste → Run). It creates every table this app
 uses and their RLS policies:
 
-| Table           | RLS policy                          | Why                                                             |
-| --------------- | ------------------------------------ | ---------------------------------------------------------------- |
-| `todos`         | anon: full access (select/insert/update/delete) | Demo table, no auth yet — tighten once user auth is added.        |
-| `netflix_users` | anon: read-only                      | Imported dataset (see below); the app only ever reads from it.   |
-| `files`         | anon: full access                    | Upload metadata for the [/uploads](../src/app/uploads/page.tsx) page. |
+| Table | RLS policy | Why |
+| --- | --- | --- |
+| `netflix_users` | anon: read-only | Imported dataset (see below); the app only ever reads from it. |
+| `files` | authenticated: owner-scoped | Upload metadata for the [/uploads](../src/app/uploads/page.tsx) page. |
+| `sync_sources`, `executive_metrics`, `weekly_trends`, `team_utilisations` | authenticated: read-only | Non-sensitive dashboard aggregates, same for every role. |
+| `people`, `person_assignments`, `person_qualifications`, `weekly_bookings`, `timesheet_entries` | authenticated: role-scoped via `can_view_person()` | exec sees all; dept_head sees their department; everyone else sees only their own row. |
+| `projects`, `project_timeline`, `project_tasks` | authenticated: role-scoped via `can_view_project()` | exec sees all; dept_head sees their department; owners and assigned people see their own. |
+| `approval_decisions` | exec/dept_head: read + update | Team Lead approval queue — not relevant to other roles. |
+| `app_role`, `app_user_profile` | authenticated: read own row; exec: read all | Backs the role model itself — see "Roles & accounts" below. |
 
 The `anon` policies use Supabase's publishable/anon API key, which is safe to
 ship in the frontend (`NEXT_PUBLIC_SUPABASE_ANON_KEY`) — RLS is what limits
 what that key can actually do. **`service_role`/secret keys must never be
 used in frontend code.**
+
+## Roles & accounts
+
+Four roles live in `app_role`: `exec`, `dept_head`, `project_manager`,
+`employee`. Every login needs a row in `app_user_profile` (role, optional
+linked `people` row, optional department) — there's no self-signup, and a
+logged-in user with no profile lands on `/access-pending`. Accounts are
+created from `/admin/users` (exec-only), which needs
+`SUPABASE_SERVICE_ROLE_KEY` set (see `.env.local.example`) to actually send
+invites; the page still lists existing accounts without it.
+
+The scoping logic lives in two `security definer` SQL functions,
+`can_view_person()`/`can_view_project()` (see `schema.sql`), reused across
+every person/project-scoped policy above rather than repeated per table.
 
 ## How `netflix_users` was populated
 

@@ -1,7 +1,7 @@
 /**
  * Auto-generated database types from Supabase schema.
  * Reflects the current state of netflix_users, files, the HSE Hub tables,
- * and aggregate views.
+ * the RBAC tables (app_role, app_user_profile), and aggregate views.
  */
 export type Json =
   | string
@@ -19,6 +19,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_role: {
+        Row: {
+          display_name: string
+          role_key: string
+          seniority: number
+        }
+        Insert: {
+          display_name: string
+          role_key: string
+          seniority: number
+        }
+        Update: {
+          display_name?: string
+          role_key?: string
+          seniority?: number
+        }
+        Relationships: []
+      }
+      app_user_profile: {
+        Row: {
+          created_at: string
+          department: string | null
+          is_active: boolean
+          person_id: string | null
+          role_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          is_active?: boolean
+          person_id?: string | null
+          role_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          is_active?: boolean
+          person_id?: string | null
+          role_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_user_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "app_user_profile_role_key_fkey"
+            columns: ["role_key"]
+            isOneToOne: false
+            referencedRelation: "app_role"
+            referencedColumns: ["role_key"]
+          },
+        ]
+      }
       approval_decisions: {
         Row: {
           id: string
@@ -373,6 +433,7 @@ export type Database = {
           contract_type: string | null
           contract_value_eur: number | null
           customer: string
+          department: string | null
           due: string
           forecast_overrun: number | null
           id: string
@@ -380,6 +441,7 @@ export type Database = {
           lead: string
           logged_hours: number | null
           name: string
+          owner_person_id: string | null
           remaining_hours: number | null
           status: string
           team_size: number | null
@@ -393,6 +455,7 @@ export type Database = {
           contract_type?: string | null
           contract_value_eur?: number | null
           customer: string
+          department?: string | null
           due: string
           forecast_overrun?: number | null
           id: string
@@ -400,6 +463,7 @@ export type Database = {
           lead: string
           logged_hours?: number | null
           name: string
+          owner_person_id?: string | null
           remaining_hours?: number | null
           status: string
           team_size?: number | null
@@ -413,6 +477,7 @@ export type Database = {
           contract_type?: string | null
           contract_value_eur?: number | null
           customer?: string
+          department?: string | null
           due?: string
           forecast_overrun?: number | null
           id?: string
@@ -420,11 +485,20 @@ export type Database = {
           lead?: string
           logged_hours?: number | null
           name?: string
+          owner_person_id?: string | null
           remaining_hours?: number | null
           status?: string
           team_size?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_owner_person_id_fkey"
+            columns: ["owner_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sync_sources: {
         Row: {
@@ -482,6 +556,7 @@ export type Database = {
           hours: number
           id: number
           is_billable: boolean
+          person_id: string
           project_name: string
           task_name: string
           warning: string | null
@@ -493,6 +568,7 @@ export type Database = {
           hours: number
           id?: never
           is_billable: boolean
+          person_id: string
           project_name: string
           task_name: string
           warning?: string | null
@@ -504,32 +580,20 @@ export type Database = {
           hours?: number
           id?: never
           is_billable?: boolean
+          person_id?: string
           project_name?: string
           task_name?: string
           warning?: string | null
         }
-        Relationships: []
-      }
-      todos: {
-        Row: {
-          id: number
-          inserted_at: string
-          is_complete: boolean
-          task: string
-        }
-        Insert: {
-          id?: never
-          inserted_at?: string
-          is_complete?: boolean
-          task: string
-        }
-        Update: {
-          id?: never
-          inserted_at?: string
-          is_complete?: boolean
-          task?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_entries_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_bookings: {
         Row: {
@@ -625,7 +689,14 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      app_user_department: { Args: never; Returns: string }
+      app_user_person_id: { Args: never; Returns: string }
+      app_user_role: { Args: never; Returns: string }
+      can_view_person: { Args: { target_person_id: string }; Returns: boolean }
+      can_view_project: {
+        Args: { target_project_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
+import { getCurrentProfile } from "@/lib/queries/auth";
 import { SidebarNav } from "./SidebarNav";
 import { LogoutButton } from "./LogoutButton";
 
@@ -8,7 +9,7 @@ async function getUserInfo() {
   const envConfigured =
     !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!envConfigured) {
-    return { status: "not configured" as const, email: null };
+    return { status: "not configured" as const, email: null, roleKey: null, roleDisplayName: null };
   }
 
   try {
@@ -18,17 +19,21 @@ async function getUserInfo() {
       error,
     } = await supabase.auth.getUser();
 
+    const profile = user ? await getCurrentProfile(supabase, user.id, user.email ?? null) : null;
+
     return {
       status: error ? ("error" as const) : ("connected" as const),
       email: user?.email ?? null,
+      roleKey: profile?.roleKey ?? null,
+      roleDisplayName: profile?.roleDisplayName ?? null,
     };
   } catch {
-    return { status: "error" as const, email: null };
+    return { status: "error" as const, email: null, roleKey: null, roleDisplayName: null };
   }
 }
 
 export async function Sidebar() {
-  const { status, email } = await getUserInfo();
+  const { status, email, roleKey, roleDisplayName } = await getUserInfo();
   const dotColor =
     status === "connected" ? "var(--good)" : status === "error" ? "var(--critical)" : "var(--warning)";
   const statusLabel =
@@ -60,7 +65,7 @@ export async function Sidebar() {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto">
-        <SidebarNav />
+        <SidebarNav roleKey={roleKey} />
       </div>
 
       {/* User profile & Supabase status footer */}
@@ -78,7 +83,7 @@ export async function Sidebar() {
               {email ?? "M. Keller"}
             </span>
             <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
-              {email ? "AUTHENTICATED" : "ROLE: DIRECTOR"}
+              {roleDisplayName ? roleDisplayName.toUpperCase() : email ? "PENDING ACCESS" : "ROLE: DIRECTOR"}
             </span>
           </div>
         </div>

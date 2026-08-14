@@ -13,7 +13,6 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"login" | "signup">("login");
 
   const supabase = createClient();
 
@@ -23,12 +22,7 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      let result;
-      if (mode === "signup") {
-        result = await supabase.auth.signUp({ email, password });
-      } else {
-        result = await supabase.auth.signInWithPassword({ email, password });
-      }
+      const result = await supabase.auth.signInWithPassword({ email, password });
 
       if (result.error) {
         setError(result.error.message);
@@ -48,12 +42,10 @@ function LoginForm() {
     <div className="w-full max-w-md">
       <div className="border border-[var(--border)] bg-[var(--surface-2)] p-8">
         <h1 className="mb-2 text-2xl font-semibold text-[var(--text-primary)]">
-          {mode === "login" ? "Log in" : "Sign up"}
+          Log in
         </h1>
         <p className="mb-6 text-sm text-[var(--text-secondary)]">
-          {mode === "login"
-            ? "Welcome back. Enter your credentials to continue."
-            : "Create an account to get started."}
+          Welcome back. Enter your credentials to continue.
         </p>
 
         {error && (
@@ -106,24 +98,13 @@ function LoginForm() {
             disabled={loading}
             className="w-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-50"
           >
-            {loading ? (mode === "login" ? "Logging in..." : "Signing up...") : mode === "login" ? "Log in" : "Sign up"}
+            {loading ? "Logging in..." : "Log in"}
           </button>
         </form>
 
         <div className="mt-6 border-t border-[var(--border)] pt-6">
           <p className="text-center text-sm text-[var(--text-secondary)]">
-            {mode === "login"
-              ? "Don't have an account? "
-              : "Already have an account? "}
-            <button
-              onClick={() => {
-                setMode(mode === "login" ? "signup" : "login");
-                setError(null);
-              }}
-              className="font-medium text-[var(--accent)] hover:underline"
-            >
-              {mode === "login" ? "Sign up" : "Log in"}
-            </button>
+            Accounts are created by an administrator. Contact yours if you need access.
           </p>
         </div>
       </div>

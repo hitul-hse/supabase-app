@@ -11,7 +11,8 @@
     "test:rls": "node scripts/check-rls-behaviour.mjs",
     "test:rls-control": "node scripts/check-rls-negative-control.mjs",
     "test:backfill": "node scripts/check-backfill.mjs",
-    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:backfill"
+    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:backfill && npm run test:verify-query",
+    "test:verify-query": "node scripts/check-verify-policies-query.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

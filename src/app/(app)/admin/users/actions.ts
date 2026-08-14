@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { getSiteUrl } from "@/utils/site-url";
 
 export type InviteState = { status: "idle" | "success" | "error"; message?: string };
 
@@ -46,7 +47,13 @@ export async function inviteUser(
     return { status: "error", message: err instanceof Error ? err.message : "Admin client unavailable." };
   }
 
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email);
+  // Without an explicit redirectTo, Supabase falls back to the project's Site
+  // URL — which is how an invited colleague ends up with a localhost link they
+  // cannot open. The target must also be listed under the project's redirect
+  // allowlist, or Supabase silently substitutes the Site URL again.
+  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${getSiteUrl()}/auth/callback?next=%2Fauth%2Fset-password`,
+  });
 
   if (inviteError || !invited.user) {
     return { status: "error", message: inviteError?.message ?? "Could not send invite." };

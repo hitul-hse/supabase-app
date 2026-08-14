@@ -1,7 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_ROUTES = new Set(["/auth/login", "/auth/signup", "/auth/callback"]);
+// Reachable without a session. /auth/set-password has to be here even though
+// it is only useful to an invited user: the invite's credential can arrive in
+// the URL fragment, which the browser never sends to the server, so the proxy
+// genuinely cannot see a session yet and would bounce the visitor to login
+// before the page had a chance to establish one.
+const PUBLIC_ROUTES = new Set([
+  "/auth/login",
+  "/auth/callback",
+  "/auth/set-password",
+  "/auth/forgot-password",
+]);
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

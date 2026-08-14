@@ -39,29 +39,43 @@ function SetPasswordForm() {
   useEffect(() => {
     let active = true;
 
-    // onAuthStateChange fires once the client has parsed any fragment tokens,
-    // so it covers both "already signed in" and "signing in right now".
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active && session) setSessionState("ready");
-    });
+    async function establishSession() {
+      // Take the tokens out of the fragment ourselves rather than relying on
+      // the client's implicit URL detection, which does not fire for a
+      // client-side navigation into this page (the rescue path from /login).
+      const hash = window.location.hash;
+      if (hash) {
+        const params = new URLSearchParams(hash.slice(1));
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!active) return;
-      if (session) {
-        setSessionState("ready");
-      } else {
-        // Give the fragment a beat to be parsed before declaring the link dead.
-        setTimeout(() => {
-          if (active) setSessionState((s) => (s === "ready" ? s : "missing"));
-        }, 1500);
+        if (access_token && refresh_token) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+          // Drop the tokens from the address bar either way — they should not
+          // sit in browser history or get copied out of the URL.
+          window.history.replaceState(null, "", window.location.pathname);
+          if (!active) return;
+          setSessionState(sessionError ? "missing" : "ready");
+          return;
+        }
       }
-    });
+
+      // No fragment: either /auth/callback already signed them in server-side,
+      // or the link is spent.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!active) return;
+      setSessionState(session ? "ready" : "missing");
+    }
+
+    establishSession();
 
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
   }, [supabase]);
 
@@ -87,9 +101,11 @@ function SetPasswordForm() {
       return;
     }
 
-    // Full navigation, not router.push: the server needs to see the refreshed
-    // auth cookies to render the app shell for the now-complete account.
-    window.location.assign("/");
+    // refresh() as well as push(): the server components behind "/" were
+    // rendered for a visitor with no usable session, so without it the app
+    // shell can come back still thinking nobody is signed in.
+    router.push("/");
+    router.refresh();
   };
 
   if (sessionState === "missing") {

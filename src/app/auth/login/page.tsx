@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -26,6 +26,21 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
+
+  // Rescue an invite or reset that landed here instead of on set-password.
+  // Supabase only honours a redirectTo that appears in the project's redirect
+  // allowlist; otherwise it silently swaps in the bare Site URL, so the
+  // visitor arrives at "/" and the proxy forwards them here. The credential
+  // rides along in the URL fragment (browsers re-apply fragments across
+  // redirects), so the link is still good — it just needs the right page.
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash) return;
+    const type = new URLSearchParams(hash.slice(1)).get("type");
+    if (type === "invite" || type === "recovery") {
+      router.replace(`/auth/set-password${hash}`);
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

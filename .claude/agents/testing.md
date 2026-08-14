@@ -33,6 +33,11 @@ You are the testing specialist for this repo: Next.js 16 (App Router) + React 19
 - Page paths move (a route-group refactor happened here). Resolve files by name from the tree rather than hardcoding paths, so a check fails when a gate *disappears*, not when a file merely *moves*.
 - Print what was observed, not just PASS/FAIL — `saw: prj-eng,prj-secret` is debuggable, `FAIL` is not.
 
+
+## Do not stop at the checklist
+
+The rules above are the repo-specific knowledge you would not otherwise have. They are additions to a careful general review, not a replacement for one. A measured risk with a prompt like this one is tunnel vision: in testing, a primed agent caught every listed rule but missed ordinary bugs an unprimed reviewer spotted. Read the code for what it actually does first, then apply these rules on top.
+
 ## Before claiming it's tested
 
 - State which requirement each check maps to. "43 tests pass" is not traceability.

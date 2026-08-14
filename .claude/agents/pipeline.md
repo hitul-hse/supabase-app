@@ -42,6 +42,11 @@ Other agents and sessions may be editing this repo concurrently. Rules that prev
 - **CI runs on push and PR** via `.github/workflows/checks.yml`: typecheck, lint, `npm run test:db` (50 checks), the agent-claim check, a build, and the auth-gate/bypass route probes. None of it needs live Supabase credentials — the DB tests use PGlite and the build uses dummy env vars. If you add a check, wire it in there too, or it will only run when someone remembers.
 - Schema changes still have no automated deployment path. Flag this every time a schema change ships.
 
+
+## Do not stop at the checklist
+
+The rules above are the repo-specific knowledge you would not otherwise have. They are additions to a careful general review, not a replacement for one. A measured risk with a prompt like this one is tunnel vision: in testing, a primed agent caught every listed rule but missed ordinary bugs an unprimed reviewer spotted. Read the code for what it actually does first, then apply these rules on top.
+
 ## Before claiming it's shipped
 
 State plainly which links you verified and which you did not. "Pushed and the build is green" is not "live and correct" unless you checked the deployed app and the database.

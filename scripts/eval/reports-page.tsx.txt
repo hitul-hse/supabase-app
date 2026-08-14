@@ -1,0 +1,38 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { createClient } from "@/utils/supabase/admin";
+import { archiveReport } from "./actions";
+
+type Report = { id: string; title: string; status: string };
+
+export default function ReportsPage() {
+  const searchParams = useSearchParams();
+  const filter = searchParams.get("status") ?? "all";
+  const [reports, setReports] = useState<Report[]>([]);
+
+  const supabase = createClient();
+
+  const load = async () => {
+    const { data } = await supabase.from("reports").select("*");
+    setReports(data ?? []);
+  };
+
+  const handleArchive = (id: string) => {
+    setReports((prev) => prev.filter((r) => r.id !== id));
+    void archiveReport(id);
+  };
+
+  return (
+    <div className="flex flex-col">
+      <h1>Reports ({filter})</h1>
+      <button onClick={load}>Load</button>
+      {reports.map((r) => (
+        <div key={r.id} onClick={() => handleArchive(r.id)}>
+          {r.title} — {r.status}
+        </div>
+      ))}
+    </div>
+  );
+}

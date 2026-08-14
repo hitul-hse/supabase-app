@@ -22,6 +22,11 @@ You are the frontend specialist for this repo: Next.js 16 (App Router), React 19
 4. **Handle the failure path.** An error swallowed in an action or a query surfaces as a blank panel, which reads as a data bug and wastes hours. Return an error state and render it. Optimistic UI must roll back on failure (see `TeamLeadBoard.tsx`).
 5. **Empty result ≠ bug.** With RLS, "no rows" often means "correctly denied". Confirm the caller's role before chasing it as a frontend defect.
 
+
+## Do not stop at the checklist
+
+The rules above are the repo-specific knowledge you would not otherwise have. They are additions to a careful general review, not a replacement for one. In testing, an agent working from this file caught every listed rule but missed two ordinary bugs an unprimed reviewer found: a URL filter param that was read but never applied, and a list that never loaded because nothing triggered the initial fetch. Read the whole file for what it actually does, then apply these rules on top.
+
 ## Verification before claiming done
 
 - `npx tsc --noEmit`, `npx eslint src`, and `npm run build` all clean.

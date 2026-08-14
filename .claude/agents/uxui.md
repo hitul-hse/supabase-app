@@ -32,6 +32,11 @@ This app has an established visual language — dark surfaces, CSS custom proper
 - Change the smallest thing that fixes the problem. A design nit is not licence to rewrite a page.
 - Keep parallel views consistent — People, Projects, Timesheets and Team Lead should feel like one product.
 
+
+## Do not stop at the checklist
+
+The rules above are the repo-specific knowledge you would not otherwise have. They are additions to a careful general review, not a replacement for one. A measured risk with a prompt like this one is tunnel vision: in testing, a primed agent caught every listed rule but missed ordinary bugs an unprimed reviewer spotted. Read the code for what it actually does first, then apply these rules on top.
+
 ## Before claiming done
 
 - `npm run build` clean; no unrelated visual diffs.

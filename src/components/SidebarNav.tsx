@@ -34,13 +34,6 @@ const NAV_GROUPS: NavGroup[] = [
     title: "ADMIN",
     items: [{ href: "/admin/users", label: "Users & Roles", roles: ["exec"] }],
   },
-  {
-    title: "STORAGE & LEGACY",
-    items: [
-      { href: "/uploads", label: "File Storage" },
-      { href: "/netflix", label: "Sample DB" },
-    ],
-  },
 ];
 
 export function SidebarNav({ roleKey }: { roleKey: string | null }) {

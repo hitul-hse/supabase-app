@@ -9,7 +9,7 @@ uses and their RLS policies:
 | Table | RLS policy | Why |
 | --- | --- | --- |
 | `netflix_users` | anon: read-only | Imported dataset (see below); the app only ever reads from it. |
-| `files` | authenticated: owner-scoped | Upload metadata for the [/uploads](../src/app/uploads/page.tsx) page. |
+| `files` | authenticated: owner-scoped | Upload metadata; no page reads/writes it currently — the `/uploads` starter route was removed, the table and policy are left as-is. |
 | `sync_sources`, `executive_metrics`, `weekly_trends`, `team_utilisations` | authenticated: read-only | Non-sensitive dashboard aggregates, same for every role. |
 | `people`, `person_assignments`, `person_qualifications`, `weekly_bookings`, `timesheet_entries` | authenticated: role-scoped via `can_view_person()` | exec sees all; dept_head sees their department; everyone else sees only their own row. |
 | `projects`, `project_timeline`, `project_tasks` | authenticated: role-scoped via `can_view_project()` | exec sees all; dept_head sees their department; owners and assigned people see their own. |

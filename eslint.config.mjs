@@ -16,6 +16,14 @@ const eslintConfig = defineConfig([
     // app and explicitly marked "do not edit" at its own source.
     "docs/design/hse-hub-mockup/support.js",
   ]),
+  // Plain Node CommonJS scripts (CI checks, etc.) — not app source, so the
+  // app's ESM-only import rule doesn't apply.
+  {
+    files: ["scripts/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

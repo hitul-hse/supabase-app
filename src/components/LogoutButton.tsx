@@ -5,10 +5,14 @@ import { createClient } from "@/utils/supabase/client";
 
 export function LogoutButton() {
   const router = useRouter();
-  const supabase = createClient();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
     router.push("/auth/login");
   };
 

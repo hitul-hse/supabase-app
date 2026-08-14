@@ -60,8 +60,8 @@ check(
   (schema.match(/where user_id = auth\.uid\(\) and is_active/g) || []).length === 3,
 );
 
-// Claim: no CI workflow exists (pipeline.md says to add one)
-check("no .github/workflows (gap is real)", !fs.existsSync(".github/workflows"));
+// Claim (pipeline.md): CI exists and runs the suite on push/PR.
+check("CI workflow exists", fs.existsSync(".github/workflows/checks.yml"));
 
 // Claim: .env* is gitignored
 check(".env* is gitignored", fs.readFileSync(".gitignore", "utf8").includes(".env*"));

@@ -39,8 +39,8 @@ Other agents and sessions may be editing this repo concurrently. Rules that prev
 
 ## Known gaps in this project
 
-- **No CI workflow exists** (`.github/workflows/` is absent), so `npm run test:db`, `tsc` and `eslint` only run when someone remembers. Adding a GitHub Action that runs them on push is high value — the DB tests need no live credentials because they use PGlite.
-- Schema changes have no automated deployment path. Flag this every time a schema change ships.
+- **CI runs on push and PR** via `.github/workflows/checks.yml`: typecheck, lint, `npm run test:db` (50 checks), the agent-claim check, a build, and the auth-gate/bypass route probes. None of it needs live Supabase credentials — the DB tests use PGlite and the build uses dummy env vars. If you add a check, wire it in there too, or it will only run when someone remembers.
+- Schema changes still have no automated deployment path. Flag this every time a schema change ships.
 
 ## Before claiming it's shipped
 

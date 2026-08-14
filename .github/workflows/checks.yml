@@ -1,0 +1,67 @@
+name: checks
+
+# Runs the full verification suite on every push and PR. None of this needs
+# live Supabase credentials: the database tests run against PGlite (real
+# Postgres compiled to WASM), and the route probes run against a local
+# production build with dummy env vars.
+#
+# This exists because the checks previously only ran when someone remembered.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src scripts
+
+      # 50 checks: schema executes on real Postgres, per-role RLS behaviour,
+      # negative controls proving those tests can fail, the backfill migration,
+      # and the policy-verification query.
+      - name: Database and RLS checks
+        run: npm run test:db
+
+      - name: Verify agent prompt claims
+        run: node scripts/check-agent-claims.cjs
+
+      # The build needs Supabase env vars present but never contacts Supabase.
+      # Dummy values are correct here: the route probes assert that
+      # unauthenticated requests are REFUSED, which must hold regardless.
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key-for-build
+        run: npm run build
+
+      # Guards the CVE-2025-29927 class of bug: every protected route must
+      # refuse anonymous access on its own, and public routes must not render
+      # record data.
+      - name: Auth gate and middleware bypass probes
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key-for-build
+        run: |
+          npm run start &
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null http://localhost:3000/auth/login && break
+            sleep 1
+          done
+          node scripts/check-auth-gates.mjs
+          node scripts/check-middleware-bypass.mjs

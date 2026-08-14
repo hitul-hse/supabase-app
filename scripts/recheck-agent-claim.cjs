@@ -7,7 +7,13 @@
 const fs = require("node:fs");
 
 const DIR = ".claude/agents";
-const files = fs.readdirSync(DIR).filter((f) => f.endsWith(".md"));
+// An agent file is one with YAML frontmatter carrying a name. README.md
+// documents the agents rather than being one, so it must not be counted.
+const isAgentFile = (f) =>
+  f.endsWith(".md") &&
+  /^---\r?\n[\s\S]*?\bname:\s*\S/.test(fs.readFileSync(`${DIR}/${f}`, "utf8"));
+
+const files = fs.readdirSync(DIR).filter(isAgentFile);
 
 let failed = 0;
 const check = (name, ok, detail = "") => {

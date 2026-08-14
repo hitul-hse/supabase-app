@@ -40,7 +40,13 @@ const exists = (p) => {
 let failed = 0;
 const results = {};
 
-for (const file of fs.readdirSync(DIR).filter((f) => f.endsWith(".md"))) {
+// README.md documents the agents rather than being one, so it is excluded.
+// An agent file is identified by having YAML frontmatter with a name.
+const isAgentFile = (f) =>
+  f.endsWith(".md") &&
+  /^---\r?\n[\s\S]*?\bname:\s*\S/.test(fs.readFileSync(`${DIR}/${f}`, "utf8"));
+
+for (const file of fs.readdirSync(DIR).filter(isAgentFile)) {
   const agent = file.replace(/\.md$/, "");
   const s = fs.readFileSync(`${DIR}/${file}`, "utf8");
   const problems = [];

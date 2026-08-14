@@ -6,11 +6,26 @@ const PUBLIC_ROUTES = new Set(["/auth/login", "/auth/signup", "/auth/callback"])
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  const isPublicRoute = PUBLIC_ROUTES.has(request.nextUrl.pathname);
+
+  const redirectToLogin = () => {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/auth/login";
+    loginUrl.searchParams.set("redirect_to", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  };
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // Fail closed. Without Supabase config we cannot authenticate anyone, so
+  // protected pages must not be served. This previously returned next(), so a
+  // single missing or misspelled env var silently made the entire app public.
   if (!supabaseUrl || !supabaseKey) {
-    return supabaseResponse;
+    console.error(
+      "Supabase env vars missing (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY); denying protected routes.",
+    );
+    return isPublicRoute ? supabaseResponse : redirectToLogin();
   }
 
   try {
@@ -39,14 +54,16 @@ export async function updateSession(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user && !PUBLIC_ROUTES.has(request.nextUrl.pathname)) {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/auth/login";
-      loginUrl.searchParams.set("redirect_to", request.nextUrl.pathname);
-      return NextResponse.redirect(loginUrl);
+    if (!user && !isPublicRoute) {
+      return redirectToLogin();
     }
   } catch (err) {
+    // Also fail closed: an auth-server outage or a thrown fetch must not
+    // degrade into "everyone is allowed through".
     console.error("Supabase auth middleware error:", err);
+    if (!isPublicRoute) {
+      return redirectToLogin();
+    }
   }
 
   return supabaseResponse;

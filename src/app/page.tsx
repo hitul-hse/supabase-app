@@ -3,8 +3,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { getExecutiveOverview } from "@/lib/queries/hse";
+import { requireUser } from "@/utils/supabase/require-user";
 
 export default async function OverviewPage() {
+  await requireUser("/");
   const supabase = await createClient();
   const { metrics, weeklyTrends, teamUtilisations, projects } =
     await getExecutiveOverview(supabase);

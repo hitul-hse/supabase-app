@@ -2,8 +2,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { getProjectDetail } from "@/lib/queries/hse";
+import { requireUser } from "@/utils/supabase/require-user";
 
 export default async function ProjectsPage() {
+  await requireUser("/projects");
   const supabase = await createClient();
   const prj = await getProjectDetail(supabase, "prj-1");
 

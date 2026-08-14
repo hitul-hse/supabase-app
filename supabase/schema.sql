@@ -1,6 +1,17 @@
 -- Canonical schema for this project. Run this once against a fresh Supabase
 -- project's SQL Editor to create every table and policy the app expects.
 -- See supabase/README.md for how netflix_users was originally populated.
+--
+-- Ordering matters and is deliberate: this file is grouped into
+--   1. legacy netflix_users / files tables and views
+--   2. HSE Hub tables (no policies yet) — parents before children so every
+--      foreign key target already exists
+--   3. the role-resolution helper functions
+--   4. every RLS policy, since the role-scoped ones call those functions
+--   5. seed rows
+-- Creating a policy whose USING clause calls a not-yet-created function is a
+-- hard error, as is a foreign key to a not-yet-created table, so tables,
+-- functions and policies cannot simply be interleaved per-table.
 
 create table if not exists netflix_users (
   user_id bigint primary key,
@@ -88,11 +99,15 @@ create or replace view netflix_subscription_stats
 grant select on netflix_overview, netflix_country_stats, netflix_genre_stats, netflix_subscription_stats
   to anon, authenticated;
 
--- HSE Hub tables. These back the Overview / Team Lead / People / Projects /
--- Timesheets pages, replacing what used to be static mock data in
--- src/data/hse-data.ts. Shared internal company data with no per-row
--- ownership model yet, so RLS just requires an authenticated session rather
--- than scoping by owner_id like `files` above.
+
+-- ---------------------------------------------------------------------------
+-- 2. HSE Hub tables
+-- ---------------------------------------------------------------------------
+-- These back the Overview / Team Lead / People / Projects / Timesheets pages,
+-- replacing what used to be static mock data in src/data/hse-data.ts.
+-- Reference data (sync_sources, executive_metrics, weekly_trends,
+-- team_utilisations) is company-wide and readable by any authenticated
+-- session. Everything keyed by person or project is role-scoped in section 4.
 
 create table if not exists sync_sources (
   source text primary key,
@@ -103,9 +118,6 @@ create table if not exists sync_sources (
 );
 
 alter table sync_sources enable row level security;
-
-create policy "authenticated can read sync_sources"
-  on sync_sources for select to authenticated using (true);
 
 create table if not exists executive_metrics (
   id bigint generated always as identity primary key,
@@ -120,9 +132,6 @@ create table if not exists executive_metrics (
 
 alter table executive_metrics enable row level security;
 
-create policy "authenticated can read executive_metrics"
-  on executive_metrics for select to authenticated using (true);
-
 create table if not exists weekly_trends (
   id bigint generated always as identity primary key,
   week text not null,
@@ -134,9 +143,6 @@ create table if not exists weekly_trends (
 
 alter table weekly_trends enable row level security;
 
-create policy "authenticated can read weekly_trends"
-  on weekly_trends for select to authenticated using (true);
-
 create table if not exists team_utilisations (
   id bigint generated always as identity primary key,
   team text not null,
@@ -147,8 +153,31 @@ create table if not exists team_utilisations (
 
 alter table team_utilisations enable row level security;
 
-create policy "authenticated can read team_utilisations"
-  on team_utilisations for select to authenticated using (true);
+-- people is created before projects because projects.owner_person_id
+-- references it.
+
+create table if not exists people (
+  id text primary key,
+  name text not null,
+  role text not null,
+  department text not null,
+  since text not null,
+  contract_hours numeric not null,
+  employee_number text not null,
+  capacity_status text not null,
+  logged_this_month numeric not null,
+  total_monthly_hours numeric not null,
+  billable_share numeric not null,
+  open_tasks int not null,
+  overdue_tasks int not null,
+  holiday_left numeric not null,
+  total_holiday numeric not null,
+  timesheet_status text,
+  certificate_status text,
+  certificate_text text
+);
+
+alter table people enable row level security;
 
 create table if not exists projects (
   id text primary key,
@@ -175,9 +204,6 @@ create table if not exists projects (
 
 alter table projects enable row level security;
 
-create policy "role-scoped read on projects"
-  on projects for select to authenticated using (can_view_project(id));
-
 create table if not exists project_timeline (
   id bigint generated always as identity primary key,
   project_id text not null references projects(id) on delete cascade,
@@ -189,9 +215,6 @@ create table if not exists project_timeline (
 );
 
 alter table project_timeline enable row level security;
-
-create policy "role-scoped read on project_timeline"
-  on project_timeline for select to authenticated using (can_view_project(project_id));
 
 create table if not exists project_tasks (
   id bigint generated always as identity primary key,
@@ -206,38 +229,15 @@ create table if not exists project_tasks (
 
 alter table project_tasks enable row level security;
 
-create policy "role-scoped read on project_tasks"
-  on project_tasks for select to authenticated using (can_view_project(project_id));
-
-create table if not exists people (
-  id text primary key,
-  name text not null,
-  role text not null,
-  department text not null,
-  since text not null,
-  contract_hours numeric not null,
-  employee_number text not null,
-  capacity_status text not null,
-  logged_this_month numeric not null,
-  total_monthly_hours numeric not null,
-  billable_share numeric not null,
-  open_tasks int not null,
-  overdue_tasks int not null,
-  holiday_left numeric not null,
-  total_holiday numeric not null,
-  timesheet_status text,
-  certificate_status text,
-  certificate_text text
-);
-
-alter table people enable row level security;
-
-create policy "role-scoped read on people"
-  on people for select to authenticated using (can_view_person(id));
+-- person_assignments.project_id is the real link to projects. The older
+-- project_name column is kept for display only: matching assignments to
+-- projects by name was ambiguous across same-named projects and broke
+-- silently whenever a project was renamed, so access control uses project_id.
 
 create table if not exists person_assignments (
   id bigint generated always as identity primary key,
   person_id text not null references people(id) on delete cascade,
+  project_id text references projects(id) on delete cascade,
   project_name text not null,
   logged_hours numeric not null,
   tasks_count int not null,
@@ -246,9 +246,6 @@ create table if not exists person_assignments (
 );
 
 alter table person_assignments enable row level security;
-
-create policy "role-scoped read on person_assignments"
-  on person_assignments for select to authenticated using (can_view_person(person_id));
 
 create table if not exists person_qualifications (
   id bigint generated always as identity primary key,
@@ -261,9 +258,6 @@ create table if not exists person_qualifications (
 
 alter table person_qualifications enable row level security;
 
-create policy "role-scoped read on person_qualifications"
-  on person_qualifications for select to authenticated using (can_view_person(person_id));
-
 create table if not exists weekly_bookings (
   id bigint generated always as identity primary key,
   person_id text not null references people(id) on delete cascade,
@@ -274,9 +268,6 @@ create table if not exists weekly_bookings (
 );
 
 alter table weekly_bookings enable row level security;
-
-create policy "role-scoped read on weekly_bookings"
-  on weekly_bookings for select to authenticated using (can_view_person(person_id));
 
 create table if not exists approval_decisions (
   id text primary key,
@@ -290,12 +281,6 @@ create table if not exists approval_decisions (
 );
 
 alter table approval_decisions enable row level security;
-
-create policy "exec and dept_head can read approval_decisions"
-  on approval_decisions for select to authenticated using (app_user_role() in ('exec', 'dept_head'));
-
-create policy "exec and dept_head can update approval_decisions"
-  on approval_decisions for update to authenticated using (app_user_role() in ('exec', 'dept_head'));
 
 create table if not exists timesheet_entries (
   id bigint generated always as identity primary key,
@@ -312,19 +297,6 @@ create table if not exists timesheet_entries (
 
 alter table timesheet_entries enable row level security;
 
-create policy "role-scoped read on timesheet_entries"
-  on timesheet_entries for select to authenticated using (can_view_person(person_id));
-
--- Roles and per-user profiles. app_user_role()/app_user_department()/
--- app_user_person_id() are security definer so they can safely read
--- app_user_profile from inside that table's own RLS policies without
--- recursing through RLS; can_view_person()/can_view_project() build on them
--- and are reused across every person/project-scoped policy above. All five
--- are granted to `authenticated` only (required for RLS to evaluate them)
--- and explicitly revoked from `anon` and `public` — Supabase's project
--- defaults grant EXECUTE on new public-schema functions to anon at creation
--- time, so that revoke has to be explicit, not just assumed.
-
 create table if not exists app_role (
   role_key text primary key,
   display_name text not null,
@@ -332,9 +304,6 @@ create table if not exists app_role (
 );
 
 alter table app_role enable row level security;
-
-create policy "authenticated can read app_role"
-  on app_role for select to authenticated using (true);
 
 create table if not exists app_user_profile (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -347,32 +316,44 @@ create table if not exists app_user_profile (
 
 alter table app_user_profile enable row level security;
 
+
+-- ---------------------------------------------------------------------------
+-- 3. Role-resolution helper functions
+-- ---------------------------------------------------------------------------
+-- app_user_role(), app_user_department() and app_user_person_id() are security
+-- definer so they can safely read app_user_profile from inside that table's
+-- own RLS policies without recursing through RLS; can_view_person() and
+-- can_view_project() build on them and are reused across every
+-- person/project-scoped policy in section 4. All five are granted to
+-- `authenticated` only (required for RLS to evaluate them) and explicitly
+-- revoked from `anon` and `public` — Supabase's project defaults grant EXECUTE
+-- on new public-schema functions to anon at creation time, so that revoke has
+-- to be explicit, not just assumed.
+--
+-- All three profile lookups filter on is_active: deactivating an account has
+-- to actually drop its role, otherwise an inactive user keeps every
+-- permission their old role granted.
+
 create or replace function app_user_role()
 returns text
 language sql stable security definer set search_path = public
 as $$
-  select role_key from app_user_profile where user_id = auth.uid();
+  select role_key from app_user_profile where user_id = auth.uid() and is_active;
 $$;
 
 create or replace function app_user_department()
 returns text
 language sql stable security definer set search_path = public
 as $$
-  select department from app_user_profile where user_id = auth.uid();
+  select department from app_user_profile where user_id = auth.uid() and is_active;
 $$;
 
 create or replace function app_user_person_id()
 returns text
 language sql stable security definer set search_path = public
 as $$
-  select person_id from app_user_profile where user_id = auth.uid();
+  select person_id from app_user_profile where user_id = auth.uid() and is_active;
 $$;
-
-create policy "user can read own profile"
-  on app_user_profile for select to authenticated using (user_id = auth.uid());
-
-create policy "exec can read all profiles"
-  on app_user_profile for select to authenticated using (app_user_role() = 'exec');
 
 create or replace function can_view_person(target_person_id text)
 returns boolean
@@ -401,7 +382,7 @@ as $$
         or pr.owner_person_id = app_user_person_id()
         or exists (
           select 1 from person_assignments pa
-          where pa.project_name = pr.name and pa.person_id = app_user_person_id()
+          where pa.project_id = pr.id and pa.person_id = app_user_person_id()
         )
       )
     );
@@ -416,6 +397,99 @@ grant execute on function
   app_user_role(), app_user_department(), app_user_person_id(),
   can_view_person(text), can_view_project(text)
 to authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- 4. RLS policies
+-- ---------------------------------------------------------------------------
+
+-- Company-wide reference data: any authenticated session.
+
+create policy "authenticated can read sync_sources"
+  on sync_sources for select to authenticated using (true);
+
+create policy "authenticated can read executive_metrics"
+  on executive_metrics for select to authenticated using (true);
+
+create policy "authenticated can read weekly_trends"
+  on weekly_trends for select to authenticated using (true);
+
+create policy "authenticated can read team_utilisations"
+  on team_utilisations for select to authenticated using (true);
+
+create policy "authenticated can read app_role"
+  on app_role for select to authenticated using (true);
+
+-- Person-scoped and project-scoped reads.
+
+create policy "role-scoped read on people"
+  on people for select to authenticated using (can_view_person(id));
+
+create policy "role-scoped read on person_assignments"
+  on person_assignments for select to authenticated using (can_view_person(person_id));
+
+create policy "role-scoped read on person_qualifications"
+  on person_qualifications for select to authenticated using (can_view_person(person_id));
+
+create policy "role-scoped read on weekly_bookings"
+  on weekly_bookings for select to authenticated using (can_view_person(person_id));
+
+create policy "role-scoped read on timesheet_entries"
+  on timesheet_entries for select to authenticated using (can_view_person(person_id));
+
+create policy "role-scoped read on projects"
+  on projects for select to authenticated using (can_view_project(id));
+
+create policy "role-scoped read on project_timeline"
+  on project_timeline for select to authenticated using (can_view_project(project_id));
+
+create policy "role-scoped read on project_tasks"
+  on project_tasks for select to authenticated using (can_view_project(project_id));
+
+-- Approvals. The update policy needs both USING (which existing rows may be
+-- targeted) and WITH CHECK (what the row is allowed to look like afterwards);
+-- USING alone would let an authorised caller rewrite a row into any shape,
+-- including a status the app never offers.
+
+create policy "exec and dept_head can read approval_decisions"
+  on approval_decisions for select to authenticated using (app_user_role() in ('exec', 'dept_head'));
+
+create policy "exec and dept_head can update approval_decisions"
+  on approval_decisions for update to authenticated
+  using (app_user_role() in ('exec', 'dept_head'))
+  with check (
+    app_user_role() in ('exec', 'dept_head')
+    and status in ('pending', 'approved', 'rejected')
+  );
+
+-- Profiles. Execs administer accounts; everyone else may read only their own.
+-- Without the exec write policies below there is no non-service-role path to
+-- change a role or deactivate an account, which left the admin console's
+-- ACTIVE/INACTIVE state permanently unchangeable.
+
+create policy "user can read own profile"
+  on app_user_profile for select to authenticated using (user_id = auth.uid());
+
+create policy "exec can read all profiles"
+  on app_user_profile for select to authenticated using (app_user_role() = 'exec');
+
+create policy "exec can insert profiles"
+  on app_user_profile for insert to authenticated
+  with check (app_user_role() = 'exec');
+
+create policy "exec can update profiles"
+  on app_user_profile for update to authenticated
+  using (app_user_role() = 'exec')
+  with check (app_user_role() = 'exec');
+
+create policy "exec can delete profiles"
+  on app_user_profile for delete to authenticated
+  using (app_user_role() = 'exec');
+
+
+-- ---------------------------------------------------------------------------
+-- 5. Seed rows
+-- ---------------------------------------------------------------------------
 
 insert into app_role (role_key, display_name, seniority) values
   ('exec', 'Executive', 4),

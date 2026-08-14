@@ -276,6 +276,7 @@ export type Database = {
           id: number
           logged_hours: number
           person_id: string
+          project_id: string | null
           project_name: string
           share_percent: number
           sort_order: number
@@ -285,6 +286,7 @@ export type Database = {
           id?: never
           logged_hours: number
           person_id: string
+          project_id?: string | null
           project_name: string
           share_percent: number
           sort_order: number
@@ -294,6 +296,7 @@ export type Database = {
           id?: never
           logged_hours?: number
           person_id?: string
+          project_id?: string | null
           project_name?: string
           share_percent?: number
           sort_order?: number
@@ -305,6 +308,13 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

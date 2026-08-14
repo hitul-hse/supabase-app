@@ -18,16 +18,35 @@ export function TeamLeadBoard({
 }) {
   const [decisions, setDecisions] = useState(initialDecisions);
   const [approvedAll, setApprovedAll] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleApprove = (id: string) => {
+  // These update optimistically but roll the row back if the server action
+  // reports a failure. Previously the result was discarded with void(), so an
+  // RLS denial silently looked identical to a successful approval.
+  const handleApprove = async (id: string) => {
+    const previous = decisions;
+    setError(null);
     setDecisions((prev) => prev.filter((d) => d.id !== id));
-    void approveDecision(id);
+
+    const result = await approveDecision(id);
+    if (!result.ok) {
+      setDecisions(previous);
+      setError(result.message ?? "Could not approve that item.");
+    }
   };
 
-  const handleApproveAll = () => {
+  const handleApproveAll = async () => {
+    const previous = decisions;
+    setError(null);
     setApprovedAll(true);
     setDecisions([]);
-    void approveAllPending();
+
+    const result = await approveAllPending();
+    if (!result.ok) {
+      setDecisions(previous);
+      setApprovedAll(false);
+      setError(result.message ?? "Could not approve the pending items.");
+    }
   };
 
   return (
@@ -234,6 +253,16 @@ export function TeamLeadBoard({
             </div>
 
             <div className="flex flex-col gap-2">
+              {error && (
+                <p
+                  role="alert"
+                  className="border border-[var(--border)] p-2.5 text-[12px] text-[var(--text-primary)]"
+                  style={{ background: "var(--warning-wash)" }}
+                >
+                  {error}
+                </p>
+              )}
+
               {decisions.length === 0 ? (
                 <div className="p-4 text-center font-mono text-[12px] text-[var(--accent)]">
                   All items approved and up to date!

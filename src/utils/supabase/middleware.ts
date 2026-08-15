@@ -11,12 +11,19 @@ const PUBLIC_ROUTES = new Set([
   "/auth/callback",
   "/auth/set-password",
   "/auth/forgot-password",
+  "/demo",
+  "/showcase",
 ]);
+
+// Public path prefixes — any route starting with these is also public
+const PUBLIC_PREFIXES = ["/hse-hub-ad.mp4"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const isPublicRoute = PUBLIC_ROUTES.has(request.nextUrl.pathname);
+  const isPublicRoute =
+    PUBLIC_ROUTES.has(request.nextUrl.pathname) ||
+    PUBLIC_PREFIXES.some((p) => request.nextUrl.pathname.startsWith(p));
 
   const redirectToLogin = () => {
     const loginUrl = request.nextUrl.clone();

@@ -150,7 +150,7 @@ async function main() {
         type: "png",
       });
       console.log(`     ✓ Saved screenshots/${scene.screenshot}`);
-    } catch (e) {
+    } catch {
       console.log(`     ⚠ Could not capture ${scene.name} (needs auth?) — skipping`);
     }
   }
@@ -185,7 +185,7 @@ async function main() {
           }
         }
       }
-    } catch (e) {
+    } catch {
       console.log(`     ⚠ Skipped ${scene.name}`);
     }
   }

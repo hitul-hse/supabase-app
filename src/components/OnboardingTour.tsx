@@ -6,7 +6,7 @@
  * Steps are keyed by data-tour attributes on DOM elements.
  */
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback } from "react";
 
 /* ─────────────────────────── tour steps ────────────────────────────── */
 const STEPS = [
@@ -68,8 +68,6 @@ const STEPS = [
   },
 ] as const;
 
-type Step = typeof STEPS[number];
-
 /* ─────────────────────── spotlight rect helper ─────────────────────── */
 interface Rect { top: number; left: number; width: number; height: number }
 
@@ -85,7 +83,6 @@ export default function OnboardingTour() {
   const [step,    setStep]    = useState(0);
   const [rect,    setRect]    = useState<Rect | null>(null);
   const [visible, setVisible] = useState(false);
-  const rAF = useRef<number>(0);
 
   // Show tour only on first login
   useEffect(() => {
@@ -97,11 +94,17 @@ export default function OnboardingTour() {
     }
   }, []);
 
-  // Update spotlight rect when step changes
-  useEffect(() => {
+  // Update spotlight rect when step changes. useLayoutEffect (not useEffect):
+  // this reads live DOM geometry and must set state before the browser paints,
+  // or the spotlight visibly jumps from the previous step's position.
+  useLayoutEffect(() => {
     if (!visible) return;
     const current = STEPS[step];
-    if (!current.target) { setRect(null); return; }
+    // No target for this step: leave `rect` as-is rather than clearing it
+    // here (that would be a direct setState call in the effect body).
+    // Render already gates the spotlight/card on `current.target`, so a
+    // stale rect from the previous step is never shown.
+    if (!current.target) return;
 
     const update = () => {
       const r = getTargetRect(current.target as string);
@@ -148,7 +151,7 @@ export default function OnboardingTour() {
             style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(1px)" }}
           >
             {/* Spotlight cutout using SVG clip */}
-            {rect && (
+            {current.target && rect && (
               <motion.div
                 key={current.id + "-spot"}
                 initial={{ opacity: 0 }}
@@ -209,7 +212,9 @@ export default function OnboardingTour() {
           <div
             className="fixed inset-0 z-[9001] flex items-center justify-center pointer-events-none"
             style={
-              rect && current.position !== "center"
+              // A step with a target is never positioned "center" (only the
+              // targetless welcome/done steps are), so this is exhaustive.
+              current.target && rect
                 ? getCardStyle(rect, current.position as "right" | "bottom")
                 : {}
             }

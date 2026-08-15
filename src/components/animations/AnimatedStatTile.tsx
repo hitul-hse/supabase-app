@@ -3,7 +3,7 @@
  * AnimatedStatTile — stat card with a count-up number animation on mount
  * and a subtle lift on hover. Replaces StatTile for the Overview page KPIs.
  */
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { motion, useMotionValue, animate } from "framer-motion";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -28,7 +28,7 @@ export default function AnimatedStatTile({ label, value, sub, accent, delay = 0 
   const [display, setDisplay] = useState("0");
 
   useEffect(() => {
-    if (num === null) { setDisplay(value); return; }
+    if (num === null) return; // render falls back to `value` directly below
     const controls = animate(count, num, {
       duration: 1.2,
       delay,
@@ -41,7 +41,7 @@ export default function AnimatedStatTile({ label, value, sub, accent, delay = 0 
       },
     });
     return controls.stop;
-  }, [num, suffix, delay]);
+  }, [num, suffix, delay, count]);
 
   return (
     <motion.div

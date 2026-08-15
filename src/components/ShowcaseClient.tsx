@@ -1,8 +1,8 @@
 "use client";
 /**
- * /showcase — Cinematic product video page for HSE Hub.
- * Full-screen immersive video player with animated sections.
- * No auth required — share with anyone.
+ * ShowcaseClient — full cinematic /showcase page content.
+ * Split from page.tsx to work around a Turbopack route-discovery
+ * bug where files >20 KB are sometimes skipped on cold builds.
  */
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
@@ -98,7 +98,7 @@ function StatTile({ value, suffix, label, accent, trigger }: typeof STATS[0] & {
   );
 }
 
-export default function ShowcasePage() {
+export default function ShowcaseClient() {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const statsRef  = useRef<HTMLDivElement>(null);
   const [playing,   setPlaying]   = useState(false);

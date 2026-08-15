@@ -34,6 +34,25 @@ const nextConfig: NextConfig = {
         ? `https://${process.env.VERCEL_URL}`
         : "http://localhost:3000",
   },
+
+  // Serve .webm files with the correct MIME type so browsers play them inline.
+  async headers() {
+    return [
+      {
+        source: "/:path*.webm",
+        headers: [
+          { key: "Content-Type", value: "video/webm" },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/screenshots/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

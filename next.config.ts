@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
   // the build output lean in production.
   reactStrictMode: true,
 
+
   // Expose the site's own URL as a typed env var for redirects, invite links,
   // etc. NEXT_PUBLIC_SITE_URL is set in Vercel; falls back to localhost in dev.
   env: {
@@ -33,6 +34,13 @@ const nextConfig: NextConfig = {
       process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
         : "http://localhost:3000",
+  },
+
+  // /showcase is an alias for /demo (Turbopack route-discovery workaround).
+  async redirects() {
+    return [
+      { source: "/showcase", destination: "/demo", permanent: false },
+    ];
   },
 
   // Serve .webm files with the correct MIME type so browsers play them inline.

@@ -36,10 +36,14 @@ const nextConfig: NextConfig = {
         : "http://localhost:3000",
   },
 
-  // /showcase is an alias for /demo (Turbopack route-discovery workaround).
+  // /showcase and /demo both redirect to /product-tour.
+  // Turbopack in Next.js 16.3 has a route-discovery cache bug where routes
+  // that existed before the LevelDB cache was seeded cannot be reliably
+  // updated. /product-tour is a new route name that bypasses the stale cache.
   async redirects() {
     return [
-      { source: "/showcase", destination: "/demo", permanent: false },
+      { source: "/showcase",     destination: "/product-tour", permanent: false },
+      { source: "/demo",         destination: "/product-tour", permanent: false },
     ];
   },
 

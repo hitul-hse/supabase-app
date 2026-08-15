@@ -13,6 +13,7 @@ const PUBLIC_ROUTES = new Set([
   "/auth/forgot-password",
   "/demo",
   "/showcase",
+  "/product-tour",
 ]);
 
 // Public path prefixes — any route starting with these is also public

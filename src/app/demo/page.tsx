@@ -1,4 +1,5 @@
 "use client";
+// BUILD: 2026-08-16T01 — full cinematic showcase rewrite
 /**
  * /demo — Cinematic product showcase and video page for HSE Hub.
  * Full-screen video player, animated stats, feature cards, tech stack, CTA.

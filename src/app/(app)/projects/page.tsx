@@ -3,8 +3,7 @@ import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { getProjectDetail } from "@/lib/queries/hse";
 import { requireUser } from "@/utils/supabase/require-user";
-import { AddTaskForm } from "./AddTaskForm";
-import { TaskRow } from "./TaskRow";
+import { TasksSection } from "./TasksSection";
 
 export default async function ProjectsPage() {
   await requireUser("/projects");
@@ -170,33 +169,7 @@ export default async function ProjectsPage() {
         {/* Lower Grid: Tasks Breakdown & Milestone Timeline */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
           {/* Asana Tasks & Hours (7 cols) */}
-          <div className="flex flex-col border border-[var(--border)] bg-[var(--surface)] lg:col-span-7">
-            <div className="flex items-baseline justify-between border-b border-[var(--border)] p-4">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-                Tasks &amp; hours
-              </span>
-              <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-                {prj.project_tasks.filter((t) => t.status !== "DONE").length} OPEN OF{" "}
-                {prj.project_tasks.length}
-              </span>
-            </div>
-
-            <AddTaskForm projectId={prj.id} />
-
-            <div className="overflow-x-auto">
-              <div className="grid min-w-[420px] grid-cols-12 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                <span className="col-span-4">TASK</span>
-                <span className="col-span-2 text-right">EST</span>
-                <span className="col-span-2 text-right">LOGGED</span>
-                <span className="col-span-3 text-right">STATUS / OWNER</span>
-                <span className="col-span-1" />
-              </div>
-
-              {prj.project_tasks.map((task) => (
-                <TaskRow key={task.id} task={task} />
-              ))}
-            </div>
-          </div>
+          <TasksSection projectId={prj.id} tasks={prj.project_tasks} />
 
           {/* Timeline & Invoicing (5 cols) */}
           <div className="flex flex-col gap-4 lg:col-span-5">

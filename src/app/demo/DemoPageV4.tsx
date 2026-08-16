@@ -60,7 +60,7 @@ const CUT = 10; // corner chamfer, mirrors SSTR's --cut:10px
 // BUMP THIS every time hse-hub-ad.mp4 is re-rendered. Vercel serves /public/*.mp4
 // with max-age=86400, so an unchanged URL means returning visitors keep seeing
 // the previous cut from their own disk cache for a full day.
-const VIDEO_VERSION = "v9-shared-motion";
+const VIDEO_VERSION = "v10-legible";
 const VIDEO_SRC = `/hse-hub-ad.mp4?v=${VIDEO_VERSION}`;
 
 const WRAP = "w-full max-w-[1240px] mx-auto px-6 md:px-10";

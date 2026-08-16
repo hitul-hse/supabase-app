@@ -436,36 +436,42 @@ const features = [
     desc: "Billable utilisation, headcount, and active project counts — no manual collation. Refreshes every sync cycle.",
     tags: ["Real-time", "Exec + Dept Head"],
     color: T.teal, span: "lg:col-span-2",
+    img: "/img-dashboard.jpg",
   },
   {
     num: "02", title: "Fine-grained RBAC",
     desc: "24 permissions across 7 resource groups. Toggle per role — enforced at database level via Row-Level Security.",
     tags: ["24 permissions", "Zero code changes"],
     color: "#60a5fa", span: "lg:col-span-1",
+    img: null,
   },
   {
     num: "03", title: "Identity Resolution",
     desc: "One person in Asana, TrackingTime, and FactorialHR — three IDs, one canonical map. Zero duplicates.",
     tags: ["Zero duplicates", "Effective-dated"],
     color: "#4ade80", span: "lg:col-span-1",
+    img: null,
   },
   {
     num: "04", title: "Workload Booking",
     desc: "Team leads book 4-week rolling workloads. Executives and dept heads approve or reject — all logged.",
     tags: ["4-week rolling", "Approval workflow"],
     color: "#a78bfa", span: "lg:col-span-1",
+    img: "/img-team.jpg",
   },
   {
     num: "05", title: "Timesheet Grid",
     desc: "Weekly entry grid synced from TrackingTime. Billable vs non-billable, project attribution, weekly totals.",
     tags: ["TrackingTime sync", "Billable %"],
     color: "#fb923c", span: "lg:col-span-1",
+    img: null,
   },
   {
     num: "06", title: "4-System Pipeline",
     desc: "Asana · FactorialHR · TrackingTime · Samdock. One unified Postgres schema, one portal.",
     tags: ["Asana", "Factorial", "TrackingTime", "Samdock"],
     color: T.tealLight, span: "lg:col-span-2",
+    img: "/img-analytics.jpg",
   },
 ] as const;
 
@@ -492,60 +498,83 @@ function FeatureCard({ f, i }: { f: typeof features[number]; i: number }) {
         >
           {/* Inner core */}
           <div
-            className="h-full p-7 rounded-[calc(1.5rem-0.375rem)] flex flex-col"
+            className="h-full rounded-[calc(1.5rem-0.375rem)] flex flex-col overflow-hidden"
             style={{
               background: T.bg1,
               boxShadow: "inset 0 1px 1px rgba(145,194,183,0.07), inset 0 -1px 1px rgba(0,0,0,0.25)",
               minHeight: 200,
             }}
           >
-            {/* Number row */}
-            <div className="flex items-center justify-between mb-6">
-              <span
-                className="text-xs font-medium"
-                style={{ color: f.color, opacity: 0.7, fontFamily: FONT_MONO, letterSpacing: "0.05em" }}
-              >
-                {f.num}
-              </span>
-              {/* Animated line that grows on hover */}
-              <motion.div
-                className="h-[1px] origin-right"
-                style={{ background: f.color, opacity: 0.5 }}
-                initial={{ width: 0 }}
-                whileHover={{ width: 32 }}
-                transition={{ ease: EASE2, duration: 0.3 }}
-              />
-            </div>
-
-            <h3
-              className="text-[15px] font-semibold mb-3 leading-snug"
-              style={{ color: T.text0, letterSpacing: "-0.02em", fontFamily: FONT_UI }}
-            >
-              {f.title}
-            </h3>
-            <p
-              className="text-sm leading-relaxed mb-5 flex-1"
-              style={{ color: T.text1, fontFamily: FONT_UI, lineHeight: 1.65 }}
-            >
-              {f.desc}
-            </p>
-
-            <div className="flex flex-wrap gap-1.5 mt-auto">
-              {f.tags.map(t => (
+            {/* Image header — only for cards with img */}
+            {f.img && (
+              <div className="relative w-full overflow-hidden" style={{ height: 180 }}>
+                <Image
+                  src={f.img}
+                  alt={f.title}
+                  fill
+                  className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                  style={{ filter: "brightness(0.55) saturate(0.8)" }}
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{ background: `linear-gradient(to bottom, rgba(10,16,18,0) 0%, rgba(10,16,18,0.7) 70%, ${T.bg1} 100%)` }}
+                />
                 <span
-                  key={t}
-                  className="text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase"
-                  style={{
-                    background: `${f.color}12`,
-                    color: f.color,
-                    border: `1px solid ${f.color}22`,
-                    fontFamily: FONT_UI,
-                    letterSpacing: "0.06em",
-                  }}
+                  className="absolute top-4 left-5 text-xs font-bold"
+                  style={{ color: f.color, fontFamily: FONT_MONO, letterSpacing: "0.1em", opacity: 0.9 }}
                 >
-                  {t}
+                  {f.num}
                 </span>
-              ))}
+              </div>
+            )}
+            <div className="p-7 flex flex-col flex-1">
+              {!f.img && (
+                <div className="flex items-center justify-between mb-6">
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: f.color, opacity: 0.7, fontFamily: FONT_MONO, letterSpacing: "0.05em" }}
+                  >
+                    {f.num}
+                  </span>
+                  <motion.div
+                    className="h-[1px] origin-right"
+                    style={{ background: f.color, opacity: 0.5 }}
+                    initial={{ width: 0 }}
+                    whileHover={{ width: 32 }}
+                    transition={{ ease: EASE2, duration: 0.3 }}
+                  />
+                </div>
+              )}
+              <h3
+                className="text-[15px] font-semibold mb-3 leading-snug"
+                style={{ color: T.text0, letterSpacing: "-0.02em", fontFamily: FONT_UI }}
+              >
+                {f.title}
+              </h3>
+              <p
+                className="text-sm leading-relaxed mb-5 flex-1"
+                style={{ color: T.text1, fontFamily: FONT_UI, lineHeight: 1.65 }}
+              >
+                {f.desc}
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-auto">
+                {f.tags.map(t => (
+                  <span
+                    key={t}
+                    className="text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase"
+                    style={{
+                      background: `${f.color}12`,
+                      color: f.color,
+                      border: `1px solid ${f.color}22`,
+                      fontFamily: FONT_UI,
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>

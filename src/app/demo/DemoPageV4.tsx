@@ -73,12 +73,13 @@ const stagger = (s = 0.07) => ({
 });
 
 /* ─── Typography ────────────────────────────────────────────────────── */
+// Fonts injected via next/font/google in layout.tsx — CSS variables available globally
 // Cormorant Garamond: editorial serif display — cinematic weight for hero headlines
 // Plus Jakarta Sans: UI labels, body, nav — modern grotesk with optical balance
 // JetBrains Mono: numbers, badges, metadata
-const FONT_DISPLAY = "'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', serif";
-const FONT_UI      = "'Plus Jakarta Sans', system-ui, sans-serif";
-const FONT_MONO    = "'JetBrains Mono', 'Fira Code', monospace";
+const FONT_DISPLAY = "var(--font-cormorant), 'Playfair Display', Georgia, serif";
+const FONT_UI      = "var(--font-jakarta), system-ui, sans-serif";
+const FONT_MONO    = "var(--font-jetbrains), 'Fira Code', monospace";
 
 /* ─── Particle ──────────────────────────────────────────────────────── */
 function Particle({ index }: { index: number }) {
@@ -560,28 +561,9 @@ export default function DemoPageV4() {
 
   return (
     <div
-      className="min-h-[100dvh]"
+      className="demo-page isolate min-h-[100dvh] relative"
       style={{ background: T.bg0, color: T.text0, fontFamily: FONT_UI }}
     >
-      {/* ── Fonts: Cormorant Garamond + Plus Jakarta Sans + JetBrains Mono ── */}
-      <style>{`
-        *, *::before, *::after { box-sizing: border-box; margin: 0; }
-        ::selection { background: rgba(145,194,183,0.22); color: ${T.text0}; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: ${T.bg0}; }
-        ::-webkit-scrollbar-thumb { background: ${T.tealDeep}; border-radius: 3px; }
-
-        /* Button hover fix — prevent Framer Motion from clobbering background */
-        .btn-primary { background: ${T.teal} !important; color: #0a1012 !important; }
-        .btn-primary:hover { background: ${T.tealLight} !important; }
-        .btn-secondary { background: transparent !important; color: ${T.text0} !important; }
-      `}</style>
-
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
-      />
 
       {/* ── Ambient layer (fixed, pointer-events-none) ── */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }} aria-hidden>
@@ -692,7 +674,7 @@ export default function DemoPageV4() {
 
       {/* ── HERO ── */}
       <section
-        className="relative flex flex-col items-center justify-center px-6 text-center"
+        className="relative z-10 flex flex-col items-center justify-center px-6 text-center"
         style={{ minHeight: "100dvh", paddingTop: "7rem", paddingBottom: "5rem" }}
       >
         {/* Live badge */}
@@ -902,7 +884,7 @@ export default function DemoPageV4() {
       {/* ── VIDEO ── */}
       <section
         id="video"
-        className="relative px-4 sm:px-6 max-w-5xl mx-auto"
+        className="relative z-10 px-4 sm:px-6 max-w-5xl mx-auto"
         style={{ paddingTop: "6rem", paddingBottom: "6rem" }}
       >
         <Section className="mb-12 text-center">
@@ -945,7 +927,7 @@ export default function DemoPageV4() {
       {/* ── FEATURES BENTO (asymmetric grid) ── */}
       <section
         id="features"
-        className="px-4 sm:px-6 max-w-5xl mx-auto"
+        className="relative z-10 px-4 sm:px-6 max-w-5xl mx-auto"
         style={{ paddingTop: "6rem", paddingBottom: "6rem" }}
       >
         <Section className="mb-12">
@@ -987,7 +969,7 @@ export default function DemoPageV4() {
       {/* ── STACK ── */}
       <section
         id="stack"
-        className="px-4 sm:px-6 max-w-5xl mx-auto"
+        className="relative z-10 px-4 sm:px-6 max-w-5xl mx-auto"
         style={{ paddingTop: "6rem", paddingBottom: "6rem" }}
       >
         <Section className="mb-12 text-center">
@@ -1063,7 +1045,7 @@ export default function DemoPageV4() {
 
       {/* ── CTA ── */}
       <section
-        className="px-4 sm:px-6 text-center relative overflow-hidden"
+        className="relative z-10 px-4 sm:px-6 text-center overflow-hidden"
         style={{ paddingTop: "8rem", paddingBottom: "8rem" }}
       >
         <div
@@ -1151,7 +1133,7 @@ export default function DemoPageV4() {
 
       {/* ── FOOTER ── */}
       <footer
-        className="px-6 py-10 border-t"
+        className="relative z-10 px-6 py-10 border-t"
         style={{ borderColor: T.border }}
       >
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-5">

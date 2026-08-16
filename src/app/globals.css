@@ -61,3 +61,40 @@ body {
   --viz-gridline: #414954;
   --viz-series-1: #3aa88e;
 }
+
+/* ── Demo page — scoped so it never bleeds into the app ── */
+.demo-page {
+  /* Selection highlight */
+  ::selection {
+    background: rgba(145, 194, 183, 0.22);
+    color: #eef3f2;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: #0a1012; }
+  ::-webkit-scrollbar-thumb { background: #29474b; border-radius: 3px; }
+
+  /* Ensure the demo bg overrides the app body bg */
+  background: #0a1012;
+}
+
+/* ── Demo page CTA buttons ──────────────────────────────────────────── */
+/* Defined here so Framer Motion whileHover can't clobber background/color */
+.btn-primary {
+  background: #91c2b7;
+  color: #0a1012;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+.btn-primary:hover {
+  background: #b8d8d2;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #eef3f2;
+  transition: background 0.18s ease, opacity 0.18s ease;
+}
+.btn-secondary:hover {
+  background: rgba(145, 194, 183, 0.06);
+}

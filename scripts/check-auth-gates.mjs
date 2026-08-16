@@ -50,7 +50,7 @@ for (const path of routes) {
 }
 
 for (const path of publicRoutes) {
-  const { status, body } = await probe(path);
+  const { status, loc, body } = await probe(path);
   const leaked = status === 200 && RECORD_DATA.test(body);
 
   // 404 means the route is declared public but has no page. That is stale
@@ -61,8 +61,19 @@ for (const path of publicRoutes) {
     continue;
   }
 
-  if (status === 200 && !leaked) {
-    console.log(`PASS ${path} -> 200 (public, reachable, no record data)`);
+  // Some public routes are pure aliases (next.config.ts redirects(), e.g.
+  // /showcase -> /hub) rather than pages of their own. That is not a leak or
+  // an auth-gate bypass as long as it lands on another declared-public route
+  // -- only a redirect to /auth/login would mean the route isn't actually public.
+  const aliasesToPublicRoute =
+    status >= 300 && status < 400 && publicRoutes.includes(loc.split("?")[0]);
+
+  if ((status === 200 || aliasesToPublicRoute) && !leaked) {
+    console.log(
+      aliasesToPublicRoute
+        ? `PASS ${path} -> ${status} ${loc} (public alias, redirects to another public route)`
+        : `PASS ${path} -> 200 (public, reachable, no record data)`,
+    );
   } else {
     console.log(
       `FAIL ${path} -> ${status}${leaked ? " LEAKS RECORD DATA" : " (public route should be reachable)"}`,

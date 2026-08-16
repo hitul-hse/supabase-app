@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Roboto, Roboto_Mono } from "next/font/google";
+import { Roboto, Roboto_Mono, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 const roboto = Roboto({
@@ -12,6 +12,31 @@ const robotoMono = Roboto_Mono({
   variable: "--font-roboto-mono",
   subsets: ["latin"],
   weight: ["400", "500", "700"],
+});
+
+// Demo page display serif — editorial, cinematic
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+// Demo page UI grotesk — optical balance, modern
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+// Demo page mono — numbers, badges, metadata
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -28,7 +53,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${roboto.variable} ${robotoMono.variable} h-full antialiased`}
+      className={`${roboto.variable} ${robotoMono.variable} ${cormorant.variable} ${plusJakarta.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
         {children}

@@ -1,35 +1,25 @@
 {
   "threadId": "vscode-chat-session://local/MjQ1YTVhYjctN2E3ZS00ZjNhLWEzYWEtMTcyMTY5ZDJiOWYw",
-  "updatedAt": 1786876368544,
+  "updatedAt": 1786877533284,
   "todos": [
     {
       "id": "fonts",
-      "content": "Upgrade typography: Clash Display for hero headline, Poppins stays for UI",
+      "content": "Move fonts to next/font/google — remove inline <link> tag",
       "status": "in_progress"
     },
     {
-      "id": "nav",
-      "content": "Float the nav as a pill island detached from top edge",
-      "status": "pending"
-    },
-    {
-      "id": "bezel",
-      "content": "Double-bezel all major cards and video player",
+      "id": "layout",
+      "content": "Fix hero layout — padding, z-index, relative positioning",
       "status": "pending"
     },
     {
       "id": "buttons",
-      "content": "Button-in-button trailing icon on all CTAs",
-      "status": "pending"
-    },
-    {
-      "id": "bento",
-      "content": "Asymmetric bento grid for features section",
+      "content": "Fix button hover — move CSS out of inline <style> into globals.css",
       "status": "pending"
     },
     {
       "id": "build",
-      "content": "Build, verify, commit, push",
+      "content": "Build, verify, push",
       "status": "pending"
     }
   ]

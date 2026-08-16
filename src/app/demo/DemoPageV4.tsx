@@ -69,6 +69,15 @@ const FONT_DISPLAY = "var(--font-cormorant), 'Playfair Display', Georgia, serif"
 const FONT_UI      = "var(--font-jakarta), system-ui, sans-serif";
 const FONT_MONO    = "var(--font-jetbrains), 'Fira Code', monospace";
 
+/* ─── Video asset ────────────────────────────────────────────────────── */
+// The ad is re-rendered in place at /public/hse-hub-ad.mp4, so the URL never
+// changes -- but Vercel serves it with `Cache-Control: public, max-age=86400`.
+// Without a cache-busting token, anyone who loaded a previous cut keeps getting
+// it from browser disk cache for 24h and never sees the new render. Bump this
+// whenever the mp4 is re-rendered.
+const VIDEO_VERSION = "v8-brandmark";
+const VIDEO_SRC = `/hse-hub-ad.mp4?v=${VIDEO_VERSION}`;
+
 /* ─── Layout constants ───────────────────────────────────────────────── */
 // All content shares the same horizontal container for visual alignment
 const CONTAINER = "w-full max-w-5xl mx-auto px-6 sm:px-10";
@@ -326,7 +335,7 @@ function VideoPlayer() {
         />
         <video
           ref={videoRef}
-          src="/hse-hub-ad.mp4"
+          src={VIDEO_SRC}
           className="w-full aspect-video object-cover block"
           playsInline
           // "none", not "metadata": the file is ~16MB, and an aborted speculative
@@ -420,7 +429,7 @@ function VideoPlayer() {
                     60s · Remotion H264 1080p
                   </span>
                   <a
-                    href="/hse-hub-ad.mp4"
+                    href={VIDEO_SRC}
                     download
                     className="text-[10px] font-semibold flex items-center gap-1.5 transition-opacity hover:opacity-60"
                     style={{ color: T.teal, fontFamily: FONT_UI }}
@@ -1090,7 +1099,7 @@ export default function DemoPageV4() {
                 </span>
               </motion.a>
               <motion.a
-                href="/hse-hub-ad.mp4"
+                href={VIDEO_SRC}
                 download
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}

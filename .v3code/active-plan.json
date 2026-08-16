@@ -1,21 +1,31 @@
 {
   "threadId": "vscode-chat-session://local/MjQ1YTVhYjctN2E3ZS00ZjNhLWEzYWEtMTcyMTY5ZDJiOWYw",
-  "updatedAt": 1786874528482,
+  "updatedAt": 1786875247913,
   "todos": [
     {
-      "id": "upgrade-next",
-      "content": "Upgrade Next.js 16.3.0 → 16.3.1",
+      "id": "skill1",
+      "content": "Install emilkowalski/skills (10 animation skills)",
       "status": "completed"
     },
     {
-      "id": "video-page",
-      "content": "Build cinematic /demo page: Goldsmith theme, full-screen video hero, Framer Motion animations",
+      "id": "skill2",
+      "content": "Install impeccable skill",
       "status": "completed"
     },
     {
-      "id": "build-verify",
-      "content": "Build clean, push to GitHub, verify Vercel deploy + live page",
+      "id": "init",
+      "content": "Create PRODUCT.md and DESIGN.md via /impeccable init",
+      "status": "completed"
+    },
+    {
+      "id": "demo",
+      "content": "Build awesome /demo webpage with video, using new skills",
       "status": "in_progress"
+    },
+    {
+      "id": "push",
+      "content": "Build, push, verify live",
+      "status": "pending"
     }
   ]
 }

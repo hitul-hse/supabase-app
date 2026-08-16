@@ -237,11 +237,42 @@ export async function getOverviewCounts(supabase: SupabaseTyped): Promise<{
   };
 }
 
-/** Current week's timesheet entries, grouped back into one row per task with a 7-day hours array. */
+/** Monday of the current ISO week, as a YYYY-MM-DD string -- matches Postgres's date_trunc('week', now()). */
+export function currentWeekStart(): string {
+  const now = new Date();
+  const isoDayOfWeek = (now.getUTCDay() + 6) % 7; // Mon=0 .. Sun=6
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - isoDayOfWeek);
+  return monday.toISOString().slice(0, 10);
+}
+
+/**
+ * The current user's own timesheet entries for the current week, grouped
+ * back into one row per task with a 7-day hours array. Scoped explicitly to
+ * the caller's own person_id (not just relying on RLS): an exec can VIEW
+ * everyone's entries, but this page is "my own timesheet", and grouping by
+ * entry_group alone -- without a person filter -- would merge different
+ * people's rows together if their entry_group numbers ever collide.
+ */
 export async function getTimesheetEntries(supabase: SupabaseTyped): Promise<TimesheetDayEntry[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: profile } = await supabase
+    .from("app_user_profile")
+    .select("person_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!profile?.person_id) return [];
+
   const { data } = await supabase
     .from("timesheet_entries")
     .select("*")
+    .eq("person_id", profile.person_id)
+    .eq("week_start", currentWeekStart())
     .order("entry_group")
     .order("day_of_week");
 
@@ -250,15 +281,20 @@ export async function getTimesheetEntries(supabase: SupabaseTyped): Promise<Time
   for (const row of data ?? []) {
     if (!byGroup.has(row.entry_group)) {
       byGroup.set(row.entry_group, {
+        entryGroup: row.entry_group,
         taskName: row.task_name,
         projectName: row.project_name,
         isBillable: row.is_billable,
         customer: row.customer,
         warning: row.warning,
+        status: row.status,
         hours: [0, 0, 0, 0, 0, 0, 0],
+        dayRowIds: [null, null, null, null, null, null, null],
       });
     }
-    byGroup.get(row.entry_group)!.hours[row.day_of_week] = Number(row.hours);
+    const group = byGroup.get(row.entry_group)!;
+    group.hours[row.day_of_week] = Number(row.hours);
+    group.dayRowIds[row.day_of_week] = row.id;
   }
 
   return Array.from(byGroup.values());

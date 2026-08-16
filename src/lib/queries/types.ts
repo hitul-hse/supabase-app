@@ -67,10 +67,14 @@ export type BillableTrend = {
 };
 
 export type TimesheetDayEntry = {
+  entryGroup: number;
   taskName: string;
   projectName: string;
   isBillable: boolean;
   customer: string | null;
   warning: string | null;
+  status: string;
   hours: number[];
+  /** DB row id per day-of-week (0=Mon..6=Sun), for targeted per-cell edits. */
+  dayRowIds: (number | null)[];
 };

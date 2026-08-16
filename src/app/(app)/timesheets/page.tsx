@@ -1,7 +1,7 @@
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { requireUser } from "@/utils/supabase/require-user";
-import { getTimesheetEntries } from "@/lib/queries/hse";
+import { getTimesheetEntries, currentWeekStart } from "@/lib/queries/hse";
 import { TimesheetGrid } from "./TimesheetGrid";
 import PageTransition from "@/components/animations/PageTransition";
 
@@ -14,7 +14,7 @@ export default async function TimesheetsPage() {
     <PageTransition>
       <div className="flex flex-col">
         <SyncBar />
-        <TimesheetGrid initialEntries={entries} />
+        <TimesheetGrid initialEntries={entries} weekStart={currentWeekStart()} />
       </div>
     </PageTransition>
   );

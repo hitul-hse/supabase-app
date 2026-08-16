@@ -304,7 +304,16 @@ create table if not exists timesheet_entries (
   warning text,
   day_of_week smallint not null,
   hours numeric not null,
-  person_id text not null references people(id)
+  person_id text not null references people(id),
+  -- Phase 3 (Timesheet Entry): week_start anchors entries to a real
+  -- calendar week -- entry_group alone only distinguishes rows within a
+  -- week, not across weeks or people, which is fine for a single seeded
+  -- week but not for a real, growing history. status/submitted_at give
+  -- the entry somewhere to live once submission is a real action instead
+  -- of client-only UI state.
+  week_start date not null default date_trunc('week', now())::date,
+  status text not null default 'draft',
+  submitted_at timestamptz
 );
 
 alter table timesheet_entries enable row level security;
@@ -448,6 +457,34 @@ create policy "role-scoped read on weekly_bookings"
 
 create policy "role-scoped read on timesheet_entries"
   on timesheet_entries for select to authenticated using (can_view_person(person_id));
+
+-- Write access to timesheet_entries (Phase 3: Timesheet Entry). Two
+-- separate update policies rather than one, mirroring the approval_decisions
+-- split further down: the owner can edit/submit their own row while it's
+-- still a draft, but WITH CHECK caps what they can set status to (draft or
+-- submitted only) so an employee can never self-approve. A lead's approval
+-- is a distinct policy scoped by can_view_person(), not a status check --
+-- Postgres RLS can't restrict which columns an UPDATE touches, so this
+-- trusts the lead role for the whole row, the same trust boundary
+-- approval_decisions already relies on.
+
+create policy "owner can insert their own timesheet_entries"
+  on timesheet_entries for insert to authenticated
+  with check (person_id = app_user_person_id());
+
+create policy "owner can edit their own draft timesheet_entries"
+  on timesheet_entries for update to authenticated
+  using (person_id = app_user_person_id() and status = 'draft')
+  with check (person_id = app_user_person_id() and status in ('draft', 'submitted'));
+
+create policy "lead can approve or reject visible timesheet_entries"
+  on timesheet_entries for update to authenticated
+  using (app_user_role() in ('exec', 'dept_head') and can_view_person(person_id))
+  with check (app_user_role() in ('exec', 'dept_head') and can_view_person(person_id));
+
+create policy "owner can delete their own draft timesheet_entries"
+  on timesheet_entries for delete to authenticated
+  using (person_id = app_user_person_id() and status = 'draft');
 
 create policy "role-scoped read on projects"
   on projects for select to authenticated using (can_view_project(id));

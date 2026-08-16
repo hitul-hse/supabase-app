@@ -634,8 +634,11 @@ export type Database = {
           is_billable: boolean
           person_id: string
           project_name: string
+          status: string
+          submitted_at: string | null
           task_name: string
           warning: string | null
+          week_start: string
         }
         Insert: {
           customer?: string | null
@@ -646,8 +649,11 @@ export type Database = {
           is_billable: boolean
           person_id: string
           project_name: string
+          status?: string
+          submitted_at?: string | null
           task_name: string
           warning?: string | null
+          week_start?: string
         }
         Update: {
           customer?: string | null
@@ -658,8 +664,11 @@ export type Database = {
           is_billable?: boolean
           person_id?: string
           project_name?: string
+          status?: string
+          submitted_at?: string | null
           task_name?: string
           warning?: string | null
+          week_start?: string
         }
         Relationships: [
           {

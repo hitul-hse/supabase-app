@@ -110,6 +110,9 @@ jobs:
       - name: Run project_tasks write-RLS tests
         run: npm run test:task-write-rls
 
+      - name: Run timesheet_entries write-RLS tests
+        run: npm run test:timesheet-write-rls
+
       - name: Run policy count control
         run: npm run test:policy-control
 

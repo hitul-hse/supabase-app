@@ -10,6 +10,7 @@ import type {
   ApprovalDecisionRow,
   TeamLeadBooking,
   TimesheetDayEntry,
+  PendingTimesheetWeek,
   BillableTrend,
   WeeklyBillableTrendRow,
 } from "./types";
@@ -163,6 +164,41 @@ function currentFourWeeks(): string[] {
   return [-3, -2, -1, 0].map((offset) => `W${currentWeek + offset}`);
 }
 
+/**
+ * Submitted (not yet approved/rejected) timesheet weeks, grouped by person
+ * and week. RLS (can_view_person) already scopes this to whoever the caller
+ * is allowed to see -- dept_head gets their department, exec gets everyone --
+ * so no extra filtering is needed here beyond status.
+ */
+export async function getPendingTimesheetApprovals(
+  supabase: SupabaseTyped,
+): Promise<PendingTimesheetWeek[]> {
+  const { data } = await supabase
+    .from("timesheet_entries")
+    .select("person_id, week_start, hours, people(name)")
+    .eq("status", "submitted");
+
+  const byKey = new Map<string, PendingTimesheetWeek>();
+
+  for (const row of data ?? []) {
+    const key = `${row.person_id}__${row.week_start}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        personId: row.person_id,
+        personName: row.people?.name ?? row.person_id,
+        weekStart: row.week_start,
+        totalHours: 0,
+        entryCount: 0,
+      });
+    }
+    const entry = byKey.get(key)!;
+    entry.totalHours += Number(row.hours);
+    entry.entryCount += 1;
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+}
+
 /** Workload/booking board plus pending approvals, for the Team Lead page. */
 export async function getTeamLeadBoard(supabase: SupabaseTyped): Promise<{
   bookings: TeamLeadBooking[];
@@ -246,15 +282,26 @@ export function currentWeekStart(): string {
   return monday.toISOString().slice(0, 10);
 }
 
+/** Monday of the week `deltaWeeks` away from the given week_start (negative = earlier). */
+export function shiftWeekStart(weekStart: string, deltaWeeks: number): string {
+  const d = new Date(weekStart + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + deltaWeeks * 7);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
- * The current user's own timesheet entries for the current week, grouped
- * back into one row per task with a 7-day hours array. Scoped explicitly to
- * the caller's own person_id (not just relying on RLS): an exec can VIEW
- * everyone's entries, but this page is "my own timesheet", and grouping by
- * entry_group alone -- without a person filter -- would merge different
- * people's rows together if their entry_group numbers ever collide.
+ * The current user's own timesheet entries for the given week (defaults to
+ * the current week), grouped back into one row per task with a 7-day hours
+ * array. Scoped explicitly to the caller's own person_id (not just relying
+ * on RLS): an exec can VIEW everyone's entries, but this page is "my own
+ * timesheet", and grouping by entry_group alone -- without a person filter --
+ * would merge different people's rows together if their entry_group numbers
+ * ever collide.
  */
-export async function getTimesheetEntries(supabase: SupabaseTyped): Promise<TimesheetDayEntry[]> {
+export async function getTimesheetEntries(
+  supabase: SupabaseTyped,
+  weekStart: string = currentWeekStart(),
+): Promise<TimesheetDayEntry[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -272,7 +319,7 @@ export async function getTimesheetEntries(supabase: SupabaseTyped): Promise<Time
     .from("timesheet_entries")
     .select("*")
     .eq("person_id", profile.person_id)
-    .eq("week_start", currentWeekStart())
+    .eq("week_start", weekStart)
     .order("entry_group")
     .order("day_of_week");
 

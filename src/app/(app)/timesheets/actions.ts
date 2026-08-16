@@ -49,7 +49,8 @@ export async function addTimesheetEntry(
     .maybeSingle();
 
   const nextGroup = (existing?.entry_group ?? 0) + 1;
-  const weekStart = currentWeekStart();
+  const requestedWeek = String(formData.get("week_start") || "");
+  const weekStart = /^\d{4}-\d{2}-\d{2}$/.test(requestedWeek) ? requestedWeek : currentWeekStart();
 
   // One row per day of the week, all starting at 0h -- matches the shape
   // every existing seeded row already uses, so editing an hour is always a
@@ -105,16 +106,19 @@ export async function deleteTimesheetRow(formData: FormData): Promise<void> {
   revalidatePath("/timesheets");
 }
 
-export async function submitWeek(): Promise<void> {
+export async function submitWeek(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const personId = await currentPersonId(supabase);
   if (!personId) return;
+
+  const requestedWeek = String(formData.get("week_start") || "");
+  const weekStart = /^\d{4}-\d{2}-\d{2}$/.test(requestedWeek) ? requestedWeek : currentWeekStart();
 
   await supabase
     .from("timesheet_entries")
     .update({ status: "submitted", submitted_at: new Date().toISOString() })
     .eq("person_id", personId)
-    .eq("week_start", currentWeekStart())
+    .eq("week_start", weekStart)
     .eq("status", "draft");
 
   revalidatePath("/timesheets");

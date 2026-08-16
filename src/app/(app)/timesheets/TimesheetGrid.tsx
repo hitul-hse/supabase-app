@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import type { TimesheetDayEntry } from "@/lib/queries/types";
 import { updateDayHours, deleteTimesheetRow, submitWeek } from "./actions";
 import { AddEntryForm } from "./AddEntryForm";
+import { shiftWeekStart, currentWeekStart } from "@/lib/queries/hse";
 
 const DAY_NAMES = ["MO", "TU", "WE", "TH", "FR", "SA"];
 
@@ -63,6 +65,30 @@ export function TimesheetGrid({
         meta={weekSubmitted ? "SUBMITTED · AWAITING APPROVAL" : "DRAFT"}
         actions={
           <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Link
+                href={`/timesheets?week=${shiftWeekStart(weekStart, -1)}`}
+                className="border border-[var(--border-strong)] px-2.5 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                aria-label="Previous week"
+              >
+                ←
+              </Link>
+              {weekStart !== currentWeekStart() && (
+                <Link
+                  href="/timesheets"
+                  className="border border-[var(--border-strong)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                >
+                  Today
+                </Link>
+              )}
+              <Link
+                href={`/timesheets?week=${shiftWeekStart(weekStart, 1)}`}
+                className="border border-[var(--border-strong)] px-2.5 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                aria-label="Next week"
+              >
+                →
+              </Link>
+            </div>
             <div className="hidden flex-col items-end sm:flex">
               <span className="font-mono text-[9.5px] text-[var(--text-muted)]">LOGGED</span>
               <span className="font-mono text-[16px] font-semibold text-[var(--text-primary)]">
@@ -70,6 +96,7 @@ export function TimesheetGrid({
               </span>
             </div>
             <form action={submitWeek}>
+              <input type="hidden" name="week_start" value={weekStart} />
               <button
                 type="submit"
                 disabled={weekSubmitted || entries.length === 0}
@@ -83,7 +110,7 @@ export function TimesheetGrid({
       />
 
       <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
-        <AddEntryForm />
+        <AddEntryForm weekStart={weekStart} />
 
         {/* Desktop table */}
         <div className="border border-[var(--border)] bg-[var(--surface)]">

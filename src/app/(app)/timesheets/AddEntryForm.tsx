@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { addTimesheetEntry } from "./actions";
 
-export function AddEntryForm() {
+export function AddEntryForm({ weekStart }: { weekStart: string }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, isPending] = useActionState(addTimesheetEntry, { status: "idle" });
 
@@ -26,6 +26,7 @@ export function AddEntryForm() {
       }}
       className="flex flex-col gap-2 border border-[var(--border)] bg-[var(--surface-2)] p-3"
     >
+      <input type="hidden" name="week_start" value={weekStart} />
       <div className="flex flex-wrap items-center gap-2">
         <input
           name="project_name"

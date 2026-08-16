@@ -78,3 +78,11 @@ export type TimesheetDayEntry = {
   /** DB row id per day-of-week (0=Mon..6=Sun), for targeted per-cell edits. */
   dayRowIds: (number | null)[];
 };
+
+export type PendingTimesheetWeek = {
+  personId: string;
+  personName: string;
+  weekStart: string;
+  totalHours: number;
+  entryCount: number;
+};

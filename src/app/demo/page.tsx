@@ -1,365 +1,669 @@
 "use client";
-// BUILD: 2026-08-16T01 — full cinematic showcase rewrite
 /**
- * /demo — Cinematic product showcase and video page for HSE Hub.
- * Full-screen video player, animated stats, feature cards, tech stack, CTA.
- * No auth required — share with stakeholders.
+ * /video — Standalone cinematic video showcase for HSE Hub.
+ * Beautiful full-screen video player with animated sections.
+ * No auth required — share freely with stakeholders.
  */
-import { motion, AnimatePresence } from "framer-motion";
-import { useRef, useState, useEffect } from "react";
+
+import { useRef, useState, useEffect, useCallback } from "react";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
-/* ── icons ── */
-const Icon = ({ d, size = 20 }: { d: string; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-);
-const PlayIcon   = () => <Icon d="M5 3l14 9-14 9V3z" />;
-const PauseIcon  = () => <Icon d="M6 4h4v16H6zM14 4h4v16h-4z" />;
-const FullIcon   = () => <Icon d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />;
-const DlIcon     = () => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />;
-const MuteIcon   = () => <Icon d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6" />;
-const UnmuteIcon = () => <Icon d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />;
-
-const STATS = [
-  { value: 41, suffix: "",  label: "Active people",       accent: "#d4a843" },
-  { value: 27, suffix: "",  label: "Live projects",        accent: "#3b82f6" },
-  { value: 73, suffix: "%", label: "Billable utilisation", accent: "#22c55e" },
-  { value: 4,  suffix: "",  label: "Systems unified",      accent: "#a855f7" },
-];
-
-const FEATURES = [
-  { icon: "M3 3h18v18H3zM3 9h18M9 21V9", title: "Executive Dashboard",
-    body: "Real-time billable utilisation, hours at risk, open tasks and trend charts — synced every few minutes.",
-    accent: "#d4a843", tag: "LIVE ANALYTICS" },
-  { icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
-    title: "Team Lead Board", body: "Four-week rolling workload view. Spot over-allocated people, approve time entries, get capacity alerts.",
-    accent: "#ef4444", tag: "WORKLOAD MGMT" },
-  { icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", title: "Granular RBAC",
-    body: "24 configurable permissions across 7 resource groups. Toggle per role from the admin panel — no code changes.",
-    accent: "#a855f7", tag: "ENTERPRISE SECURITY" },
-  { icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z", title: "Real-time Sync",
-    body: "Asana, TrackingTime, Factorial, and Samdock unified into one canonical identity — zero manual matching.",
-    accent: "#22c55e", tag: "4-SYSTEM PIPELINE" },
-];
-
-const CHAPTERS = [
-  { t: 0,  label: "Intro"     },
-  { t: 5,  label: "Problem"   },
-  { t: 12, label: "Dashboard" },
-  { t: 22, label: "RBAC"      },
-  { t: 30, label: "Sync"      },
-  { t: 38, label: "Mobile"    },
-  { t: 46, label: "CTA"       },
-];
-
-const TECH = [
-  { name: "Next.js 15",    color: "#ffffff" },
-  { name: "Supabase",      color: "#3ecf8e" },
-  { name: "Vercel",        color: "#ffffff" },
-  { name: "Framer Motion", color: "#ff4d6b" },
-  { name: "Remotion",      color: "#ff5b79" },
-  { name: "TypeScript",    color: "#3b82f6" },
-  { name: "Tailwind CSS",  color: "#38bdf8" },
-  { name: "GitHub CI",     color: "#d4a843" },
-];
-
-/* ── count-up ── */
-function useCounter(target: number, duration: number, trigger: boolean) {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    if (!trigger) return;
-    let raf: number;
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min((now - t0) / duration, 1);
-      setVal(Math.round((1 - Math.pow(1 - p, 3)) * target));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration, trigger]);
-  return val;
+/* ─── Types ──────────────────────────────────────────────────────────────── */
+interface Feature {
+  icon: string;
+  title: string;
+  desc: string;
+  accent: string;
 }
 
-function StatTile({ value, suffix, label, accent, trigger }: typeof STATS[0] & { trigger: boolean }) {
-  const n = useCounter(value, 1600, trigger);
+interface Stat {
+  value: number;
+  suffix: string;
+  label: string;
+  accent: string;
+}
+
+/* ─── Data ────────────────────────────────────────────────────────────────── */
+const STATS: Stat[] = [
+  { value: 41,  suffix: "",  label: "Active people",        accent: "#d4a843" },
+  { value: 27,  suffix: "",  label: "Live projects",         accent: "#3b82f6" },
+  { value: 4,   suffix: "",  label: "Integrated systems",    accent: "#22c55e" },
+  { value: 24,  suffix: "",  label: "Granular permissions",  accent: "#a855f7" },
+];
+
+const FEATURES: Feature[] = [
+  { icon: "📊", title: "Executive Overview",   desc: "Live KPIs, billable trends, and project health — real-time from four source systems in one glance.",              accent: "#d4a843" },
+  { icon: "👥", title: "Team Lead Board",      desc: "Weekly workload booking, utilisation heatmap, and pending approvals with one-click decisions.",                   accent: "#3b82f6" },
+  { icon: "🧑‍💼", title: "People Directory",   desc: "Full team roster with qualifications, active assignments, and cross-system identity resolution.",                 accent: "#22c55e" },
+  { icon: "📁", title: "Project Tracker",      desc: "Timeline view, Gantt-style task breakdown, and live progress bars pulled directly from Asana.",                   accent: "#f59e0b" },
+  { icon: "⏱️", title: "Timesheet Grid",       desc: "Weekly timesheet view per employee — logged hours, billable split, and approval workflow.",                        accent: "#ec4899" },
+  { icon: "🔐", title: "Role Permissions",     desc: "Full RBAC matrix — define exactly what each role can access. Toggle live, no deploy needed.",                     accent: "#a855f7" },
+];
+
+const CONNECTORS = ["Asana", "TrackingTime", "Samdock", "Factorial", "Supabase", "Vercel"];
+
+/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+function useCountUp(target: number, duration = 1800, start = false) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(target * ease));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [target, duration, start]);
+  return count;
+}
+
+/* ─── Sub-components ──────────────────────────────────────────────────────── */
+function GoldGlow({ size = 600, opacity = 0.15 }: { size?: number; opacity?: number }) {
+  return (
+    <div
+      className="pointer-events-none absolute rounded-full"
+      style={{
+        width: size, height: size,
+        background: "radial-gradient(circle, #d4a843 0%, transparent 70%)",
+        opacity,
+        filter: "blur(80px)",
+        transform: "translate(-50%, -50%)",
+      }}
+    />
+  );
+}
+
+function StatCard({ stat, index, visible }: { stat: Stat; index: number; visible: boolean }) {
+  const count = useCountUp(stat.value, 1600, visible);
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={trigger ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5 }}
-      className="flex flex-col gap-1.5 p-5 rounded-2xl border"
-      style={{ borderColor: accent + "30", background: accent + "0d" }}
+      initial={{ opacity: 0, y: 30 }}
+      animate={visible ? { opacity: 1, y: 0 } : {}}
+      transition={{ delay: index * 0.12, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      className="flex flex-col items-center gap-2 rounded-2xl border p-6 text-center backdrop-blur-sm"
+      style={{ borderColor: stat.accent + "30", background: stat.accent + "08" }}
     >
-      <span className="text-3xl font-bold tabular-nums" style={{ color: accent }}>{n}{suffix}</span>
-      <span className="text-[11px] font-mono tracking-widest text-white/40 uppercase">{label}</span>
+      <span className="text-5xl font-bold tracking-tight" style={{ color: stat.accent }}>
+        {count}{stat.suffix}
+      </span>
+      <span className="text-sm text-slate-400">{stat.label}</span>
     </motion.div>
   );
 }
 
-export default function DemoPage() {
-  const videoRef  = useRef<HTMLVideoElement>(null);
-  const statsRef  = useRef<HTMLDivElement>(null);
-  const [playing,   setPlaying]   = useState(false);
-  const [muted,     setMuted]     = useState(true);
-  const [progress,  setProgress]  = useState(0);
-  const [dur,       setDur]       = useState(0);
-  const [statsVis,  setStatsVis]  = useState(false);
-  const [hoverCtrl, setHoverCtrl] = useState(false);
+function FeatureCard({ f, index, visible }: { f: Feature; index: number; visible: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={visible ? { opacity: 1, y: 0 } : {}}
+      transition={{ delay: index * 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={{ scale: 1.02, y: -4 }}
+      className="group relative overflow-hidden rounded-2xl border p-6 backdrop-blur-sm transition-shadow hover:shadow-2xl"
+      style={{ borderColor: f.accent + "25", background: "#0f1420" }}
+    >
+      <div
+        className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+        style={{ background: `radial-gradient(ellipse at top left, ${f.accent}10 0%, transparent 60%)` }}
+      />
+      <div className="relative z-10">
+        <div className="mb-3 text-3xl">{f.icon}</div>
+        <h3 className="mb-2 text-lg font-semibold text-white">{f.title}</h3>
+        <p className="text-sm leading-relaxed text-slate-400">{f.desc}</p>
+      </div>
+      <div
+        className="absolute bottom-0 left-0 h-0.5 w-0 transition-all duration-500 group-hover:w-full"
+        style={{ background: `linear-gradient(90deg, ${f.accent}, transparent)` }}
+      />
+    </motion.div>
+  );
+}
 
-  useEffect(() => {
-    const el = statsRef.current;
+/* ─── Video Player ────────────────────────────────────────────────────────── */
+function VideoPlayer() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showControls, setShowControls] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const hideTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+  const togglePlay = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) { v.play(); setPlaying(true); }
+    else          { v.pause(); setPlaying(false); }
+  }, []);
+
+  const handleTimeUpdate = useCallback(() => {
+    const v = videoRef.current;
+    if (!v || !v.duration) return;
+    setProgress(v.currentTime / v.duration);
+  }, []);
+
+  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const v = videoRef.current;
+    if (!v) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    v.currentTime = ratio * v.duration;
+  }, []);
+
+  const showCtrl = useCallback(() => {
+    setShowControls(true);
+    clearTimeout(hideTimeout.current);
+    if (playing) hideTimeout.current = setTimeout(() => setShowControls(false), 3000);
+  }, [playing]);
+
+  useEffect(() => { if (!playing) setShowControls(true); }, [playing]);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = videoRef.current?.parentElement;
     if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setStatsVis(true); }, { threshold: 0.3 });
-    obs.observe(el);
+    if (!document.fullscreenElement) { el.requestFullscreen(); setFullscreen(true); }
+    else { document.exitFullscreen(); setFullscreen(false); }
+  }, []);
+
+  return (
+    <div
+      className="group relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-2xl"
+      style={{ boxShadow: "0 0 80px 0 #d4a84340" }}
+      onMouseMove={showCtrl}
+      onMouseEnter={showCtrl}
+    >
+      {/* Gold border glow */}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset" style={{ boxShadow: "inset 0 0 0 1px #d4a84340" }} />
+
+      {/* Loading skeleton */}
+      {!loaded && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0a0d14]">
+          <div className="h-16 w-16 animate-spin rounded-full border-4 border-[#d4a843] border-t-transparent" />
+          <p className="text-sm text-slate-400">Loading video…</p>
+        </div>
+      )}
+
+      <video
+        ref={videoRef}
+        src="/hse-hub-ad.mp4"
+        className="h-full w-full object-cover"
+        muted={muted}
+        playsInline
+        preload="metadata"
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={(e) => { setDuration((e.target as HTMLVideoElement).duration); setLoaded(true); }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setProgress(0); }}
+        onClick={togglePlay}
+      />
+
+      {/* Big play button when paused */}
+      <AnimatePresence>
+        {!playing && loaded && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={togglePlay}
+            className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+            style={{ background: "#d4a843", boxShadow: "0 0 40px #d4a84380" }}
+          >
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+              <path d="M5 3l14 9-14 9V3z" />
+            </svg>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Controls bar */}
+      <AnimatePresence>
+        {showControls && loaded && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-4 pb-4 pt-12"
+          >
+            {/* Progress bar */}
+            <div
+              className="mb-3 h-1 w-full cursor-pointer rounded-full bg-white/20"
+              onClick={handleSeek}
+            >
+              <div
+                className="h-full rounded-full transition-none"
+                style={{ width: `${progress * 100}%`, background: "#d4a843" }}
+              />
+            </div>
+
+            {/* Buttons row */}
+            <div className="flex items-center gap-3">
+              {/* Play/Pause */}
+              <button onClick={togglePlay} className="text-white/80 transition hover:text-white">
+                {playing ? (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                ) : (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>
+                )}
+              </button>
+
+              {/* Mute */}
+              <button onClick={() => setMuted(m => !m)} className="text-white/80 transition hover:text-white">
+                {muted ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                  </svg>
+                )}
+              </button>
+
+              {/* Time */}
+              <span className="flex-1 text-xs text-white/60">
+                {fmt(progress * duration)} / {fmt(duration)}
+              </span>
+
+              {/* Fullscreen */}
+              <button onClick={toggleFullscreen} className="text-white/80 transition hover:text-white">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  {fullscreen
+                    ? <path d="M8 3v5H3M21 3l-5 5M3 21l5-5M16 21v-5h5"/>
+                    : <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  }
+                </svg>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ─── Section wrapper with scroll-triggered reveal ────────────────────────── */
+function Section({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true); }, { threshold: 0.15 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <motion.section
+      ref={ref}
+      initial={{ opacity: 0, y: 40 }}
+      animate={visible ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.section>
+  );
+}
+
+/* ─── Page ────────────────────────────────────────────────────────────────── */
+export default function VideoPage() {
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
+
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setStatsVisible(true); }, { threshold: 0.3 });
+    if (statsRef.current) obs.observe(statsRef.current);
     return () => obs.disconnect();
   }, []);
 
-  const onTimeUpdate = () => { const v = videoRef.current; if (v?.duration) setProgress(v.currentTime / v.duration); };
-  const onMeta       = () => setDur(videoRef.current?.duration ?? 0);
-  const togglePlay   = () => { const v = videoRef.current; if (!v) return; if (v.paused) { v.play(); setPlaying(true); } else { v.pause(); setPlaying(false); } };
-  const toggleMute   = () => { const v = videoRef.current; if (!v) return; v.muted = !v.muted; setMuted(v.muted); };
-  const seekTo = (e: React.MouseEvent<HTMLDivElement>) => { const v = videoRef.current; if (!v) return; const r = e.currentTarget.getBoundingClientRect(); v.currentTime = ((e.clientX - r.left) / r.width) * v.duration; };
-  const goFull = () => videoRef.current?.requestFullscreen?.();
-  const fmt    = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-  const jumpTo = (secs: number) => { const v = videoRef.current; if (!v) return; v.currentTime = secs; v.play(); setPlaying(true); };
+  const [featuresVisible, setFeaturesVisible] = useState(false);
+  const featRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setFeaturesVisible(true); }, { threshold: 0.1 });
+    if (featRef.current) obs.observe(featRef.current);
+    return () => obs.disconnect();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[#06080a] text-white overflow-x-hidden">
+    <div className="min-h-screen" style={{ background: "#070a10", color: "#f1f5f9", fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif' }}>
 
-      {/* NAV */}
-      <nav className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm">
+      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 backdrop-blur-xl"
+        style={{ borderBottom: "1px solid #ffffff0a", background: "#070a10cc" }}>
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-[#d4a843] flex items-center justify-center">
-            <span className="text-zinc-900 font-black text-xs">H</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "#d4a843" }}>
+            <span className="text-xs font-black text-black">HSE</span>
           </div>
-          <span className="font-bold text-sm tracking-wide">HSE HUB</span>
-          <span className="hidden sm:block font-mono text-[9px] text-white/25 tracking-[0.16em]">OPERATIONS PLATFORM</span>
+          <span className="text-sm font-semibold tracking-wide text-white/90">HSE HUB</span>
+          <span className="ml-1 rounded-full px-2 py-0.5 text-xs" style={{ background: "#d4a84320", color: "#d4a843" }}>Demo</span>
         </div>
-        <div className="flex items-center gap-3">
-          <a href="/hse-hub-ad.mp4" download className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 text-white/50 text-xs font-medium hover:border-white/30 hover:text-white transition-colors">
-            <DlIcon /> Download MP4
-          </a>
-          <Link href="/auth/login" className="px-4 py-2 rounded-lg bg-[#d4a843] text-zinc-900 text-sm font-semibold hover:bg-[#e0b84a] transition-colors">
-            Open portal →
+        <div className="flex items-center gap-4">
+          <Link href="/demo" className="text-sm text-white/50 transition hover:text-white/90">Full showcase</Link>
+          <Link href="/login" className="rounded-lg px-4 py-2 text-sm font-medium text-black transition hover:opacity-90"
+            style={{ background: "#d4a843" }}>
+            Sign in →
           </Link>
         </div>
       </nav>
 
-      {/* HERO */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#d4a843]/6 blur-[120px]" />
-          <div className="absolute top-2/3 left-1/4 w-[300px] h-[300px] rounded-full bg-[#3b82f6]/5 blur-[80px]" />
+      {/* ── Hero ────────────────────────────────────────────────────────────── */}
+      <section ref={heroRef} className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center">
+        {/* Background glows */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute left-1/4 top-1/4" style={{ transform: "translate(-50%,-50%)" }}>
+            <GoldGlow size={700} opacity={0.12} />
+          </div>
+          <div className="absolute right-1/4 bottom-1/3" style={{ transform: "translate(50%, 50%)" }}>
+            <GoldGlow size={500} opacity={0.07} />
+          </div>
+          {/* Grid pattern */}
+          <div className="absolute inset-0" style={{
+            backgroundImage: "linear-gradient(#ffffff06 1px, transparent 1px), linear-gradient(90deg, #ffffff06 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }} />
         </div>
-        <div className="relative z-10 flex flex-col items-center text-center px-6 gap-7 max-w-4xl">
-          <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}
-            className="px-4 py-1.5 rounded-full border border-[#d4a843]/40 text-[#d4a843] text-[11px] font-mono tracking-[0.2em]">
-            HSE HEALTH &amp; SAFETY EXPERTS GMBH
+
+        <motion.div style={{ opacity: heroOpacity, y: heroY }} className="relative z-10 max-w-4xl">
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.6 }}
+            className="mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm"
+            style={{ borderColor: "#d4a84340", background: "#d4a84310", color: "#d4a843" }}
+          >
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+            HSE Hub — Production Preview
           </motion.div>
-          <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.7 }}
-            className="text-5xl sm:text-7xl font-black leading-[1.05] tracking-tight">
-            Your operations,<br />
-            <span className="text-[#d4a843] relative">
-              unified.
-              <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.85, duration: 0.55 }}
-                style={{ originX: 0 }} className="absolute -bottom-1 left-0 right-0 h-[3px] bg-[#d4a843]/50 rounded-full" />
+
+          {/* Headline */}
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-6 text-6xl font-black leading-none tracking-tight sm:text-7xl lg:text-8xl"
+          >
+            <span className="text-white">Operations.</span>
+            <br />
+            <span style={{ background: "linear-gradient(135deg, #d4a843 0%, #f5c842 50%, #d4a843 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Unified.
             </span>
           </motion.h1>
-          <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.6 }}
-            className="text-white/45 text-lg max-w-xl leading-relaxed">
-            One real-time analytics console for Asana, TrackingTime, Factorial and Samdock — with enterprise RBAC built in.
+
+          {/* Sub */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.7 }}
+            className="mx-auto mb-10 max-w-2xl text-xl leading-relaxed text-slate-400"
+          >
+            One portal. Four systems. Real-time sync. Role-based access from executive to employee.
           </motion.p>
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}
-            className="flex flex-wrap gap-3 justify-center">
-            <button onClick={() => document.getElementById("video-section")?.scrollIntoView({ behavior: "smooth" })}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#d4a843] text-zinc-900 font-bold text-sm hover:bg-[#e0b84a] transition-all hover:scale-105 shadow-lg shadow-[#d4a843]/20">
-              <PlayIcon /> Watch the video
-            </button>
-            <Link href="/auth/login" className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/15 text-white/70 font-medium text-sm hover:border-white/30 hover:text-white transition-colors">
-              Open portal
+
+          {/* CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="flex flex-wrap items-center justify-center gap-4"
+          >
+            <a href="#video" className="flex items-center gap-2 rounded-xl px-8 py-3.5 text-base font-semibold text-black shadow-lg transition hover:opacity-90 hover:shadow-xl"
+              style={{ background: "linear-gradient(135deg, #d4a843, #f5c842)", boxShadow: "0 8px 32px #d4a84340" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>
+              Watch the demo
+            </a>
+            <Link href="/login" className="rounded-xl border px-8 py-3.5 text-base font-semibold text-white/90 transition hover:bg-white/5"
+              style={{ borderColor: "#ffffff20" }}>
+              Open portal →
             </Link>
           </motion.div>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65, duration: 0.7 }} className="flex items-center gap-6 mt-2">
-            {["ASANA", "TRACKINGTIME", "FACTORIAL", "SAMDOCK"].map((name, i) => (
-              <motion.span key={name} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 0.3, y: 0 }} transition={{ delay: 0.75 + i * 0.07 }}
-                className="font-mono text-[9px] tracking-[0.2em]">{name}</motion.span>
+
+          {/* Connector badges */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.8 }}
+            className="mt-12 flex flex-wrap items-center justify-center gap-3"
+          >
+            <span className="text-xs text-slate-500 uppercase tracking-widest">Connected to</span>
+            {CONNECTORS.map((c) => (
+              <span key={c} className="rounded-full border px-3 py-1 text-xs text-slate-400"
+                style={{ borderColor: "#ffffff12", background: "#ffffff06" }}>
+                {c}
+              </span>
             ))}
           </motion.div>
-        </div>
-        <motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/20">
-          <span className="font-mono text-[9px] tracking-widest">SCROLL</span>
-          <div className="w-px h-8 bg-gradient-to-b from-white/20 to-transparent" />
+        </motion.div>
+
+        {/* Scroll hint */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2, duration: 0.6 }}
+          className="absolute bottom-8 flex flex-col items-center gap-2 text-xs text-slate-500"
+        >
+          <span>Scroll</span>
+          <motion.div animate={{ y: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+          </motion.div>
         </motion.div>
       </section>
 
-      {/* VIDEO */}
-      <section id="video-section" className="relative py-24 px-4 sm:px-8">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full bg-[#d4a843]/5 blur-[100px]" />
+      {/* ── Video Section ───────────────────────────────────────────────────── */}
+      <section id="video" className="relative px-6 py-24">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <GoldGlow size={900} opacity={0.06} />
+          </div>
         </div>
-        <div className="max-w-5xl mx-auto relative z-10">
-          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
-            className="flex flex-col items-center text-center mb-10 gap-3">
-            <span className="font-mono text-[11px] tracking-[0.2em] text-[#d4a843]">PRODUCT VIDEO</span>
-            <h2 className="text-3xl sm:text-4xl font-bold">See it in action</h2>
-            <p className="text-white/40 text-sm max-w-md">A 60-second walkthrough rendered programmatically with Remotion.</p>
+
+        <div className="relative z-10 mx-auto max-w-6xl">
+          {/* Section heading */}
+          <div className="mb-12 text-center">
+            <motion.p
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              className="mb-3 text-sm uppercase tracking-widest" style={{ color: "#d4a843" }}
+            >
+              Product demo
+            </motion.p>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1, duration: 0.6 }}
+              className="text-4xl font-bold text-white sm:text-5xl"
+            >
+              See it in action
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="mx-auto mt-4 max-w-xl text-slate-400"
+            >
+              A full walkthrough — from the executive overview to granular role permissions.
+            </motion.p>
+          </div>
+
+          {/* Player */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <VideoPlayer />
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 32, scale: 0.97 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true, margin: "-80px" }} transition={{ duration: 0.7 }}
-            className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/60"
-            onMouseEnter={() => setHoverCtrl(true)} onMouseLeave={() => setHoverCtrl(false)}>
-            <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-[#d4a843]/20 via-transparent to-[#d4a843]/10 pointer-events-none z-10" />
-            <video ref={videoRef} className="w-full aspect-video bg-black cursor-pointer" src="/hse-hub-ad.mp4"
-              muted playsInline preload="metadata"
-              onTimeUpdate={onTimeUpdate} onLoadedMetadata={onMeta} onEnded={() => setPlaying(false)} onClick={togglePlay} />
-
-            <AnimatePresence>
-              {!playing && (
-                <motion.button key="play" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.85 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  onClick={togglePlay} className="absolute inset-0 flex items-center justify-center z-20">
-                  <div className="w-20 h-20 rounded-full bg-[#d4a843] flex items-center justify-center shadow-2xl shadow-[#d4a843]/40 hover:scale-110 transition-transform">
-                    <PlayIcon />
-                  </div>
-                </motion.button>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {(hoverCtrl || !playing) && (
-                <motion.div key="ctrl" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}
-                  className="absolute bottom-0 inset-x-0 z-30 bg-gradient-to-t from-black/90 via-black/40 to-transparent px-5 pb-5 pt-16">
-                  <div className="h-1 rounded-full bg-white/20 mb-4 cursor-pointer overflow-hidden" onClick={seekTo}>
-                    <div className="h-full rounded-full bg-[#d4a843]" style={{ width: `${progress * 100}%` }} />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={togglePlay} className="text-white/80 hover:text-white transition-colors">{playing ? <PauseIcon /> : <PlayIcon />}</button>
-                    <button onClick={toggleMute} className="text-white/80 hover:text-white transition-colors">{muted ? <MuteIcon /> : <UnmuteIcon />}</button>
-                    <span className="font-mono text-[11px] text-white/40">{fmt(progress * dur)} / {fmt(dur)}</span>
-                    <div className="flex-1" />
-                    <a href="/hse-hub-ad.mp4" download className="flex items-center gap-1 text-white/50 hover:text-white transition-colors text-[12px]">
-                      <DlIcon /> <span className="hidden sm:inline">Download</span>
-                    </a>
-                    <button onClick={goFull} className="text-white/50 hover:text-white transition-colors"><FullIcon /></button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          {/* Download row */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="mt-6 flex flex-wrap items-center justify-center gap-4"
+          >
+            <a
+              href="/hse-hub-ad.mp4"
+              download="HSE-Hub-Demo.mp4"
+              className="flex items-center gap-2 rounded-lg border px-5 py-2.5 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+              style={{ borderColor: "#ffffff15" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              Download MP4
+            </a>
+            <span className="text-xs text-slate-500">H264 · 1920×1080 · 30fps · ~3MB</span>
           </motion.div>
+        </div>
+      </section>
 
-          {/* Chapters */}
-          <div className="mt-5 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-            {CHAPTERS.map(({ t, label }) => (
-              <button key={label} onClick={() => jumpTo(t)}
-                className="flex flex-col gap-0.5 px-2.5 py-2 rounded-lg border border-white/8 hover:border-[#d4a843]/40 hover:bg-[#d4a843]/5 transition-all text-left group">
-                <span className="font-mono text-[10px] text-[#d4a843]/60 group-hover:text-[#d4a843] transition-colors">
-                  {`${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`}
-                </span>
-                <span className="text-[11px] text-white/50 group-hover:text-white/80 transition-colors">{label}</span>
-              </button>
+      {/* ── Stats ───────────────────────────────────────────────────────────── */}
+      <section className="px-6 py-20" ref={statsRef}>
+        <div className="mx-auto max-w-5xl">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {STATS.map((s, i) => (
+              <StatCard key={s.label} stat={s} index={i} visible={statsVisible} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* STATS */}
-      <section ref={statsRef} className="py-20 px-4 sm:px-8 border-t border-white/6">
-        <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
-          {STATS.map((s, i) => (
-            <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={statsVis ? { opacity: 1, y: 0 } : {}} transition={{ delay: i * 0.1 }}>
-              <StatTile {...s} trigger={statsVis} />
-            </motion.div>
-          ))}
+      {/* ── Features ────────────────────────────────────────────────────────── */}
+      <section className="px-6 py-24" ref={featRef}>
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 text-center">
+            <p className="mb-3 text-sm uppercase tracking-widest" style={{ color: "#d4a843" }}>What&apos;s inside</p>
+            <h2 className="text-4xl font-bold text-white sm:text-5xl">Every feature you need</h2>
+            <p className="mx-auto mt-4 max-w-xl text-slate-400">
+              Purpose-built for HSE operations — not a generic BI tool.
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f, i) => (
+              <FeatureCard key={f.title} f={f} index={i} visible={featuresVisible} />
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section className="py-20 px-4 sm:px-8">
-        <div className="max-w-5xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
-            className="text-center mb-14">
-            <span className="font-mono text-[11px] tracking-[0.2em] text-[#d4a843]">WHAT&apos;S INSIDE</span>
-            <h2 className="text-3xl sm:text-4xl font-bold mt-3">Every tool your team needs</h2>
-          </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {FEATURES.map((feat, i) => (
-              <motion.div key={feat.title} initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }} transition={{ delay: i * 0.08, duration: 0.55 }}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                className="p-6 rounded-2xl border border-white/8 bg-white/[0.025] hover:border-white/15 transition-colors">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: feat.accent + "18", color: feat.accent }}>
-                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                    <path d={feat.icon} />
-                  </svg>
+      {/* ── Tech Stack ──────────────────────────────────────────────────────── */}
+      <Section className="px-6 py-20">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-10 text-center">
+            <p className="mb-3 text-sm uppercase tracking-widest" style={{ color: "#d4a843" }}>Built on</p>
+            <h2 className="text-3xl font-bold text-white">Production-grade stack</h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: "⚡", name: "Next.js 15 App Router",  desc: "Server components, streaming SSR, edge-ready" },
+              { icon: "🔐", name: "Supabase + RLS",          desc: "Row-level security, 24 fine-grained permissions" },
+              { icon: "🚀", name: "Vercel Edge Network",     desc: "Global CDN, preview deploys on every PR" },
+              { icon: "🔄", name: "Live Sync Pipeline",      desc: "4 external systems, star-schema warehouse" },
+              { icon: "🎯", name: "Identity Resolution",     desc: "Canonical person_id via effective-dated maps" },
+              { icon: "✅", name: "GitHub Actions CI/CD",   desc: "Lint → TS → Build → DB tests on every push" },
+            ].map((t, i) => (
+              <motion.div
+                key={t.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.07 }}
+                className="flex gap-4 rounded-xl border p-5"
+                style={{ borderColor: "#ffffff0e", background: "#0f1420" }}
+              >
+                <span className="text-2xl">{t.icon}</span>
+                <div>
+                  <p className="font-semibold text-white">{t.name}</p>
+                  <p className="mt-0.5 text-sm text-slate-400">{t.desc}</p>
                 </div>
-                <div className="font-mono text-[9px] tracking-[0.18em] mb-2" style={{ color: feat.accent }}>{feat.tag}</div>
-                <h3 className="text-base font-semibold mb-2">{feat.title}</h3>
-                <p className="text-white/45 text-sm leading-relaxed">{feat.body}</p>
               </motion.div>
             ))}
           </div>
         </div>
-      </section>
+      </Section>
 
-      {/* TECH */}
-      <section className="py-16 px-4 sm:px-8 border-t border-white/6">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-            className="font-mono text-[10px] tracking-[0.2em] text-white/25 mb-8">BUILT WITH</motion.p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {TECH.map((tech, i) => (
-              <motion.span key={tech.name} initial={{ opacity: 0, scale: 0.85 }} whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }} transition={{ delay: i * 0.05, duration: 0.35, type: "spring", stiffness: 200 }}
-                className="px-4 py-2 rounded-full border text-xs font-medium"
-                style={{ color: tech.color + "cc", borderColor: tech.color + "22" }}>
-                {tech.name}
-              </motion.span>
-            ))}
+      {/* ── CTA ─────────────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden px-6 py-32 text-center">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <GoldGlow size={800} opacity={0.1} />
           </div>
+          <div className="absolute inset-0" style={{
+            backgroundImage: "linear-gradient(#ffffff04 1px, transparent 1px), linear-gradient(90deg, #ffffff04 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }} />
         </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-28 px-4 sm:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full bg-[#d4a843]/7 blur-[100px]" />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}
-          className="max-w-2xl mx-auto text-center relative z-10 flex flex-col items-center gap-6">
-          <h2 className="text-4xl sm:text-5xl font-black leading-tight">
-            Ready to unify<br /><span className="text-[#d4a843]">your operations?</span>
-          </h2>
-          <p className="text-white/40 text-base max-w-md">Deployed on Vercel. Powered by Supabase. Syncs every few minutes.</p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link href="/auth/login" className="px-8 py-4 rounded-xl bg-[#d4a843] text-zinc-900 font-bold text-sm hover:bg-[#e0b84a] transition-all hover:scale-105 shadow-xl shadow-[#d4a843]/25">
-              Open the portal →
+        <div className="relative z-10 mx-auto max-w-2xl">
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-4 text-5xl font-black tracking-tight text-white sm:text-6xl"
+          >
+            Ready to{" "}
+            <span style={{ background: "linear-gradient(135deg, #d4a843, #f5c842)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              connect?
+            </span>
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.15 }}
+            className="mb-10 text-lg text-slate-400"
+          >
+            Deployed on Vercel · Powered by Supabase · Syncs every few minutes
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.25 }}
+            className="flex flex-wrap items-center justify-center gap-4"
+          >
+            <Link href="/login"
+              className="rounded-xl px-10 py-4 text-lg font-bold text-black shadow-lg transition hover:opacity-90"
+              style={{ background: "linear-gradient(135deg, #d4a843, #f5c842)", boxShadow: "0 12px 40px #d4a84350" }}>
+              Sign in to the portal →
             </Link>
             <a href="https://github.com/hitul-hse/supabase-app" target="_blank" rel="noopener noreferrer"
-              className="px-8 py-4 rounded-xl border border-white/15 text-white/60 font-medium text-sm hover:border-white/30 hover:text-white transition-colors">
-              View on GitHub
+              className="flex items-center gap-2 rounded-xl border px-8 py-4 text-white/80 transition hover:bg-white/5"
+              style={{ borderColor: "#ffffff20" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
+              </svg>
+              GitHub
             </a>
-          </div>
-          <p className="font-mono text-[10px] tracking-widest text-white/20 mt-2">hseportal.hs-experts.com</p>
-        </motion.div>
+          </motion.div>
+          <p className="mt-8 text-sm text-slate-500">hseportal.hs-experts.com</p>
+        </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-white/6 px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-white/20 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded bg-[#d4a843] flex items-center justify-center">
-            <span className="text-zinc-900 font-black text-[9px]">H</span>
-          </div>
-          <span>HSE Health &amp; Safety Experts GmbH</span>
-        </div>
-        <div className="flex items-center gap-6 font-mono text-[9px] tracking-widest">
-          <Link href="/auth/login" className="hover:text-white/50 transition-colors">PORTAL</Link>
-          <Link href="/demo" className="hover:text-white/50 transition-colors">DEMO</Link>
-          <a href="https://github.com/hitul-hse/supabase-app" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GITHUB</a>
-        </div>
+      {/* ── Footer ──────────────────────────────────────────────────────────── */}
+      <footer className="border-t px-6 py-8 text-center" style={{ borderColor: "#ffffff0a" }}>
+        <p className="text-sm text-slate-500">
+          © 2026 HSE Health &amp; Safety Experts GmbH · Built with{" "}
+          <span style={{ color: "#d4a843" }}>V3Code</span> &amp; Claude
+        </p>
       </footer>
     </div>
   );

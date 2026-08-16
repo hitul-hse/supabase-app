@@ -36,11 +36,12 @@ const nextConfig: NextConfig = {
         : "http://localhost:3000",
   },
 
-  // Public showcase redirects.
+  // All public showcase URLs resolve to /demo (the one Turbopack-known route).
   async redirects() {
     return [
-      { source: "/showcase",     destination: "/video", permanent: false },
-      { source: "/product-tour", destination: "/video", permanent: false },
+      { source: "/video",        destination: "/demo", permanent: false },
+      { source: "/showcase",     destination: "/demo", permanent: false },
+      { source: "/product-tour", destination: "/demo", permanent: false },
     ];
   },
 

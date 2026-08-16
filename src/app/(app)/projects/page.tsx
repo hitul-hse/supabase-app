@@ -3,6 +3,8 @@ import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { getProjectDetail } from "@/lib/queries/hse";
 import { requireUser } from "@/utils/supabase/require-user";
+import { AddTaskForm } from "./AddTaskForm";
+import { TaskRow } from "./TaskRow";
 
 export default async function ProjectsPage() {
   await requireUser("/projects");
@@ -171,52 +173,27 @@ export default async function ProjectsPage() {
           <div className="flex flex-col border border-[var(--border)] bg-[var(--surface)] lg:col-span-7">
             <div className="flex items-baseline justify-between border-b border-[var(--border)] p-4">
               <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-                Tasks &amp; hours (Asana)
+                Tasks &amp; hours
               </span>
               <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-                18 OPEN OF 64
+                {prj.project_tasks.filter((t) => t.status !== "DONE").length} OPEN OF{" "}
+                {prj.project_tasks.length}
               </span>
             </div>
 
+            <AddTaskForm projectId={prj.id} />
+
             <div className="overflow-x-auto">
               <div className="grid min-w-[420px] grid-cols-12 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                <span className="col-span-5">TASK</span>
+                <span className="col-span-4">TASK</span>
                 <span className="col-span-2 text-right">EST</span>
                 <span className="col-span-2 text-right">LOGGED</span>
                 <span className="col-span-3 text-right">STATUS / OWNER</span>
+                <span className="col-span-1" />
               </div>
 
               {prj.project_tasks.map((task) => (
-                <div
-                  key={task.name}
-                  className="grid min-w-[420px] grid-cols-12 items-center border-b border-[#3a414c] px-4 py-2.5 text-[12.5px] hover:bg-[var(--surface-hover)]"
-                >
-                  <span className="col-span-5 font-medium text-[var(--text-primary)]">
-                    {task.name}
-                  </span>
-                  <span className="col-span-2 text-right font-mono text-[var(--text-muted)]">
-                    {task.estimate_hours}
-                  </span>
-                  <span className="col-span-2 text-right font-mono text-[var(--text-primary)]">
-                    {task.logged_hours}
-                  </span>
-                  <div className="col-span-3 flex flex-col items-end">
-                    <span
-                      className={`font-mono text-[10px] font-semibold ${
-                        task.status === "DONE"
-                          ? "text-[var(--accent)]"
-                          : task.status === "OVER 33%"
-                          ? "text-[var(--critical)]"
-                          : task.status === "IN PROGRESS"
-                          ? "text-[var(--warning)]"
-                          : "text-[var(--text-faint)]"
-                      }`}
-                    >
-                      {task.status}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-muted)]">{task.owner}</span>
-                  </div>
-                </div>
+                <TaskRow key={task.id} task={task} />
               ))}
             </div>
           </div>

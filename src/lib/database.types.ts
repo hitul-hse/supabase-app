@@ -416,6 +416,7 @@ export type Database = {
       }
       project_tasks: {
         Row: {
+          created_by: string | null
           estimate_hours: number
           id: number
           logged_hours: number
@@ -424,8 +425,10 @@ export type Database = {
           project_id: string
           sort_order: number
           status: string
+          updated_at: string
         }
         Insert: {
+          created_by?: string | null
           estimate_hours: number
           id?: never
           logged_hours: number
@@ -434,8 +437,10 @@ export type Database = {
           project_id: string
           sort_order: number
           status: string
+          updated_at?: string
         }
         Update: {
+          created_by?: string | null
           estimate_hours?: number
           id?: never
           logged_hours?: number
@@ -444,6 +449,7 @@ export type Database = {
           project_id?: string
           sort_order?: number
           status?: string
+          updated_at?: string
         }
         Relationships: [
           {

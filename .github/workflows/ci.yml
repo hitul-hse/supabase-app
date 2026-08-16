@@ -107,6 +107,9 @@ jobs:
       - name: Run RLS negative-control tests
         run: npm run test:rls-control
 
+      - name: Run project_tasks write-RLS tests
+        run: npm run test:task-write-rls
+
       - name: Run policy count control
         run: npm run test:policy-control
 

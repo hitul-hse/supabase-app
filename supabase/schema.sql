@@ -234,7 +234,9 @@ create table if not exists project_tasks (
   logged_hours numeric not null,
   status text not null,
   owner text not null,
-  sort_order int not null
+  sort_order int not null,
+  created_by uuid references auth.users(id),
+  updated_at timestamptz not null default now()
 );
 
 alter table project_tasks enable row level security;
@@ -455,6 +457,27 @@ create policy "role-scoped read on project_timeline"
 
 create policy "role-scoped read on project_tasks"
   on project_tasks for select to authenticated using (can_view_project(project_id));
+
+-- Write access to project_tasks (Phase 2: Task &amp; Project Management).
+-- Scoped identically to who can already VIEW the project -- exec always,
+-- dept_head within their department, the project's owner, or anyone
+-- assigned to it via person_assignments. WITH CHECK on insert/update
+-- prevents creating or reassigning a task into a project the caller can't
+-- see (the same "must have both USING and WITH CHECK" rule as every other
+-- write policy in this file).
+
+create policy "role-scoped insert on project_tasks"
+  on project_tasks for insert to authenticated
+  with check (can_view_project(project_id));
+
+create policy "role-scoped update on project_tasks"
+  on project_tasks for update to authenticated
+  using (can_view_project(project_id))
+  with check (can_view_project(project_id));
+
+create policy "role-scoped delete on project_tasks"
+  on project_tasks for delete to authenticated
+  using (can_view_project(project_id));
 
 -- Approvals. The update policy needs both USING (which existing rows may be
 -- targeted) and WITH CHECK (what the row is allowed to look like afterwards);

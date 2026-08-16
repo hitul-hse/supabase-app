@@ -36,12 +36,13 @@ const nextConfig: NextConfig = {
         : "http://localhost:3000",
   },
 
-  // All public showcase URLs resolve to /demo (the one Turbopack-known route).
+  // All showcase aliases resolve to /hub (cinematic video page).
+  // /demo keeps its existing Turbopack-cached tab-based content.
   async redirects() {
     return [
-      { source: "/video",        destination: "/demo", permanent: false },
-      { source: "/showcase",     destination: "/demo", permanent: false },
-      { source: "/product-tour", destination: "/demo", permanent: false },
+      { source: "/video",        destination: "/hub", permanent: false },
+      { source: "/showcase",     destination: "/hub", permanent: false },
+      { source: "/product-tour", destination: "/hub", permanent: false },
     ];
   },
 

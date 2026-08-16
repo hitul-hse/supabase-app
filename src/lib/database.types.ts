@@ -611,6 +611,38 @@ export type Database = {
         }
         Relationships: []
       }
+      task_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: number
+          task_id: number
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: never
+          task_id: number
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: never
+          task_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_utilisations: {
         Row: {
           id: number
@@ -830,6 +862,13 @@ export type Database = {
           manager_id: string | null
           name: string | null
           role: string | null
+        }
+        Relationships: []
+      }
+      user_display_names: {
+        Row: {
+          display_name: string | null
+          user_id: string | null
         }
         Relationships: []
       }

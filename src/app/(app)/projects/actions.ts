@@ -83,3 +83,29 @@ export async function deleteTask(formData: FormData): Promise<void> {
 
   revalidatePath("/projects");
 }
+
+export async function addComment(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const taskId = Number(formData.get("task_id"));
+  const body = String(formData.get("body") || "").trim();
+  if (!Number.isFinite(taskId) || !body) return;
+
+  await supabase.from("task_comments").insert({ task_id: taskId, author_id: user.id, body });
+
+  revalidatePath("/projects");
+}
+
+export async function deleteComment(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const commentId = Number(formData.get("comment_id"));
+  if (!Number.isFinite(commentId)) return;
+
+  await supabase.from("task_comments").delete().eq("id", commentId);
+
+  revalidatePath("/projects");
+}

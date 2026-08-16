@@ -533,6 +533,58 @@ create policy "role-scoped delete on project_tasks"
   on project_tasks for delete to authenticated
   using (can_view_project(project_id));
 
+-- Task comments (Asana-equivalent: collaboration on a task). Scoped through
+-- the parent task's project visibility, same can_view_project() reused
+-- everywhere else -- if you can see the task, you can read and add comments
+-- on it. WITH CHECK on insert pins author_id to the caller so nobody can
+-- post a comment attributed to someone else. Only the author can delete
+-- their own comment; there is no edit -- comments are append-only, matching
+-- how every other collaboration tool in this space treats them.
+
+create table if not exists task_comments (
+  id bigint generated always as identity primary key,
+  task_id bigint not null references project_tasks(id) on delete cascade,
+  author_id uuid not null references auth.users(id),
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table task_comments enable row level security;
+
+create policy "role-scoped read on task_comments"
+  on task_comments for select to authenticated
+  using (exists (
+    select 1 from project_tasks pt
+    where pt.id = task_id and can_view_project(pt.project_id)
+  ));
+
+create policy "role-scoped insert on task_comments"
+  on task_comments for insert to authenticated
+  with check (
+    author_id = auth.uid()
+    and exists (
+      select 1 from project_tasks pt
+      where pt.id = task_id and can_view_project(pt.project_id)
+    )
+  );
+
+create policy "author can delete their own task_comments"
+  on task_comments for delete to authenticated
+  using (author_id = auth.uid());
+
+-- Resolves a display name for whoever wrote a comment. Same deliberate
+-- RLS-bypass pattern as org_chart_nodes above: app_user_profile's own read
+-- policy is self-only (or exec-only for all rows), which would otherwise
+-- make it impossible for an employee to see a co-worker's name on a shared
+-- comment thread. Only a name is exposed here, nothing from app_user_profile
+-- itself (no role_key, no department, no is_active).
+create or replace view user_display_names as
+  select up.user_id, coalesce(p.name, 'Team member') as display_name
+  from app_user_profile up
+  left join people p on p.id = up.person_id;
+
+grant select on user_display_names to authenticated;
+
 -- Approvals. The update policy needs both USING (which existing rows may be
 -- targeted) and WITH CHECK (what the row is allowed to look like afterwards);
 -- USING alone would let an authorised caller rewrite a row into any shape,

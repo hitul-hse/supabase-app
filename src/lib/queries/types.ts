@@ -94,3 +94,12 @@ export type OrgChartNode = {
   department: string | null;
   managerId: string | null;
 };
+
+export type TaskComment = {
+  id: number;
+  taskId: number;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+};

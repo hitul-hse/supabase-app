@@ -12,6 +12,7 @@ import type {
   TimesheetDayEntry,
   PendingTimesheetWeek,
   OrgChartNode,
+  TaskComment,
   BillableTrend,
   WeeklyBillableTrendRow,
 } from "./types";
@@ -137,6 +138,51 @@ export async function getProjectDetail(
     .single();
 
   return data ?? null;
+}
+
+/**
+ * Comments for a set of tasks, grouped by task_id. Author names are resolved
+ * via user_display_names (a deliberate RLS-bypass view, same reasoning as
+ * org_chart_nodes below): app_user_profile's own policy only lets you read
+ * your own row (or every row if you're exec), so without it you could see
+ * that a comment exists but not who wrote it unless you happened to be exec.
+ */
+export async function getTaskComments(
+  supabase: SupabaseTyped,
+  taskIds: number[],
+): Promise<Map<number, TaskComment[]>> {
+  const byTask = new Map<number, TaskComment[]>();
+  if (taskIds.length === 0) return byTask;
+
+  const { data: comments } = await supabase
+    .from("task_comments")
+    .select("*")
+    .in("task_id", taskIds)
+    .order("created_at");
+
+  if (!comments || comments.length === 0) return byTask;
+
+  const authorIds = [...new Set(comments.map((c) => c.author_id))];
+  const { data: names } = await supabase
+    .from("user_display_names")
+    .select("*")
+    .in("user_id", authorIds);
+
+  const nameByUserId = new Map((names ?? []).map((n) => [n.user_id, n.display_name]));
+
+  for (const c of comments) {
+    if (!byTask.has(c.task_id)) byTask.set(c.task_id, []);
+    byTask.get(c.task_id)!.push({
+      id: c.id,
+      taskId: c.task_id,
+      authorId: c.author_id,
+      authorName: nameByUserId.get(c.author_id) ?? "Team member",
+      body: c.body,
+      createdAt: c.created_at,
+    });
+  }
+
+  return byTask;
 }
 
 /**

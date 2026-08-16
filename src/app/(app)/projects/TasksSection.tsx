@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskListView } from "./TaskListView";
 import { TaskBoardView } from "./TaskBoardView";
+import type { TaskComment } from "@/lib/queries/types";
 
 type Task = {
   id: number;
@@ -14,7 +15,17 @@ type Task = {
   owner: string;
 };
 
-export function TasksSection({ projectId, tasks }: { projectId: string; tasks: Task[] }) {
+export function TasksSection({
+  projectId,
+  tasks,
+  commentsByTask,
+  currentUserId,
+}: {
+  projectId: string;
+  tasks: Task[];
+  commentsByTask: Record<number, TaskComment[]>;
+  currentUserId: string | null;
+}) {
   const [view, setView] = useState<"list" | "board">("list");
   const openCount = tasks.filter((t) => t.status !== "DONE").length;
 
@@ -53,7 +64,11 @@ export function TasksSection({ projectId, tasks }: { projectId: string; tasks: T
 
       <AddTaskForm projectId={projectId} />
 
-      {view === "list" ? <TaskListView tasks={tasks} /> : <TaskBoardView tasks={tasks} />}
+      {view === "list" ? (
+        <TaskListView tasks={tasks} commentsByTask={commentsByTask} currentUserId={currentUserId} />
+      ) : (
+        <TaskBoardView tasks={tasks} />
+      )}
     </div>
   );
 }

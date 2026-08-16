@@ -116,6 +116,9 @@ jobs:
       - name: Run org chart view test
         run: npm run test:org-chart-view
 
+      - name: Run task_comments RLS tests
+        run: npm run test:task-comments-rls
+
       - name: Run policy count control
         run: npm run test:policy-control
 

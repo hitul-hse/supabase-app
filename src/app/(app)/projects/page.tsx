@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { getProjectDetail } from "@/lib/queries/hse";
+import { getProjectDetail, getTaskComments } from "@/lib/queries/hse";
 import { requireUser } from "@/utils/supabase/require-user";
 import { TasksSection } from "./TasksSection";
 
@@ -9,6 +9,9 @@ export default async function ProjectsPage() {
   await requireUser("/projects");
   const supabase = await createClient();
   const prj = await getProjectDetail(supabase, "prj-1");
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!prj) {
     return (
@@ -18,6 +21,13 @@ export default async function ProjectsPage() {
       </div>
     );
   }
+
+  const commentsByTask = Object.fromEntries(
+    await getTaskComments(
+      supabase,
+      prj.project_tasks.map((t) => t.id),
+    ),
+  );
 
   return (
     <div className="flex flex-col">
@@ -169,7 +179,12 @@ export default async function ProjectsPage() {
         {/* Lower Grid: Tasks Breakdown & Milestone Timeline */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
           {/* Asana Tasks & Hours (7 cols) */}
-          <TasksSection projectId={prj.id} tasks={prj.project_tasks} />
+          <TasksSection
+            projectId={prj.id}
+            tasks={prj.project_tasks}
+            commentsByTask={commentsByTask}
+            currentUserId={user?.id ?? null}
+          />
 
           {/* Timeline & Invoicing (5 cols) */}
           <div className="flex flex-col gap-4 lg:col-span-5">

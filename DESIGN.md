@@ -1,108 +1,130 @@
 # HSE Hub — Design System
 
+## Brand source
+Real brand extracted from **hs-experts.com** (the company's live website).
+Typography, colours, and logo are authoritative — not invented.
+
 ## Visual world
-**Goldsmith** — dark professional tool aesthetic. Near-black backgrounds, warm white type, gold accent (#d4a843 primary, #b8922e deep, #f0c060 highlight). Feels like a Bloomberg terminal meets a luxury brand: confident, data-rich, elegant.
+**HSE Teal** — professional, trustworthy, safety-focused. Near-black background with teal
+undertone, warm-white type, HSE teal accent. Feels like a precision instrument built for
+safety professionals: confident, data-rich, human.
 
-## Color tokens
+## Color tokens (real brand — extracted from hs-experts.com)
 
-### Background
-- `--bg-base`: #0c0c0d (near-black, primary surface)
-- `--bg-elevated`: #141415 (cards, sidebars)
-- `--bg-overlay`: #1a1a1b (modals, dropdowns)
-- `--bg-subtle`: #1f1f20 (hover states, row highlights)
+### Backgrounds
+- `--bg-0`: #0e1517  (deepest surface — near-black with teal undertone)
+- `--bg-1`: #141d1f  (raised surface / cards)
+- `--bg-2`: #1a2628  (hover)
+- `--bg-3`: #203032  (active / selected)
 
-### Gold accent
-- `--gold-primary`: #d4a843
-- `--gold-deep`: #b8922e
-- `--gold-highlight`: #f0c060
-- `--gold-muted`: rgba(212, 168, 67, 0.15)
-- `--gold-border`: rgba(212, 168, 67, 0.25)
-- `--gold-glow`: 0 0 32px rgba(212, 168, 67, 0.3)
+### HSE Teal (primary brand accent)
+- `--teal`:        #91C2B7  ← from hs-experts.com h1 color rgb(145,194,183)
+- `--teal-deep`:   #29474B  ← from hs-experts.com link color rgb(41,71,75)
+- `--teal-light`:  #B0D4CC  (highlight / gradient end)
+- `--teal-muted`:  rgba(145,194,183,0.12)
+- `--teal-border`: rgba(145,194,183,0.22)
+- `--teal-glow`:   0 0 40px rgba(145,194,183,0.2)
 
 ### Text
-- `--text-primary`: #f5f5f0 (warm white, headings)
-- `--text-secondary`: #a0a09a (secondary labels)
-- `--text-muted`: #6b6b65 (metadata, placeholders)
-- `--text-gold`: #d4a843 (accented labels, highlights)
+- `--text-0`: #F0F4F3  (warm white with teal tint — headings)
+- `--text-1`: #8FA8A5  (secondary labels)
+- `--text-2`: #5A7470  (muted / metadata)
 
 ### Borders
-- `--border-subtle`: rgba(255,255,255,0.06)
-- `--border-default`: rgba(255,255,255,0.10)
-- `--border-strong`: rgba(255,255,255,0.16)
+- `--border`:        rgba(145,194,183,0.08)
+- `--border-strong`: rgba(145,194,183,0.16)
 
 ### Status
-- `--status-green`: #4ade80
-- `--status-amber`: #fbbf24
-- `--status-red`: #f87171
-- `--status-blue`: #60a5fa
+- `--green`: #4ade80
+- `--amber`: #fbbf24
+- `--red`:   #f87171
 
-## Typography
-- **Display:** Inter, system-ui — 600-700 weight, tight tracking (-0.02em to -0.04em)
-- **Body:** Inter, system-ui — 400-500 weight, normal tracking
-- **Mono:** JetBrains Mono, monospace — used for IDs, codes, data values
-- **Scale:** 11px / 12px / 13px / 14px / 16px / 18px / 24px / 32px / 48px / 64px / 96px
+## Typography (real brand font)
+- **Display/UI:** `Poppins` — 300/400/500/600/700/800 weights
+  - Loaded from Google Fonts (same as hs-experts.com)
+  - Large display: 700–800 weight, -0.03em tracking
+  - Body: 400 weight, comfortable line-height 1.6
+  - Labels/badges: 500–600 weight, tracking-widest uppercase
+- **Mono:** `JetBrains Mono` — feature numbers, IDs, code values
+
+## Logo
+- `/public/hse-logo.png` — 14KB PNG, valid
+- Always rendered via `next/image` for optimisation
+- Size: 22–48px depending on context
+- Never use text-only "HSE HUB" pill when the logo is available
 
 ## Spacing & layout
-- **Sidebar:** 220px fixed (desktop), 260px drawer (mobile)
 - **Content padding:** 24px (mobile: 16px)
 - **Card padding:** 20px–24px
 - **Grid gaps:** 12px (dense) / 16px (normal) / 24px (airy)
-- **Border radius:** 6px (small), 10px (cards), 14px (modals), 9999px (pills/badges)
+- **Section vertical padding:** py-24 (96px) on marketing pages
+- **Border radius:** 6px (small), 10px (cards), 14px (modals), 9999px (pills)
+- **Container max-width:** 5xl (1024px) for content, 4xl (896px) for prose
 
 ## Motion principles (emilkowalski / framer-motion)
-- **Spring physics:** stiffness 300, damping 30 for interactive elements
-- **Fade + slide:** y: 16px → 0, opacity 0 → 1, duration 0.4s ease-out for page entrances
-- **Stagger:** 0.05s between list items, 0.08s between card groups
-- **Hover:** scale(1.02) + translateY(-2px) on cards, translateX(3px) on nav links
-- **No bounce on data tables** — spring only on UI chrome, not data rows
-- **Respect prefers-reduced-motion:** Framer Motion handles this automatically
+- **Easing:** `cubic-bezier(0.23, 1, 0.32, 1)` — strong ease-out, never `linear`
+- **Springs:** `{ type:"spring", bounce:0, duration:0.4 }` — critically damped
+- **Entrance:** `translateY(20px) scale(0.98)` → `translateY(0) scale(1)` + opacity
+- **Stagger:** 0.05s between rows, 0.08s between card groups
+- **Hover:** `scale(1.04) translateY(-2px)` on CTAs, `scale(1.08)` on icon buttons
+- **No bounce** on data tables, form fields, or navigation
+- **Tilt cards:** `rotateX/Y` via `useSpring` + `useMotionValue` for glow tracking
+- **Particles:** 22 floating teal specks, `easeInOut` loop, 10–22s duration
+- Framer Motion respects `prefers-reduced-motion` automatically
 
 ## Components
 
-### Sidebar
-- 220px fixed, `--bg-elevated` background, 1px right border `--border-subtle`
-- Logo: gold gradient pill "HSE HUB" at top
-- Nav groups with 11px uppercase labels, 0.1em letter-spacing
-- Active item: 2px gold left bar (layoutId animated), gold text, subtle gold bg
-- Mobile: 48px fixed top bar + 260px slide-in drawer, backdrop blur
+### Nav (demo page)
+- Height 56px, frosted glass: `rgba(14,21,23,0.88)` + `backdrop-blur(20px) saturate(160%)`
+- Border bottom: `var(--border)`
+- Logo + "HSE HUB" label + company name | Nav links | GitHub + Sign in CTA
+- Sign in button: solid teal (`#91C2B7`), dark text (`#0e1517`)
 
-### Cards / stat tiles
-- Background: `--bg-elevated` with `--border-subtle` border
-- Hover: border brightens to `--border-default`, subtle gold glow in corner
-- Metric: large number (32px, 700 weight) + label (12px, muted) + trend badge
+### Video player
+- Rounded-2xl, teal inset border glow
+- Controls auto-hide after 3.2s, reveal on mouse move
+- Play/pause: 80px circle, teal glassmorphism, spring scale on hover
+- Scrubber: teal gradient fill bar
+- Download link: teal text, top-right
 
-### Buttons
-- **Primary:** gold gradient (#d4a843 → #b8922e), near-black text, no border
-- **Secondary:** transparent, `--border-default` border, `--text-primary` text
-- **Ghost:** no border, muted text, hover brightens
-- **Danger:** red border + text on hover
+### Stat tiles
+- 2×2 on mobile → 4-across on sm+
+- Teal count-up number, muted label
+- Separated by `var(--border)` hairlines
+- CountUp eases with cubic-out over 1800ms
 
-### Badges / pills
-- Rounded-full, 11px font, 500 weight, uppercase
-- Gold: `--gold-muted` bg, `--gold-primary` text
-- Status: coloured bg at 15% opacity, matching text
+### Feature rows
+- Numbered (01–06) in JetBrains Mono, coloured per feature
+- Slide in from left on scroll (stagger 50ms)
+- Arrow icon appears on group hover
+- Tags: coloured badge per feature
 
-### SyncBar
-- Fixed bottom or top strip, `--bg-elevated`, source-system pills with freshness timestamps
-- Pulsing green dot for synced recently, amber for stale over 1h, red for error
+### Stack cards
+- TiltCard: 3D rotateX/Y spring + radial glow tracking cursor
+- Icon + label + sub-description
+- Background: `var(--bg-1)`, border: `var(--border)`
+
+### Buttons (marketing page)
+- **Primary CTA:** solid teal fill, dark text, teal glow shadow on hover
+- **Secondary:** transparent, `var(--border-strong)` border, white text
 
 ## Page-level design patterns
 
-### Operate pages (app shell)
-- Data tables: 13px body, 11px header labels, alternating row subtle bg
-- Loading: skeleton shimmer animation (gold-tinted on dark bg)
-- Empty states: centred icon + 16px heading + 14px description + CTA button
+### Operate pages (app shell — dark with subtle teal accents)
+- Sidebar: 220px, teal active indicator
+- Tables: 13px body, teal-tinted row highlights
+- Loading: teal-tinted skeleton shimmer
 
-### Persuade pages (demo/marketing)
-- Full viewport hero sections, large type (64px-96px display)
-- Background: deep #0c0c0d with gold radial glow blobs (blurred, low opacity)
-- Animated particle field (22 floating gold specks)
-- Section transitions: fade + parallax scroll
-- CTA: large gold gradient button with 32px box-shadow glow
+### Persuade pages (demo — full cinematic treatment)
+- Full-viewport hero, 88px Poppins display with teal gradient
+- Tagline from real company: "If nothing happens, we've done our job."
+- Particle field: 22 floating teal specks
+- Grid texture: rgba(145,194,183,0.08) hairlines
+- Glow blobs: teal radial gradients, heavily blurred
 
 ## Anti-patterns (never do)
-- No pure white backgrounds (#ffffff) — always warm or dark
-- No flat, uninflected greys — always warm-tinted
-- No abrupt cuts — every transition has easing
-- No bounce animations on tables or form fields
-- No gold on gold — ensure 4.5:1 contrast minimum
+- No gold/amber (#d4a843) — that was the previous placeholder palette, not the real brand
+- No pure white backgrounds — always teal-dark bg
+- No rainbow coloring — teal as the single brand accent, status colors only for meaning
+- No bounce animations on data tables or form fields
+- No flat uninflected text — always Poppins, always weighted

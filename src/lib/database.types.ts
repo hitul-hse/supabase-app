@@ -433,6 +433,7 @@ export type Database = {
           logged_hours: number
           name: string
           owner: string
+          parent_task_id: number | null
           project_id: string
           sort_order: number
           status: string
@@ -445,6 +446,7 @@ export type Database = {
           logged_hours: number
           name: string
           owner: string
+          parent_task_id?: number | null
           project_id: string
           sort_order: number
           status: string
@@ -457,12 +459,20 @@ export type Database = {
           logged_hours?: number
           name?: string
           owner?: string
+          parent_task_id?: number | null
           project_id?: string
           sort_order?: number
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_tasks_project_id_fkey"
             columns: ["project_id"]

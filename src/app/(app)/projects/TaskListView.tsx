@@ -1,21 +1,14 @@
 import { TaskRow } from "./TaskRow";
-import type { TaskComment } from "@/lib/queries/types";
-
-type Task = {
-  id: number;
-  name: string;
-  estimate_hours: number;
-  logged_hours: number;
-  status: string;
-  owner: string;
-};
+import type { TaskComment, TaskWithSubtasks } from "@/lib/queries/types";
 
 export function TaskListView({
+  projectId,
   tasks,
   commentsByTask,
   currentUserId,
 }: {
-  tasks: Task[];
+  projectId: string;
+  tasks: TaskWithSubtasks[];
   commentsByTask: Record<number, TaskComment[]>;
   currentUserId: string | null;
 }) {
@@ -33,6 +26,8 @@ export function TaskListView({
         <TaskRow
           key={task.id}
           task={task}
+          projectId={projectId}
+          subtasks={task.subtasks}
           comments={commentsByTask[task.id] ?? []}
           currentUserId={currentUserId}
         />

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { updateTaskStatus, deleteTask, addComment, deleteComment } from "./actions";
-import type { TaskComment } from "@/lib/queries/types";
+import { updateTaskStatus, deleteTask, addComment, deleteComment, addSubtask } from "./actions";
+import type { TaskComment, ProjectTaskRow } from "@/lib/queries/types";
 
 const TASK_STATUSES = ["NOT STARTED", "IN PROGRESS", "OVER 33%", "DONE"] as const;
 
@@ -13,16 +13,59 @@ const STATUS_CLASS: Record<(typeof TASK_STATUSES)[number], string> = {
   "NOT STARTED": "text-[var(--text-faint)]",
 };
 
+function SubtaskRow({ task }: { task: ProjectTaskRow }) {
+  return (
+    <div className="flex items-center justify-between gap-2 py-1 text-[11.5px]">
+      <span className="text-[var(--text-secondary)]">{task.name}</span>
+      <div className="flex items-center gap-2">
+        <form action={updateTaskStatus}>
+          <input type="hidden" name="task_id" value={task.id} />
+          <select
+            name="status"
+            defaultValue={task.status}
+            onChange={(e) => e.currentTarget.form?.requestSubmit()}
+            className={`bg-transparent font-mono text-[9.5px] font-semibold outline-none ${
+              STATUS_CLASS[task.status as (typeof TASK_STATUSES)[number]] ?? "text-[var(--text-faint)]"
+            }`}
+          >
+            {TASK_STATUSES.map((s) => (
+              <option key={s} value={s} className="bg-[var(--surface)] text-[var(--text-primary)]">
+                {s}
+              </option>
+            ))}
+          </select>
+        </form>
+        <form action={deleteTask}>
+          <input type="hidden" name="task_id" value={task.id} />
+          <button
+            type="submit"
+            aria-label={`Delete ${task.name}`}
+            className="text-[var(--text-faint)] hover:text-[var(--critical)]"
+          >
+            ✕
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function TaskRow({
   task,
+  projectId,
+  subtasks,
   comments,
   currentUserId,
 }: {
   task: { id: number; name: string; estimate_hours: number; logged_hours: number; status: string; owner: string };
+  projectId: string;
+  subtasks: ProjectTaskRow[];
   comments: TaskComment[];
   currentUserId: string | null;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
+  const [subtasksExpanded, setSubtasksExpanded] = useState(false);
+  const doneSubtasks = subtasks.filter((t) => t.status === "DONE").length;
 
   return (
     <div className="border-b border-[#3a414c]">
@@ -56,10 +99,19 @@ export function TaskRow({
 
         <div className="col-span-1 flex items-center justify-end gap-2">
           <button
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => setSubtasksExpanded((v) => !v)}
+            aria-label={`${subtasks.length} subtasks on ${task.name}`}
+            className={`font-mono text-[10.5px] ${
+              subtasksExpanded ? "text-[var(--accent)]" : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            ☰{subtasks.length > 0 ? `${doneSubtasks}/${subtasks.length}` : ""}
+          </button>
+          <button
+            onClick={() => setCommentsExpanded((v) => !v)}
             aria-label={`${comments.length} comments on ${task.name}`}
             className={`font-mono text-[10.5px] ${
-              expanded ? "text-[var(--accent)]" : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
+              commentsExpanded ? "text-[var(--accent)]" : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
             }`}
           >
             💬{comments.length > 0 ? comments.length : ""}
@@ -77,7 +129,35 @@ export function TaskRow({
         </div>
       </div>
 
-      {expanded && (
+      {subtasksExpanded && (
+        <div className="flex flex-col gap-1 bg-[var(--surface-2)] px-4 py-3 pl-8">
+          {subtasks.length === 0 && (
+            <p className="text-[11.5px] text-[var(--text-faint)]">No subtasks yet.</p>
+          )}
+          {subtasks.map((s) => (
+            <SubtaskRow key={s.id} task={s} />
+          ))}
+          <form action={addSubtask} className="mt-1 flex gap-2">
+            <input type="hidden" name="project_id" value={projectId} />
+            <input type="hidden" name="parent_task_id" value={task.id} />
+            <input
+              name="name"
+              type="text"
+              required
+              placeholder="Add a subtask…"
+              className="flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[11.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]"
+            />
+            <button
+              type="submit"
+              className="bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+            >
+              Add
+            </button>
+          </form>
+        </div>
+      )}
+
+      {commentsExpanded && (
         <div className="flex flex-col gap-2 bg-[var(--surface-2)] px-4 py-3">
           {comments.length === 0 && (
             <p className="text-[11.5px] text-[var(--text-faint)]">No comments yet.</p>

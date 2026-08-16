@@ -119,6 +119,9 @@ jobs:
       - name: Run task_comments RLS tests
         run: npm run test:task-comments-rls
 
+      - name: Run subtasks RLS tests
+        run: npm run test:subtasks-rls
+
       - name: Run policy count control
         run: npm run test:policy-control
 

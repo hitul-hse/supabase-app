@@ -4,16 +4,7 @@ import { useState } from "react";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskListView } from "./TaskListView";
 import { TaskBoardView } from "./TaskBoardView";
-import type { TaskComment } from "@/lib/queries/types";
-
-type Task = {
-  id: number;
-  name: string;
-  estimate_hours: number;
-  logged_hours: number;
-  status: string;
-  owner: string;
-};
+import type { TaskComment, TaskWithSubtasks } from "@/lib/queries/types";
 
 export function TasksSection({
   projectId,
@@ -22,7 +13,7 @@ export function TasksSection({
   currentUserId,
 }: {
   projectId: string;
-  tasks: Task[];
+  tasks: TaskWithSubtasks[];
   commentsByTask: Record<number, TaskComment[]>;
   currentUserId: string | null;
 }) {
@@ -65,7 +56,12 @@ export function TasksSection({
       <AddTaskForm projectId={projectId} />
 
       {view === "list" ? (
-        <TaskListView tasks={tasks} commentsByTask={commentsByTask} currentUserId={currentUserId} />
+        <TaskListView
+          projectId={projectId}
+          tasks={tasks}
+          commentsByTask={commentsByTask}
+          currentUserId={currentUserId}
+        />
       ) : (
         <TaskBoardView tasks={tasks} />
       )}

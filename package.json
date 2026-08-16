@@ -14,8 +14,9 @@
     "test:timesheet-write-rls": "node scripts/check-timesheet-write-rls.mjs",
     "test:org-chart-view": "node scripts/check-org-chart-view.mjs",
     "test:task-comments-rls": "node scripts/check-task-comments-rls.mjs",
+    "test:subtasks-rls": "node scripts/check-subtasks-rls.mjs",
     "test:backfill": "node scripts/check-backfill.mjs",
-    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:task-write-rls && npm run test:timesheet-write-rls && npm run test:org-chart-view && npm run test:task-comments-rls && npm run test:backfill && npm run test:verify-query && npm run test:policy-control",
+    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:task-write-rls && npm run test:timesheet-write-rls && npm run test:org-chart-view && npm run test:task-comments-rls && npm run test:subtasks-rls && npm run test:backfill && npm run test:verify-query && npm run test:policy-control",
     "test:verify-query": "node scripts/check-verify-policies-query.mjs",
     "test:traceability": "node scripts/traceability-run.mjs",
     "test:policy-control": "node scripts/check-policy-count-control.mjs"

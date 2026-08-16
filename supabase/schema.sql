@@ -253,7 +253,8 @@ create table if not exists project_tasks (
   owner text not null,
   sort_order int not null,
   created_by uuid references auth.users(id),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  parent_task_id bigint references project_tasks(id) on delete cascade
 );
 
 alter table project_tasks enable row level security;
@@ -426,14 +427,25 @@ as $$
     );
 $$;
 
+-- security definer (not just can_view_project(project_id)) because it reads
+-- project_tasks itself -- a policy on project_tasks querying project_tasks
+-- directly inside its own WITH CHECK recurses into RLS unpredictably, the
+-- same reason can_view_project()/can_view_person() are security definer.
+create or replace function task_project_id(target_task_id bigint)
+returns text
+language sql stable security definer set search_path = public
+as $$
+  select project_id from project_tasks where id = target_task_id;
+$$;
+
 revoke execute on function
   app_user_role(), app_user_department(), app_user_person_id(),
-  can_view_person(text), can_view_project(text)
+  can_view_person(text), can_view_project(text), task_project_id(bigint)
 from public, anon;
 
 grant execute on function
   app_user_role(), app_user_department(), app_user_person_id(),
-  can_view_person(text), can_view_project(text)
+  can_view_person(text), can_view_project(text), task_project_id(bigint)
 to authenticated;
 
 
@@ -520,14 +532,27 @@ create policy "role-scoped read on project_tasks"
 -- see (the same "must have both USING and WITH CHECK" rule as every other
 -- write policy in this file).
 
+-- Subtasks (Asana-equivalent) are just project_tasks rows with parent_task_id
+-- set -- they inherit the read/write policies above for free. The only extra
+-- rule: a subtask's project_id must match its parent's project_id, so nobody
+-- can smuggle a task into a project they can't see by nesting it under a
+-- task in a project they can (can_view_project(project_id) alone wouldn't
+-- catch that, since it only checks the new row's own project_id).
+
 create policy "role-scoped insert on project_tasks"
   on project_tasks for insert to authenticated
-  with check (can_view_project(project_id));
+  with check (
+    can_view_project(project_id)
+    and (parent_task_id is null or project_id = task_project_id(parent_task_id))
+  );
 
 create policy "role-scoped update on project_tasks"
   on project_tasks for update to authenticated
   using (can_view_project(project_id))
-  with check (can_view_project(project_id));
+  with check (
+    can_view_project(project_id)
+    and (parent_task_id is null or project_id = task_project_id(parent_task_id))
+  );
 
 create policy "role-scoped delete on project_tasks"
   on project_tasks for delete to authenticated

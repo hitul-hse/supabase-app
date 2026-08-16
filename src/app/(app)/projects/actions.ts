@@ -7,26 +7,27 @@ export type CreateTaskState = { status: "idle" | "success" | "error"; message?: 
 
 const TASK_STATUSES = ["NOT STARTED", "IN PROGRESS", "OVER 33%", "DONE"] as const;
 
-export async function createTask(
-  _prevState: CreateTaskState,
+async function insertTask(
   formData: FormData,
-): Promise<CreateTaskState> {
+): Promise<{ error?: string; name?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { status: "error", message: "Not authenticated." };
+    return { error: "Not authenticated." };
   }
 
   const projectId = String(formData.get("project_id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const owner = String(formData.get("owner") || "").trim();
   const estimateHours = Number(formData.get("estimate_hours") || 0);
+  const parentTaskIdRaw = formData.get("parent_task_id");
+  const parentTaskId = parentTaskIdRaw ? Number(parentTaskIdRaw) : null;
 
-  if (!projectId || !name || !owner) {
-    return { status: "error", message: "Task name and owner are required." };
+  if (!projectId || !name) {
+    return { error: "Task name is required." };
   }
 
   // RLS (role-scoped insert on project_tasks) is what actually enforces who
@@ -49,14 +50,30 @@ export async function createTask(
     status: "NOT STARTED",
     sort_order: (sortRow?.sort_order ?? 0) + 1,
     created_by: user.id,
+    parent_task_id: Number.isFinite(parentTaskId) ? parentTaskId : null,
   });
 
   if (error) {
-    return { status: "error", message: error.message };
+    return { error: error.message };
   }
 
   revalidatePath("/projects");
-  return { status: "success", message: `Added "${name}".` };
+  return { name };
+}
+
+export async function createTask(
+  _prevState: CreateTaskState,
+  formData: FormData,
+): Promise<CreateTaskState> {
+  const result = await insertTask(formData);
+  if (result.error) {
+    return { status: "error", message: result.error };
+  }
+  return { status: "success", message: `Added "${result.name}".` };
+}
+
+export async function addSubtask(formData: FormData): Promise<void> {
+  await insertTask(formData);
 }
 
 export async function updateTaskStatus(formData: FormData): Promise<void> {

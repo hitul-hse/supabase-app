@@ -6,6 +6,7 @@ import type {
   TeamUtilisationRow,
   ProjectRow,
   ProjectDetail,
+  ProjectTaskRow,
   PersonProfile,
   ApprovalDecisionRow,
   TeamLeadBooking,
@@ -124,6 +125,24 @@ function thursdayOf(date: Date): Date {
   return result;
 }
 
+/**
+ * Nests subtasks (project_tasks rows with parent_task_id set) under their
+ * parent, one level deep -- Asana doesn't nest subtasks of subtasks either,
+ * so a flat child list per top-level task is enough.
+ */
+function nestTasks(tasks: ProjectTaskRow[]) {
+  const byParent = new Map<number, ProjectTaskRow[]>();
+  for (const task of tasks) {
+    if (task.parent_task_id == null) continue;
+    const siblings = byParent.get(task.parent_task_id) ?? [];
+    siblings.push(task);
+    byParent.set(task.parent_task_id, siblings);
+  }
+  return tasks
+    .filter((task) => task.parent_task_id == null)
+    .map((task) => ({ ...task, subtasks: byParent.get(task.id) ?? [] }));
+}
+
 /** Single project with its timeline and task breakdown, for the Projects page. */
 export async function getProjectDetail(
   supabase: SupabaseTyped,
@@ -137,7 +156,8 @@ export async function getProjectDetail(
     .order("sort_order", { referencedTable: "project_tasks" })
     .single();
 
-  return data ?? null;
+  if (!data) return null;
+  return { ...data, project_tasks: nestTasks(data.project_tasks) };
 }
 
 /**

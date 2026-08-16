@@ -16,9 +16,12 @@ export type PersonAssignmentRow = Database["public"]["Tables"]["person_assignmen
 export type PersonQualificationRow = Database["public"]["Tables"]["person_qualifications"]["Row"];
 export type ApprovalDecisionRow = Database["public"]["Tables"]["approval_decisions"]["Row"];
 
+/** A top-level task with its subtasks (one level deep) nested inline. */
+export type TaskWithSubtasks = ProjectTaskRow & { subtasks: ProjectTaskRow[] };
+
 export type ProjectDetail = ProjectRow & {
   project_timeline: ProjectTimelineRow[];
-  project_tasks: ProjectTaskRow[];
+  project_tasks: TaskWithSubtasks[];
 };
 
 export type PersonProfile = PersonRow & {

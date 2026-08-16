@@ -265,11 +265,21 @@ function VideoPlayer() {
     hideTimer.current = setTimeout(() => setShowCtrl(false), 3200);
   };
 
+  // Chrome can wedge the element if the speculative preload fetch is aborted by
+  // the click-to-play: it keeps a truncated buffer and reports a bogus short
+  // duration with MEDIA_ERR_NETWORK. Detect that and re-load from scratch.
   const toggle = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); setPlaying(true); }
-    else          { v.pause(); setPlaying(false); }
+    if (!v.paused) { v.pause(); setPlaying(false); return; }
+
+    const wedged = v.error !== null || (v.readyState > 0 && !Number.isFinite(v.duration));
+    if (wedged) {
+      v.load();
+      v.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      return;
+    }
+    v.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
   };
 
   useEffect(() => {
@@ -319,7 +329,9 @@ function VideoPlayer() {
           src="/hse-hub-ad.mp4"
           className="w-full aspect-video object-cover block"
           playsInline
-          preload="metadata"
+          // "none", not "metadata": the file is ~16MB, and an aborted speculative
+          // metadata fetch is what leaves the element in a broken state.
+          preload="none"
         />
         <AnimatePresence>
           {showCtrl && (

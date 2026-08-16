@@ -700,6 +700,7 @@ export type Database = {
           customer: string | null
           day_of_week: number
           project_id: string | null
+          rejection_note: string | null
           started_at: string | null
           stopped_at: string | null
           entry_group: number
@@ -718,6 +719,7 @@ export type Database = {
           customer?: string | null
           day_of_week: number
           project_id?: string | null
+          rejection_note?: string | null
           started_at?: string | null
           stopped_at?: string | null
           entry_group: number
@@ -736,6 +738,7 @@ export type Database = {
           customer?: string | null
           day_of_week?: number
           project_id?: string | null
+          rejection_note?: string | null
           started_at?: string | null
           stopped_at?: string | null
           entry_group?: number

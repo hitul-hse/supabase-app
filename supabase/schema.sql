@@ -367,6 +367,11 @@ create table if not exists timesheet_entries (
   week_start date not null default date_trunc('week', now())::date,
   status text not null default 'draft',
   submitted_at timestamptz,
+  -- Why a week was sent back. Clockify makes this mandatory on rejection, and
+  -- the reason is sound: "rejected" with no stated cause just produces another
+  -- round of guessing. Cleared automatically on resubmit by the trigger below,
+  -- so a stale note can't linger against a corrected week.
+  rejection_note text,
   -- Live timer (TrackingTime/Toggl-equivalent). started_at set with
   -- stopped_at still null *is* the running timer -- there's no separate
   -- timer table, so a running entry is already a real timesheet row and
@@ -383,6 +388,49 @@ create table if not exists timesheet_entries (
 );
 
 alter table timesheet_entries enable row level security;
+
+/*
+ * Everything that must hold for an update to a timesheet row, in one trigger.
+ *
+ * Two concerns live here rather than in two triggers, partly because they're
+ * both about the (old, new) pair and partly because pglite -- which the test
+ * suite runs on -- crashes at teardown with two plpgsql triggers on one table.
+ * One function reads better regardless.
+ *
+ * 1. A submitted week can't be edited in place. RLS can't express this on its
+ *    own: permissive policies OR their USING and their WITH CHECK clauses
+ *    *independently*, so the withdraw policy's USING (accepts a submitted row)
+ *    pairs with the edit policy's WITH CHECK (accepts a submitted result) to
+ *    grant something neither intended. Only a trigger sees both old and new.
+ *
+ * 2. Resubmitting clears the rejection note, so a note can't outlive the
+ *    correction it prompted and read as a fresh rejection.
+ */
+create or replace function timesheet_entry_before_update()
+returns trigger language plpgsql as $$
+begin
+  if old.status = 'submitted'
+     and new.status <> 'draft'
+     -- Service-role and unprovisioned callers (seeds, backfills) bypass RLS
+     -- anyway and are out of scope here.
+     and app_user_person_id() is not null
+     and app_user_role() not in ('exec', 'dept_head') then
+    raise exception 'Withdraw this week before changing it';
+  end if;
+
+  if new.status = 'submitted' and old.status is distinct from 'submitted' then
+    new.rejection_note := null;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists timesheet_entries_clear_rejection_note on timesheet_entries;
+drop trigger if exists timesheet_entries_owner_transitions on timesheet_entries;
+create trigger timesheet_entries_before_update
+  before update on timesheet_entries
+  for each row execute function timesheet_entry_before_update();
 
 -- One running timer per person, enforced by the database rather than by app
 -- code: a double-clicked start button would otherwise open two concurrent
@@ -589,10 +637,25 @@ create policy "owner can insert their own timesheet_entries"
   on timesheet_entries for insert to authenticated
   with check (person_id = app_user_person_id());
 
+-- 'rejected' is included in USING so a week sent back is editable again --
+-- otherwise the employee is told to fix something they can't touch. WITH
+-- CHECK still caps what they may set it to, so this is not a route to
+-- self-approval.
 create policy "owner can edit their own draft timesheet_entries"
   on timesheet_entries for update to authenticated
-  using (person_id = app_user_person_id() and status = 'draft')
-  with check (person_id = app_user_person_id() and status in ('draft', 'submitted'));
+  using (person_id = app_user_person_id() and status in ('draft', 'rejected'))
+  -- 'rejected' appears here too because correcting a sent-back week leaves it
+  -- rejected until the owner resubmits; without it the very first edit fails
+  -- WITH CHECK. 'approved' is still absent, so self-approval stays impossible.
+  with check (person_id = app_user_person_id() and status in ('draft', 'submitted', 'rejected'));
+
+-- Withdrawing a submitted week, so a mistake spotted after hitting submit
+-- doesn't need a lead to bounce it back. Narrow on both sides: only a
+-- submitted row, and only back to draft.
+create policy "owner can withdraw their own submitted timesheet_entries"
+  on timesheet_entries for update to authenticated
+  using (person_id = app_user_person_id() and status = 'submitted')
+  with check (person_id = app_user_person_id() and status = 'draft');
 
 create policy "lead can approve or reject visible timesheet_entries"
   on timesheet_entries for update to authenticated

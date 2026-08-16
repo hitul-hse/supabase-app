@@ -144,9 +144,24 @@ it, so `project_id` was added and backfilled — and only where a name maps to
 exactly one project. Ambiguous names were left null rather than guessed at,
 since attributing hours to the wrong client's budget is worse than to none.
 
-### Wave 3 — Timesheet depth
-Copy-last-week, flexible duration parsing, row totals against a weekly target,
-withdraw, mandatory rejection notes, rolling lock date.
+### Wave 3 — Timesheet depth ✅ shipped (partial)
+Copy-last-week (shape only, not hours), flexible duration parsing, withdraw,
+and mandatory rejection notes. A rolling lock date is deferred: it is admin
+configuration rather than daily use, and nothing else depends on it.
+
+**A real bug this wave surfaced.** Adding a withdraw policy opened a hole that
+neither policy granted alone. Permissive RLS policies OR their `USING` and
+their `WITH CHECK` clauses *independently*, so withdraw's `USING` (accepts a
+submitted row) paired with the edit policy's `WITH CHECK` (accepts a submitted
+result) to permit editing a submitted week in place. No tuning of either
+policy closes it, because the constraint is about the (old, new) pair — which
+only a trigger can see. Caught by the pre-existing timesheet write-RLS test,
+which is precisely why that suite exists.
+
+The two BEFORE UPDATE triggers were then merged into one. Partly because they
+are both about the (old, new) pair and read better together, and partly
+because pglite crashes at teardown with two plpgsql triggers on one table —
+a tool bug, but the merged shape is the better design regardless.
 
 ### Wave 4 — Working-time and absence depth
 Work schedules driving expected hours, Soll/Ist balance, break rules, absence
@@ -160,13 +175,67 @@ Task detail slide-over, dependencies, custom fields, saved views, milestones.
 Cut short by an API session limit; to be completed before the waves that depend
 on them:
 
-- Asana: information architecture, view types, the full task object, rules and
-  forms, reporting, My Tasks / Portfolios / Goals.
+- ~~Asana: information architecture, view types, the full task object~~ — done,
+  see "Asana findings" below. Rules/forms and reporting/dashboards remain.
 - TrackingTime's own documentation (Toggl and Clockify were used as verified
   proxies for the category).
 - FactorialHR: permission model, certification/qualification expiry tracking —
   the latter matters more than usual here, because HSE consultants hold safety
   certifications that expire.
+
+## Asana findings (verified against developers.asana.com and Asana's own blog)
+
+Help-centre articles are client-rendered and unfetchable; the API reference and
+Asana's engineering/design blog carried the load. Anything below marked
+UNVERIFIED could not be confirmed from a primary source.
+
+**The data model that matters.** Tasks attach to projects through
+`memberships[] = {project, section}` — that one join is what gives both
+multi-homing (a task in up to 20 projects) and sections. Crucially, **sections
+and board columns are the same object**: "a header above a list of tasks in a
+list view *or* a column in a board view". Flipping `default_view` reinterprets
+the same rows. Our current board has four hard-coded status columns, which is
+strictly weaker.
+
+Dates are **two fields, not one nullable timestamp**: `due_on` (date) and
+`due_at` (UTC timestamp), same for start. Worth copying — most of our work is
+date-only.
+
+Comments and the audit log are **one table** (`stories`, `type: comment|system`).
+Cheapest possible way to get an activity feed, and an HSE consultancy needs
+auditability.
+
+Notable gap in Asana itself: **recurrence cannot be read or written via the
+API**, and there are **no native WIP limits** on board columns.
+
+**Interaction patterns worth taking.**
+- `Tab` as a *leader key* for field chords (`Tab+A` assign, `Tab+D` due date,
+  `Tab+C` comment, `Tab+S` subtasks). Every field of the selected row is one
+  chord away without opening anything, and it works identically on a
+  multi-selection. Highest power-to-cost ratio in the product.
+- A **right-side slide-over, not a modal**, with arrow-key traversal — Asana
+  explicitly replaced its board modal with one so the board stays live behind
+  it. (Our deferred `SlideOver` is exactly this.)
+- **Search results are a first-class view**: sortable, multi-selectable,
+  bulk-editable, and starrable into the sidebar where they re-run on open. One
+  component powers search, reports and saved views.
+- Two-tier saved views: a personal view vs "save view for everyone", plus a
+  dynamic *assigned to me* filter so one shared view personalises per viewer.
+- `:` at the end of a task name creates a section; `Enter`/`Shift+Enter` add a
+  task below/above. The list behaves like a text editor.
+
+**Where to beat it.**
+- Asana's task URLs are project-scoped (`/project/{pid}/task/{tid}`), so a
+  task's canonical link changes when it is re-homed. Use a stable
+  `/tasks/{id}` permalink with project as context.
+- Its undo can silently fail ("Undoing…" then nothing). Undo should be a local
+  inverse mutation with an explicit error toast on rejection.
+- The subtask expand chevron disappears under filtering and doesn't work in My
+  Tasks at all. Decide once that the tree survives filtering, and be consistent.
+- No WIP limits — a per-column limit with a count badge that turns amber is
+  trivial and genuinely useful for utilisation.
+- Board cards over-render (cover images, 11-item menus). Ship a density toggle,
+  default compact.
 
 ## Design foundation
 

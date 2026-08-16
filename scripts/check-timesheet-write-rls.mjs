@@ -120,12 +120,28 @@ check("employee can submit their own draft entry", submit.rows.length === 1);
 
 // --- Employee can no longer edit once submitted ---
 
-const editAfterSubmit = await as(EMP, () =>
-  db.query(`update timesheet_entries set hours=1 where entry_group=1 and person_id='p-emp' returning id`),
+// Denied either way: before withdraw existed this was a silent 0-row no-op
+// (RLS USING simply didn't match); now the withdraw policy's USING does match
+// and a trigger raises instead, telling the person to withdraw first. The
+// security property asserted here is unchanged -- a submitted week can't be
+// edited in place -- so this accepts either mechanism rather than pinning the
+// weaker, silent one.
+let editAfterSubmitDenied = false;
+try {
+  const editAfterSubmit = await as(EMP, () =>
+    db.query(`update timesheet_entries set hours=1 where entry_group=1 and person_id='p-emp' returning id`),
+  );
+  editAfterSubmitDenied = editAfterSubmit.rows.length === 0;
+} catch {
+  editAfterSubmitDenied = true;
+}
+const afterSubmitHours = await db.query(
+  `select hours from timesheet_entries where entry_group=1 and person_id='p-emp'`,
 );
 check(
-  "employee's edit after submitting affects 0 rows (RLS denies further changes)",
-  editAfterSubmit.rows.length === 0,
+  "employee cannot edit their week after submitting it",
+  editAfterSubmitDenied && Number(afterSubmitHours.rows[0].hours) !== 1,
+  `hours=${afterSubmitHours.rows[0].hours}`,
 );
 
 // --- dept_head approval ---

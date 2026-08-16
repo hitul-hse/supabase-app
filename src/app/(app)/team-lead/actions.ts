@@ -58,11 +58,17 @@ async function setTimesheetWeekStatus(
   personId: string,
   weekStart: string,
   status: "approved" | "rejected",
+  rejectionNote?: string,
 ): Promise<ApprovalResult> {
   const supabase = await createClient();
   const { error, count } = await supabase
     .from("timesheet_entries")
-    .update({ status }, { count: "exact" })
+    .update(
+      status === "rejected"
+        ? { status, rejection_note: rejectionNote ?? null }
+        : { status, rejection_note: null },
+      { count: "exact" },
+    )
     .eq("person_id", personId)
     .eq("week_start", weekStart)
     .eq("status", "submitted");
@@ -84,6 +90,19 @@ export async function approveTimesheetWeek(personId: string, weekStart: string):
   return setTimesheetWeekStatus(personId, weekStart, "approved");
 }
 
-export async function rejectTimesheetWeek(personId: string, weekStart: string): Promise<ApprovalResult> {
-  return setTimesheetWeekStatus(personId, weekStart, "rejected");
+/**
+ * Rejection carries a reason. Clockify makes the note mandatory and the
+ * reasoning holds: a week sent back with no stated cause just produces
+ * another round of guessing about what was wrong with it.
+ */
+export async function rejectTimesheetWeek(
+  personId: string,
+  weekStart: string,
+  rejectionNote: string,
+): Promise<ApprovalResult> {
+  const note = rejectionNote.trim();
+  if (!note) {
+    return { ok: false, message: "Say what needs fixing before sending the week back." };
+  }
+  return setTimesheetWeekStatus(personId, weekStart, "rejected", note);
 }

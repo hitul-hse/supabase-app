@@ -134,6 +134,12 @@ jobs:
       - name: Run project budget and margin tests
         run: npm run test:project-budget-rls
 
+      - name: Run timesheet withdraw and rejection tests
+        run: npm run test:timesheet-withdraw-rls
+
+      - name: Run duration parsing tests
+        run: npm run test:duration
+
       - name: Run policy count control
         run: npm run test:policy-control
 

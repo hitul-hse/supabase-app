@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 // App-shell UI font. Poppins is the real brand face used on hs-experts.com
@@ -29,6 +29,17 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+// Demo page display grotesk. Space Grotesk is the closest freely-licensed analogue to
+// ABC Monument Grotesk, the face used by the reference sites (sstr.tech) — squarish
+// counters, tight apertures, engineered rather than friendly. Drives all display type
+// on /demo; do not swap for a humanist sans, it loses the technical register.
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-grotesk",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
+
 // Demo page mono — numbers, badges, metadata
 const jetbrains = JetBrains_Mono({
   variable: "--font-jetbrains",
@@ -51,7 +62,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${poppins.variable} ${cormorant.variable} ${plusJakarta.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${poppins.variable} ${cormorant.variable} ${plusJakarta.variable} ${jetbrains.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
         {children}

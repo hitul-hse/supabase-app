@@ -280,6 +280,7 @@ export type Database = {
           holiday_left: number
           id: string
           logged_this_month: number
+          manager_id: string | null
           name: string
           open_tasks: number
           overdue_tasks: number
@@ -300,6 +301,7 @@ export type Database = {
           holiday_left: number
           id: string
           logged_this_month: number
+          manager_id?: string | null
           name: string
           open_tasks: number
           overdue_tasks: number
@@ -320,6 +322,7 @@ export type Database = {
           holiday_left?: number
           id?: string
           logged_this_month?: number
+          manager_id?: string | null
           name?: string
           open_tasks?: number
           overdue_tasks?: number
@@ -329,7 +332,15 @@ export type Database = {
           total_holiday?: number
           total_monthly_hours?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       person_assignments: {
         Row: {
@@ -812,6 +823,16 @@ export type Database = {
       }
     }
     Views: {
+      org_chart_nodes: {
+        Row: {
+          department: string | null
+          id: string | null
+          manager_id: string | null
+          name: string | null
+          role: string | null
+        }
+        Relationships: []
+      }
       person_week_metrics: {
         Row: {
           absence_hours: number | null

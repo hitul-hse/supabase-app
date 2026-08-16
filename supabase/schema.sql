@@ -184,10 +184,27 @@ create table if not exists people (
   total_holiday numeric,
   timesheet_status text,
   certificate_status text,
-  certificate_text text
+  certificate_text text,
+  -- Org chart (FactorialHR-equivalent feature). Nullable/self-referential:
+  -- most people report to someone, the top of each branch reports to no one.
+  manager_id text references people(id)
 );
 
 alter table people enable row level security;
+
+-- Org chart view. Deliberately NOT security_invoker: the base `people` table's
+-- read policy scopes rows to can_view_person() (self, or your department if
+-- you're dept_head, or everyone if exec), but an org chart needs every
+-- employee to see the whole reporting line, not just their own row -- the
+-- opposite need from the netflix_* views above, which use security_invoker to
+-- respect RLS rather than bypass it. Safe because only identity/reporting-line
+-- columns are projected here; the sensitive HR fields on `people` (holiday
+-- balances, certificates, capacity status) are never exposed through this view.
+create or replace view org_chart_nodes as
+  select id, name, role, department, manager_id
+  from people;
+
+grant select on org_chart_nodes to authenticated;
 
 create table if not exists projects (
   id text primary key,

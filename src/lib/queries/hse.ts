@@ -11,6 +11,7 @@ import type {
   TeamLeadBooking,
   TimesheetDayEntry,
   PendingTimesheetWeek,
+  OrgChartNode,
   BillableTrend,
   WeeklyBillableTrendRow,
 } from "./types";
@@ -136,6 +137,26 @@ export async function getProjectDetail(
     .single();
 
   return data ?? null;
+}
+
+/**
+ * Company-wide org chart nodes. Reads org_chart_nodes, not `people` directly --
+ * that view deliberately bypasses can_view_person() so every employee sees the
+ * whole reporting line, not just their own row (see supabase/schema.sql for why
+ * that's safe: only identity/reporting-line columns are exposed).
+ */
+export async function getOrgChart(supabase: SupabaseTyped): Promise<OrgChartNode[]> {
+  const { data } = await supabase.from("org_chart_nodes").select("*").order("id");
+
+  return (data ?? [])
+    .filter((row): row is typeof row & { id: string; name: string } => row.id !== null && row.name !== null)
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      department: row.department,
+      managerId: row.manager_id,
+    }));
 }
 
 /** Full people directory with each person's assignments and qualifications, for the People page. */

@@ -113,6 +113,9 @@ jobs:
       - name: Run timesheet_entries write-RLS tests
         run: npm run test:timesheet-write-rls
 
+      - name: Run org chart view test
+        run: npm run test:org-chart-view
+
       - name: Run policy count control
         run: npm run test:policy-control
 

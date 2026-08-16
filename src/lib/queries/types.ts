@@ -86,3 +86,11 @@ export type PendingTimesheetWeek = {
   totalHours: number;
   entryCount: number;
 };
+
+export type OrgChartNode = {
+  id: string;
+  name: string;
+  role: string | null;
+  department: string | null;
+  managerId: string | null;
+};

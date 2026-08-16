@@ -733,6 +733,53 @@ export type Database = {
           },
         ]
       }
+      leave_requests: {
+        Row: {
+          days: number
+          decided_at: string | null
+          decided_by: string | null
+          end_date: string
+          id: number
+          person_id: string
+          reason: string | null
+          requested_at: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          days: number
+          decided_at?: string | null
+          decided_by?: string | null
+          end_date: string
+          id?: never
+          person_id: string
+          reason?: string | null
+          requested_at?: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          days?: number
+          decided_at?: string | null
+          decided_by?: string | null
+          end_date?: string
+          id?: never
+          person_id?: string
+          reason?: string | null
+          requested_at?: string
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_bookings: {
         Row: {
           hours: number | null
@@ -879,6 +926,15 @@ export type Database = {
         Row: {
           display_name: string | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      leave_balances: {
+        Row: {
+          days_taken: number | null
+          holiday_left: number | null
+          person_id: string | null
+          total_holiday: number | null
         }
         Relationships: []
       }

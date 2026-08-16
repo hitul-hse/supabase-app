@@ -2,9 +2,20 @@
 
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import type { PersonProfile } from "@/lib/queries/types";
+import type { PersonProfile, LeaveBalanceRow, LeaveRequestRow } from "@/lib/queries/types";
+import { LeaveRequestsPanel } from "./LeaveRequestsPanel";
 
-export function PeopleDirectory({ people }: { people: PersonProfile[] }) {
+export function PeopleDirectory({
+  people,
+  leaveBalances,
+  leaveRequestsByPerson,
+  currentPersonId,
+}: {
+  people: PersonProfile[];
+  leaveBalances: Record<string, LeaveBalanceRow>;
+  leaveRequestsByPerson: Record<string, LeaveRequestRow[]>;
+  currentPersonId: string | null;
+}) {
   const [selectedPerson, setSelectedPerson] = useState<PersonProfile>(people[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState<"ALL" | "SAFETY" | "ENG" | "LAB">("ALL");
@@ -199,9 +210,9 @@ export function PeopleDirectory({ people }: { people: PersonProfile[] }) {
                 HOLIDAY LEFT
               </span>
               <span className="font-mono text-[22px] font-semibold text-[var(--text-primary)]">
-                {selectedPerson.holiday_left}{" "}
+                {leaveBalances[selectedPerson.id]?.holiday_left ?? selectedPerson.holiday_left}{" "}
                 <span className="text-[12px] font-normal text-[var(--text-muted)]">
-                  / {selectedPerson.total_holiday} D
+                  / {leaveBalances[selectedPerson.id]?.total_holiday ?? selectedPerson.total_holiday} D
                 </span>
               </span>
             </div>
@@ -297,6 +308,13 @@ export function PeopleDirectory({ people }: { people: PersonProfile[] }) {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="mt-5">
+            <LeaveRequestsPanel
+              requests={leaveRequestsByPerson[selectedPerson.id] ?? []}
+              canRequest={selectedPerson.id === currentPersonId}
+            />
           </div>
         </div>
       </div>

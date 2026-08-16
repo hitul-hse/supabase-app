@@ -1,16 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import type { PersonProfile, OrgChartNode } from "@/lib/queries/types";
+import type { PersonProfile, OrgChartNode, LeaveBalanceRow, LeaveRequestRow } from "@/lib/queries/types";
 import { PeopleDirectory } from "./PeopleDirectory";
 import { OrgChartView } from "./OrgChartView";
 
 export function PeopleSection({
   people,
   orgChartNodes,
+  leaveBalances,
+  leaveRequestsByPerson,
+  currentPersonId,
 }: {
   people: PersonProfile[];
   orgChartNodes: OrgChartNode[];
+  leaveBalances: Record<string, LeaveBalanceRow>;
+  leaveRequestsByPerson: Record<string, LeaveRequestRow[]>;
+  currentPersonId: string | null;
 }) {
   const [view, setView] = useState<"directory" | "orgchart">("directory");
 
@@ -41,7 +47,16 @@ export function PeopleSection({
         </div>
       </div>
 
-      {view === "directory" ? <PeopleDirectory people={people} /> : <OrgChartView nodes={orgChartNodes} />}
+      {view === "directory" ? (
+        <PeopleDirectory
+          people={people}
+          leaveBalances={leaveBalances}
+          leaveRequestsByPerson={leaveRequestsByPerson}
+          currentPersonId={currentPersonId}
+        />
+      ) : (
+        <OrgChartView nodes={orgChartNodes} />
+      )}
     </>
   );
 }

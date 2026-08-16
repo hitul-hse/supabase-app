@@ -122,6 +122,9 @@ jobs:
       - name: Run subtasks RLS tests
         run: npm run test:subtasks-rls
 
+      - name: Run leave requests RLS tests
+        run: npm run test:leave-requests-rls
+
       - name: Run policy count control
         run: npm run test:policy-control
 

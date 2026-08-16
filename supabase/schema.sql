@@ -336,6 +336,26 @@ create table if not exists timesheet_entries (
 
 alter table timesheet_entries enable row level security;
 
+-- Leave / PTO requests (FactorialHR-equivalent). people.holiday_left is a
+-- static seeded number with no real ledger behind it; this table is that
+-- ledger. holiday_left becomes derived (people.total_holiday minus approved
+-- days) via the leave_balances view further down, rather than a column
+-- anyone writes directly, so it can't drift from the approval history.
+create table if not exists leave_requests (
+  id bigint generated always as identity primary key,
+  person_id text not null references people(id) on delete cascade,
+  start_date date not null,
+  end_date date not null,
+  days numeric not null check (days > 0),
+  reason text,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  requested_at timestamptz not null default now(),
+  decided_at timestamptz,
+  decided_by uuid references auth.users(id)
+);
+
+alter table leave_requests enable row level security;
+
 create table if not exists app_role (
   role_key text primary key,
   display_name text not null,
@@ -514,6 +534,29 @@ create policy "lead can approve or reject visible timesheet_entries"
 create policy "owner can delete their own draft timesheet_entries"
   on timesheet_entries for delete to authenticated
   using (person_id = app_user_person_id() and status = 'draft');
+
+-- Write access to leave_requests. Same shape as timesheet_entries: the
+-- owner can create/cancel their own request while it's pending, and a
+-- lead's approve/reject is a separate policy scoped by can_view_person(),
+-- not a status check on the row (RLS can't restrict which columns an
+-- UPDATE touches). WITH CHECK on insert additionally caps status to
+-- 'pending' so nobody can create a request that's already decided.
+
+create policy "role-scoped read on leave_requests"
+  on leave_requests for select to authenticated using (can_view_person(person_id));
+
+create policy "owner can request their own leave"
+  on leave_requests for insert to authenticated
+  with check (person_id = app_user_person_id() and status = 'pending');
+
+create policy "lead can approve or reject visible leave_requests"
+  on leave_requests for update to authenticated
+  using (app_user_role() in ('exec', 'dept_head') and can_view_person(person_id) and status = 'pending')
+  with check (app_user_role() in ('exec', 'dept_head') and can_view_person(person_id) and status in ('approved', 'rejected'));
+
+create policy "owner can cancel their own pending leave request"
+  on leave_requests for delete to authenticated
+  using (person_id = app_user_person_id() and status = 'pending');
 
 create policy "role-scoped read on projects"
   on projects for select to authenticated using (can_view_project(id));
@@ -733,6 +776,24 @@ create policy "role-scoped read on weekly_employee_summary"
         and can_view_person(p.id)
     )
   );
+
+-- Real, derived holiday balance (FactorialHR-equivalent): total_holiday
+-- minus the sum of *approved* leave days actually taken, instead of the
+-- static seeded holiday_left column. security_invoker=true (sensitive HR
+-- data, so this must respect can_view_person() scoping on both people and
+-- leave_requests, not bypass it -- the opposite need from org_chart_nodes).
+create or replace view leave_balances
+  with (security_invoker = true) as
+  select
+    p.id as person_id,
+    p.total_holiday,
+    coalesce(sum(lr.days) filter (where lr.status = 'approved'), 0) as days_taken,
+    p.total_holiday - coalesce(sum(lr.days) filter (where lr.status = 'approved'), 0) as holiday_left
+  from people p
+  left join leave_requests lr on lr.person_id = p.id
+  group by p.id, p.total_holiday;
+
+grant select on leave_balances to authenticated;
 
 -- Derived reporting views. security_invoker so the caller's RLS on the
 -- underlying tables still applies rather than the view owner's.

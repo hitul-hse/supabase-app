@@ -106,3 +106,8 @@ export type TaskComment = {
   body: string;
   createdAt: string;
 };
+
+export type LeaveRequestRow = Database["public"]["Tables"]["leave_requests"]["Row"];
+export type LeaveBalanceRow = Database["public"]["Views"]["leave_balances"]["Row"];
+
+export type LeaveRequestWithPerson = LeaveRequestRow & { personName: string };

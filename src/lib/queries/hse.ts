@@ -14,6 +14,9 @@ import type {
   PendingTimesheetWeek,
   OrgChartNode,
   TaskComment,
+  LeaveRequestRow,
+  LeaveBalanceRow,
+  LeaveRequestWithPerson,
   BillableTrend,
   WeeklyBillableTrendRow,
 } from "./types";
@@ -223,6 +226,56 @@ export async function getOrgChart(supabase: SupabaseTyped): Promise<OrgChartNode
       department: row.department,
       managerId: row.manager_id,
     }));
+}
+
+/**
+ * Real, derived holiday balances and leave history for every person the
+ * caller can see (RLS: can_view_person), keyed by person_id. The People page
+ * selects a person entirely client-side, so this fetches everything visible
+ * up front rather than the selected person's data. Balances come from the
+ * leave_balances view rather than the static people.holiday_left column --
+ * see supabase/schema.sql for why that column can't be trusted.
+ */
+export async function getLeaveOverview(supabase: SupabaseTyped): Promise<{
+  balances: Record<string, LeaveBalanceRow>;
+  requestsByPerson: Record<string, LeaveRequestRow[]>;
+}> {
+  const [{ data: balances }, { data: requests }] = await Promise.all([
+    supabase.from("leave_balances").select("*"),
+    supabase.from("leave_requests").select("*").order("requested_at", { ascending: false }),
+  ]);
+
+  const balanceByPerson: Record<string, LeaveBalanceRow> = {};
+  for (const b of balances ?? []) {
+    if (b.person_id) balanceByPerson[b.person_id] = b;
+  }
+
+  const requestsByPerson: Record<string, LeaveRequestRow[]> = {};
+  for (const r of requests ?? []) {
+    (requestsByPerson[r.person_id] ??= []).push(r);
+  }
+
+  return { balances: balanceByPerson, requestsByPerson };
+}
+
+/**
+ * Pending leave requests a lead can act on. RLS (can_view_person) already
+ * scopes this to whoever the caller is allowed to see, same as
+ * getPendingTimesheetApprovals above.
+ */
+export async function getPendingLeaveApprovals(
+  supabase: SupabaseTyped,
+): Promise<LeaveRequestWithPerson[]> {
+  const { data } = await supabase
+    .from("leave_requests")
+    .select("*, people(name)")
+    .eq("status", "pending")
+    .order("requested_at");
+
+  return (data ?? []).map(({ people, ...row }) => ({
+    ...row,
+    personName: people?.name ?? row.person_id,
+  }));
 }
 
 /** Full people directory with each person's assignments and qualifications, for the People page. */

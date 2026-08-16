@@ -73,10 +73,10 @@ const stagger = (s = 0.07) => ({
 });
 
 /* ─── Typography ────────────────────────────────────────────────────── */
-// Clash Display: display headlines, size-specific tracking
+// Cormorant Garamond: editorial serif display — cinematic weight for hero headlines
 // Plus Jakarta Sans: UI labels, body, nav — modern grotesk with optical balance
 // JetBrains Mono: numbers, badges, metadata
-const FONT_DISPLAY = "'Clash Display', 'Plus Jakarta Sans', system-ui, sans-serif";
+const FONT_DISPLAY = "'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', serif";
 const FONT_UI      = "'Plus Jakarta Sans', system-ui, sans-serif";
 const FONT_MONO    = "'JetBrains Mono', 'Fira Code', monospace";
 
@@ -563,36 +563,24 @@ export default function DemoPageV4() {
       className="min-h-[100dvh]"
       style={{ background: T.bg0, color: T.text0, fontFamily: FONT_UI }}
     >
-      {/* ── Fonts: Clash Display + Plus Jakarta Sans + JetBrains Mono ── */}
+      {/* ── Fonts: Cormorant Garamond + Plus Jakarta Sans + JetBrains Mono ── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
-        /* Clash Display via CDN */
-        @font-face {
-          font-family: 'Clash Display';
-          src: url('https://api.fontshare.com/v2/css?f[]=clash-display@700,600,500&display=swap');
-          font-display: swap;
-        }
-
         *, *::before, *::after { box-sizing: border-box; margin: 0; }
         ::selection { background: rgba(145,194,183,0.22); color: ${T.text0}; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: ${T.bg0}; }
         ::-webkit-scrollbar-thumb { background: ${T.tealDeep}; border-radius: 3px; }
 
-        /* Clash Display loaded via fontshare link tag — fallback chain */
-        .font-clash { font-family: 'Clash Display', 'Plus Jakarta Sans', system-ui, sans-serif; }
+        /* Button hover fix — prevent Framer Motion from clobbering background */
+        .btn-primary { background: ${T.teal} !important; color: #0a1012 !important; }
+        .btn-primary:hover { background: ${T.tealLight} !important; }
+        .btn-secondary { background: transparent !important; color: ${T.text0} !important; }
       `}</style>
 
-      {/* Clash Display via link (more reliable than @font-face CDN @import) */}
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link
         rel="stylesheet"
-        href="https://api.fontshare.com/v2/css?f[]=clash-display@700,600,500,400&display=swap"
-      />
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
       />
 
       {/* ── Ambient layer (fixed, pointer-events-none) ── */}
@@ -686,26 +674,14 @@ export default function DemoPageV4() {
           {/* Sign in — button-in-button pill (high-end-visual-design §4B) */}
           <motion.a
             href="/auth/login"
-            whileHover={{
-              transform: "scale(1.04)",
-              boxShadow: `0 6px 24px rgba(145,194,183,0.28)`,
-            }}
-            whileTap={{ transform: "scale(0.96)" }}
+            whileHover={{ scale: 1.04, boxShadow: `0 6px 24px rgba(145,194,183,0.28)` }}
+            whileTap={{ scale: 0.96 }}
             transition={SP}
-            className="flex items-center gap-2 pl-4 pr-1 py-1 rounded-full text-[11px] font-bold shrink-0"
-            style={{
-              background: T.teal,
-              color: "#0a1012",
-              fontFamily: FONT_UI,
-              letterSpacing: "0.03em",
-            }}
+            className="btn-primary flex items-center gap-2 pl-4 pr-1 py-1 rounded-full text-[11px] font-bold shrink-0"
+            style={{ fontFamily: FONT_UI, letterSpacing: "0.03em" }}
           >
             Sign in
-            {/* Inner icon circle */}
-            <span
-              className="w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(10,16,18,0.18)" }}
-            >
+            <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(10,16,18,0.18)" }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
@@ -743,34 +719,42 @@ export default function DemoPageV4() {
 
         {/* Headline — Clash Display, size-specific tracking */}
         <div className="max-w-5xl mx-auto mb-6">
-          {[
-            { text: "If nothing happens,", delay: 0.22 },
-            { text: "we've done our job.", delay: 0.36, accent: true },
-          ].map(({ text, delay, accent }) => (
-            <motion.div
-              key={text}
-              initial={{ opacity: 0, transform: "translateY(36px)" }}
-              animate={{ opacity: 1, transform: "translateY(0px)" }}
-              transition={{ ease: EASE, duration: 0.85, delay }}
-              className="font-clash block font-bold leading-[0.97] mb-1"
-              style={{
-                // Clash Display via class, with fallback in style
-                fontFamily: FONT_DISPLAY,
-                fontWeight: 700,
-                fontSize: "clamp(38px, 7.5vw, 96px)",
-                letterSpacing: "-0.04em",     // tight tracking for display (apple-design §15)
-                lineHeight: 1.0,
-                ...(accent ? {
-                  background: `linear-gradient(135deg, ${T.teal} 0%, ${T.tealLight} 60%, ${T.teal} 100%)`,
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                } : { color: T.text0 }),
-              }}
-            >
-              {text}
-            </motion.div>
-          ))}
+          {/* Line 1 — roman weight, warm white */}
+          <motion.div
+            initial={{ opacity: 0, transform: "translateY(36px)" }}
+            animate={{ opacity: 1, transform: "translateY(0px)" }}
+            transition={{ ease: EASE, duration: 0.85, delay: 0.22 }}
+            style={{
+              fontFamily: FONT_DISPLAY,
+              fontWeight: 300,
+              fontStyle: "italic",
+              fontSize: "clamp(38px, 7.5vw, 100px)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.05,
+              color: T.text0,
+            }}
+          >
+            If nothing happens,
+          </motion.div>
+          {/* Line 2 — bold weight, teal accent */}
+          <motion.div
+            initial={{ opacity: 0, transform: "translateY(36px)" }}
+            animate={{ opacity: 1, transform: "translateY(0px)" }}
+            transition={{ ease: EASE, duration: 0.85, delay: 0.36 }}
+            style={{
+              fontFamily: FONT_DISPLAY,
+              fontWeight: 700,
+              fontSize: "clamp(38px, 7.5vw, 100px)",
+              letterSpacing: "-0.03em",
+              lineHeight: 1.0,
+              background: `linear-gradient(135deg, ${T.teal} 0%, ${T.tealLight} 55%, ${T.teal} 100%)`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            we&apos;ve done our job.
+          </motion.div>
         </div>
 
         {/* Company mark */}
@@ -821,27 +805,14 @@ export default function DemoPageV4() {
           {/* Primary — button-in-button */}
           <motion.a
             href="#video"
-            whileHover={{
-              transform: "scale(1.04) translateY(-2px)",
-              boxShadow: `0 14px 40px rgba(145,194,183,0.28)`,
-            }}
-            whileTap={{ transform: "scale(0.97)" }}
+            whileHover={{ scale: 1.04, y: -2, boxShadow: `0 14px 40px rgba(145,194,183,0.28)` }}
+            whileTap={{ scale: 0.97 }}
             transition={SP}
-            className="flex items-center gap-3 pl-6 pr-2 py-2 rounded-full text-[13px] font-bold"
-            style={{
-              background: T.teal,
-              color: "#0a1012",
-              fontFamily: FONT_UI,
-              boxShadow: `0 6px 24px rgba(145,194,183,0.18)`,
-              letterSpacing: "0.01em",
-            }}
+            className="btn-primary flex items-center gap-3 pl-6 pr-2 py-2 rounded-full text-[13px] font-bold"
+            style={{ fontFamily: FONT_UI, letterSpacing: "0.01em", boxShadow: `0 6px 24px rgba(145,194,183,0.18)` }}
           >
             Watch demo
-            {/* inner icon circle */}
-            <span
-              className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(10,16,18,0.2)" }}
-            >
+            <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(10,16,18,0.2)" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 2 }}>
                 <path d="M5 3l14 9-14 9V3z"/>
               </svg>
@@ -851,17 +822,11 @@ export default function DemoPageV4() {
           {/* Secondary */}
           <motion.a
             href="/auth/login"
-            whileHover={{ transform: "scale(1.02) translateY(-1px)", borderColor: T.tealBorder }}
-            whileTap={{ transform: "scale(0.97)" }}
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.97 }}
             transition={SP}
-            className="flex items-center gap-2 px-6 py-[11px] rounded-full text-[13px] font-semibold"
-            style={{
-              background: "transparent",
-              color: T.text0,
-              border: `1px solid ${T.borderStrong}`,
-              fontFamily: FONT_UI,
-              letterSpacing: "0.01em",
-            }}
+            className="btn-secondary flex items-center gap-2 px-6 py-[11px] rounded-full text-[13px] font-semibold"
+            style={{ border: `1px solid ${T.borderStrong}`, fontFamily: FONT_UI, letterSpacing: "0.01em" }}
           >
             Open portal
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -946,12 +911,12 @@ export default function DemoPageV4() {
           </motion.div>
           <motion.h2
             variants={fadeUp}
-            className="font-clash font-bold mb-4"
             style={{
               fontFamily: FONT_DISPLAY,
-              fontWeight: 700,
-              fontSize: "clamp(28px, 4.5vw, 52px)",
-              letterSpacing: "-0.035em",
+              fontWeight: 600,
+              fontStyle: "italic",
+              fontSize: "clamp(28px, 4.5vw, 56px)",
+              letterSpacing: "-0.02em",
               color: T.text0,
               lineHeight: 1.08,
             }}
@@ -989,18 +954,18 @@ export default function DemoPageV4() {
           </motion.div>
           <motion.h2
             variants={fadeUp}
-            className="font-clash font-bold"
             style={{
               fontFamily: FONT_DISPLAY,
-              fontWeight: 700,
-              fontSize: "clamp(28px, 4.5vw, 52px)",
-              letterSpacing: "-0.035em",
+              fontWeight: 600,
+              fontSize: "clamp(28px, 4.5vw, 56px)",
+              letterSpacing: "-0.02em",
               color: T.text0,
-              lineHeight: 1.08,
+              lineHeight: 1.1,
             }}
           >
             Every module,<br />
             <span style={{
+              fontStyle: "italic",
               background: `linear-gradient(135deg, ${T.teal}, ${T.tealLight})`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
@@ -1031,12 +996,12 @@ export default function DemoPageV4() {
           </motion.div>
           <motion.h2
             variants={fadeUp}
-            className="font-clash font-bold"
             style={{
               fontFamily: FONT_DISPLAY,
-              fontWeight: 700,
-              fontSize: "clamp(28px, 4vw, 48px)",
-              letterSpacing: "-0.035em",
+              fontWeight: 600,
+              fontStyle: "italic",
+              fontSize: "clamp(28px, 4vw, 52px)",
+              letterSpacing: "-0.02em",
               color: T.text0,
               lineHeight: 1.08,
             }}
@@ -1114,18 +1079,20 @@ export default function DemoPageV4() {
           </motion.div>
           <motion.h2
             variants={fadeUp}
-            className="font-clash font-bold mb-5 max-w-2xl mx-auto"
+            className="mb-5 max-w-2xl mx-auto"
             style={{
               fontFamily: FONT_DISPLAY,
-              fontWeight: 700,
-              fontSize: "clamp(32px, 5vw, 68px)",
-              letterSpacing: "-0.04em",
-              lineHeight: 1.0,
+              fontWeight: 300,
+              fontSize: "clamp(32px, 5vw, 72px)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.05,
               color: T.text0,
             }}
           >
             One portal.{" "}
             <span style={{
+              fontWeight: 700,
+              fontStyle: "italic",
               background: `linear-gradient(135deg, ${T.teal}, ${T.tealLight})`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
@@ -1149,27 +1116,14 @@ export default function DemoPageV4() {
             {/* Primary — button-in-button */}
             <motion.a
               href="/auth/login"
-              whileHover={{
-                transform: "scale(1.04) translateY(-2px)",
-                boxShadow: `0 18px 52px rgba(145,194,183,0.3)`,
-              }}
-              whileTap={{ transform: "scale(0.97)" }}
+              whileHover={{ scale: 1.04, y: -2, boxShadow: `0 18px 52px rgba(145,194,183,0.3)` }}
+              whileTap={{ scale: 0.97 }}
               transition={SP}
-              className="flex items-center gap-3 pl-7 pr-2 py-2 rounded-full font-bold"
-              style={{
-                background: T.teal,
-                color: "#0a1012",
-                fontFamily: FONT_UI,
-                fontSize: 13,
-                letterSpacing: "0.01em",
-                boxShadow: `0 8px 28px rgba(145,194,183,0.2)`,
-              }}
+              className="btn-primary flex items-center gap-3 pl-7 pr-2 py-2 rounded-full font-bold"
+              style={{ fontFamily: FONT_UI, fontSize: 13, letterSpacing: "0.01em", boxShadow: `0 8px 28px rgba(145,194,183,0.2)` }}
             >
               Open portal
-              <span
-                className="w-9 h-9 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(10,16,18,0.2)" }}
-              >
+              <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(10,16,18,0.2)" }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
@@ -1180,18 +1134,11 @@ export default function DemoPageV4() {
             <motion.a
               href="/hse-hub-ad.mp4"
               download
-              whileHover={{ transform: "scale(1.02)", borderColor: T.tealBorder }}
-              whileTap={{ transform: "scale(0.97)" }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
               transition={SP}
-              className="flex items-center gap-2 px-7 py-[11px] rounded-full font-semibold"
-              style={{
-                background: "transparent",
-                color: T.text0,
-                border: `1px solid ${T.borderStrong}`,
-                fontFamily: FONT_UI,
-                fontSize: 13,
-                letterSpacing: "0.01em",
-              }}
+              className="btn-secondary flex items-center gap-2 px-7 py-[11px] rounded-full font-semibold"
+              style={{ border: `1px solid ${T.borderStrong}`, fontFamily: FONT_UI, fontSize: 13, letterSpacing: "0.01em" }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>

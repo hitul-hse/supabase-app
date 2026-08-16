@@ -431,9 +431,46 @@ export type Database = {
           },
         ]
       }
+      project_sections: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+          position: number
+          project_id: string
+          wip_limit: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          name: string
+          position?: number
+          project_id: string
+          wip_limit?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          name?: string
+          position?: number
+          project_id?: string
+          wip_limit?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_sections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_tasks: {
         Row: {
           created_by: string | null
+          section_id: number | null
+          due_on: string | null
           estimate_hours: number
           id: number
           logged_hours: number
@@ -447,6 +484,8 @@ export type Database = {
         }
         Insert: {
           created_by?: string | null
+          section_id?: number | null
+          due_on?: string | null
           estimate_hours: number
           id?: never
           logged_hours: number
@@ -460,6 +499,8 @@ export type Database = {
         }
         Update: {
           created_by?: string | null
+          section_id?: number | null
+          due_on?: string | null
           estimate_hours?: number
           id?: never
           logged_hours?: number

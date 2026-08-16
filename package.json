@@ -20,9 +20,10 @@
     "test:timer-rls": "node scripts/check-timer-rls.mjs",
     "test:project-budget-rls": "node scripts/check-project-budget-rls.mjs",
     "test:timesheet-withdraw-rls": "node scripts/check-timesheet-withdraw-rls.mjs",
+    "test:sections-rls": "node scripts/check-sections-rls.mjs",
     "test:duration": "node --experimental-strip-types scripts/check-duration-parsing.mjs",
     "test:backfill": "node scripts/check-backfill.mjs",
-    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:task-write-rls && npm run test:timesheet-write-rls && npm run test:org-chart-view && npm run test:task-comments-rls && npm run test:subtasks-rls && npm run test:leave-requests-rls && npm run test:billable-rates-rls && npm run test:timer-rls && npm run test:project-budget-rls && npm run test:timesheet-withdraw-rls && npm run test:duration && npm run test:backfill && npm run test:verify-query && npm run test:policy-control",
+    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:task-write-rls && npm run test:timesheet-write-rls && npm run test:org-chart-view && npm run test:task-comments-rls && npm run test:subtasks-rls && npm run test:leave-requests-rls && npm run test:billable-rates-rls && npm run test:timer-rls && npm run test:project-budget-rls && npm run test:timesheet-withdraw-rls && npm run test:duration && npm run test:sections-rls && npm run test:backfill && npm run test:verify-query && npm run test:policy-control",
     "test:verify-query": "node scripts/check-verify-policies-query.mjs",
     "test:traceability": "node scripts/traceability-run.mjs",
     "test:policy-control": "node scripts/check-policy-count-control.mjs"

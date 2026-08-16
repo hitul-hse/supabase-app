@@ -187,6 +187,7 @@ export default async function ProjectsPage() {
           <TasksSection
             projectId={prj.id}
             tasks={prj.project_tasks}
+            sections={prj.sections}
             commentsByTask={commentsByTask}
             currentUserId={user?.id ?? null}
           />

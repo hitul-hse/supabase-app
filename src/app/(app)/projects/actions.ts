@@ -126,3 +126,54 @@ export async function deleteComment(formData: FormData): Promise<void> {
 
   revalidatePath("/projects");
 }
+
+/**
+ * Moves a task into a section (a board column). RLS rejects a section that
+ * belongs to a different project, so a task can't be dropped into another
+ * client's column.
+ */
+export async function moveTaskToSection(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const taskId = Number(formData.get("task_id"));
+  const raw = formData.get("section_id");
+  const sectionId = raw === null || raw === "" ? null : Number(raw);
+
+  if (!Number.isFinite(taskId)) return;
+  if (sectionId !== null && !Number.isFinite(sectionId)) return;
+
+  await supabase
+    .from("project_tasks")
+    .update({ section_id: sectionId, updated_at: new Date().toISOString() })
+    .eq("id", taskId);
+
+  revalidatePath("/projects");
+}
+
+export type SectionState = { status: "idle" | "success" | "error"; message?: string };
+
+export async function createSection(
+  _prev: SectionState,
+  formData: FormData,
+): Promise<SectionState> {
+  const supabase = await createClient();
+  const projectId = String(formData.get("project_id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  if (!projectId || !name) return { status: "error", message: "Name the column first." };
+
+  const { data: last } = await supabase
+    .from("project_sections")
+    .select("position")
+    .eq("project_id", projectId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("project_sections")
+    .insert({ project_id: projectId, name, position: (last?.position ?? -1) + 1 });
+
+  if (error) return { status: "error", message: error.message };
+
+  revalidatePath("/projects");
+  return { status: "success" };
+}

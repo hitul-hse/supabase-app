@@ -11,6 +11,7 @@ export type TeamUtilisationRow = Database["public"]["Tables"]["team_utilisations
 export type ProjectRow = Database["public"]["Tables"]["projects"]["Row"];
 export type ProjectTimelineRow = Database["public"]["Tables"]["project_timeline"]["Row"];
 export type ProjectTaskRow = Database["public"]["Tables"]["project_tasks"]["Row"];
+export type ProjectSectionRow = Database["public"]["Tables"]["project_sections"]["Row"];
 export type PersonRow = Database["public"]["Tables"]["people"]["Row"];
 export type PersonAssignmentRow = Database["public"]["Tables"]["person_assignments"]["Row"];
 export type PersonQualificationRow = Database["public"]["Tables"]["person_qualifications"]["Row"];
@@ -22,6 +23,8 @@ export type TaskWithSubtasks = ProjectTaskRow & { subtasks: ProjectTaskRow[] };
 export type ProjectDetail = ProjectRow & {
   project_timeline: ProjectTimelineRow[];
   project_tasks: TaskWithSubtasks[];
+  /** Board columns / list headers -- the same objects, per Asana's model. */
+  sections: ProjectSectionRow[];
 };
 
 export type PersonProfile = PersonRow & {

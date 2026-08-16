@@ -156,14 +156,16 @@ export async function getProjectDetail(
 ): Promise<ProjectDetail | null> {
   const { data } = await supabase
     .from("projects")
-    .select("*, project_timeline(*), project_tasks(*)")
+    .select("*, project_timeline(*), project_tasks(*), project_sections(*)")
     .eq("id", id)
     .order("sort_order", { referencedTable: "project_timeline" })
     .order("sort_order", { referencedTable: "project_tasks" })
+    .order("position", { referencedTable: "project_sections" })
     .single();
 
   if (!data) return null;
-  return { ...data, project_tasks: nestTasks(data.project_tasks) };
+  const { project_sections, ...rest } = data;
+  return { ...rest, sections: project_sections, project_tasks: nestTasks(data.project_tasks) };
 }
 
 /**

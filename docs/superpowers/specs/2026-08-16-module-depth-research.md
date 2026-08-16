@@ -167,8 +167,36 @@ a tool bug, but the merged shape is the better design regardless.
 Work schedules driving expected hours, Soll/Ist balance, break rules, absence
 types beyond holiday (sick leave etc.), German public holidays per Bundesland.
 
-### Wave 5 — Project management depth
-Task detail slide-over, dependencies, custom fields, saved views, milestones.
+### Wave 5 — Project management depth (in progress)
+
+**Shipped: sections as the board model.** Columns were four hard-coded
+statuses, so every project had the same workflow and nobody could rename a
+stage. `project_sections` replaces that, following Asana's model where a
+section and a board column are literally the same object. Adding a column is
+now a per-project act: intake → site visit → report drafted → client review.
+
+Decisions worth recording:
+- **WIP limits are advisory.** Refusing the fourth card would stop real work
+  to satisfy a number, so the header badge turns amber at the limit and red
+  over it while the move still succeeds. Asana has no WIP limits at all.
+- **Deleting a column does not delete its work.** `on delete set null`, and
+  the orphaned tasks resurface in an UNFILED column rather than vanishing.
+- **A task's section must belong to the task's own project**, enforced in the
+  same way as the subtask rule and via the same kind of security-definer
+  helper. Without it a task could be filed into another client's column.
+- **Due dates** finally exist on tasks (`due_on`). Asana models date-only and
+  date-with-time separately; only the date is carried here, because consulting
+  deadlines are days rather than appointments.
+- **Multi-homing is deliberately not built.** Asana attaches tasks to projects
+  through a `memberships[] = {project, section}` join, which buys sections
+  *and* a task living in several projects at once. Sections are the part with
+  value here; multi-homing would mean rewriting every task query, policy and
+  the subtask rules for a case a consultancy rarely has (a task belongs to one
+  client engagement). The migration stays additive if that changes.
+
+**Still to build:** task detail slide-over (the deferred `SlideOver`), the
+`Tab`-leader keyboard layer, list view grouped by section, saved views,
+dependencies, custom fields, stories-as-audit-log.
 
 ## Not yet researched
 

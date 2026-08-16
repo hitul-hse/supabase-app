@@ -270,9 +270,56 @@ create table if not exists project_timeline (
 
 alter table project_timeline enable row level security;
 
+/*
+ * Sections. In Asana a section and a board column are the *same object* --
+ * "a header above a list of tasks in a list view or a column in a board view"
+ * -- and flipping the view reinterprets the same rows. Copying that is the
+ * point of this table: the board previously had four hard-coded status
+ * columns, which cannot express a per-project workflow (intake -> site visit
+ * -> report drafted -> client review), and a status enum can't be renamed by
+ * the people doing the work.
+ *
+ * wip_limit is deliberately advisory. Refusing the fourth card would stop
+ * real work to satisfy a number; the UI warns instead. Asana has no WIP
+ * limits at all, so this is a small place we can simply be better.
+ */
+create table if not exists project_sections (
+  id bigint generated always as identity primary key,
+  project_id text not null references projects(id) on delete cascade,
+  name text not null,
+  position int not null default 0,
+  wip_limit int check (wip_limit is null or wip_limit > 0),
+  created_at timestamptz not null default now()
+);
+
+alter table project_sections enable row level security;
+
+create index if not exists project_sections_project_idx
+  on project_sections (project_id, position);
+
+-- security definer for the same reason task_project_id() is: a policy on
+-- project_tasks that reads project_sections directly would recurse into that
+-- table's own RLS.
+create or replace function section_project_id(target_section_id bigint)
+returns text
+language sql stable security definer set search_path = public
+as $$
+  select project_id from project_sections where id = target_section_id;
+$$;
+
+revoke execute on function section_project_id(bigint) from public, anon;
+grant execute on function section_project_id(bigint) to authenticated;
+
 create table if not exists project_tasks (
   id bigint generated always as identity primary key,
   project_id text not null references projects(id) on delete cascade,
+  -- on delete set null: removing a column must not destroy the work sitting
+  -- in it. The tasks resurface unfiled rather than disappearing.
+  section_id bigint references project_sections(id) on delete set null,
+  -- Asana models date-only and date-with-time as separate fields. Only the
+  -- date is needed here -- consulting deadlines are days, not appointments --
+  -- so due_at is deliberately not carried.
+  due_on date,
   name text not null,
   estimate_hours numeric not null,
   logged_hours numeric not null,
@@ -708,6 +755,22 @@ create policy "role-scoped read on project_timeline"
 create policy "role-scoped read on project_tasks"
   on project_tasks for select to authenticated using (can_view_project(project_id));
 
+-- Sections are scoped exactly like the project they belong to: if you can see
+-- the project you can see and shape its columns.
+create policy "role-scoped read on project_sections"
+  on project_sections for select to authenticated using (can_view_project(project_id));
+
+create policy "role-scoped insert on project_sections"
+  on project_sections for insert to authenticated with check (can_view_project(project_id));
+
+create policy "role-scoped update on project_sections"
+  on project_sections for update to authenticated
+  using (can_view_project(project_id))
+  with check (can_view_project(project_id));
+
+create policy "role-scoped delete on project_sections"
+  on project_sections for delete to authenticated using (can_view_project(project_id));
+
 -- Write access to project_tasks (Phase 2: Task &amp; Project Management).
 -- Scoped identically to who can already VIEW the project -- exec always,
 -- dept_head within their department, the project's owner, or anyone
@@ -728,6 +791,10 @@ create policy "role-scoped insert on project_tasks"
   with check (
     can_view_project(project_id)
     and (parent_task_id is null or project_id = task_project_id(parent_task_id))
+    -- Same class of rule as the parent check above: a task filed into a
+    -- section belonging to another project would appear in that project's
+    -- board column.
+    and (section_id is null or project_id = section_project_id(section_id))
   );
 
 create policy "role-scoped update on project_tasks"
@@ -736,6 +803,10 @@ create policy "role-scoped update on project_tasks"
   with check (
     can_view_project(project_id)
     and (parent_task_id is null or project_id = task_project_id(parent_task_id))
+    -- Same class of rule as the parent check above: a task filed into a
+    -- section belonging to another project would appear in that project's
+    -- board column.
+    and (section_id is null or project_id = section_project_id(section_id))
   );
 
 create policy "role-scoped delete on project_tasks"

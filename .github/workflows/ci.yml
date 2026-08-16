@@ -140,6 +140,9 @@ jobs:
       - name: Run duration parsing tests
         run: npm run test:duration
 
+      - name: Run project sections tests
+        run: npm run test:sections-rls
+
       - name: Run policy count control
         run: npm run test:policy-control
 

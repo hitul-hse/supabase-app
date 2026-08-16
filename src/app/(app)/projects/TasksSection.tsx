@@ -4,16 +4,18 @@ import { useState } from "react";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskListView } from "./TaskListView";
 import { TaskBoardView } from "./TaskBoardView";
-import type { TaskComment, TaskWithSubtasks } from "@/lib/queries/types";
+import type { TaskComment, TaskWithSubtasks, ProjectSectionRow } from "@/lib/queries/types";
 
 export function TasksSection({
   projectId,
   tasks,
+  sections,
   commentsByTask,
   currentUserId,
 }: {
   projectId: string;
   tasks: TaskWithSubtasks[];
+  sections: ProjectSectionRow[];
   commentsByTask: Record<number, TaskComment[]>;
   currentUserId: string | null;
 }) {
@@ -63,7 +65,7 @@ export function TasksSection({
           currentUserId={currentUserId}
         />
       ) : (
-        <TaskBoardView tasks={tasks} />
+        <TaskBoardView projectId={projectId} tasks={tasks} sections={sections} />
       )}
     </div>
   );

@@ -55,3 +55,6 @@ next-env.d.ts
 
 # transient e2e scratch dir
 scripts/_e2e_tmp/
+
+# Playwright verification output
+test-results/

@@ -118,13 +118,31 @@ every hour that followed. Persistent bar across all app pages. Elapsed duration
 computed server-side from the stored `started_at`, so a wrong client clock
 cannot inflate logged hours.
 
-### Wave 2 — Budgets and margin
-- Project hours budget and fee budget, with percentage alert thresholds.
-- Cost rate alongside the existing bill rate; derived margin per project.
-- Rate resolution beyond a single person-level rate.
+### Wave 2 — Budgets and margin ✅ shipped
+Hours and fee budgets per project with a percentage alert threshold, a cost
+rate per person, and a `project_budget_status` view deriving burn and margin.
 
-Rationale: directly answers "are we going to overrun this contract" and "did
-this project make money" — the two questions the current tool cannot answer.
+Three asymmetries in that view are load-bearing:
+- Only **approved** hours count. Draft and submitted time is still being
+  argued about; billing off it would be guessing.
+- **Revenue** counts only *billable* hours, at the project rate if one is set,
+  otherwise the person's own rate.
+- **Cost** counts *every* approved hour, billable or not, because people are
+  paid for internal time too. A project can invoice well and still lose money;
+  revenue alone hides that.
+
+Rate resolution was trimmed to two levels (project, then person). The source
+tools model five; project-member and per-task rates each cost a table and an
+editor and buy very little at this company's size. Recorded here as a
+deliberate trim rather than an oversight.
+
+**Prerequisite fixed along the way**: `timesheet_entries` linked to projects by
+*name only*. The schema already documented that exact pattern as a bug fixed
+for `person_assignments` ("ambiguous across same-named projects and breaks
+silently on rename"). Budget figures built on a name join would have inherited
+it, so `project_id` was added and backfilled — and only where a name maps to
+exactly one project. Ambiguous names were left null rather than guessed at,
+since attributing hours to the wrong client's budget is worse than to none.
 
 ### Wave 3 — Timesheet depth
 Copy-last-week, flexible duration parsing, row totals against a weekly target,

@@ -271,6 +271,7 @@ export type Database = {
       people: {
         Row: {
           billable_rate_eur: number | null
+          cost_rate_eur: number | null
           billable_share: number
           capacity_status: string
           certificate_status: string | null
@@ -293,6 +294,7 @@ export type Database = {
         }
         Insert: {
           billable_rate_eur?: number | null
+          cost_rate_eur?: number | null
           billable_share: number
           capacity_status: string
           certificate_status?: string | null
@@ -315,6 +317,7 @@ export type Database = {
         }
         Update: {
           billable_rate_eur?: number | null
+          cost_rate_eur?: number | null
           billable_share?: number
           capacity_status?: string
           certificate_status?: string | null
@@ -532,6 +535,10 @@ export type Database = {
           contract_hours: number
           contract_type: string | null
           contract_value_eur: number | null
+          budget_hours: number | null
+          budget_fee_eur: number | null
+          budget_alert_percent: number
+          billable_rate_eur: number | null
           customer: string
           department: string | null
           due: string
@@ -554,6 +561,10 @@ export type Database = {
           contract_hours: number
           contract_type?: string | null
           contract_value_eur?: number | null
+          budget_hours?: number | null
+          budget_fee_eur?: number | null
+          budget_alert_percent?: number
+          billable_rate_eur?: number | null
           customer: string
           department?: string | null
           due: string
@@ -576,6 +587,10 @@ export type Database = {
           contract_hours?: number
           contract_type?: string | null
           contract_value_eur?: number | null
+          budget_hours?: number | null
+          budget_fee_eur?: number | null
+          budget_alert_percent?: number
+          billable_rate_eur?: number | null
           customer?: string
           department?: string | null
           due?: string
@@ -684,6 +699,7 @@ export type Database = {
         Row: {
           customer: string | null
           day_of_week: number
+          project_id: string | null
           started_at: string | null
           stopped_at: string | null
           entry_group: number
@@ -701,6 +717,7 @@ export type Database = {
         Insert: {
           customer?: string | null
           day_of_week: number
+          project_id?: string | null
           started_at?: string | null
           stopped_at?: string | null
           entry_group: number
@@ -718,6 +735,7 @@ export type Database = {
         Update: {
           customer?: string | null
           day_of_week?: number
+          project_id?: string | null
           started_at?: string | null
           stopped_at?: string | null
           entry_group?: number
@@ -935,6 +953,24 @@ export type Database = {
         Row: {
           display_name: string | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      project_budget_status: {
+        Row: {
+          billable_hours_logged: number | null
+          budget_alert_percent: number | null
+          budget_fee_eur: number | null
+          budget_hours: number | null
+          cost_eur: number | null
+          hours_consumed_percent: number | null
+          hours_logged: number | null
+          is_over_budget: boolean | null
+          is_past_alert_threshold: boolean | null
+          margin_eur: number | null
+          name: string | null
+          project_id: string | null
+          revenue_eur: number | null
         }
         Relationships: []
       }

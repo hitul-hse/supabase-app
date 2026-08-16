@@ -192,7 +192,13 @@ create table if not exists people (
   -- a person's real billed value from approved timesheet hours, via
   -- billable_value_by_person below. Nullable like the other not-yet-synced
   -- HR columns above.
-  billable_rate_eur numeric
+  billable_rate_eur numeric,
+  -- What an hour of this person's time costs us, as opposed to what we charge
+  -- for it. Kept separate from billable_rate_eur because the two behave
+  -- differently: revenue counts only billable hours, cost counts every hour
+  -- worked. Without both, the system can report what a project invoiced but
+  -- never whether it made money.
+  cost_rate_eur numeric
 );
 
 alter table people enable row level security;
@@ -231,7 +237,23 @@ create table if not exists projects (
   invoiced_eur numeric,
   change_requests text,
   owner_person_id text references people(id) on delete set null,
-  department text
+  department text,
+  -- Budgets (TrackingTime/Clockify-equivalent). budget_hours is the effort
+  -- ceiling, budget_fee_eur the money ceiling; either can stand alone. Both
+  -- nullable, because a project with no agreed ceiling must report "no
+  -- budget" rather than a fake 0 that would read as instantly overrun.
+  budget_hours numeric,
+  budget_fee_eur numeric,
+  -- Warn at this share of the budget, so an overrun is visible while there is
+  -- still time to act rather than only once it has already happened.
+  budget_alert_percent int not null default 80
+    check (budget_alert_percent between 1 and 100),
+  -- Project-level bill rate. Overrides the person's own rate for work on this
+  -- project, which is how "this client is billed at a different rate" is
+  -- expressed. Deliberately only two levels (project, then person): the
+  -- source tools model five, but project-member and per-task rates buy very
+  -- little at this company's size and cost a table and an editor each.
+  billable_rate_eur numeric
 );
 
 alter table projects enable row level security;
@@ -322,6 +344,14 @@ create table if not exists timesheet_entries (
   entry_group int not null,
   task_name text not null,
   project_name text not null,
+  -- The real link to projects. project_name above is display-only and is kept
+  -- for existing rows: matching timesheet hours to projects by name is
+  -- ambiguous across same-named projects and breaks silently on rename --
+  -- exactly the bug already fixed for person_assignments. Budget and margin
+  -- figures join on this column, never on the name, so hours logged against
+  -- one client's "Bridge" can't be counted against another's.
+  -- Nullable because rows predating this column have only a name.
+  project_id text references projects(id) on delete set null,
   customer text,
   is_billable boolean not null,
   warning text,
@@ -599,6 +629,16 @@ create policy "owner can cancel their own pending leave request"
 create policy "role-scoped read on projects"
   on projects for select to authenticated using (can_view_project(id));
 
+-- Budgets and bill rates are commercial terms, so writes are exec-only --
+-- narrower than the can_view_project() trust a dept_head gets for tasks.
+-- Postgres RLS can't restrict which columns an UPDATE touches, so as with
+-- every other whole-row-trust policy in this file this trusts exec for the
+-- whole projects row, not only the budget columns.
+create policy "exec can set project budgets and rates"
+  on projects for update to authenticated
+  using (app_user_role() = 'exec')
+  with check (app_user_role() = 'exec');
+
 create policy "role-scoped read on project_timeline"
   on project_timeline for select to authenticated using (can_view_project(project_id));
 
@@ -851,6 +891,67 @@ create or replace view billable_value_by_person
   group by p.id, p.billable_rate_eur;
 
 grant select on billable_value_by_person to authenticated;
+
+-- Project budget burn and margin (TrackingTime/Clockify-equivalent).
+--
+-- Three asymmetries here are deliberate and load-bearing:
+--   * Only *approved* hours count. Draft and submitted time is still being
+--     argued about; billing a client off it would be guessing.
+--   * Revenue counts only *billable* hours, at the project rate if one is
+--     set, otherwise the person's own rate.
+--   * Cost counts *every* approved hour, billable or not, because people are
+--     paid for internal time too. That asymmetry is the whole point: a
+--     project can invoice well and still lose money.
+--
+-- Joined on te.project_id, never on project_name -- see the column comment on
+-- timesheet_entries for why the name is not safe to match on.
+--
+-- security_invoker=true: budgets and margins are commercial data and must
+-- stay behind can_view_project(), the opposite of org_chart_nodes.
+create or replace view project_budget_status
+  with (security_invoker = true) as
+  select
+    p.id as project_id,
+    p.name,
+    p.budget_hours,
+    p.budget_fee_eur,
+    p.budget_alert_percent,
+    coalesce(sum(te.hours) filter (where te.status = 'approved'), 0) as hours_logged,
+    coalesce(sum(te.hours) filter (where te.status = 'approved' and te.is_billable), 0)
+      as billable_hours_logged,
+    coalesce(
+      sum(te.hours * coalesce(p.billable_rate_eur, pe.billable_rate_eur, 0))
+        filter (where te.status = 'approved' and te.is_billable),
+      0) as revenue_eur,
+    coalesce(
+      sum(te.hours * coalesce(pe.cost_rate_eur, 0)) filter (where te.status = 'approved'),
+      0) as cost_eur,
+    coalesce(
+      sum(te.hours * coalesce(p.billable_rate_eur, pe.billable_rate_eur, 0))
+        filter (where te.status = 'approved' and te.is_billable),
+      0)
+    - coalesce(
+      sum(te.hours * coalesce(pe.cost_rate_eur, 0)) filter (where te.status = 'approved'),
+      0) as margin_eur,
+    -- nullif keeps a project with no budget (or a zero budget) reporting NULL
+    -- rather than dividing by zero or claiming an instant overrun.
+    round(
+      coalesce(sum(te.hours) filter (where te.status = 'approved'), 0)
+      * 100.0 / nullif(p.budget_hours, 0), 2) as hours_consumed_percent,
+    coalesce(
+      coalesce(sum(te.hours) filter (where te.status = 'approved'), 0)
+        > nullif(p.budget_hours, 0), false) as is_over_budget,
+    coalesce(
+      coalesce(sum(te.hours) filter (where te.status = 'approved'), 0)
+        * 100.0 / nullif(p.budget_hours, 0) >= p.budget_alert_percent, false)
+      as is_past_alert_threshold
+  from projects p
+  left join timesheet_entries te on te.project_id = p.id
+  left join people pe on pe.id = te.person_id
+  group by p.id, p.name, p.budget_hours, p.budget_fee_eur, p.budget_alert_percent,
+           p.billable_rate_eur;
+
+grant select on project_budget_status to authenticated;
 
 -- Derived reporting views. security_invoker so the caller's RLS on the
 -- underlying tables still applies rather than the view owner's.

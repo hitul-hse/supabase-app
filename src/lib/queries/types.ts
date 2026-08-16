@@ -114,6 +114,9 @@ export type LeaveRequestWithPerson = LeaveRequestRow & { personName: string };
 
 export type BillableValueRow = Database["public"]["Views"]["billable_value_by_person"]["Row"];
 
+export type ProjectBudgetStatusRow =
+  Database["public"]["Views"]["project_budget_status"]["Row"];
+
 /** A timer currently running for the signed-in person, if any. */
 export type RunningTimer = {
   id: number;

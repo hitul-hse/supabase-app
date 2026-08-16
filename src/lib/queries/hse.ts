@@ -19,6 +19,7 @@ import type {
   LeaveRequestWithPerson,
   BillableValueRow,
   RunningTimer,
+  ProjectBudgetStatusRow,
   BillableTrend,
   WeeklyBillableTrendRow,
 } from "./types";
@@ -333,6 +334,23 @@ export async function getRunningTimer(
     isBillable: data.is_billable,
     startedAt: data.started_at,
   };
+}
+
+/**
+ * Budget burn and margin for one project. Null when the caller can't see the
+ * project -- the view is security_invoker, so RLS does the filtering.
+ */
+export async function getProjectBudgetStatus(
+  supabase: SupabaseTyped,
+  projectId: string,
+): Promise<ProjectBudgetStatusRow | null> {
+  const { data } = await supabase
+    .from("project_budget_status")
+    .select("*")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  return data ?? null;
 }
 
 /** Full people directory with each person's assignments and qualifications, for the People page. */

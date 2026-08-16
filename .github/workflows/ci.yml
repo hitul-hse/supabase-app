@@ -131,6 +131,9 @@ jobs:
       - name: Run live timer tests
         run: npm run test:timer-rls
 
+      - name: Run project budget and margin tests
+        run: npm run test:project-budget-rls
+
       - name: Run policy count control
         run: npm run test:policy-control
 

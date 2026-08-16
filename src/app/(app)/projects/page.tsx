@@ -1,9 +1,10 @@
 import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { getProjectDetail, getTaskComments } from "@/lib/queries/hse";
+import { getProjectDetail, getTaskComments, getProjectBudgetStatus } from "@/lib/queries/hse";
 import { requireUser } from "@/utils/supabase/require-user";
 import { TasksSection } from "./TasksSection";
+import { BudgetPanel } from "./BudgetPanel";
 
 export default async function ProjectsPage() {
   await requireUser("/projects");
@@ -21,6 +22,8 @@ export default async function ProjectsPage() {
       </div>
     );
   }
+
+  const budgetStatus = await getProjectBudgetStatus(supabase, prj.id);
 
   const commentsByTask = Object.fromEntries(
     await getTaskComments(
@@ -95,6 +98,8 @@ export default async function ProjectsPage() {
             </div>
           </div>
         </div>
+
+        <BudgetPanel status={budgetStatus} />
 
         {/* Hours Burndown Chart */}
         <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-5">

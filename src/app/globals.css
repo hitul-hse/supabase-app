@@ -43,13 +43,29 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-roboto);
-  --font-mono: var(--font-roboto-mono);
+  --font-sans: var(--font-poppins);
+  --font-mono: var(--font-jetbrains);
 }
 
 body {
   background: var(--page);
   color: var(--text-primary);
+}
+
+/*
+ * This app is almost entirely tables of hours, rates and counts. Proportional
+ * digits make columns jitter as values change, so lock every numeric surface
+ * to tabular figures. Mono spans already get it from JetBrains Mono; this
+ * covers the sans-set numbers (KPI tiles, inline totals) too.
+ */
+body {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keyboard focus must stay visible everywhere -- accessibility, not optional. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .viz-root {

@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/Sidebar";
 import { MobileSidebarDrawer } from "@/components/MobileSidebar";
 import OnboardingTour from "@/components/OnboardingTour";
+import { TimerBarSlot } from "./TimerBarSlot";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,7 +17,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </MobileSidebarDrawer>
 
       {/* Main content — on mobile add top padding for the fixed top bar */}
-      <main className="min-w-0 flex-1 overflow-x-hidden pt-12 lg:pt-0">
+      <main className="flex min-w-0 flex-1 flex-col overflow-x-hidden pt-12 lg:pt-0">
+        <TimerBarSlot />
         {children}
       </main>
 

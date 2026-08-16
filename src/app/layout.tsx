@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
-import { Roboto, Roboto_Mono, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const roboto = Roboto({
-  variable: "--font-roboto",
+// App-shell UI font. Poppins is the real brand face used on hs-experts.com
+// (see DESIGN.md) -- the app shell had drifted to Roboto, which matched
+// neither the brand nor the marketing pages.
+const poppins = Poppins({
+  variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
-});
-
-const robotoMono = Roboto_Mono({
-  variable: "--font-roboto-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
 });
 
 // Demo page display serif — editorial, cinematic
@@ -53,7 +51,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${roboto.variable} ${robotoMono.variable} ${cormorant.variable} ${plusJakarta.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${poppins.variable} ${cormorant.variable} ${plusJakarta.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
         {children}

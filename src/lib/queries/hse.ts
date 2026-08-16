@@ -18,6 +18,7 @@ import type {
   LeaveBalanceRow,
   LeaveRequestWithPerson,
   BillableValueRow,
+  RunningTimer,
   BillableTrend,
   WeeklyBillableTrendRow,
 } from "./types";
@@ -303,6 +304,35 @@ export async function getBillableValues(supabase: SupabaseTyped): Promise<Record
     if (b.person_id) byPerson[b.person_id] = b;
   }
   return byPerson;
+}
+
+/**
+ * The signed-in person's running timer, if one exists. A running timer is a
+ * timesheet_entries row with started_at set and stopped_at still null -- the
+ * database guarantees at most one per person, so maybeSingle() is safe here
+ * rather than defensively taking the first of many.
+ */
+export async function getRunningTimer(
+  supabase: SupabaseTyped,
+  personId: string,
+): Promise<RunningTimer | null> {
+  const { data } = await supabase
+    .from("timesheet_entries")
+    .select("id, task_name, project_name, is_billable, started_at")
+    .eq("person_id", personId)
+    .not("started_at", "is", null)
+    .is("stopped_at", null)
+    .maybeSingle();
+
+  if (!data?.started_at) return null;
+
+  return {
+    id: data.id,
+    taskName: data.task_name,
+    projectName: data.project_name,
+    isBillable: data.is_billable,
+    startedAt: data.started_at,
+  };
 }
 
 /** Full people directory with each person's assignments and qualifications, for the People page. */

@@ -113,3 +113,13 @@ export type LeaveBalanceRow = Database["public"]["Views"]["leave_balances"]["Row
 export type LeaveRequestWithPerson = LeaveRequestRow & { personName: string };
 
 export type BillableValueRow = Database["public"]["Views"]["billable_value_by_person"]["Row"];
+
+/** A timer currently running for the signed-in person, if any. */
+export type RunningTimer = {
+  id: number;
+  taskName: string;
+  projectName: string;
+  isBillable: boolean;
+  /** ISO timestamp; the client ticks the elapsed display from this. */
+  startedAt: string;
+};

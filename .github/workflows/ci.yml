@@ -128,6 +128,9 @@ jobs:
       - name: Run billable rates RLS tests
         run: npm run test:billable-rates-rls
 
+      - name: Run live timer tests
+        run: npm run test:timer-rls
+
       - name: Run policy count control
         run: npm run test:policy-control
 

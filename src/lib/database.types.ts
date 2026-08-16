@@ -684,6 +684,8 @@ export type Database = {
         Row: {
           customer: string | null
           day_of_week: number
+          started_at: string | null
+          stopped_at: string | null
           entry_group: number
           hours: number
           id: number
@@ -699,6 +701,8 @@ export type Database = {
         Insert: {
           customer?: string | null
           day_of_week: number
+          started_at?: string | null
+          stopped_at?: string | null
           entry_group: number
           hours: number
           id?: never
@@ -714,6 +718,8 @@ export type Database = {
         Update: {
           customer?: string | null
           day_of_week?: number
+          started_at?: string | null
+          stopped_at?: string | null
           entry_group?: number
           hours?: number
           id?: never

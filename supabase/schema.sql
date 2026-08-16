@@ -336,10 +336,32 @@ create table if not exists timesheet_entries (
   -- of client-only UI state.
   week_start date not null default date_trunc('week', now())::date,
   status text not null default 'draft',
-  submitted_at timestamptz
+  submitted_at timestamptz,
+  -- Live timer (TrackingTime/Toggl-equivalent). started_at set with
+  -- stopped_at still null *is* the running timer -- there's no separate
+  -- timer table, so a running entry is already a real timesheet row and
+  -- stopping it is an ordinary update rather than a copy between tables.
+  -- Both stay null for manually-typed grid entries.
+  --
+  -- Recording real start/end timestamps (not just a daily hours total) is
+  -- also what German working-time recording expects: BAG 1 ABR 22/21 and
+  -- § 16 Abs. 2 ArbZG are framed around Beginn, Ende und Dauer.
+  started_at timestamptz,
+  stopped_at timestamptz,
+  -- A stopped timer can't end before it began.
+  constraint timesheet_entries_timer_order check (stopped_at is null or started_at is null or stopped_at >= started_at)
 );
 
 alter table timesheet_entries enable row level security;
+
+-- One running timer per person, enforced by the database rather than by app
+-- code: a double-clicked start button would otherwise open two concurrent
+-- timers and silently double-count every hour that followed. Partial, so it
+-- constrains only running timers -- manual grid entries have started_at null
+-- and are unaffected.
+create unique index if not exists timesheet_entries_one_running_timer
+  on timesheet_entries (person_id)
+  where started_at is not null and stopped_at is null;
 
 -- Leave / PTO requests (FactorialHR-equivalent). people.holiday_left is a
 -- static seeded number with no real ledger behind it; this table is that

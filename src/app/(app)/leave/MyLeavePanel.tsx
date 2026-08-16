@@ -3,12 +3,8 @@
 import { useActionState } from "react";
 import { requestLeave, cancelLeaveRequest } from "./actions";
 import type { LeaveRequestRow, LeaveBalanceRow } from "@/lib/queries/types";
-
-const STATUS_CLASS: Record<string, string> = {
-  pending: "bg-[#3a414c] text-[var(--text-muted)]",
-  approved: "bg-[#2a474b] text-[#b4d6ce]",
-  rejected: "bg-[#4a251d] text-[#f0a08c]",
-};
+import { StatusBadge } from "@/components/StatusBadge";
+import { EmptyState } from "@/components/EmptyState";
 
 export function MyLeavePanel({
   balance,
@@ -83,7 +79,10 @@ export function MyLeavePanel({
       <div className="flex flex-col gap-2">
         <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">My requests</span>
         {requests.length === 0 && (
-          <p className="text-[11.5px] text-[var(--text-faint)]">No leave requests yet.</p>
+          <EmptyState
+            title="No leave requests yet"
+            description="Requests you submit appear here with their approval status, and your balance updates once a request is approved."
+          />
         )}
         {requests.map((r) => (
           <div
@@ -100,13 +99,7 @@ export function MyLeavePanel({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span
-                className={`px-2 py-0.5 font-mono text-[10px] font-medium uppercase ${
-                  STATUS_CLASS[r.status] ?? STATUS_CLASS.pending
-                }`}
-              >
-                {r.status}
-              </span>
+              <StatusBadge status={r.status} />
               {r.status === "pending" && (
                 <form action={cancelLeaveRequest}>
                   <input type="hidden" name="request_id" value={r.id} />

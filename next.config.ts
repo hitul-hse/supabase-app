@@ -36,14 +36,15 @@ const nextConfig: NextConfig = {
         : "http://localhost:3000",
   },
 
-  // /showcase redirects to /demo (the working public showcase URL).
+  // Public showcase redirects.
   async redirects() {
     return [
-      { source: "/showcase", destination: "/demo", permanent: false },
+      { source: "/showcase",     destination: "/video", permanent: false },
+      { source: "/product-tour", destination: "/video", permanent: false },
     ];
   },
 
-  // Serve .webm files with the correct MIME type so browsers play them inline.
+  // Correct MIME types and cache headers for media assets.
   async headers() {
     return [
       {
@@ -51,6 +52,14 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Content-Type", value: "video/webm" },
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/:path*.mp4",
+        headers: [
+          { key: "Content-Type", value: "video/mp4" },
+          { key: "Accept-Ranges", value: "bytes" },
+          { key: "Cache-Control", value: "public, max-age=86400" },
         ],
       },
       {

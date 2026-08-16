@@ -14,6 +14,7 @@ const PUBLIC_ROUTES = new Set([
   "/demo",
   "/showcase",
   "/product-tour",
+  "/video",
 ]);
 
 // Public path prefixes — any route starting with these is also public

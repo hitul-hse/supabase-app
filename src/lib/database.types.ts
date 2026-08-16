@@ -270,6 +270,7 @@ export type Database = {
       }
       people: {
         Row: {
+          billable_rate_eur: number | null
           billable_share: number
           capacity_status: string
           certificate_status: string | null
@@ -291,6 +292,7 @@ export type Database = {
           total_monthly_hours: number
         }
         Insert: {
+          billable_rate_eur?: number | null
           billable_share: number
           capacity_status: string
           certificate_status?: string | null
@@ -312,6 +314,7 @@ export type Database = {
           total_monthly_hours: number
         }
         Update: {
+          billable_rate_eur?: number | null
           billable_share?: number
           capacity_status?: string
           certificate_status?: string | null
@@ -935,6 +938,15 @@ export type Database = {
           holiday_left: number | null
           person_id: string | null
           total_holiday: number | null
+        }
+        Relationships: []
+      }
+      billable_value_by_person: {
+        Row: {
+          billable_hours_logged: number | null
+          billable_rate_eur: number | null
+          billable_value_eur: number | null
+          person_id: string | null
         }
         Relationships: []
       }

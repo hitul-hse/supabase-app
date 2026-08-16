@@ -187,7 +187,12 @@ create table if not exists people (
   certificate_text text,
   -- Org chart (FactorialHR-equivalent feature). Nullable/self-referential:
   -- most people report to someone, the top of each branch reports to no one.
-  manager_id text references people(id)
+  manager_id text references people(id),
+  -- Billable rate (TrackingTime-equivalent feature): €/hour used to derive
+  -- a person's real billed value from approved timesheet hours, via
+  -- billable_value_by_person below. Nullable like the other not-yet-synced
+  -- HR columns above.
+  billable_rate_eur numeric
 );
 
 alter table people enable row level security;
@@ -495,6 +500,17 @@ create policy "authenticated can read app_role"
 create policy "role-scoped read on people"
   on people for select to authenticated using (can_view_person(id));
 
+-- Only exec can set a person's billable rate -- pay-rate-adjacent data,
+-- narrower than the general can_view_person() write trust dept_head gets
+-- elsewhere. Postgres RLS can't restrict which columns an UPDATE touches,
+-- so like every other whole-row-trust policy in this file (e.g. the lead
+-- approval policies on timesheet_entries/leave_requests), this trusts exec
+-- for the whole row, not just billable_rate_eur.
+create policy "exec can set billable rates"
+  on people for update to authenticated
+  using (app_user_role() = 'exec')
+  with check (app_user_role() = 'exec');
+
 create policy "role-scoped read on person_assignments"
   on person_assignments for select to authenticated using (can_view_person(person_id));
 
@@ -794,6 +810,25 @@ create or replace view leave_balances
   group by p.id, p.total_holiday;
 
 grant select on leave_balances to authenticated;
+
+-- Real billed value per person (TrackingTime-equivalent): approved,
+-- billable timesheet hours times their billable_rate_eur, instead of a
+-- static figure. security_invoker=true (sensitive HR + timesheet data, must
+-- respect can_view_person() scoping on both tables, the opposite need from
+-- org_chart_nodes/user_display_names).
+create or replace view billable_value_by_person
+  with (security_invoker = true) as
+  select
+    p.id as person_id,
+    p.billable_rate_eur,
+    coalesce(sum(te.hours) filter (where te.is_billable and te.status = 'approved'), 0) as billable_hours_logged,
+    p.billable_rate_eur
+      * coalesce(sum(te.hours) filter (where te.is_billable and te.status = 'approved'), 0) as billable_value_eur
+  from people p
+  left join timesheet_entries te on te.person_id = p.id
+  group by p.id, p.billable_rate_eur;
+
+grant select on billable_value_by_person to authenticated;
 
 -- Derived reporting views. security_invoker so the caller's RLS on the
 -- underlying tables still applies rather than the view owner's.

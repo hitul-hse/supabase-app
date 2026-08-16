@@ -1,22 +1,19 @@
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { requireUser } from "@/utils/supabase/require-user";
-import { getPeopleDirectory, getOrgChart, getLeaveOverview } from "@/lib/queries/hse";
+import { requireProfile } from "@/utils/supabase/require-profile";
+import { getPeopleDirectory, getOrgChart, getLeaveBalances, getBillableValues } from "@/lib/queries/hse";
 import { PeopleSection } from "./PeopleSection";
 import PageTransition from "@/components/animations/PageTransition";
 
 export default async function PeoplePage() {
-  await requireUser("/people");
+  const profile = await requireProfile("/people");
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const [people, orgChartNodes, leaveOverview, { data: profile }] = await Promise.all([
+  const [people, orgChartNodes, leaveBalances, billableValues] = await Promise.all([
     getPeopleDirectory(supabase),
     getOrgChart(supabase),
-    getLeaveOverview(supabase),
-    supabase.from("app_user_profile").select("person_id").eq("user_id", user?.id ?? "").maybeSingle(),
+    getLeaveBalances(supabase),
+    getBillableValues(supabase),
   ]);
 
   return (
@@ -26,9 +23,9 @@ export default async function PeoplePage() {
         <PeopleSection
           people={people}
           orgChartNodes={orgChartNodes}
-          leaveBalances={leaveOverview.balances}
-          leaveRequestsByPerson={leaveOverview.requestsByPerson}
-          currentPersonId={profile?.person_id ?? null}
+          leaveBalances={leaveBalances}
+          billableValues={billableValues}
+          viewerRole={profile.roleKey}
         />
       </div>
     </PageTransition>

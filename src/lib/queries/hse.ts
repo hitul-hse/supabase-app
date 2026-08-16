@@ -17,6 +17,7 @@ import type {
   LeaveRequestRow,
   LeaveBalanceRow,
   LeaveRequestWithPerson,
+  BillableValueRow,
   BillableTrend,
   WeeklyBillableTrendRow,
 } from "./types";
@@ -229,33 +230,44 @@ export async function getOrgChart(supabase: SupabaseTyped): Promise<OrgChartNode
 }
 
 /**
- * Real, derived holiday balances and leave history for every person the
- * caller can see (RLS: can_view_person), keyed by person_id. The People page
- * selects a person entirely client-side, so this fetches everything visible
- * up front rather than the selected person's data. Balances come from the
+ * Real, derived holiday balances for every person the caller can see (RLS:
+ * can_view_person), keyed by person_id. The People page selects a person
+ * entirely client-side, so this fetches every visible balance up front for
+ * the KPI tile rather than the selected person's alone. Comes from the
  * leave_balances view rather than the static people.holiday_left column --
  * see supabase/schema.sql for why that column can't be trusted.
  */
-export async function getLeaveOverview(supabase: SupabaseTyped): Promise<{
-  balances: Record<string, LeaveBalanceRow>;
-  requestsByPerson: Record<string, LeaveRequestRow[]>;
-}> {
-  const [{ data: balances }, { data: requests }] = await Promise.all([
-    supabase.from("leave_balances").select("*"),
-    supabase.from("leave_requests").select("*").order("requested_at", { ascending: false }),
-  ]);
+export async function getLeaveBalances(supabase: SupabaseTyped): Promise<Record<string, LeaveBalanceRow>> {
+  const { data } = await supabase.from("leave_balances").select("*");
 
   const balanceByPerson: Record<string, LeaveBalanceRow> = {};
-  for (const b of balances ?? []) {
+  for (const b of data ?? []) {
     if (b.person_id) balanceByPerson[b.person_id] = b;
   }
+  return balanceByPerson;
+}
 
-  const requestsByPerson: Record<string, LeaveRequestRow[]> = {};
-  for (const r of requests ?? []) {
-    (requestsByPerson[r.person_id] ??= []).push(r);
-  }
+/** One person's derived holiday balance, for the dedicated Leave page's "my balance" view. */
+export async function getLeaveBalance(
+  supabase: SupabaseTyped,
+  personId: string,
+): Promise<LeaveBalanceRow | null> {
+  const { data } = await supabase.from("leave_balances").select("*").eq("person_id", personId).maybeSingle();
+  return data ?? null;
+}
 
-  return { balances: balanceByPerson, requestsByPerson };
+/** One person's leave request history (pending, approved, rejected), most recent first. */
+export async function getLeaveRequests(
+  supabase: SupabaseTyped,
+  personId: string,
+): Promise<LeaveRequestRow[]> {
+  const { data } = await supabase
+    .from("leave_requests")
+    .select("*")
+    .eq("person_id", personId)
+    .order("requested_at", { ascending: false });
+
+  return data ?? [];
 }
 
 /**
@@ -276,6 +288,21 @@ export async function getPendingLeaveApprovals(
     ...row,
     personName: people?.name ?? row.person_id,
   }));
+}
+
+/**
+ * Real billed value per person the caller can see (RLS: can_view_person),
+ * keyed by person_id (TrackingTime-equivalent). Rate x approved billable
+ * hours, from billable_value_by_person rather than a static figure.
+ */
+export async function getBillableValues(supabase: SupabaseTyped): Promise<Record<string, BillableValueRow>> {
+  const { data } = await supabase.from("billable_value_by_person").select("*");
+
+  const byPerson: Record<string, BillableValueRow> = {};
+  for (const b of data ?? []) {
+    if (b.person_id) byPerson[b.person_id] = b;
+  }
+  return byPerson;
 }
 
 /** Full people directory with each person's assignments and qualifications, for the People page. */

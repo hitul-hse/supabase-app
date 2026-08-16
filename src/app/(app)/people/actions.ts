@@ -3,65 +3,34 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 
-export type RequestLeaveState = { status: "idle" | "success" | "error"; message?: string };
+export type SetBillableRateResult = { ok: boolean; message?: string };
 
-export async function requestLeave(
-  _prevState: RequestLeaveState,
-  formData: FormData,
-): Promise<RequestLeaveState> {
+/**
+ * RLS ("exec can set billable rates") is what actually enforces that only
+ * exec can do this -- the count check just turns a silent 0-row RLS denial
+ * into a readable error instead of a false "success".
+ */
+export async function setBillableRate(formData: FormData): Promise<SetBillableRateResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const personId = String(formData.get("person_id") || "");
+  const rate = Number(formData.get("billable_rate_eur"));
 
-  if (!user) {
-    return { status: "error", message: "Not authenticated." };
+  if (!personId || !Number.isFinite(rate) || rate < 0) {
+    return { ok: false, message: "Enter a valid, non-negative rate." };
   }
 
-  // The caller's own person_id, not whatever the form claims -- RLS ("owner
-  // can request their own leave") would reject a mismatch anyway, but this
-  // gives a readable error instead of a bare permission-denied.
-  const { data: profile } = await supabase
-    .from("app_user_profile")
-    .select("person_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!profile?.person_id) {
-    return { status: "error", message: "No person record is linked to your account." };
-  }
-
-  const startDate = String(formData.get("start_date") || "");
-  const endDate = String(formData.get("end_date") || "");
-  const days = Number(formData.get("days") || 0);
-  const reason = String(formData.get("reason") || "").trim();
-
-  if (!startDate || !endDate || !Number.isFinite(days) || days <= 0) {
-    return { status: "error", message: "Start date, end date, and a positive number of days are required." };
-  }
-
-  const { error } = await supabase.from("leave_requests").insert({
-    person_id: profile.person_id,
-    start_date: startDate,
-    end_date: endDate,
-    days,
-    reason: reason || null,
-  });
+  const { error, count } = await supabase
+    .from("people")
+    .update({ billable_rate_eur: rate }, { count: "exact" })
+    .eq("id", personId);
 
   if (error) {
-    return { status: "error", message: error.message };
+    return { ok: false, message: error.message };
+  }
+  if (!count) {
+    return { ok: false, message: "You don't have permission to set billable rates." };
   }
 
   revalidatePath("/people");
-  return { status: "success", message: "Leave request submitted." };
-}
-
-export async function cancelLeaveRequest(formData: FormData): Promise<void> {
-  const supabase = await createClient();
-  const requestId = Number(formData.get("request_id"));
-  if (!Number.isFinite(requestId)) return;
-
-  await supabase.from("leave_requests").delete().eq("id", requestId);
-
-  revalidatePath("/people");
+  return { ok: true };
 }

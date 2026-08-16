@@ -111,3 +111,5 @@ export type LeaveRequestRow = Database["public"]["Tables"]["leave_requests"]["Ro
 export type LeaveBalanceRow = Database["public"]["Views"]["leave_balances"]["Row"];
 
 export type LeaveRequestWithPerson = LeaveRequestRow & { personName: string };
+
+export type BillableValueRow = Database["public"]["Views"]["billable_value_by_person"]["Row"];

@@ -31,9 +31,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "RECORDS",
     items: [
-      { href: "/people",     label: "People",     tourId: "tour-people"     },
-      { href: "/projects",   label: "Projects",   tourId: "tour-projects"   },
-      { href: "/timesheets", label: "Timesheets", tourId: "tour-timesheets" },
+      { href: "/people",     label: "People",          tourId: "tour-people"     },
+      { href: "/projects",   label: "Projects",        tourId: "tour-projects"   },
+      { href: "/timesheets", label: "Timesheets",      tourId: "tour-timesheets" },
+      { href: "/leave",      label: "Leave & Time Off", tourId: "tour-leave"     },
     ],
   },
   {

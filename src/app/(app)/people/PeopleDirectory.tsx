@@ -1,20 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
-import type { PersonProfile, LeaveBalanceRow, LeaveRequestRow } from "@/lib/queries/types";
-import { LeaveRequestsPanel } from "./LeaveRequestsPanel";
+import type { PersonProfile, LeaveBalanceRow, BillableValueRow } from "@/lib/queries/types";
+import { BillableRatePanel } from "./BillableRatePanel";
 
 export function PeopleDirectory({
   people,
   leaveBalances,
-  leaveRequestsByPerson,
-  currentPersonId,
+  billableValues,
+  viewerRole,
 }: {
   people: PersonProfile[];
   leaveBalances: Record<string, LeaveBalanceRow>;
-  leaveRequestsByPerson: Record<string, LeaveRequestRow[]>;
-  currentPersonId: string | null;
+  billableValues: Record<string, BillableValueRow>;
+  viewerRole: string | null;
 }) {
   const [selectedPerson, setSelectedPerson] = useState<PersonProfile>(people[0]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -218,6 +219,12 @@ export function PeopleDirectory({
             </div>
           </div>
 
+          <BillableRatePanel
+            personId={selectedPerson.id}
+            value={billableValues[selectedPerson.id]}
+            canEdit={viewerRole === "exec"}
+          />
+
           {/* Assignments & Qualifications Grid */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
             {/* Assignments (7 cols) */}
@@ -310,11 +317,16 @@ export function PeopleDirectory({
             </div>
           </div>
 
-          <div className="mt-5">
-            <LeaveRequestsPanel
-              requests={leaveRequestsByPerson[selectedPerson.id] ?? []}
-              canRequest={selectedPerson.id === currentPersonId}
-            />
+          <div className="mt-5 flex items-center justify-between border border-[var(--border)] bg-[var(--surface)] p-4">
+            <span className="text-[12.5px] text-[var(--text-secondary)]">
+              Request or review leave for {selectedPerson.name} in the dedicated Leave &amp; Time Off module.
+            </span>
+            <Link
+              href="/leave"
+              className="whitespace-nowrap bg-[var(--accent)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
+            >
+              Go to Leave &amp; Time Off →
+            </Link>
           </div>
         </div>
       </div>

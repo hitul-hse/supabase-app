@@ -1,21 +1,21 @@
 {
   "threadId": "vscode-chat-session://local/MjQ1YTVhYjctN2E3ZS00ZjNhLWEzYWEtMTcyMTY5ZDJiOWYw",
-  "updatedAt": 1786874049607,
+  "updatedAt": 1786874528482,
   "todos": [
     {
       "id": "upgrade-next",
-      "content": "Upgrade Next.js 16.3.0 → latest stable, fix any breaking changes",
-      "status": "in_progress"
+      "content": "Upgrade Next.js 16.3.0 → 16.3.1",
+      "status": "completed"
     },
     {
       "id": "video-page",
       "content": "Build cinematic /demo page: Goldsmith theme, full-screen video hero, Framer Motion animations",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "build-verify",
       "content": "Build clean, push to GitHub, verify Vercel deploy + live page",
-      "status": "pending"
+      "status": "in_progress"
     }
   ]
 }

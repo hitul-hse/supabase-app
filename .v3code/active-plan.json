@@ -1,30 +1,35 @@
 {
   "threadId": "vscode-chat-session://local/MjQ1YTVhYjctN2E3ZS00ZjNhLWEzYWEtMTcyMTY5ZDJiOWYw",
-  "updatedAt": 1786875247913,
+  "updatedAt": 1786876368544,
   "todos": [
     {
-      "id": "skill1",
-      "content": "Install emilkowalski/skills (10 animation skills)",
-      "status": "completed"
-    },
-    {
-      "id": "skill2",
-      "content": "Install impeccable skill",
-      "status": "completed"
-    },
-    {
-      "id": "init",
-      "content": "Create PRODUCT.md and DESIGN.md via /impeccable init",
-      "status": "completed"
-    },
-    {
-      "id": "demo",
-      "content": "Build awesome /demo webpage with video, using new skills",
+      "id": "fonts",
+      "content": "Upgrade typography: Clash Display for hero headline, Poppins stays for UI",
       "status": "in_progress"
     },
     {
-      "id": "push",
-      "content": "Build, push, verify live",
+      "id": "nav",
+      "content": "Float the nav as a pill island detached from top edge",
+      "status": "pending"
+    },
+    {
+      "id": "bezel",
+      "content": "Double-bezel all major cards and video player",
+      "status": "pending"
+    },
+    {
+      "id": "buttons",
+      "content": "Button-in-button trailing icon on all CTAs",
+      "status": "pending"
+    },
+    {
+      "id": "bento",
+      "content": "Asymmetric bento grid for features section",
+      "status": "pending"
+    },
+    {
+      "id": "build",
+      "content": "Build, verify, commit, push",
       "status": "pending"
     }
   ]

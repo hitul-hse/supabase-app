@@ -136,11 +136,13 @@ function VideoPlayer() {
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
+  // Just drive the element; onPlay/onPause/onEnded below are the single
+  // source of truth for `playing` (they also fire for e.g. spacebar or the
+  // browser's own media-key controls, not only this button).
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); setPlaying(true); }
-    else          { v.pause(); setPlaying(false); }
+    if (v.paused) v.play(); else v.pause();
   }, []);
 
   const handleTimeUpdate = useCallback(() => {
@@ -162,8 +164,6 @@ function VideoPlayer() {
     clearTimeout(hideTimeout.current);
     if (playing) hideTimeout.current = setTimeout(() => setShowControls(false), 3000);
   }, [playing]);
-
-  useEffect(() => { if (!playing) setShowControls(true); }, [playing]);
 
   const toggleFullscreen = useCallback(() => {
     const el = videoRef.current?.parentElement;
@@ -200,8 +200,8 @@ function VideoPlayer() {
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={(e) => { setDuration((e.target as HTMLVideoElement).duration); setLoaded(true); }}
         onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setProgress(0); }}
+        onPause={() => { setPlaying(false); setShowControls(true); }}
+        onEnded={() => { setPlaying(false); setProgress(0); setShowControls(true); }}
         onClick={togglePlay}
       />
 

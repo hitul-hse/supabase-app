@@ -63,6 +63,15 @@ type Props<T> = {
   emptyText?: string;
   /** Rows per page before paging kicks in. */
   defaultPageSize?: PageSize;
+  /**
+   * Render collapsed until opened. The panel still states its row count and a
+   * one-line summary while shut, so collapsing hides the rows, never the fact
+   * that they exist.
+   */
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  /** One line shown in the collapsed header, e.g. "305h across 60 projects". */
+  summary?: string;
 };
 
 const PAGE_SIZES = [25, 50, 100, "all"] as const;
@@ -106,12 +115,16 @@ export function DataTable<T>({
   footnote,
   emptyText = "Nothing to show.",
   defaultPageSize = 25,
+  collapsible = false,
+  defaultOpen = true,
+  summary,
 }: Props<T>) {
   const [sortKey, setSortKey] = useState<string | null>(initialSort ?? null);
   const [desc, setDesc] = useState(initialDesc);
   const [query, setQuery] = useState("");
   const [pageSize, setPageSize] = useState<PageSize>(defaultPageSize);
   const [page, setPage] = useState(0);
+  const [open, setOpen] = useState(defaultOpen);
   const searchId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -207,20 +220,55 @@ export function DataTable<T>({
   return (
     <section className="border border-[var(--border)] bg-[var(--surface)]">
       <header className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
-            {title}
-          </h2>
-          <span className="text-[10.5px] leading-tight text-[var(--text-faint)]">
-            {showing}
-            {query.trim() && rows.length !== total
-              ? ` · filtered from ${rows.length.toLocaleString("en-GB")}`
-              : ""}
-            {hint ? ` · ${hint}` : ""}
-          </span>
-        </div>
+        {(() => {
+          const heading = (
+            <>
+              <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
+                {collapsible && (
+                  <span
+                    aria-hidden
+                    className={`mr-1.5 inline-block text-[8px] text-[var(--text-faint)] transition-transform ${
+                      open ? "rotate-90" : ""
+                    }`}
+                  >
+                    ▶
+                  </span>
+                )}
+                {title}
+              </h2>
+              <span className="text-[10.5px] leading-tight text-[var(--text-faint)]">
+                {/* The row count is stated whether open or shut. A collapsed
+                    panel must never look like an absent one. */}
+                {open ? showing : (summary ?? showing)}
+                {open && query.trim() && rows.length !== total
+                  ? ` · filtered from ${rows.length.toLocaleString("en-GB")}`
+                  : ""}
+                {/* The hint is appended only while OPEN. A collapsed `summary`
+                    is written to stand alone and usually restates the same
+                    fact, which rendered as "20 over budget · 20 over budget". */}
+                {open && hint ? ` · ${hint}` : ""}
+              </span>
+            </>
+          );
 
-        <div className="flex flex-none flex-wrap items-center gap-1.5">
+          return collapsible ? (
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              className="flex min-w-0 flex-col gap-0.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            >
+              {heading}
+            </button>
+          ) : (
+            <div className="flex min-w-0 flex-col gap-0.5">{heading}</div>
+          );
+        })()}
+
+        {/* Controls belong to the rows, so they go away with them. Leaving a
+            search box and a pager above a collapsed table is a row of controls
+            with nothing to control. */}
+        <div className={`flex flex-none flex-wrap items-center gap-1.5 ${open ? "" : "hidden"}`}>
           {searchable.length > 0 && (
             <div className="relative">
               <label className="sr-only" htmlFor={searchId}>
@@ -287,7 +335,7 @@ export function DataTable<T>({
         </div>
       </header>
 
-      {rows.length === 0 ? (
+      {!open ? null : rows.length === 0 ? (
         <p className="px-4 py-6 text-center text-[11.5px] text-[var(--text-faint)]">{emptyText}</p>
       ) : total === 0 ? (
         <p className="px-4 py-6 text-center text-[11.5px] text-[var(--text-faint)]">

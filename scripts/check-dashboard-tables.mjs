@@ -424,6 +424,25 @@ try {
   const rowCount = async (title) => panel(title).locator("tbody tr").count();
 
   /**
+   * Open a collapsed panel.
+   *
+   * Budget burn, economics and the entry list ship collapsed: four full tables
+   * stacked made the page ~6,500px tall, so the breakdown you came for scrolled
+   * away and nothing below it was ever seen. Their headline facts stay in the
+   * collapsed summary, which is asserted separately below -- collapsing must
+   * hide the rows, never the fact that rows exist.
+   */
+  const expand = async (title) => {
+    const header = panel(title).locator("button[aria-expanded]").first();
+    for (let i = 0; i < 12; i++) {
+      if ((await header.getAttribute("aria-expanded")) === "true") return true;
+      await header.click();
+      await page.waitForTimeout(120);
+    }
+    return (await header.getAttribute("aria-expanded")) === "true";
+  };
+
+  /**
    * Row count after a client-side interaction, polled.
    *
    * Reading the count immediately after a click races React's re-render: an
@@ -667,6 +686,28 @@ try {
   );
 
   // ── 6. Budget burn and the entry table are equally complete ─────────────
+  // Both ship collapsed. First: a collapsed panel must still say how much is in
+  // it. If it did not, hiding rows to shorten the page would be indistinguishable
+  // from having no rows -- which is the same class of dishonesty as the "top 40
+  // of 334" hint this whole change removed.
+  const collapsedBudget = (await panel("BUDGET BURN").innerText()).replace(/\s+/g, " ");
+  check(
+    "a collapsed panel still states its row count and headline",
+    /with an estimate/.test(collapsedBudget) && /over budget/.test(collapsedBudget),
+    `collapsed summary was: ${collapsedBudget.slice(0, 160)}`,
+  );
+  check(
+    "the collapsed summary does not repeat itself",
+    (collapsedBudget.match(/over budget/g) ?? []).length === 1,
+    `"over budget" appears ${(collapsedBudget.match(/over budget/g) ?? []).length} times — the standalone summary and the open-state hint were both being rendered`,
+  );
+  check(
+    "a collapsed panel renders no rows, so it genuinely shortens the page",
+    (await rowCount("BUDGET BURN")) === 0,
+    "the rows are still in the DOM, so collapsing saved nothing",
+  );
+  check("budget burn expands on click", await expand("BUDGET BURN"));
+
   const budgetText = (await panel("BUDGET BURN").innerText()).replace(/\s+/g, " ");
   check(
     "budget burn counts every project WITH an estimate",
@@ -679,6 +720,7 @@ try {
     "the rule must stay stated on the panel, since an omission is invisible",
   );
 
+  check("the entry list expands on click", await expand("TIME ENTRIES"));
   const entriesText = (await panel("TIME ENTRIES").innerText()).replace(/\s+/g, " ");
   check(
     "the entry table exposes all 60 entries, not 25",
@@ -728,6 +770,7 @@ try {
     econCalls.length > 0,
     "the money panel never queried",
   );
+  check("the economics table expands on click", await expand("PROJECT ECONOMICS"));
   const econBody = (await panel("PROJECT ECONOMICS").innerText()).replace(/\s+/g, " ");
   check(
     "the economics panel no longer disclaims that it ignores the filter",
@@ -746,6 +789,40 @@ try {
     consoleErrors.length === 0,
     consoleErrors.slice(0, 2).join(" | "),
   );
+
+  // ── 11. The default page is a usable length ──────────────────────────────
+  // Uncapping every table without collapsing the secondary ones traded one
+  // problem for another: four full tables stacked measured ~6,500px, so the
+  // breakdown scrolled away and nothing under it was ever seen. Measured on a
+  // 1000px viewport, so the threshold is "about four screens", not an arbitrary
+  // pixel count. This is the one assertion here that a human eye would catch
+  // faster than a test, which is exactly why it is written down.
+  await goto("preset=this_month&group=project&bucket=day");
+  const height = await page.evaluate(() => document.body.scrollHeight);
+  check(
+    "the default page is at most about four screens tall",
+    height < 4200,
+    `${height}px — the secondary tables should ship collapsed; every row is still one click away`,
+  );
+
+  // ── Screenshots, for judging the layout rather than the numbers ──────────
+  // Opt-in: SHOTS=1. Assertions cannot see crowding, a misaligned column, or a
+  // control that has become invisible against its background, and this page is
+  // dense enough that those are real risks. Written to a gitignored directory.
+  if (process.env.SHOTS === "1") {
+    fs.mkdirSync("tmp-shots", { recursive: true });
+    await goto("preset=this_month&group=project&bucket=day");
+    await page.screenshot({ path: "tmp-shots/dashboard-full.png", fullPage: true });
+    await page.setViewportSize({ width: 420, height: 900 });
+    await page.screenshot({ path: "tmp-shots/dashboard-mobile.png", fullPage: true });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    // The filter popover open, since it is the one piece of UI a full-page shot
+    // never captures.
+    await page.getByRole("button", { name: /PROJECT/ }).first().click();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: "tmp-shots/dashboard-picker.png" });
+    console.log("(screenshots in tmp-shots/)");
+  }
 } finally {
   await browser.close();
   cleanup();

@@ -233,6 +233,11 @@ export function BreakdownTable({
       exportName={`trackingtime-by-${dimension}-${period}`}
       searchPlaceholder={`Find ${dimension}…`}
       emptyText={`No ${dimension} has logged time in this selection.`}
+      // Collapsible for consistency with the panels below, but OPEN: this is
+      // the answer to the question the group-by control just asked, so hiding
+      // it would leave the page with no visible result at all.
+      collapsible
+      summary={`${rows.length} ${rows.length === 1 ? dimension : `${dimension}s`} with logged time`}
     />
   );
 }
@@ -342,6 +347,16 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
       searchPlaceholder="Find project…"
       footnote="Projects without an estimate are omitted, not shown at 0% — no estimate means nobody set a budget."
       emptyText="No project in this selection has an hours estimate set."
+      // Collapsed by default. Four full tables stacked made the page ~6,500px
+      // tall, which is its own kind of unusable: the breakdown you came for
+      // scrolls away and nothing below it is ever seen. The breakdown stays
+      // open because it answers the question the group-by control just asked;
+      // this one is a follow-up, and its headline (how many are over budget)
+      // is in the collapsed summary, so opening it is a choice rather than a
+      // hunt.
+      collapsible
+      defaultOpen={false}
+      summary={`${rows.length} ${rows.length === 1 ? "project" : "projects"} with an estimate · ${over} over budget`}
     />
   );
 }
@@ -501,6 +516,12 @@ export function EconomicsTable({
         exportName={`trackingtime-economics-${period}`}
         searchPlaceholder="Find project…"
         emptyText="No project in this period has both logged time and a rate on file."
+        // The three money tiles above stay visible while this is shut, so the
+        // figure an executive opens the page for is never behind a click; the
+        // per-project detail is.
+        collapsible
+        defaultOpen={false}
+        summary={`${rows.length} ${rows.length === 1 ? "project" : "projects"} · revenue, cost and margin per project`}
       />
     </div>
   );
@@ -636,6 +657,12 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
       exportName={`trackingtime-entries-${period}`}
       searchPlaceholder="Find entry…"
       emptyText="No entry in this selection."
+      // The raw rows are for checking a total that looks wrong, which is a
+      // deliberate act. Open by default they were simply a very long tail on
+      // every page view.
+      collapsible
+      defaultOpen={false}
+      summary={`${rows.length.toLocaleString("en-GB")} ${rows.length === 1 ? "entry" : "entries"} · the rows every figure above is derived from`}
     />
   );
 }

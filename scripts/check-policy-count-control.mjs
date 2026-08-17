@@ -42,8 +42,12 @@ const preamble = `
 const db = await new PGlite();
 await db.exec(preamble);
 await db.exec(broken);
+// Must match the scoping in check-schema-executes.mjs. Both count every schema
+// the file declares policies in: narrowing either one to 'public' under-counts
+// as soon as a module schema (raw, and later time/projects/hr) is added.
 const { rows } = await db.query(
-  `select policyname from pg_policies where schemaname = 'public'`,
+  `select policyname from pg_policies
+    where schemaname not in ('pg_catalog', 'information_schema')`,
 );
 await db.close();
 

@@ -188,27 +188,82 @@ const CONNECTORS = {
    * events/flat is the bulk read their own Power BI integration uses, which
    * makes it the most likely production sync surface — worth inventorying even
    * though it is the widest payload here.
+   *
+   * Three traps in this vendor's API, all verified against developers.trackingtime.co
+   * and all of which silently produce wrong results rather than failing loudly:
+   *
+   *  1. EVERY response is wrapped in { response: { status }, data }, and an
+   *     ERROR IS REPORTED AS HTTP 200 with response.status = 500. So res.ok is
+   *     not a success check here — the envelope must be read. Miss this and a
+   *     failed call inventories as "0 records" instead of raising.
+   *  2. Multi-workspace accounts need /:account_id/ in the path. Without it the
+   *     default workspace is used silently, so a discovery run can inventory the
+   *     WRONG COMPANY's data and look perfectly healthy doing it.
+   *  3. A User-Agent identifying the app is required by their docs.
    */
   trackingtime: {
     label: "TrackingTime",
     envKey: "TRACKINGTIME_AUTH",
     help:
       "Set TRACKINGTIME_AUTH to base64('email:APP_PASSWORD').\n" +
-      "   Generate an App Password in TrackingTime — the normal login password will not work.",
+      "   Generate an App Password in TrackingTime — the normal login password will not work.\n" +
+      "   Optionally set TRACKINGTIME_ACCOUNT_ID if the login belongs to several workspaces.",
     async run(auth) {
       const base = "https://api.trackingtime.co/api/v4";
-      const headers = { Authorization: `Basic ${auth}`, Accept: "application/json" };
+      const headers = {
+        Authorization: `Basic ${auth}`,
+        Accept: "application/json",
+        // Required by their docs: identify the app and give them a contact.
+        "User-Agent": "HSE Hub Discovery (info@hs-experts.com)",
+      };
       const out = [];
 
-      // These vendors vary in whether the payload is bare or wrapped in
-      // { data: [...] }, so normalise rather than assuming either.
-      const unwrap = (r) => (Array.isArray(r) ? r : (r?.data ?? (r ? [r] : [])));
+      /**
+       * Unwrap TrackingTime's envelope, treating an in-body error as an error.
+       * This is the single most important function in this connector — see
+       * trap 1 above.
+       */
+      const unwrap = (body) => {
+        const status = body?.response?.status;
+        if (status !== undefined && Number(status) >= 400) {
+          throw new Error(
+            `API error ${status}: ${body?.response?.message ?? "no message"}`,
+          );
+        }
+        const data = body?.data ?? body;
+        return Array.isArray(data) ? data : data ? [data] : [];
+      };
+
+      // Resolve the workspace explicitly rather than letting the API pick one.
+      // /me is the documented way to discover the account id.
+      let accountId = ENV.TRACKINGTIME_ACCOUNT_ID ?? null;
+      if (!accountId) {
+        try {
+          const me = await get(`${base}/me`, headers);
+          const rec = unwrap(me)[0];
+          accountId =
+            rec?.account_id ?? rec?.account?.id ?? rec?.default_account_id ?? null;
+          out.push({ entity: "me", endpoint: "/me", records: rec ? [rec] : [] });
+          console.log(
+            accountId
+              ? `   workspace: account ${accountId}`
+              : "   workspace: could not resolve an account id — using API default",
+          );
+        } catch (err) {
+          console.log(`   me: unavailable (${err.message.slice(0, 90)})`);
+        }
+        await sleep(PAGE_PAUSE_MS);
+      }
+
+      // Scope every subsequent path to the resolved workspace.
+      const scope = accountId ? `/${accountId}` : "";
 
       const simple = async (path, entity) => {
+        const full = `${scope}${path}`;
         try {
-          const body = await get(`${base}${path}`, headers);
+          const body = await get(`${base}${full}`, headers);
           const records = unwrap(body).slice(0, SAMPLE_LIMIT);
-          out.push({ entity, endpoint: path, records });
+          out.push({ entity, endpoint: full, records });
           console.log(`   ${entity}: ${records.length} records`);
         } catch (err) {
           // A 404 here is information — it tells us the endpoint isn't on this
@@ -222,7 +277,13 @@ const CONNECTORS = {
       await simple("/customers", "customers");
       await simple("/projects", "projects");
       await simple("/tasks", "tasks");
-      await simple("/services", "services");
+      await simple("/custom_fields", "custom-fields");
+
+      // Attendance/leave endpoints. Present here as well as in Factorial, so
+      // worth inventorying to see which system is authoritative for absences.
+      await simple("/timeoffs", "timeoffs");
+      await simple("/timeoffs/policies?status=ACTIVE", "timeoff-policies");
+      await simple("/holidays", "holidays");
 
       // A 60-day window: long enough to see real variety, short enough to stay
       // a sample. Also the endpoint where Google Calendar events should appear

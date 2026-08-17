@@ -84,8 +84,16 @@ const expectedFns = [
 ];
 const missingFns = expectedFns.filter((f) => !gotFns.includes(f));
 
+// Every schema the file declares policies in, not just public. Scoping this to
+// 'public' under-counted the moment the first module schema (raw) arrived: its
+// policy was declared in the file but never found, so the gate went red for a
+// bookkeeping reason rather than a real one. Left narrow, each future module
+// schema (time, projects, hr) would silently stop being counted -- which is the
+// worse failure, because it is quiet.
 const { rows: policies } = await db.query(
-  `select tablename, policyname, cmd, qual, with_check from pg_policies where schemaname = 'public'`,
+  `select schemaname, tablename, policyname, cmd, qual, with_check
+     from pg_policies
+    where schemaname not in ('pg_catalog', 'information_schema')`,
 );
 
 const { rows: seeded } = await db.query(`select role_key from app_role order by seniority desc`);

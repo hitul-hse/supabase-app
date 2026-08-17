@@ -1441,3 +1441,118 @@ create or replace view weekly_billable_trend
   group by s.period_start, s.period_end;
 
 grant select on person_week_metrics, weekly_billable_trend to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 7. raw — the connector landing zone
+-- ---------------------------------------------------------------------------
+-- First piece of the platform architecture (docs/architecture/PLATFORM-ARCHITECTURE.md
+-- §1, §5). Deliberately the ONLY module schema created before discovery has run,
+-- because it is the only one that cannot be wrong: it stores the vendor payload
+-- verbatim as jsonb and makes no assumption about its shape. The typed `time`,
+-- `projects` and `hr` schemas are written FROM the field inventories, not before
+-- them -- that ordering is the whole point of the three-stage process.
+--
+-- Why land raw at all rather than transform on the way in:
+--
+--   * A transform bug is recoverable. If the parse was wrong we re-read from
+--     `raw` instead of re-pulling from a vendor that rate-limits us and may no
+--     longer hold the old value.
+--   * It is the audit trail. "What did TrackingTime actually say on 3 March"
+--     is answerable, which matters when a colleague disputes their hours.
+--   * Vendors add and remove fields without warning. Verbatim capture means a
+--     new field is already recorded by the time we notice it exists.
+--
+-- Append-only by construction: no update or delete policy is granted to anyone,
+-- and writes arrive via the service role, which bypasses RLS entirely.
+
+create schema if not exists raw;
+
+-- Nobody reaches this schema through the API. Connectors use the service role
+-- (which bypasses RLS and schema grants), and analysts read the typed layers.
+revoke all on schema raw from anon, authenticated;
+
+create table if not exists raw.vendor_record (
+  id bigint generated always as identity primary key,
+
+  -- Which system, which endpoint, which logical entity. `source` is
+  -- deliberately free text rather than an enum: adding a vendor should not
+  -- require a migration to the enum type first.
+  source      text  not null check (source in ('trackingtime', 'asana', 'factorial', 'samdock')),
+  entity      text  not null,
+  endpoint    text  not null,
+
+  -- The vendor's own id for this record, as text regardless of whether they
+  -- issue integers or uuids. Never used as a join key across systems -- that is
+  -- what platform.person and the identity maps are for. It exists so a re-sync
+  -- can recognise the same record.
+  source_id   text  not null,
+
+  -- The workspace/account the record came from. TrackingTime and Asana both
+  -- support a login belonging to several workspaces, and a payload is
+  -- meaningless without knowing which one produced it.
+  account_ref text,
+
+  payload     jsonb not null,
+
+  -- When we fetched it, not when the vendor changed it. Vendor timestamps live
+  -- inside payload and are read during transform, where their timezone
+  -- semantics can be dealt with explicitly.
+  fetched_at  timestamptz not null default now(),
+
+  -- A content hash of the payload. Lets a re-sync skip unchanged records
+  -- without a deep compare, and makes "did this actually change" answerable.
+  payload_hash text not null,
+
+  -- Idempotency: re-running a sync must update-in-place rather than duplicate.
+  -- Scoped by account_ref so the same id in two workspaces stays distinct.
+  unique (source, entity, source_id, account_ref)
+);
+
+-- The two access patterns: "everything from this sync" and "history of this
+-- one record".
+create index if not exists vendor_record_source_entity_idx
+  on raw.vendor_record (source, entity, fetched_at desc);
+
+create index if not exists vendor_record_payload_idx
+  on raw.vendor_record using gin (payload);
+
+alter table raw.vendor_record enable row level security;
+
+-- No policy is created on purpose. With RLS enabled and zero policies, every
+-- API role is denied outright; only the service role (which bypasses RLS) can
+-- read or write. Raw vendor payloads contain personal data and, from Factorial,
+-- salary -- so the default is that nothing reaches a browser.
+
+-- A record of each sync run, so "is the data stale" and "did last night's sync
+-- actually finish" are answerable without reading the payload table.
+create table if not exists raw.sync_run (
+  id bigint generated always as identity primary key,
+  source        text not null check (source in ('trackingtime', 'asana', 'factorial', 'samdock')),
+  entity        text not null,
+  started_at    timestamptz not null default now(),
+  finished_at   timestamptz,
+
+  -- Null finished_at with a non-null started_at means "still running or died".
+  -- Distinguishing a crash from an empty result is the point of splitting these.
+  status        text not null default 'running'
+                check (status in ('running', 'ok', 'failed')),
+  record_count  int,
+  error_message text,
+
+  -- The vendor's own paging cursor or high-water mark, so the next run can be
+  -- incremental instead of re-reading everything.
+  cursor_ref    text
+);
+
+create index if not exists sync_run_recent_idx
+  on raw.sync_run (source, entity, started_at desc);
+
+alter table raw.sync_run enable row level security;
+
+-- Sync health is not sensitive and the Hub sync bar needs it, so this one is
+-- readable -- but only the timing and status, never a payload.
+create policy "authenticated can read sync_run"
+  on raw.sync_run for select to authenticated using (true);
+
+grant usage on schema raw to authenticated;
+grant select on raw.sync_run to authenticated;

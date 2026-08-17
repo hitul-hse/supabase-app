@@ -74,3 +74,4 @@ docs/discovery/
 # Build output for scripts/check-server-action-auth.mjs, which builds against a
 # stub Supabase in its own distDir so the shared .next is never disturbed.
 .next-action-probe/
+.next-acceptance/

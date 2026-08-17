@@ -25,7 +25,7 @@
  */
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, renameSync, rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
@@ -52,18 +52,17 @@ if (!existsSync(".next")) {
 // this check is opt-in rather than part of test:db.
 const REBUILD = process.env.ACCEPTANCE_REBUILD !== "0";
 
-const SAVED_BUILD = ".next-real";
 
-/** Put the developer's real build back. Safe to call more than once. */
-function restoreBuild() {
+/**
+ * Remove the probe build. Nothing shared is ever moved, so there is nothing to
+ * restore -- this only stops a gitignored scratch directory accumulating.
+ */
+function cleanupBuild() {
   try {
-    if (existsSync(SAVED_BUILD)) {
-      if (existsSync(".next")) rmSync(".next", { recursive: true, force: true });
-      renameSync(SAVED_BUILD, ".next");
-    }
-  } catch (e) {
-    console.log(`WARNING: could not restore .next from ${SAVED_BUILD}: ${e.message}`);
-    console.log("Run `npm run build` to rebuild against the real project.");
+    rmSync(DIST, { recursive: true, force: true });
+  } catch {
+    // Windows can hold a handle on a just-stopped server; a leftover gitignored
+    // directory is not worth failing the gate over.
   }
 }
 
@@ -114,6 +113,34 @@ const weekSummary = [{
   week_start: monday, total_seconds: 12600, billable_seconds: 7200,
   calendar_seconds: 3600, contracted_seconds: 144000, entry_count: 3,
 }];
+
+// The tracker's pickers. Seeded because an unpopulated <select> is the failure
+// mode that looks perfectly fine in a screenshot -- the form renders, the
+// labels are right, and there is simply nothing to choose, so no time can be
+// logged. Without these the stub's catch-all returns [] and the tracker would
+// pass every text assertion while being unusable.
+const customers = [
+  { id: 1, name: "Muster GmbH" },
+  { id: 2, name: "Beispiel AG" },
+];
+
+const projects = [
+  { id: 10, name: "DGUV V2 Betreuung", customer_id: 1, is_billable: true },
+  { id: 11, name: "SiGeKo Neubau", customer_id: 2, is_billable: true },
+];
+
+// One travel service with is_paid_travel false, so the "(unpaid)" suffix the
+// tracker adds is exercised rather than assumed. The vendor hides that
+// distinction inside the label text, and it is a real commercial one.
+const services = [
+  { id: 20, name: "DGUV V2: Sifa / Safety Engeineer", is_travel: false, is_paid_travel: false },
+  { id: 21, name: "Anfahrt & Abfahrt / Travelltime (unpayed)", is_travel: true, is_paid_travel: false },
+];
+
+const tasks = [
+  { id: 30, name: "Site inspection", project_id: 10 },
+  { id: 31, name: "Report writing", project_id: 10 },
+];
 
 const PROFILE = {
   user_id: USER_ID,
@@ -167,6 +194,12 @@ const server = createServer((req, res) => {
     }
     if (url.pathname === "/rest/v1/week_summary") return send(weekSummary);
     if (url.pathname === "/rest/v1/rpc/current_member_id") return send(MEMBER_ID);
+    // The tracker's lookups. Listed explicitly rather than left to the
+    // catch-all below, which would answer [] and leave every picker empty.
+    if (url.pathname === "/rest/v1/customer") return send(customers);
+    if (url.pathname === "/rest/v1/project") return send(projects);
+    if (url.pathname === "/rest/v1/service") return send(services);
+    if (url.pathname === "/rest/v1/task") return send(tasks);
     if (url.pathname.startsWith("/rest/v1/")) return send([]);
   }
 
@@ -200,32 +233,35 @@ const stubEnv = {
   NEXT_PUBLIC_SITE_URL: `http://localhost:${APP_PORT}`,
 };
 
+const DIST = ".next-acceptance";
+
 if (REBUILD) {
-  // Built into .next-acceptance so the developer's own .next (pointing at the
-  // real project) is never clobbered. Leaving a stub-pointed build behind would
-  // be a nasty surprise for whoever ran `npm start` next.
+  // A dedicated build directory, via next.config.ts's NEXT_ACCEPTANCE_DIST.
+  //
+  // The previous version moved .next aside and restored it. That failed with EPERM
+  // on Windows whenever a handle was still open on the directory, and it is unsafe
+  // even when it works: parallel agent sessions run their own servers out of .next,
+  // so swapping it can destroy another session's build. One run did leave the stub
+  // build in .next and it had to be rebuilt by hand. A separate dist dir touches
+  // nothing shared, so there is nothing to restore.
   console.log("building against the stub (NEXT_PUBLIC_* are compile-time)...");
-  // The existing .next is moved aside, not overwritten: it is built against the
-  // real project and clobbering it would silently leave a stub-pointed build for
-  // whoever ran `npm start` next. restoreBuild() puts it back in every exit path.
-  if (existsSync(".next")) renameSync(".next", SAVED_BUILD);
   const build = spawnSync("npx", ["next", "build"], {
-    env: stubEnv,
+    env: { ...stubEnv, NEXT_ACCEPTANCE_DIST: DIST },
     shell: true,
     encoding: "utf8",
   });
   if (build.status !== 0) {
     console.log("FAIL: build against the stub failed");
     console.log((build.stdout ?? "") + (build.stderr ?? ""));
-    restoreBuild();
     server.close();
     process.exit(1);
   }
   console.log("build ok\n");
 }
 
+
 const app = spawn("npx", ["next", "start", "--port", String(APP_PORT)], {
-  env: stubEnv,
+  env: { ...stubEnv, NEXT_ACCEPTANCE_DIST: REBUILD ? DIST : ".next" },
   shell: true,
   stdio: "pipe",
 });
@@ -247,7 +283,7 @@ const cleanup = () => {
     }
   } catch { /* already gone */ }
   try { server.close(); } catch { /* already closed */ }
-  restoreBuild();
+  cleanupBuild();
 };
 
 // A watchdog, because the first version of this script hung for ten minutes with
@@ -345,7 +381,18 @@ try {
   }]);
 
   const page = await ctx.newPage();
-  const resp = await page.goto(`http://localhost:${APP_PORT}/time`, { waitUntil: "domcontentloaded" });
+  // ?view=records explicitly. /time defaults to the tracker now that the module
+  // has a write path, and every assertion below is about the read-only week
+  // list — the totals strip, the entry list and the week summary table. Landing
+  // on the default would fail them all while the page was working perfectly,
+  // which is the most misleading shape a failing gate can take.
+  const resp = await page.goto(`http://localhost:${APP_PORT}/time?view=records`, {
+    waitUntil: "domcontentloaded",
+  });
+  // Wait for content, not just for the document. innerText read straight after
+  // domcontentloaded came back empty and failed every assertion below -- and only
+  // sometimes, which is the worst kind of test.
+  await page.locator("h1").first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
 
   check("GET /time returns 200 for a signed-in user", resp?.status() === 200, `status ${resp?.status()}`);
   check("the browser was not bounced to /auth/login", !page.url().includes("/auth/login"), page.url());
@@ -389,6 +436,63 @@ try {
     "the app queried the `time` schema over HTTP",
     timeCalls.length > 0,
     `${timeCalls.length} calls, e.g. ${timeCalls[0] ?? "none"}`,
+  );
+
+  // ── The tracker (the module's write surface) ───────────────────────────────
+  // Same browser, same session. The assertions above prove a user can READ
+  // their hours; these prove the surface that lets them LOG hours actually
+  // renders, with its pickers populated from the `time` schema rather than
+  // empty. An empty <select> is the failure mode that looks fine in a
+  // screenshot and makes the form unusable.
+  await page.goto(`http://localhost:${APP_PORT}/time?view=track`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.locator("h1").first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+  const track = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+
+  check("the tracker renders a start-timer form", track.includes("START A TIMER"));
+  check("the tracker offers manual entry", track.includes("LOG TIME MANUALLY"));
+  check(
+    "the header reports no timer running",
+    track.includes("NO TIMER RUNNING"),
+    "the meta line is how a user knows whether the clock is going",
+  );
+  check(
+    "the UTC convention is stated on the manual form",
+    track.includes("Times are read in UTC"),
+    "a user off UTC needs to know which clock the fields are on before typing, not after",
+  );
+  check(
+    "today's entries are listed with a delete control",
+    track.includes("TODAY") && track.includes("Delete"),
+  );
+
+  // The pickers must be populated. Counted in the DOM rather than the text,
+  // because a <select> with only its placeholder still reads as "No project".
+  const projectOptions = await page.locator("#timer-project option").count();
+  check(
+    "the project picker is populated from the time schema",
+    projectOptions > 1,
+    `${projectOptions} options — 1 means only the "No project" placeholder rendered`,
+  );
+  const serviceOptions = await page.locator("#timer-service option").count();
+  check(
+    "the service picker is populated",
+    serviceOptions > 1,
+    `${serviceOptions} options`,
+  );
+  check(
+    "unpaid travel is marked in the service picker",
+    track.includes("(unpaid)"),
+    "the vendor hides paid-vs-unpaid travel inside two near-identical labels; unmarked, the wrong one gets billed",
+  );
+
+  // The tracker must never show somebody else's time: it is always the
+  // signed-in member's own day, so the scope switch has no meaning here.
+  check(
+    "the tracker does not offer a team scope switch",
+    !/Track Records My time Team/.test(track),
+    "offering 'Team' on the tracker would imply you can start a timer for a colleague",
   );
 } finally {
   await browser.close();

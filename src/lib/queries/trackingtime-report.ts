@@ -83,9 +83,21 @@ export type TimeFilters = {
   /** null = both billable and non-billable. */
   billable: boolean | null;
   /**
-   * Calendar (GHOST) entries are 34% of live data and 98% non-billable. They
-   * are real time but rarely deliberate work, so they are EXCLUDED by default
-   * and included only on request — never silently mixed into a billable ratio.
+   * Calendar (GHOST) entries are EXCLUDED by default and included on request.
+   *
+   * MEASURED over all 4,194 stored entries, because the figures this decision
+   * rests on had drifted badly from the ones written here:
+   *
+   *   calendar share   46.5% of events, 41.8% of hours   (was documented as 34%)
+   *   non-billable     78.1% of events, 60.7% of hours   (was documented as 98%)
+   *
+   * The second correction matters more than the first. At 98% non-billable the
+   * exclusion is nearly free; at 60.7% it withholds roughly 1,027 BILLABLE hours,
+   * which is a real number about the business and not calendar noise. The default
+   * is kept — folding largely-undeliberate time into a billable ratio still
+   * distorts it — but it can no longer be justified as costless, which is why
+   * TotalsStrip now states the excluded total on screen instead of leaving it to
+   * a tooltip nobody hovers.
    */
   includeCalendar: boolean;
 };
@@ -292,17 +304,33 @@ export async function fetchExcludedCalendarSeconds(
  * range — the most recent day, the one users check first.
  *
  * PAGES IN PARALLEL, and that is a measured decision rather than a stylistic one.
- * Against the live project (scripts/measure-dashboard-cost.mjs, 4,194 entries):
  *
- *     one page of 1000 rows with its joins   ~173ms
- *     all-time paged sequentially            ~893ms   <- what this used to do
- *     all-time paged in parallel             ~252ms
+ * Measured AS A SIGNED-IN EXEC over the live 4,194-entry table
+ * (scripts/recheck2-paging-and-tables.mjs, median of 5 runs):
  *
- * 641ms, paid on every wide load AND on every filter change over a wide range,
- * because the whole report re-runs server-side each time. The sequential loop
- * existed because it discovered the end of the data by hitting a short page --
- * it could not know the page count in advance. An exact `count` in the first
- * request removes that dependency, so the remaining pages can go at once.
+ *     all-time paged sequentially   ~3320ms   <- what this used to do
+ *     all-time paged in parallel    ~2935ms
+ *
+ * This comment previously quoted 893ms -> 252ms. Those came from the SERVICE ROLE
+ * key, and they were misleading in both directions: they understate the absolute
+ * time a real user waits by roughly 6x, because service_role bypasses row-level
+ * security, and they understate the SAVING too (226ms against 386ms) because every
+ * serial round trip carries its own policy evaluation, so removing the
+ * serialisation removes more work, not less. Quoting them was the same shortcut
+ * that made my original latency diagnosis wrong, so the RLS numbers are what is
+ * recorded here.
+ *
+ * The saving is paid back on every wide load AND on every filter change over a
+ * wide range, because the whole report re-runs server-side each time. The
+ * sequential loop existed because it discovered the end of the data by hitting a
+ * short page -- it could not know the page count in advance. An exact `count` in
+ * the first request removes that dependency, so the remaining pages can go at
+ * once.
+ *
+ * The absolute figures stay around 3s until
+ * supabase/migrations/hoist_entry_read_policy.sql is applied: per-row RLS
+ * evaluation dominates, and parallelising requests cannot remove work the database
+ * performs on every row.
  *
  * The first request therefore does double duty: it returns page 0 AND the total,
  * which costs nothing extra over the request that had to happen anyway. When the

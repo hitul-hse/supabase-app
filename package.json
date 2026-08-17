@@ -78,7 +78,9 @@
     "check:dashboard-acceptance": "node scripts/check-dashboard-acceptance.mjs",
     "measure:latency-variance": "node scripts/measure-latency-variance.mjs",
     "recheck:dashboard-claims": "node --experimental-strip-types scripts/recheck-dashboard-claims.mjs",
-    "recheck:economics-access": "node scripts/recheck-economics-access.mjs"
+    "recheck:economics-access": "node scripts/recheck-economics-access.mjs",
+    "recheck:paging-and-tables": "node --experimental-strip-types scripts/recheck2-paging-and-tables.mjs",
+    "verify:policy-gate": "node scripts/verify-policy-gate-fails.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

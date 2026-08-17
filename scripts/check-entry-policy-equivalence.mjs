@@ -129,6 +129,30 @@ const HOISTED = `using (
   or time.can_view_member(member_id)
 )`;
 
+/**
+ * The predicate THAT ACTUALLY SHIPS, extracted from schema.sql.
+ *
+ * WHY THIS IS READ FROM THE FILE rather than trusted to equal HOISTED above: this
+ * gate originally compared two hardcoded strings, which proves the rewrite I made
+ * is access-equivalent -- but says nothing about what schema.sql contains today.
+ * scripts/verify-policy-gate-fails.mjs demonstrated the hole by replacing the
+ * policy in schema.sql with `using (true)`, a change that lets every authenticated
+ * user read every entry, and this gate still exited 0.
+ *
+ * That is the difference between "my refactor was sound" and "the shipped policy is
+ * sound", and only the second is worth a gate. So the shipped text is extracted and
+ * asserted against the same fixture as the other two.
+ *
+ * Extracted by regex over whitespace, because schema.sql is stored CRLF here and a
+ * literal match silently finds nothing.
+ */
+const schemaSrc = readFileSync("supabase/schema.sql", "utf8");
+const shippedMatch =
+  /create policy "scoped read of entry" on time\.entry\s*\r?\n?\s*for select to authenticated (using \([\s\S]*?\));/.exec(
+    schemaSrc,
+  );
+const SHIPPED = shippedMatch ? shippedMatch[1] : null;
+
 async function installPolicy(usingClause) {
   await db.exec(`
     drop policy if exists "scoped read of entry" on time.entry;
@@ -196,6 +220,40 @@ check(
   wide.employee.length !== after.employee.length,
   `using(true) gave the employee ${wide.employee.length} rows and the hoisted policy ${after.employee.length}; if these matched, this gate could not detect a privilege leak`,
 );
+
+console.log("\n--- THE POLICY THAT ACTUALLY SHIPS grants the same access -----------");
+// This is the assertion that makes this a gate on the product rather than on my
+// refactor. Without it, editing schema.sql's policy to `using (true)` left this
+// script passing -- demonstrated by scripts/verify-policy-gate-fails.mjs.
+check(
+  "the entry read policy could be extracted from schema.sql",
+  SHIPPED !== null,
+  "could not find `create policy \"scoped read of entry\"` in supabase/schema.sql -- if the policy moved, this gate is blind and must be updated",
+);
+
+if (SHIPPED !== null) {
+  await installPolicy(SHIPPED);
+  const shipped = {};
+  for (const [name, uid] of ROLES) shipped[name] = await visibleAs(uid);
+
+  for (const [name] of ROLES) {
+    const b = before[name];
+    const s = shipped[name];
+    check(
+      `${name}: the SHIPPED schema.sql policy grants exactly the original access`,
+      Array.isArray(b) && Array.isArray(s) && b.length === s.length && b.every((x, i) => x === s[i]),
+      `original ${JSON.stringify(b)} vs shipped ${JSON.stringify(s)}`,
+    );
+  }
+
+  // And the specific catastrophe, called out by name: a permissive policy would
+  // show up as the employee seeing more than their own row.
+  check(
+    "the shipped policy does not let an employee read other people's hours",
+    shipped.employee.length === 1 && shipped.employee[0] === 105,
+    `employee saw ${JSON.stringify(shipped.employee)} -- more than one row here means the policy has been widened`,
+  );
+}
 
 console.log("\n--- the hoisted predicate is what lands in the catalogue -----------");
 await installPolicy(HOISTED);

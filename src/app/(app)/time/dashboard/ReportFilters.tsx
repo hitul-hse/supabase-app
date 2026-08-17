@@ -13,7 +13,7 @@
  * dimmed, instead of blanking the page on every filter change.
  */
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { PRESETS, type PresetKey } from "@/lib/queries/trackingtime-report";
 
 type Option = { id: number; name: string; hint?: string | null };
@@ -62,10 +62,20 @@ function Toggle({
 /**
  * A searchable multi-select popover.
  *
- * The option list is capped at 200 rendered rows while searching. The projects
- * list is 334 entries and every one carries a customer name; rendering all of
- * them inside a popover on each keystroke is the difference between instant and
- * visibly laggy. Anything past the cap is reachable by typing.
+ * THE OPTION LIST IS NO LONGER CAPPED AT 200. It was, for a real reason -- 334
+ * projects each carrying a customer name is a lot of DOM to rebuild on every
+ * keystroke -- but the cap was applied AFTER the search filter and never
+ * mentioned on screen. So with an empty query the list simply stopped at 200 of
+ * 334 with no scrollbar hint that anything was missing, and a project sorted
+ * alphabetically past "S" could not be found by browsing at all. Two changes
+ * make the cap unnecessary: the popover scrolls (it always did), and SELECTED
+ * options are hoisted to the top so a long list never hides your own choices
+ * below the fold.
+ *
+ * Keyboard support is deliberate rather than incidental: ↑/↓ move a highlight,
+ * Enter toggles it, Escape closes. Without it the only way to use this control
+ * is a mouse, and the whole filter bar sits above a table people drive from the
+ * keyboard.
  */
 function MultiSelect({
   label,
@@ -80,7 +90,9 @@ function MultiSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [cursor, setCursor] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click and on Escape. Without the Escape handler a keyboard
   // user who opens this has no way to dismiss it without changing a value.
@@ -101,22 +113,55 @@ function MultiSelect({
   }, [open]);
 
   const q = query.trim().toLowerCase();
-  const filtered = (
-    q
+  const filtered = useMemo(() => {
+    const matched = q
       ? options.filter(
           (o) =>
             o.name.toLowerCase().includes(q) ||
             (o.hint ? o.hint.toLowerCase().includes(q) : false),
         )
-      : options
-  ).slice(0, 200);
+      : options;
+    // Selected first, then source order. Stable within each group, so the list
+    // does not reshuffle as you tick boxes -- it only ever promotes.
+    const chosen = new Set(selected);
+    return [
+      ...matched.filter((o) => chosen.has(o.id)),
+      ...matched.filter((o) => !chosen.has(o.id)),
+    ];
+  }, [options, q, selected]);
 
   const toggle = (id: number) =>
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
 
+  /**
+   * Keyboard navigation, driven from the search input so typing and moving are
+   * the same interaction. The highlight is clamped rather than wrapped: wrapping
+   * from the last option back to the first, in a list of 334, loses the reader's
+   * place entirely.
+   */
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const next = Math.max(
+        0,
+        Math.min(filtered.length - 1, cursor + (e.key === "ArrowDown" ? 1 : -1)),
+      );
+      setCursor(next);
+      // Keep the highlight in view. `block: "nearest"` scrolls the minimum
+      // amount, so arrowing down one row does not jump the list by a screen.
+      listRef.current
+        ?.querySelectorAll("[data-option]")
+        [next]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const opt = filtered[cursor];
+      if (opt) toggle(opt.id);
+    }
+  };
+
   const summary =
     selected.length === 0
-      ? "All"
+      ? `All ${options.length ? `(${options.length})` : ""}`.trim()
       : selected.length === 1
         ? (options.find((o) => o.id === selected[0])?.name ?? "1 selected")
         : `${selected.length} selected`;
@@ -147,38 +192,73 @@ function MultiSelect({
 
       {open && (
         <div
-          role="listbox"
-          aria-label={label}
           className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col border border-[var(--border)] bg-[var(--surface)] shadow-lg"
         >
           <div className="border-b border-[var(--border)] p-2">
             <input
               autoFocus
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                // Re-aim at the first match. Leaving the cursor where it was
+                // means Enter after typing toggles whatever happened to be at
+                // that index in the NEW list, which is never what was intended.
+                setCursor(0);
+              }}
+              onKeyDown={onKeyDown}
+              role="combobox"
+              aria-expanded
+              aria-controls={`${label}-options`}
+              aria-autocomplete="list"
               placeholder={`Search ${label.toLowerCase()}…`}
               className="w-full border border-[var(--border)] bg-[var(--page)] px-2 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
+            {/* The count is the fix for the old silent 200-option cap: however
+                many options there are, the number is on screen, so a list that
+                scrolls past the fold never looks complete when it is not. */}
+            <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
+              <span>
+                {filtered.length.toLocaleString("en-GB")}
+                {filtered.length !== options.length
+                  ? ` of ${options.length.toLocaleString("en-GB")}`
+                  : ""}{" "}
+                {options.length === 1 ? "option" : "options"}
+                {selected.length > 0 ? ` · ${selected.length} selected` : ""}
+              </span>
+              <span aria-hidden>↑↓ move · ⏎ pick · esc close</span>
+            </p>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div
+            ref={listRef}
+            id={`${label}-options`}
+            role="listbox"
+            aria-label={label}
+            aria-multiselectable
+            className="flex-1 overflow-y-auto"
+          >
             {filtered.length === 0 ? (
               <p className="px-3 py-4 text-center text-[11.5px] text-[var(--text-faint)]">
-                No match
+                No {label.toLowerCase()} matches “{query.trim()}”
               </p>
             ) : (
-              filtered.map((o) => {
+              filtered.map((o, i) => {
                 const on = selected.includes(o.id);
+                const hot = i === cursor;
                 return (
                   <button
                     key={o.id}
                     type="button"
                     role="option"
+                    data-option
                     aria-selected={on}
+                    // Hovering moves the keyboard cursor too, so the mouse and
+                    // the keyboard never disagree about which row Enter hits.
+                    onMouseEnter={() => setCursor(i)}
                     onClick={() => toggle(o.id)}
-                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-[var(--surface-hover)] ${
-                      on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
-                    }`}
+                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-[12px] transition-colors ${
+                      hot ? "bg-[var(--surface-hover)]" : ""
+                    } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
                   >
                     <span
                       aria-hidden
@@ -204,15 +284,36 @@ function MultiSelect({
             )}
           </div>
 
-          {selected.length > 0 && (
+          <div className="flex items-center justify-between border-t border-[var(--border)] px-3 py-1.5">
+            {/* "Select these" applies to the SEARCH RESULT, not to all 334
+                options. Selecting everything is identical to selecting nothing
+                (both mean "no constraint"), so an unfiltered select-all would be
+                a control that does nothing visible. Against a search it is the
+                fast path to "these six projects". */}
             <button
               type="button"
-              onClick={() => onChange([])}
-              className="border-t border-[var(--border)] px-3 py-1.5 text-left text-[11.5px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              disabled={filtered.length === 0 || !q}
+              onClick={() =>
+                onChange([...new Set([...selected, ...filtered.map((o) => o.id)])])
+              }
+              title={
+                q
+                  ? `Add all ${filtered.length} matches to the selection`
+                  : "Search first — selecting every option is the same as selecting none"
+              }
+              className="text-[11.5px] text-[var(--text-secondary)] transition-colors hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[var(--text-secondary)]"
             >
-              Clear {selected.length}
+              Select these {q ? filtered.length : ""}
             </button>
-          )}
+            <button
+              type="button"
+              disabled={selected.length === 0}
+              onClick={() => onChange([])}
+              className="text-[11.5px] text-[var(--text-secondary)] transition-colors hover:text-[var(--critical)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[var(--text-secondary)]"
+            >
+              Clear {selected.length > 0 ? selected.length : ""}
+            </button>
+          </div>
         </div>
       )}
     </div>

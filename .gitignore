@@ -93,6 +93,10 @@ docs/discovery/
 .next-flake-probe/
 .next-order-probe/
 
+# Dashboard row-reachability gate (scripts/check-dashboard-tables.mjs). Its own
+# distDir so it never touches .next, which parallel agent sessions serve from.
+.next-tables/
+
 # Editor-local state: the active plan, scratch scripts, and a mirror of the
 # third-party agent skills from .claude/skills (V3Code's loader scans this
 # directory and does not follow the .claude ones). Machine-specific, ~150 files

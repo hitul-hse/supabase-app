@@ -49,13 +49,58 @@ export const PERMISSIONS = {
   // Sync
   SYNC_READ:               "sync:read",
   SYNC_TRIGGER:            "sync:trigger",
+
+  // ── Module-scoped keys (module:resource:action) ───────────────────────────
+  // The keys above predate the module split and are deliberately left in their
+  // original two-part shape: renaming them would break every existing call site
+  // and grant row for no functional gain. Everything new uses three parts, so
+  // app_permission.module_key can be derived and the bridge portal can decide
+  // tile visibility from permission data alone.
+  //
+  // HR and CRM keys exist before their modules do, on purpose: it makes each
+  // module's access model reviewable before any of its code is written, and it
+  // is safe because app_module.is_live is false for both, which hides the tile
+  // regardless of who holds the permission.
+
+  // HR module
+  HR_LEAVE_READ:           "hr:leave:read",
+  HR_LEAVE_WRITE:          "hr:leave:write",
+  HR_LEAVE_APPROVE:        "hr:leave:approve",
+  HR_CONTRACT_READ:        "hr:contract:read",
+  HR_CLOCKING_WRITE:       "hr:clocking:write",
+
+  // CRM module
+  CRM_DEAL_READ:           "crm:deal:read",
+  CRM_DEAL_WRITE:          "crm:deal:write",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
+// ─── Modules ─────────────────────────────────────────────────────────────────
+// Mirrors app_module.module_key. The bridge portal reads its tiles from the DB
+// via app_user_modules(), so this type exists for type-safety at call sites —
+// NOT as a second source of truth for what modules exist or who may see them.
+
+export type ModuleKey = "hub" | "projects" | "time" | "hr" | "crm";
+
+export type ModuleTile = {
+  moduleKey: ModuleKey;
+  displayName: string;
+  tagline: string | null;
+  href: string | null;
+  accent: string;
+};
+
 // ─── Route → required permission map ─────────────────────────────────────────
-// Middleware and requirePermission() use this to gate routes without
-// hardcoding role strings at every call site.
+// NOT WIRED UP YET. Nothing imports this — every gated route currently passes
+// its permission key directly to requirePermission(), and the middleware only
+// checks whether a session exists, not what it may reach.
+//
+// The previous comment here claimed "middleware and requirePermission() use
+// this", which was never true and is the kind of thing that makes a reader
+// assume routes are centrally gated when they are gated one page at a time.
+// Kept because it is the right shape for the bridge portal (one place to answer
+// "what does this path require"), but treat it as a plan, not as live config.
 
 export const ROUTE_PERMISSIONS: Record<string, PermissionKey> = {
   "/":              PERMISSIONS.OVERVIEW_READ,

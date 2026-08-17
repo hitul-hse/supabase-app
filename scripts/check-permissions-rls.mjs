@@ -1,5 +1,8 @@
-// Coverage for the fine-grained RBAC permission system
-// (supabase/migrations/add_permission_system.sql).
+// Coverage for the fine-grained RBAC permission system (supabase/schema.sql §3b).
+//
+// It lived in supabase/migrations/add_permission_system.sql until that turned
+// out to be the cause of the outage described below — a separate file can be
+// skipped, and was. schema.sql is now the only place these objects are defined.
 //
 // Why this file exists: the permission layer was the ONE feature shipped
 // without a test gate, and it was also the one feature never applied to the
@@ -36,10 +39,10 @@ await db.exec(`
     language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 `);
 
-// The permission system is a separate migration, applied after the base schema
-// exactly as the Supabase SQL Editor would run it.
+// One file, exactly as the Supabase SQL Editor would run it. Loading the old
+// migration as well would now fail on duplicate policies, which is itself proof
+// the two are no longer independent.
 await db.exec(readFileSync("supabase/schema.sql", "utf8"));
-await db.exec(readFileSync("supabase/migrations/add_permission_system.sql", "utf8"));
 
 const EXEC = "11111111-1111-1111-1111-111111111111";
 const HEAD = "22222222-2222-2222-2222-222222222222";
@@ -170,13 +173,23 @@ await db.exec(`
 // in Postgres, but the app also ships a TypeScript PERMISSIONS map, and the
 // two drift silently — so assert the counts the app expects.
 
-const { rows: cat } = await db.query(`select count(*)::int as n from app_permission`);
-check("permission catalogue is seeded", cat[0].n === 22, `got ${cat[0].n}, expected 22`);
-
+// Derived from the code, not a literal. This assertion used to hardcode 22, so
+// adding a permission failed the gate for the wrong reason ("expected 22") and
+// the fix was to bump a magic number — which trains you to edit the test rather
+// than think about it. Counting the code's own keys means the only way to fail
+// is a genuine mismatch between code and database, which is what the next two
+// checks then name precisely.
 const codeKeys = new Set(
   [...readFileSync("src/lib/permissions.ts", "utf8").matchAll(/"([a-z]+:[a-z_:]+)"/g)].map(
     (m) => m[1],
   ),
+);
+
+const { rows: cat } = await db.query(`select count(*)::int as n from app_permission`);
+check(
+  "permission catalogue is seeded to match the code",
+  cat[0].n === codeKeys.size,
+  `DB has ${cat[0].n}, src/lib/permissions.ts declares ${codeKeys.size}`,
 );
 const { rows: dbKeys } = await db.query(`select permission_key from app_permission`);
 const dbSet = new Set(dbKeys.map((r) => r.permission_key));

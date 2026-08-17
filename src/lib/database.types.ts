@@ -19,11 +19,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_module: {
+        Row: {
+          accent: string
+          display_name: string
+          href: string | null
+          is_live: boolean
+          module_key: string
+          sort_order: number
+          tagline: string | null
+        }
+        Insert: {
+          accent?: string
+          display_name: string
+          href?: string | null
+          is_live?: boolean
+          module_key: string
+          sort_order?: number
+          tagline?: string | null
+        }
+        Update: {
+          accent?: string
+          display_name?: string
+          href?: string | null
+          is_live?: boolean
+          module_key?: string
+          sort_order?: number
+          tagline?: string | null
+        }
+        Relationships: []
+      }
       app_permission: {
         Row: {
           action: string
           description: string | null
           display_name: string
+          module_key: string
           permission_key: string
           resource: string
           sort_order: number
@@ -32,6 +63,7 @@ export type Database = {
           action: string
           description?: string | null
           display_name: string
+          module_key?: string
           permission_key: string
           resource: string
           sort_order?: number
@@ -40,9 +72,40 @@ export type Database = {
           action?: string
           description?: string | null
           display_name?: string
+          module_key?: string
           permission_key?: string
           resource?: string
           sort_order?: number
+        }
+        Relationships: []
+      }
+      platform_decision: {
+        Row: {
+          decided_at: string
+          decided_by: string
+          id: number
+          kind: string
+          note: string | null
+          outcome: string
+          subject_ref: string
+        }
+        Insert: {
+          decided_at?: string
+          decided_by: string
+          id?: number
+          kind: string
+          note?: string | null
+          outcome: string
+          subject_ref: string
+        }
+        Update: {
+          decided_at?: string
+          decided_by?: string
+          id?: number
+          kind?: string
+          note?: string | null
+          outcome?: string
+          subject_ref?: string
         }
         Relationships: []
       }
@@ -1103,6 +1166,10 @@ export type Database = {
     Functions: {
       app_user_department: { Args: never; Returns: string }
       app_user_has_permission: { Args: { p_key: string }; Returns: boolean }
+      app_user_modules: {
+        Args: never
+        Returns: Database["public"]["Tables"]["app_module"]["Row"][]
+      }
       app_user_person_id: { Args: never; Returns: string }
       app_user_role: { Args: never; Returns: string }
       can_view_person: { Args: { target_person_id: string }; Returns: boolean }

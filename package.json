@@ -44,6 +44,7 @@
     "test:login-redirect": "node scripts/check-login-redirect.mjs",
     "test:time-page-data": "node scripts/check-time-page-data.mjs",
     "test:time-page-render": "node scripts/check-time-page-render.mjs",
+    "test:time-write-path": "node scripts/check-time-write-path.mjs",
     "check:live-ready": "node scripts/check-time-live-ready.mjs",
     "link:time-members": "node scripts/link-time-members.mjs",
     "apply-modules": "node scripts/generate-apply-modules.mjs",
@@ -52,7 +53,9 @@
     "test:oauth-callback": "node scripts/check-oauth-callback.mjs",
     "test:oauth-access": "node scripts/check-oauth-access-model.mjs",
     "check:acceptance": "node scripts/check-time-acceptance.mjs",
-    "check:sso-ui": "node scripts/check-sso-ui.mjs"
+    "check:sso-ui": "node scripts/check-sso-ui.mjs",
+    "check:sso-providers": "node scripts/check-sso-providers.mjs",
+    "check:action-auth": "node scripts/check-server-action-auth.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

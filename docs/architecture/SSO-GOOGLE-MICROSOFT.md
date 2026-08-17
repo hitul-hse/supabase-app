@@ -96,6 +96,34 @@ npm run test:oauth-access        # signing in grants nothing without a profile
 
 Both run in `npm run test:db` and need no credentials.
 
+Against the live project, to see which providers are actually switched on:
+
+```
+npm run check:sso-providers
+```
+
+It asks Supabase's `/auth/v1/authorize` for each provider and reports `ENABLED` or
+`NOT SET` with the reason. A disabled provider answers
+`400 Unsupported provider: provider is not enabled` — which is exactly what the
+button surfaces to the user, so this is the same signal, seen earlier. It never
+follows the redirect, so no consent screen is involved and nothing signs in.
+
+It also lists the callback URLs that must appear in the redirect allowlist, and
+warns if `NEXT_PUBLIC_SITE_URL` still points at localhost. Whether a URL is
+allowlisted is not readable through the anon API, so that part is a prompt rather
+than an assertion.
+
+And with the app running, to check the buttons themselves:
+
+```
+npm run build && npm run start   # in one shell
+npm run check:sso-ui             # in another
+```
+
+18 assertions in a real browser: both buttons render, each starts a same-origin
+PKCE flow naming the right provider, and a hostile `?redirect_to=` is dropped
+before the provider sees it. It skips if nothing is serving port 3000.
+
 To check a live provider end to end: sign in with an account that has **no**
 profile, confirm you land on `/access-pending`, then have an admin assign a role
 and sign in again.
@@ -113,3 +141,17 @@ and sign in again.
   reason rather than "missing its verification token".
 - `/auth/callback` is in `PUBLIC_ROUTES`. It has to be: the visitor has no session
   until the exchange inside it succeeds.
+- **`signInWithOAuth` does not validate the provider.** This one cost real time.
+  supabase-js builds the authorize URL client-side and returns no error even for a
+  provider that is switched off, then navigates straight to it. The result was the
+  whole page being replaced by
+  `{"code":400,...,"msg":"Unsupported provider: provider is not enabled"}` with no
+  way back and no email form. `OAuthButtons` therefore passes
+  `skipBrowserRedirect: true`, probes the URL itself, and only then navigates.
+- **The probe uses GET, not HEAD.** `/auth/v1/authorize` answers HEAD with `405`,
+  which looks like success if you only test for `400`. That mistake was made here
+  first, and the browser sailed into the JSON page exactly as before. With
+  `redirect: "manual"` the request is never followed, so an enabled provider costs
+  one opaque response and no consent screen.
+- If the probe itself fails (offline, CORS), the code navigates anyway. A network
+  hiccup must not block someone who could otherwise sign in.

@@ -128,9 +128,25 @@ check(
   (buttons.match(/disabled=\{disabled \|\| pending !== null\}/g) || []).length === 2,
 );
 
+// Every early return must clear pending, or the button stays dead and the user
+// has to reload. Counting the two together rather than asserting a fixed number:
+// the count legitimately grows when a new failure branch is added (it went from
+// 2 to 3 when the disabled-provider probe arrived, and this check correctly went
+// red), so what matters is that no `return` leaves pending set.
+const returnsInSignIn = (buttons.match(/\n\s+return;/g) || []).length;
+const clears = (buttons.match(/setPending\(null\)/g) || []).length;
 check(
-  "pending is cleared on both failure paths so the user can retry",
-  (buttons.match(/setPending\(null\)/g) || []).length === 2,
+  "every failure path clears pending so the user can retry",
+  clears >= returnsInSignIn && clears >= 2,
+  `${clears} clears for ${returnsInSignIn} early returns`,
+);
+
+// The success path must NOT clear it: the browser is navigating away and a
+// re-enabled button invites a second OAuth flow.
+check(
+  "the success path leaves pending set while the redirect happens",
+  /pending deliberately stays set|leave the\s*\n?\s*\* pending state set/i.test(buttons) ||
+    /not be clickable during the redirect/.test(buttons),
 );
 
 check(

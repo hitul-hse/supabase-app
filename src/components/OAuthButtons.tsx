@@ -84,12 +84,16 @@ export function OAuthButtons({
     onError("");
     setPending(provider);
 
+    // What the user calls it, for messages. Supabase's provider key is "azure",
+    // which nobody outside this codebase would recognise in an error.
+    const label = provider === "azure" ? "Microsoft" : "Google";
+
     try {
       const supabase = createClient();
       const callback = new URL("/auth/callback", window.location.origin);
       callback.searchParams.set("next", redirectTo);
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: callback.toString(),
@@ -97,19 +101,90 @@ export function OAuthButtons({
           // returns these by default; Azure needs them requested explicitly or
           // the user arrives with no name or email on their identity.
           scopes: provider === "azure" ? "email openid profile" : undefined,
+          /**
+           * Navigate ourselves rather than letting supabase-js do it.
+           *
+           * Without this the library sets window.location immediately and
+           * unconditionally. When a provider is not enabled, Supabase answers
+           * that navigation with 400 and the browser lands on raw JSON —
+           *   {"code":400,...,"msg":"Unsupported provider: provider is not enabled"}
+           * — with no way back. The error handler below never runs, because by
+           * then the page is gone. Observed, not theorised: that is exactly what
+           * this project does today, since neither provider is enabled yet.
+           *
+           * Skipping the redirect turns the same failure into a returned error we
+           * can explain in place, on a page that still has a working email form.
+           */
+          skipBrowserRedirect: true,
         },
       });
 
       if (error) {
-        // The most common cause by far is the provider not being enabled in the
-        // Supabase project yet, which returns an opaque message. Say what to do.
+        // The overwhelmingly common cause is the provider not being enabled in
+        // the Supabase project, whose raw message is "Unsupported provider:
+        // provider is not enabled" — accurate, and useless to a colleague who
+        // just wants to log in. Translate that one case and let anything else
+        // through verbatim, since an unexpected message is worth seeing.
+        const notEnabled = /provider is not enabled|unsupported provider/i.test(error.message);
         onError(
-          `${error.message} — if this provider was just set up, check it is enabled in Supabase (Authentication → Providers).`,
+          notEnabled
+            ? `${label} sign-in isn't switched on for this app yet. Use your email and password below, or ask an administrator to enable it.`
+            : error.message,
         );
         setPending(null);
+        return;
       }
-      // On success the browser is navigating away; deliberately leave the
-      // pending state set so the button cannot be clicked twice mid-redirect.
+
+      if (!data?.url) {
+        // Should not happen, but a missing URL would otherwise leave the button
+        // spinning forever with no explanation.
+        onError(`Could not start ${label} sign-in. Try again, or use email below.`);
+        setPending(null);
+        return;
+      }
+
+      /**
+       * Check the provider is actually enabled before handing the browser over.
+       *
+       * `skipBrowserRedirect` does NOT validate anything — measured, not guessed:
+       * supabase-js builds the authorize URL client-side and returns it without
+       * contacting the server, so `error` is null even for a provider that is
+       * switched off. Navigating to it lands the user on
+       *   {"code":400,...,"msg":"Unsupported provider: provider is not enabled"}
+       * with no way back, which is what this app did before this check existed.
+       *
+       * GET, not HEAD: /auth/v1/authorize answers HEAD with 405 Method Not
+       * Allowed, which is indistinguishable from "fine" if you only test for 400.
+       * That mistake was made here first, and the browser sailed straight into
+       * the JSON page.
+       *
+       * `redirect: "manual"` means the request is never followed, so an *enabled*
+       * provider costs one opaque response and no consent screen. A disabled one
+       * answers 400 and we explain it in place.
+       *
+       * If the probe itself fails (offline, blocked, CORS), fall through and
+       * navigate anyway: a network hiccup must not block someone who could
+       * otherwise sign in.
+       */
+      try {
+        const probe = await fetch(data.url, { method: "GET", redirect: "manual" });
+        // An opaque response (type "opaqueredirect", status 0) is the success
+        // shape here: the provider redirect was returned and deliberately not
+        // followed. Only an explicit 400 means "not enabled".
+        if (probe.status === 400) {
+          onError(
+            `${label} sign-in isn't switched on for this app yet. Use your email and password below, or ask an administrator to enable it.`,
+          );
+          setPending(null);
+          return;
+        }
+      } catch {
+        // Probe failed for a reason unrelated to the provider; continue.
+      }
+
+      // Hand off to the provider. pending deliberately stays set: the button must
+      // not be clickable during the redirect.
+      window.location.assign(data.url);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not start sign-in. Try again.");
       setPending(null);

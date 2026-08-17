@@ -1,21 +1,30 @@
 /**
- * Do the SSO buttons render, and does clicking one start a correct OAuth flow?
+ * Do the SSO buttons render, and does clicking one behave correctly?
  *
- * Runs a real browser against `npm run start`, so the assertions are about what a
- * visitor receives rather than what the source says. The valuable part is the
- * outbound authorize request: it must name the right provider, and its
- * `redirect_to` must be our own /auth/callback rather than the destination page.
- * Getting that wrong is the single most common way an OAuth integration fails,
- * and it fails silently — Supabase substitutes the Site URL and the code is lost.
+ * Runs a real browser against a running server, so the assertions are about what
+ * a visitor receives rather than what the source says.
  *
- * The provider request is intercepted and aborted, so nothing leaves the machine
- * and no real Google/Microsoft consent screen is involved.
+ * Two things are checked, and which one applies depends on the live project:
  *
- * NOT asserted here: the pending button label. supabase-js assigns
- * window.location in the same tick as the call, so the page is already navigating
- * before React can paint it and Playwright's execution context is destroyed.
- * Verifying it through the browser tests Playwright rather than the app; the
- * ordering that makes it correct is asserted in check-oauth-callback.mjs instead.
+ *  - If a provider is ENABLED, the outbound authorize request must name the right
+ *    provider and its `redirect_to` must be our own /auth/callback rather than the
+ *    destination page. Getting that wrong is the most common way an OAuth
+ *    integration fails, and it fails silently: Supabase substitutes the Site URL
+ *    and the code is lost.
+ *
+ *  - If a provider is DISABLED, the user must stay here and be told so. This is
+ *    not hypothetical politeness: supabase-js builds the authorize URL
+ *    client-side without validating it, so before this was handled the browser
+ *    navigated to Supabase and displayed
+ *      {"code":400,...,"msg":"Unsupported provider: provider is not enabled"}
+ *    as the entire page, with no way back and no email form.
+ *
+ * The provider request is intercepted, so nothing leaves the machine and no real
+ * consent screen is involved.
+ *
+ * NOT asserted here: the pending button label. supabase-js navigates in the same
+ * tick, so the page is already leaving before React can paint it. The ordering
+ * that makes it correct is asserted in check-oauth-callback.mjs instead.
  */
 import { existsSync } from "node:fs";
 
@@ -53,26 +62,57 @@ const { chromium } = await import("playwright");
 const browser = await chromium.launch();
 
 /**
- * Click a provider button and return the authorize URL it tried to reach.
- * A fresh page per case: the click navigates, so a page cannot be reused.
+ * Click a provider button and report what happened.
+ *
+ * Returns the authorize URL the app built, whether the browser was left on our
+ * own page, and the visible text afterwards. A fresh page per case, because a
+ * successful click navigates away.
+ *
+ * The route is fulfilled with a 400 that mimics a disabled provider rather than
+ * aborted: an aborted request produces a network error the app cannot classify,
+ * whereas this exercises the real branch and keeps the page mounted so its text
+ * is readable. Either way nothing reaches Google or Microsoft.
  */
 async function capture(buttonText, loginPath = "/auth/login") {
   const page = await browser.newPage();
   let captured = null;
+  const offSite = [];
+  page.on("framenavigated", (f) => {
+    if (f === page.mainFrame() && !f.url().startsWith(BASE)) offSite.push(f.url());
+  });
+
   await page.route("**/auth/v1/authorize*", async (route) => {
-    captured = route.request().url();
-    await route.abort();
+    captured ??= route.request().url();
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({
+        code: 400,
+        error_code: "validation_failed",
+        msg: "Unsupported provider: provider is not enabled",
+      }),
+    });
   });
 
   await page.goto(BASE + loginPath, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(`button:has-text("${buttonText}")`);
-  const bodyText = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  await page.waitForSelector(`button:has-text("${buttonText}")`, { timeout: 20000 });
   await page.locator("button", { hasText: buttonText }).first().click({ noWaitAfter: true });
 
-  for (let i = 0; i < 20 && !captured; i++) await page.waitForTimeout(150);
+  // Wait for either the notice to appear or the request to be seen.
+  let bodyText = "";
+  for (let i = 0; i < 30; i++) {
+    await page.waitForTimeout(150);
+    try {
+      bodyText = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+    } catch {
+      break; // navigated away
+    }
+    if (/switched on/i.test(bodyText)) break;
+  }
 
+  const stayed = page.url().startsWith(BASE);
   await page.close();
-  return { url: captured, bodyText };
+  return { url: captured, bodyText, stayed, offSite };
 }
 
 // ── What the visitor sees ──────────────────────────────────────────────────
@@ -88,8 +128,25 @@ check(
   /role assigned/i.test(t),
 );
 
+// ── A disabled provider is explained here, not shown as raw JSON ───────────
+check("a disabled provider leaves the visitor on our login page", first.stayed);
+check(
+  "the browser never lands on Supabase's error document",
+  first.offSite.length === 0,
+  first.offSite.join(" ") || "no off-site navigation",
+);
+check(
+  "the notice is plain English and names the provider",
+  /Google sign-in isn't switched on for this app yet/.test(t),
+);
+check("the notice points at the email fallback", /email and password below/i.test(t));
+check(
+  "the raw \"Unsupported provider\" string is not shown to the user",
+  !/Unsupported provider/i.test(t),
+);
+
 // ── The outbound flow ──────────────────────────────────────────────────────
-check("clicking Google starts an authorize request", first.url !== null, first.url ?? "none seen");
+check("clicking Google builds an authorize request", first.url !== null, first.url ?? "none seen");
 
 if (first.url) {
   const u = new URL(first.url);

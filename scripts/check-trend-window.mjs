@@ -106,8 +106,10 @@ check(
   `last point ${newWindow[newWindow.length - 1].period_start}, newest ${newest}`,
 );
 
-// Fewer rows than the limit must still work -- this is the live state today,
-// since the vendor sync has not run and the view is empty.
+// Fewer rows than the limit must still work. weekly_billable_trend is empty in
+// this deployment (the Factorial sync has never run), so the TrackingTime tier
+// added in section 4 is what actually feeds the chart -- and it starts short
+// too, growing a week at a time.
 const shortWindow = [...weeks.slice(0, 3)]
   .sort((a, b) => b.period_start.localeCompare(a.period_start))
   .slice(0, WEEKS_ON_CHART)
@@ -120,6 +122,62 @@ check(
 
 const emptyWindow = [].slice(0, WEEKS_ON_CHART).reverse();
 check("empty view yields an empty window without throwing", emptyWindow.length === 0);
+
+// --- 4. The home page must not fall through to invented numbers -----------
+//
+// THE BUG THIS EXISTS TO PREVENT COMING BACK
+// ------------------------------------------
+// buildBillableTrend used to try exactly two sources: weekly_billable_trend
+// (Factorial) and then the seeded `weekly_trends` demo table. The Factorial
+// pipeline has never run in this deployment -- weekly_employee_summary, the
+// base table behind that view, holds 0 rows -- so the first tier always
+// returned nothing and EVERY signed-in user's home page silently rendered 12
+// weeks of invented hours. Meanwhile time.org_week held 27 weeks of real
+// imported TrackingTime, one schema away and unread.
+//
+// Nothing errored. The chart looked entirely plausible; it was labelled
+// "SAMPLE DATA" in 10.5px mono and read as real by anyone glancing at it.
+// That is the failure mode: a confident wrong number on the landing page of a
+// business-intelligence app.
+//
+// The assertions below pin the three-tier order. They are deliberately
+// structural rather than behavioural: a runtime test needs a populated
+// database, and the whole point is that this broke precisely BECAUSE the
+// upstream table was empty.
+const builderBody = /function buildBillableTrend\([\s\S]*?\n}/.exec(source)?.[0] ?? "";
+
+check(
+  "buildBillableTrend takes a TrackingTime tier between synced and seeded",
+  /function buildBillableTrend\(\s*synced[^)]*?tracked[^)]*?seeded/s.test(source),
+  "without the middle tier the page falls straight through to the demo rows",
+);
+
+check(
+  "getExecutiveOverview actually fetches the TrackingTime weeks",
+  /getOrgWeeks\(\s*supabase\s*,\s*WEEKS_ON_TREND_CHART\s*\)/.test(source),
+  "the tier is useless if nothing populates it",
+);
+
+check(
+  "the TrackingTime tier is tried BEFORE the seeded fallback",
+  builderBody.indexOf("tracked.length > 0") > -1 &&
+    builderBody.indexOf("tracked.length > 0") < builderBody.indexOf('source: "sample"'),
+  "order matters: real data must win over invented data",
+);
+
+check(
+  'the TrackingTime tier reports itself as "synced", not "sample"',
+  /tracked\.length > 0[\s\S]{0,120}source:\s*"synced"/.test(builderBody),
+  "mislabelling real data as sample would make the page disclaim numbers that are true",
+);
+
+// The seeded tier must still EXIST -- a fix that deleted it would break the
+// first-run experience, and "delete the fallback" is the tempting wrong fix.
+check(
+  "the seeded fallback still exists for a genuinely empty deployment",
+  /source:\s*"sample"/.test(builderBody),
+  "removing it would leave a blank chart before any sync has run",
+);
 
 console.log(failed ? "\nTREND WINDOW: FAILED" : "\nTREND WINDOW: all checks passed");
 process.exit(failed ? 1 : 0);

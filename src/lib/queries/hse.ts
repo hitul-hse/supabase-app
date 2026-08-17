@@ -23,6 +23,7 @@ import type {
   BillableTrend,
   WeeklyBillableTrendRow,
 } from "./types";
+import { getOrgWeeks, type OrgWeekRow } from "./time-dashboard";
 
 /** Sync status strip shown at the top of every HSE Hub page. */
 export async function getSyncSources(supabase: SupabaseTyped): Promise<SyncSourceRow[]> {
@@ -40,12 +41,13 @@ export async function getExecutiveOverview(supabase: SupabaseTyped): Promise<{
   const [
     { data: metrics },
     { data: syncedTrend },
+    trackingTimeWeeks,
     { data: seededTrend },
     { data: teamUtilisations },
     { data: projects },
   ] = await Promise.all([
     supabase.from("executive_metrics").select("*").order("sort_order"),
-    // Real Factorial/TrackingTime figures, once the sync has run at least once.
+    // Real Factorial figures, once that sync has run at least once.
     //
     // Ordered DESCENDING on purpose: `limit` applies after the sort, so
     // ascending order would hand back the OLDEST weeks in the view and the
@@ -56,6 +58,8 @@ export async function getExecutiveOverview(supabase: SupabaseTyped): Promise<{
       .select("*")
       .order("period_start", { ascending: false })
       .limit(WEEKS_ON_TREND_CHART),
+    // Real TrackingTime figures. Already oldest-first and hours-converted.
+    getOrgWeeks(supabase, WEEKS_ON_TREND_CHART),
     supabase.from("weekly_trends").select("*").order("sort_order"),
     supabase.from("team_utilisations").select("*").order("sort_order"),
     supabase.from("projects").select("*").order("id"),
@@ -63,7 +67,11 @@ export async function getExecutiveOverview(supabase: SupabaseTyped): Promise<{
 
   return {
     metrics: metrics ?? [],
-    billableTrend: buildBillableTrend(syncedTrend ?? [], seededTrend ?? []),
+    billableTrend: buildBillableTrend(
+      syncedTrend ?? [],
+      trackingTimeWeeks,
+      seededTrend ?? [],
+    ),
     teamUtilisations: teamUtilisations ?? [],
     projects: projects ?? [],
   };
@@ -72,20 +80,33 @@ export async function getExecutiveOverview(supabase: SupabaseTyped): Promise<{
 const WEEKS_ON_TREND_CHART = 12;
 
 /**
- * Prefer synced data, fall back to the seeded rows, and say which it is.
+ * Prefer real data, fall back to the seeded rows, and say which it is.
  *
- * The fallback exists so the page still demonstrates its layout before the
- * first sync, but the caller is told the numbers are sample data so it can
- * label them. Silently swapping invented figures in where real ones are
- * expected is the failure mode worth avoiding on a page people read to make
- * decisions.
+ * THREE sources are tried in order, and the order matters. Factorial's
+ * weekly_billable_trend comes first because it is the richer per-employee
+ * pipeline; `time.org_week` (TrackingTime) comes second; the 12 seeded demo
+ * rows come last.
+ *
+ * The TrackingTime tier is not an optimisation, it is a correctness fix. The
+ * Factorial pipeline has never run -- weekly_employee_summary, the base table
+ * behind weekly_billable_trend, holds 0 rows -- so the first tier returned
+ * nothing and the home page fell straight through to the demo rows. It was
+ * drawing 12 weeks of INVENTED hours to every signed-in user while 27 weeks of
+ * imported TrackingTime sat one schema away, unread.
+ *
+ * The fallback still exists so the page renders before any sync has run, but
+ * the caller is told which tier it got so it can label the chart. Silently
+ * swapping invented figures in where real ones are expected is the failure
+ * mode worth avoiding on a page people read to make decisions.
  *
  * `synced` arrives NEWEST-first (see getExecutiveOverview -- descending order
  * is what makes `limit` return the most recent weeks) and is reversed here so
- * the chart's x-axis still reads oldest-to-newest.
+ * the chart's x-axis still reads oldest-to-newest. `tracked` is already
+ * oldest-first, because getOrgWeeks reverses it for exactly the same reason.
  */
 function buildBillableTrend(
   synced: WeeklyBillableTrendRow[],
+  tracked: OrgWeekRow[],
   seeded: WeeklyTrendRow[],
 ): BillableTrend {
   if (synced.length > 0) {
@@ -97,6 +118,22 @@ function buildBillableTrend(
         label: formatWeekLabel(row.period_start),
         billableHours: Number(row.billable_hours ?? 0),
         nonBillableHours: Number(row.non_billable_hours ?? 0),
+        isOpen: false,
+      })),
+    };
+  }
+
+  if (tracked.length > 0) {
+    return {
+      source: "synced",
+      points: tracked.map((row) => ({
+        label: formatWeekLabel(row.weekStart),
+        billableHours: row.billableHours,
+        // Everything logged that was not billable. Calendar placeholders are
+        // included on purpose: they are real logged time, and the Overview
+        // chart is "where did the week go", not "what can we invoice".
+        nonBillableHours:
+          Math.round((row.totalHours - row.billableHours) * 10) / 10,
         isOpen: false,
       })),
     };

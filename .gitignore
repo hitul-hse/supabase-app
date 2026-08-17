@@ -64,3 +64,9 @@ test-results/
 # repo. The inventory redacts PII from its reports, but the raw .json alongside
 # them is not redacted, so the whole directory stays out.
 docs/discovery/
+
+# The real build, parked here by scripts/check-time-acceptance.mjs while it
+# builds against a stub (NEXT_PUBLIC_* are compile-time, so the app must be
+# rebuilt to point elsewhere). Restored on every exit path, but if a run is
+# killed mid-flight this directory holds the real build. Never commit it.
+.next-real/

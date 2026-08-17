@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
 import type { PersonProfile, LeaveBalanceRow, BillableValueRow } from "@/lib/queries/types";
 import { BillableRatePanel } from "./BillableRatePanel";
 
@@ -17,7 +18,12 @@ export function PeopleDirectory({
   billableValues: Record<string, BillableValueRow>;
   viewerRole: string | null;
 }) {
-  const [selectedPerson, setSelectedPerson] = useState<PersonProfile>(people[0]);
+  // `people` can legitimately be empty: RLS scopes an `employee` to rows they
+  // can_view_person(), so a profile with no person_id link gets zero rows. The
+  // detail pane below dereferences the selection unconditionally, so without
+  // this guard the page white-screened on "Cannot read properties of undefined
+  // (reading 'id')" rather than explaining itself.
+  const [selectedId, setSelectedId] = useState<string | null>(people[0]?.id ?? null);
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState<"ALL" | "SAFETY" | "ENG" | "LAB">("ALL");
 
@@ -28,6 +34,32 @@ export function PeopleDirectory({
       p.role.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesDept && matchesSearch;
   });
+
+  // Resolve by id against the live `people` prop rather than holding a snapshot
+  // in state, so the detail pane reflects a server revalidate instead of going
+  // stale. Prefer a selection that's actually in the filtered list -- otherwise
+  // filtering to SAFETY while an ENG person is selected leaves the detail pane
+  // showing someone the list no longer offers.
+  const selectedPerson =
+    filteredPeople.find((p) => p.id === selectedId) ?? filteredPeople[0] ?? people[0];
+
+  if (!selectedPerson) {
+    return (
+      <>
+        <PageHeader
+          category="HSE HUB / RECORDS"
+          title="People &amp; Profiles"
+          meta="NO RECORDS VISIBLE"
+        />
+        <div className="p-6">
+          <EmptyState
+            title="No people records are visible to you"
+            description="Your account isn't linked to a person record yet, or your role only permits access to your own department. Ask an administrator to link your profile."
+          />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -80,7 +112,7 @@ export function PeopleDirectory({
               return (
                 <button
                   key={person.id}
-                  onClick={() => setSelectedPerson(person)}
+                  onClick={() => setSelectedId(person.id)}
                   className={`flex items-center gap-3 p-3.5 text-left transition-colors ${
                     isSelected
                       ? "border-l-2 border-[var(--accent)] bg-[var(--surface-hover)]"

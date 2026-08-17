@@ -46,10 +46,15 @@ export async function getExecutiveOverview(supabase: SupabaseTyped): Promise<{
   ] = await Promise.all([
     supabase.from("executive_metrics").select("*").order("sort_order"),
     // Real Factorial/TrackingTime figures, once the sync has run at least once.
+    //
+    // Ordered DESCENDING on purpose: `limit` applies after the sort, so
+    // ascending order would hand back the OLDEST weeks in the view and the
+    // chart would silently never show the current week. buildBillableTrend()
+    // reverses these back to oldest-first for the left-to-right axis.
     supabase
       .from("weekly_billable_trend")
       .select("*")
-      .order("period_start")
+      .order("period_start", { ascending: false })
       .limit(WEEKS_ON_TREND_CHART),
     supabase.from("weekly_trends").select("*").order("sort_order"),
     supabase.from("team_utilisations").select("*").order("sort_order"),
@@ -74,6 +79,10 @@ const WEEKS_ON_TREND_CHART = 12;
  * label them. Silently swapping invented figures in where real ones are
  * expected is the failure mode worth avoiding on a page people read to make
  * decisions.
+ *
+ * `synced` arrives NEWEST-first (see getExecutiveOverview -- descending order
+ * is what makes `limit` return the most recent weeks) and is reversed here so
+ * the chart's x-axis still reads oldest-to-newest.
  */
 function buildBillableTrend(
   synced: WeeklyBillableTrendRow[],
@@ -82,7 +91,7 @@ function buildBillableTrend(
   if (synced.length > 0) {
     return {
       source: "synced",
-      points: synced.map((row) => ({
+      points: [...synced].reverse().map((row) => ({
         // Weeks are identified by their Monday, which is what the report
         // period is keyed on upstream.
         label: formatWeekLabel(row.period_start),

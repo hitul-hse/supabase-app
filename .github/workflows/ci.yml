@@ -98,53 +98,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run schema check
-        run: npm run test:schema
-
-      - name: Run RLS behaviour tests
-        run: npm run test:rls
-
-      - name: Run RLS negative-control tests
-        run: npm run test:rls-control
-
-      - name: Run project_tasks write-RLS tests
-        run: npm run test:task-write-rls
-
-      - name: Run timesheet_entries write-RLS tests
-        run: npm run test:timesheet-write-rls
-
-      - name: Run org chart view test
-        run: npm run test:org-chart-view
-
-      - name: Run task_comments RLS tests
-        run: npm run test:task-comments-rls
-
-      - name: Run subtasks RLS tests
-        run: npm run test:subtasks-rls
-
-      - name: Run leave requests RLS tests
-        run: npm run test:leave-requests-rls
-
-      - name: Run billable rates RLS tests
-        run: npm run test:billable-rates-rls
-
-      - name: Run live timer tests
-        run: npm run test:timer-rls
-
-      - name: Run project budget and margin tests
-        run: npm run test:project-budget-rls
-
-      - name: Run timesheet withdraw and rejection tests
-        run: npm run test:timesheet-withdraw-rls
-
-      - name: Run duration parsing tests
-        run: npm run test:duration
-
-      - name: Run project sections tests
-        run: npm run test:sections-rls
-
-      - name: Run policy count control
-        run: npm run test:policy-control
+      # Deliberately ONE step that shells out to `test:db`, rather than
+      # re-listing every gate here. This file previously duplicated the list by
+      # hand and had silently drifted: test:permissions-rls (the entire RBAC
+      # permission gate), test:backfill and test:verify-query were in test:db
+      # but missing from CI, so they never ran on a pull request. Adding a gate
+      # to package.json is now enough -- there is no second list to forget.
+      - name: Run schema, RLS and unit test gates
+        run: npm run test:db
 
   # ─── 5. Summary ────────────────────────────────────────────────────────────
   # A single required status check that depends on all jobs. Branch protection

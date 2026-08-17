@@ -94,11 +94,48 @@ let rawExposed = true;
 if (!schemaExposed || !rawExposed) {
   const missing = [!rawExposed && "raw", !schemaExposed && "time"].filter(Boolean);
   console.log(
-    "\n  FIX: Supabase Dashboard -> Project Settings -> API -> 'Exposed schemas'.\n" +
-      `       Add ${missing.join(" and ")} alongside public, i.e.\n` +
-      "         public, graphql_public, raw, time\n" +
+    `\n  FIX: expose ${missing.join(" and ")} to PostgREST. Either route works.\n` +
+      "\n" +
+      "    (a) Dashboard -> Integrations -> Data API -> Settings -> 'Exposed schemas'\n" +
+      "        (this MOVED; it used to be Project Settings -> API, and Supabase's\n" +
+      "         own docs still say so. Some projects show it as Project Settings\n" +
+      "         -> Data API.) Set the field to:\n" +
+      "          public, graphql_public, raw, time\n" +
+      "\n" +
+      "    (b) Or run this in the SQL Editor:\n" +
+      "          alter role authenticator\n" +
+      "            set pgrst.db_schemas = 'public, graphql_public, raw, time';\n" +
+      "          notify pgrst, 'reload config';\n" +
+      "          notify pgrst, 'reload schema';\n" +
+      "        Trade-off: this takes exposed-schema management away from the\n" +
+      "        dashboard UI. Undo with:\n" +
+      "          alter role authenticator reset pgrst.db_schemas;\n" +
+      "        It REPLACES the list, so public and graphql_public must stay in it.\n" +
+      "\n" +
       "       The tables can exist and be correct while staying invisible to the\n" +
-      "       client until this is set. See docs/architecture/MODULE-GO-LIVE.md.",
+      "       client until this is set -- PGRST106 rejects the schema NAME before\n" +
+      "       it looks at any table, so it is NOT evidence the DDL failed to apply.\n" +
+      "       See docs/architecture/MODULE-GO-LIVE.md.",
+  );
+}
+
+// The probes above all use the SERVICE key, which bypasses both grants and RLS.
+// They prove the objects exist and the schema is exposed to the API. They do not
+// prove a signed-in user can read them: if `authenticated` lacked USAGE on the
+// schema, every logged-in user would get 42501 and see an empty page -- which is
+// indistinguishable from "no time tracked", the exact silent failure this file
+// exists to catch. Anon cannot answer it either, being correctly granted nothing.
+//
+// Rather than imply a check it cannot perform, say so and name what does cover it:
+//   check-time-rls.mjs      asserts the grants against real Postgres
+//   npm run check:acceptance drives a signed-in browser end to end
+if (schemaExposed) {
+  console.log(
+    "\n  NOTE: these probes use the service key, so they cannot see whether the" +
+      "\n        `authenticated` role holds USAGE on `time`. If a signed-in user" +
+      "\n        sees an empty /time while this check is green, that grant is the" +
+      "\n        first thing to check. check-time-rls.mjs and check:acceptance" +
+      "\n        cover it directly.",
   );
 }
 

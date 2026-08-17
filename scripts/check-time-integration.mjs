@@ -12,6 +12,17 @@
  * If the claim is wrong, /time throws a 500 in production instead of rendering an
  * empty state, which is a materially different and much worse failure.
  *
+ * The failure being exercised depends on the project's state, and BOTH matter:
+ *
+ *   - schema not exposed  -> 406 PGRST106 "Invalid schema: time"
+ *   - schema exposed, but anon lacks USAGE -> 401 42501 "permission denied"
+ *
+ * An earlier version of this file asserted the first case in its comments. When the
+ * schema was exposed it kept passing on the second, so the assertions were sound
+ * while the explanation had quietly become false. It now detects and reports which
+ * condition it is testing, because a gate that passes for an unstated reason is one
+ * nobody can reason about later.
+ *
  * Read-only: SELECTs against the live project, no writes, no auth users created.
  */
 import { readFileSync, mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
@@ -85,7 +96,29 @@ const { createClient } = await import("@supabase/supabase-js");
 const supabase = createClient(url, anon);
 
 console.log(`live project: ${url}`);
-console.log("the `time` schema is currently NOT exposed, so every read below hits PGRST106\n");
+
+// Establish WHICH boundary failure the anon key currently hits, rather than
+// assuming. This is the difference between a gate that means something and one that
+// merely passes.
+const probe = await fetch(`${url}/rest/v1/entry?select=id&limit=1`, {
+  headers: { apikey: anon, Authorization: `Bearer ${anon}`, "Accept-Profile": "time" },
+});
+const probeBody = await probe.json().catch(() => ({}));
+const condition =
+  probe.status === 200
+    ? "readable"
+    : probeBody.code === "PGRST106"
+      ? "schema not exposed (406 PGRST106)"
+      : probeBody.code === "42501"
+        ? "schema exposed but anon lacks USAGE (401 42501)"
+        : `${probe.status} ${probeBody.code ?? "unknown"}`;
+
+console.log(`anon sees: ${condition}`);
+console.log(
+  condition === "readable"
+    ? "the reads below should return live rows\n"
+    : "every read below hits that failure and must degrade to an empty state\n",
+);
 
 // ── The claim under test: these must resolve, not reject ───────────────────
 const week = queries.currentTimeWeek();

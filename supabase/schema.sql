@@ -1560,8 +1560,20 @@ alter table raw.sync_run enable row level security;
 
 -- Sync health is not sensitive and the Hub sync bar needs it, so this one is
 -- readable -- but only the timing and status, never a payload.
-create policy "authenticated can read sync_run"
-  on raw.sync_run for select to authenticated using (true);
+--
+-- Guarded like the `time` module policies below. Without the guard, applying the
+-- module sections to an existing database succeeds the first time and fails the
+-- second with 42710 "policy already exists" -- and whoever re-ran it has no way
+-- to tell that error apart from a real problem. scripts/check-apply-modules.mjs
+-- runs the extract twice and caught exactly this.
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname='raw' and tablename='sync_run'
+                 and policyname='authenticated can read sync_run') then
+    create policy "authenticated can read sync_run"
+      on raw.sync_run for select to authenticated using (true);
+  end if;
+end $$;
 
 grant usage on schema raw to authenticated;
 grant select on raw.sync_run to authenticated;
@@ -1982,6 +1994,249 @@ where e.duration_seconds is not null
 group by e.member_id, m.display_name, m.hub_person_id, date_trunc('week', e.started_at), m.weekly_hours;
 
 grant select on time.week_summary to authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- 8b. Analytics views for the organisation dashboard
+--
+-- Two rules govern everything below, and both were established empirically
+-- rather than assumed:
+--
+--   1. MONEY IS NOT A VIEW. A security_invoker view that joins time.member_rate
+--      does not fail closed for a caller who cannot see every rate -- it fails
+--      PARTIAL. Measured in PGlite: on a project with three members and true
+--      revenue of 300.00, a dept_head who could see exactly one rate row got
+--      back "90.00". A plausible wrong number is worse than an error, because
+--      nothing about it looks broken. Every money figure therefore comes from
+--      time.project_economics(), a security definer function gated on a
+--      permission, which returns zero rows rather than a partial total.
+--
+--   2. CALENDAR TIME IS REPORTED, NEVER SILENTLY MIXED IN. 34% of live events
+--      are GHOST calendar placeholders with no customer and no project. Folding
+--      them into a utilisation or billable figure would make that figure
+--      meaningless, so every view carries calendar_seconds as its own column
+--      and the deliberate-work total excludes it.
+--
+-- Unit discipline: time.entry.duration_seconds is SECONDS, while
+-- time.project.estimated_hours is HOURS. Every crossing of that boundary below
+-- is written as `seconds / 3600.0` with a float divisor -- integer division
+-- would truncate 3599 seconds to 0 hours.
+-- ---------------------------------------------------------------------------
+
+-- Organisation-wide weekly totals. The dashboard's trend line.
+--
+-- count(distinct member_id) rather than count(*) so a week where one person
+-- logged forty entries does not read as forty active people.
+create or replace view time.org_week
+with (security_invoker = true) as
+select
+  date_trunc('week', e.started_at)::date                        as week_start,
+  coalesce(sum(e.duration_seconds), 0)                          as total_seconds,
+  coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0)  as billable_seconds,
+  coalesce(sum(e.duration_seconds) filter (where e.is_calendar), 0)  as calendar_seconds,
+  -- Deliberate work: what a human chose to track, excluding calendar noise.
+  coalesce(sum(e.duration_seconds) filter (where not e.is_calendar), 0) as tracked_seconds,
+  count(*)                                                      as entry_count,
+  count(distinct e.member_id)                                   as active_members,
+  count(distinct e.project_id)                                  as active_projects
+from time.entry e
+where e.duration_seconds is not null
+group by date_trunc('week', e.started_at);
+
+grant select on time.org_week to authenticated;
+
+
+-- Per-project rollup. Hours only -- no rates, so it is safe for anyone whose
+-- RLS lets them see the underlying entries.
+--
+-- LEFT JOIN from project, so a project with no time logged still appears with
+-- zeroes. An inner join would hide exactly the projects worth asking about.
+create or replace view time.project_summary
+with (security_invoker = true) as
+select
+  p.id                                                          as project_id,
+  p.name                                                        as project_name,
+  p.is_billable,
+  p.is_archived,
+  c.id                                                          as customer_id,
+  c.name                                                        as customer_name,
+  p.estimated_hours,
+  coalesce(sum(e.duration_seconds), 0)                          as total_seconds,
+  coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0) as billable_seconds,
+  coalesce(sum(e.duration_seconds) filter (where e.is_calendar), 0) as calendar_seconds,
+  -- count(e.id) not count(*): the LEFT JOIN produces one all-null row for a
+  -- project with no entries, and count(*) would report that as 1.
+  count(e.id)                                                   as entry_count,
+  count(distinct e.member_id)                                   as member_count,
+  max(e.started_at)                                             as last_activity_at,
+  -- Budget burn. estimated_hours is HOURS, duration_seconds is SECONDS.
+  -- nullif guards a zero or absent estimate: "no budget set" must read as
+  -- unknown, not as 0% or a division error.
+  case
+    when coalesce(p.estimated_hours, 0) > 0
+    then round((coalesce(sum(e.duration_seconds), 0) / 3600.0)
+               / nullif(p.estimated_hours, 0) * 100, 1)
+  end                                                           as burn_percent
+from time.project p
+left join time.customer c on c.id = p.customer_id
+left join time.entry e    on e.project_id = p.id and e.duration_seconds is not null
+group by p.id, p.name, p.is_billable, p.is_archived, c.id, c.name, p.estimated_hours;
+
+grant select on time.project_summary to authenticated;
+
+
+-- Per-customer rollup. Same hours-only safety as project_summary.
+--
+-- The project count is a SCALAR SUBQUERY, not a second LEFT JOIN, and that is
+-- not a stylistic preference. Joining customer to both project and entry
+-- fans out: N projects x M entries produces N*M rows, so every sum() is
+-- multiplied by the project count. Measured before this was fixed -- a customer
+-- with 2 projects and 4 entries reported 8 entries and exactly double the
+-- hours. The bug hid because count(distinct p.id) was still correct, so the
+-- one column anyone would sanity-check looked fine while the hours lied.
+create or replace view time.customer_summary
+with (security_invoker = true) as
+select
+  c.id                                                          as customer_id,
+  c.name                                                        as customer_name,
+  c.is_archived,
+  coalesce(sum(e.duration_seconds), 0)                          as total_seconds,
+  coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0) as billable_seconds,
+  (select count(*) from time.project p where p.customer_id = c.id) as project_count,
+  count(e.id)                                                   as entry_count,
+  max(e.started_at)                                             as last_activity_at
+from time.customer c
+left join time.entry e on e.customer_id = c.id and e.duration_seconds is not null
+group by c.id, c.name, c.is_archived;
+
+grant select on time.customer_summary to authenticated;
+
+
+-- Per-service rollup. This is the closest thing to HSE's real service
+-- catalogue, so "which service actually consumes our week" is a first-class
+-- question rather than a drill-down.
+create or replace view time.service_summary
+with (security_invoker = true) as
+select
+  s.id                                                          as service_id,
+  s.name                                                        as service_name,
+  s.is_travel,
+  s.is_paid_travel,
+  s.is_internal,
+  coalesce(sum(e.duration_seconds), 0)                          as total_seconds,
+  coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0) as billable_seconds,
+  count(e.id)                                                   as entry_count
+from time.service s
+left join time.entry e on e.service_id = s.id and e.duration_seconds is not null
+group by s.id, s.name, s.is_travel, s.is_paid_travel, s.is_internal;
+
+grant select on time.service_summary to authenticated;
+
+
+-- Per-member utilisation over a rolling window.
+--
+-- Deliberately NOT joined to member_rate: this view answers "how busy is this
+-- person", and adding cost would drag the whole thing behind the exec gate for
+-- no benefit. Utilisation uses tracked_seconds (calendar excluded), because a
+-- day of synced meetings is not a day of billable capacity.
+create or replace view time.member_utilisation
+with (security_invoker = true) as
+select
+  m.id                                                          as member_id,
+  m.display_name,
+  m.hub_person_id,
+  m.is_archived,
+  m.weekly_hours,
+  coalesce(sum(e.duration_seconds), 0)                          as total_seconds,
+  coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0) as billable_seconds,
+  coalesce(sum(e.duration_seconds) filter (where e.is_calendar), 0) as calendar_seconds,
+  coalesce(sum(e.duration_seconds) filter (where not e.is_calendar), 0) as tracked_seconds,
+  count(e.id)                                                   as entry_count,
+  count(distinct date_trunc('week', e.started_at))              as weeks_active,
+  max(e.started_at)                                             as last_activity_at
+from time.member m
+left join time.entry e on e.member_id = m.id and e.duration_seconds is not null
+group by m.id, m.display_name, m.hub_person_id, m.is_archived, m.weekly_hours;
+
+grant select on time.member_utilisation to authenticated;
+
+
+-- Money. A function, not a view, and the difference is the whole point.
+--
+-- security definer means the rate join runs with the owner's rights, so the
+-- total is always complete -- there is no partial-aggregate failure mode. The
+-- guard is an explicit permission check that returns zero rows for anyone
+-- without it, which is a visibly empty result rather than a quietly wrong one.
+--
+-- The rate join is effective-dated on the ENTRY's date, not today's: re-costing
+-- last year's work at this year's rate produces a confident wrong answer.
+-- LEFT JOIN, so an entry whose member has no rate row still contributes its
+-- hours and simply adds nothing to revenue -- an inner join would silently drop
+-- those hours and understate the project.
+create or replace function time.project_economics(
+  p_from date default null,
+  p_to   date default null
+)
+returns table (
+  project_id       bigint,
+  project_name     text,
+  customer_name    text,
+  total_seconds    bigint,
+  billable_seconds bigint,
+  revenue          numeric,
+  cost             numeric,
+  margin           numeric,
+  margin_percent   numeric
+)
+language sql stable security definer set search_path = time, public
+as $$
+  select
+    p.id,
+    p.name,
+    c.name,
+    coalesce(sum(e.duration_seconds), 0)::bigint,
+    coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0)::bigint,
+    round(coalesce(sum(
+      case when e.is_billable
+           then e.duration_seconds / 3600.0 * coalesce(r.hourly_rate, 0)
+           else 0 end), 0), 2),
+    round(coalesce(sum(e.duration_seconds / 3600.0 * coalesce(r.hourly_cost, 0)), 0), 2),
+    round(coalesce(sum(
+      case when e.is_billable
+           then e.duration_seconds / 3600.0 * coalesce(r.hourly_rate, 0)
+           else 0 end), 0)
+      - coalesce(sum(e.duration_seconds / 3600.0 * coalesce(r.hourly_cost, 0)), 0), 2),
+    case
+      when coalesce(sum(
+        case when e.is_billable
+             then e.duration_seconds / 3600.0 * coalesce(r.hourly_rate, 0)
+             else 0 end), 0) > 0
+      then round((coalesce(sum(
+             case when e.is_billable
+                  then e.duration_seconds / 3600.0 * coalesce(r.hourly_rate, 0)
+                  else 0 end), 0)
+           - coalesce(sum(e.duration_seconds / 3600.0 * coalesce(r.hourly_cost, 0)), 0))
+           / nullif(coalesce(sum(
+             case when e.is_billable
+                  then e.duration_seconds / 3600.0 * coalesce(r.hourly_rate, 0)
+                  else 0 end), 0), 0) * 100, 1)
+    end
+  from time.entry e
+  join time.project p on p.id = e.project_id
+  left join time.customer c on c.id = p.customer_id
+  left join time.member_rate r
+         on r.member_id = e.member_id
+        and e.started_at::date >= r.valid_from
+        and (r.valid_to is null or e.started_at::date < r.valid_to)
+  where app_user_has_permission('overview:export')
+    and e.duration_seconds is not null
+    and (p_from is null or e.started_at::date >= p_from)
+    and (p_to   is null or e.started_at::date <= p_to)
+  group by p.id, p.name, c.name;
+$$;
+
+revoke execute on function time.project_economics(date, date) from public, anon;
+grant  execute on function time.project_economics(date, date) to authenticated;
 
 
 -- Seed the service catalogue observed in the live account. on conflict do

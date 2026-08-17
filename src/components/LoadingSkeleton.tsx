@@ -5,10 +5,23 @@
  */
 
 /** A single rectangular shimmer block. */
-export function SkeletonBlock({ className }: { className?: string }) {
+export function SkeletonBlock({
+  className,
+  style,
+}: {
+  className?: string;
+  /**
+   * For dimensions Tailwind cannot express as a class, such as the varying bar
+   * heights in the dashboard's chart skeleton. Kept to `style` rather than
+   * generating arbitrary-value classes, because those must exist at build time
+   * and a computed one silently produces no CSS.
+   */
+  style?: React.CSSProperties;
+}) {
   return (
     <div
       className={`animate-pulse rounded-[var(--radius-sm)] bg-[var(--surface-2)] ${className ?? ""}`}
+      style={style}
     />
   );
 }

@@ -329,6 +329,55 @@ try {
   check("no uncaught client-side error on live data", errors.length === 0, errors.slice(0, 2).join(" | "));
 
   mkdirSync("tmp-shots", { recursive: true });
+
+  // ── The loading skeleton ─────────────────────────────────────────────────
+  // This page takes 0.5s-3.3s against real data, so the wait is real and a
+  // skeleton is the difference between "loading" and "broken". Asserted by
+  // catching the intermediate state during a CLIENT-SIDE navigation, which is the
+  // only time a route's loading.tsx is shown: on a hard document request the
+  // server streams the finished page and the skeleton never appears. Getting that
+  // wrong is why the first version of this check looked for a skeleton that could
+  // not have been there. A loading.tsx in the wrong directory is invisible
+  // otherwise, so this is worth asserting rather than assuming.
+  {
+    const slow = await ctx.newPage();
+    // Delay the RSC payload the client router fetches, so the pending state is
+    // observable. `_rsc` marks those requests.
+    await slow.route(/_rsc=/, async (route) => {
+      await new Promise((r) => setTimeout(r, 1200));
+      await route.continue();
+    });
+
+    // Start somewhere else in the app, then navigate to the dashboard through the
+    // sidebar link, exactly as a person would.
+    await slow.goto(`http://localhost:${APP_PORT}/time?view=records`, {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    await slow.getByRole("link", { name: /TrackingTime Dashboard/i }).first().click();
+
+    let sawSkeleton = false;
+    for (let i = 0; i < 40; i++) {
+      const n = await slow.locator(".animate-pulse").count().catch(() => 0);
+      if (n > 5) {
+        sawSkeleton = true;
+        break;
+      }
+      await slow.waitForTimeout(100);
+    }
+    await slow
+      .locator("text=TOTAL HOURS")
+      .first()
+      .waitFor({ state: "visible", timeout: 30_000 })
+      .catch(() => {});
+    check(
+      "a loading skeleton is shown while the slow report is fetched",
+      sawSkeleton,
+      "no shimmer blocks appeared — the route's loading.tsx is not being reached, so a 3s wait shows a frozen page",
+    );
+    await slow.close();
+  }
+
   await page.keyboard.press("Escape");
   await visit("preset=all&group=project&bucket=week", "screenshot pass");
   await page.screenshot({ path: "tmp-shots/live-dashboard.png", fullPage: true });

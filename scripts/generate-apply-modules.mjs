@@ -10,7 +10,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 const schema = readFileSync("supabase/schema.sql", "utf8");
-const nl = schema.includes("\r\n") ? "\r\n" : "\n";
 
 // Section headers in schema.sql look like:
 //   -- 7. raw -- the vendor landing zone
@@ -41,14 +40,35 @@ const header = `-- -------------------------------------------------------------
 -- ---------------------------------------------------------------------------
 -- STEP 1 of 2  Run this file in the Supabase SQL Editor.
 --
--- STEP 2 of 2  Dashboard -> Project Settings -> API -> "Exposed schemas".
---              Set it to:   public, graphql_public, raw, time
+-- STEP 2 of 2  Expose the schemas to PostgREST. Either route works.
 --
---              This one cannot be done from SQL. PostgREST only serves schemas
---              in that list; until \`time\` appears there every query answers
---              406 PGRST106 "Invalid schema", the query layer turns that into an
---              empty result by design, and /time shows "No time-tracking record
---              linked to your account" to every user while looking healthy.
+--              (a) Dashboard -> Integrations -> Data API -> Settings ->
+--                  "Exposed schemas". Set it to:
+--                     public, graphql_public, raw, time
+--                  NOTE the location moved: it used to live under Project
+--                  Settings -> API, and Supabase's own docs still say so. On
+--                  some projects it appears as Project Settings -> Data API.
+--
+--              (b) Or from SQL, if the dashboard control cannot be found:
+--                     alter role authenticator
+--                       set pgrst.db_schemas = 'public, graphql_public, raw, time';
+--                     notify pgrst, 'reload config';
+--                     notify pgrst, 'reload schema';
+--                  Trade-off: setting this by hand takes exposed-schema
+--                  management AWAY from the dashboard UI for this project.
+--                  Undo with: alter role authenticator reset pgrst.db_schemas;
+--                  The statement REPLACES the whole list, so public and
+--                  graphql_public must stay in it or the rest of the app breaks.
+--
+--              Until the schemas are exposed every query answers 406 PGRST106
+--              "Invalid schema", the query layer turns that into an empty result
+--              by design, and /time shows "No time-tracking record linked to
+--              your account" to every user while looking healthy.
+--
+--              PGRST106 rejects the schema NAME before it looks at any table, so
+--              while it persists "the DDL landed" and "the DDL did not land" are
+--              indistinguishable from any PostgREST client. Do not read it as
+--              evidence that this file failed.
 --
 -- Verify both:  npm run check:live-ready
 -- Background:   docs/architecture/MODULE-GO-LIVE.md
@@ -56,8 +76,15 @@ const header = `-- -------------------------------------------------------------
 
 `;
 
-const out = header + body.trimEnd() + nl;
-writeFileSync("supabase/apply-modules.sql", out);
+// Always emit LF, never the platform's endings. This file is generated on
+// Windows and its byte-exactness is asserted on Linux CI, and the extraction
+// SLICES schema.sql -- so mirroring the input's endings (as this did) produced
+// CRLF here and LF there. Neither is wrong; they just cannot both match one
+// committed blob, so check-apply-modules failed on CI while passing locally.
+// git stores LF (core.autocrlf=true, no .gitattributes), so LF is the form the
+// gate compares against.
+const out = (header + body.trimEnd() + "\n").replace(/\r\n/g, "\n");
+writeFileSync("supabase/apply-modules.sql", out, { encoding: "utf8" });
 
 const lines = out.split(/\r?\n/).length;
 const tables = (out.match(/create table if not exists/g) || []).length;

@@ -1,0 +1,13 @@
+# Generated files whose bytes are asserted, so their line endings cannot vary
+# by platform.
+#
+# supabase/apply-modules.sql is extracted from schema.sql by
+# scripts/generate-apply-modules.mjs, and check-apply-modules.mjs compares the
+# committed file to a freshly generated one byte for byte. With
+# core.autocrlf=true and no rule here, git checks the file out as CRLF on
+# Windows and LF on Linux CI, so one of the two platforms always saw drift that
+# was purely an line-ending artefact -- the gate passed locally and failed on CI.
+#
+# -text disables all conversion: the bytes in the repo are the bytes on disk,
+# everywhere.
+supabase/apply-modules.sql -text

@@ -59,6 +59,7 @@
     "check:dashboard-tables": "node scripts/check-dashboard-tables.mjs",
     "check:parallel-paging": "node --experimental-strip-types scripts/check-parallel-paging.mjs",
     "measure:dashboard-cost": "node scripts/measure-dashboard-cost.mjs",
+    "check:live-dashboard": "node scripts/check-live-dashboard.mjs",
     "check:sso-ui": "node scripts/check-sso-ui.mjs",
     "check:sso-providers": "node scripts/check-sso-providers.mjs",
     "check:action-auth": "node scripts/check-server-action-auth.mjs",

@@ -24,7 +24,7 @@
  * Read-only against nothing live: a stub Supabase, and a build in its own distDir
  * so the shared .next is never touched.
  */
-import { existsSync, rmSync } from "node:fs";
+import fs, { existsSync, rmSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 
@@ -49,6 +49,33 @@ let writes = [];
 let grantWrite = true;
 let authenticated = true;
 let memberLinked = true;
+
+/**
+ * Bind the stub, or skip with an explanation.
+ *
+ * server.listen()'s callback form never rejects, so a port left bound by an earlier
+ * run surfaced as an unhandled 'error' event and a raw stack trace -- while the
+ * earlier run's app server stayed orphaned on its own port. A port already in use
+ * is a stale-environment problem, not a defect in the app, so it reports what to do
+ * instead of failing.
+ */
+function listenOrSkip(srv, port) {
+  return new Promise((resolve) => {
+    srv.once("error", (e) => {
+      if (e.code === "EADDRINUSE") {
+        console.log(
+          `SKIP: port ${port} is already in use, probably by an earlier run that did\n` +
+            `      not shut down. Free it and re-run:\n` +
+            `        netstat -ano | findstr ${port}`,
+        );
+        resolve(false);
+        return;
+      }
+      throw e;
+    });
+    srv.listen(port, () => resolve(true));
+  });
+}
 
 const server = createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -114,7 +141,7 @@ const server = createServer((req, res) => {
   send([]);
 });
 
-await new Promise((r) => server.listen(PORT, r));
+if (!(await listenOrSkip(server, PORT))) process.exit(0);
 
 // A dedicated dist dir. The shared .next is never moved: parallel sessions run
 // their own servers out of it, and on Windows renaming it hits EPERM whenever a
@@ -129,11 +156,33 @@ const stubEnv = {
   NEXT_ACCEPTANCE_DIST: DIST,
 };
 
+/**
+ * tsconfig.json is rewritten by `next build`: it appends the dist dir's own type
+ * paths to "include". With a probe distDir that pollutes the SHARED config with
+ * entries naming a directory that exists only during this test -- committed noise
+ * pointing at nothing. Snapshot it and put it back.
+ */
+const TSCONFIG_SNAPSHOT = existsSync("tsconfig.json")
+  ? fs.readFileSync("tsconfig.json")
+  : null;
+
+function restoreTsconfig() {
+  if (!TSCONFIG_SNAPSHOT) return;
+  try {
+    if (!fs.readFileSync("tsconfig.json").equals(TSCONFIG_SNAPSHOT)) {
+      fs.writeFileSync("tsconfig.json", TSCONFIG_SNAPSHOT);
+    }
+  } catch {
+    // Non-fatal: a stale include path is harmless to tsc, just untidy.
+  }
+}
+
 console.log("building against the stub (NEXT_PUBLIC_* are compile-time)...");
 const build = spawnSync("npx", ["next", "build"], { env: stubEnv, shell: true, encoding: "utf8" });
 if (build.status !== 0) {
   console.log("FAIL: stub build failed");
   console.log((build.stdout ?? "").slice(-2000) + (build.stderr ?? "").slice(-2000));
+  restoreTsconfig();
   server.close();
   process.exit(1);
 }
@@ -147,6 +196,7 @@ app.stdout.on("data", (d) => (appLog += d));
 app.stderr.on("data", (d) => (appLog += d));
 
 function cleanup() {
+  restoreTsconfig();
   try {
     if (app.pid) spawnSync("taskkill", ["/PID", String(app.pid), "/T", "/F"], { stdio: "ignore" });
   } catch { /* gone */ }

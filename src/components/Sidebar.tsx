@@ -33,7 +33,12 @@ async function getUserInfo() {
   }
 }
 
-export async function Sidebar() {
+/**
+ * Rendered twice per page — once for the desktop rail, once inside the mobile
+ * drawer. `variant` tells the two copies apart so only one of them claims the
+ * data-tour anchors that OnboardingTour looks up by querySelector().
+ */
+export async function Sidebar({ variant = "desktop" }: { variant?: "desktop" | "mobile" } = {}) {
   const { status, email, roleKey, roleDisplayName } = await getUserInfo();
   const dotColor =
     status === "connected" ? "var(--good)" : status === "error" ? "var(--critical)" : "var(--warning)";
@@ -66,7 +71,7 @@ export async function Sidebar() {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto">
-        <SidebarNav roleKey={roleKey} />
+        <SidebarNav roleKey={roleKey} withTourIds={variant === "desktop"} />
       </div>
 
       {/* User profile & Supabase status footer */}

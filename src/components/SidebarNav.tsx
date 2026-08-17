@@ -1,11 +1,18 @@
 "use client";
 /**
- * SidebarNav — animated navigation with Framer Motion hover/active states
- * and data-tour attributes for the OnboardingTour spotlight.
+ * SidebarNav — sidebar navigation with a shared-layout active indicator.
+ *
+ * Hover/press/focus states are pure CSS on purpose. Framer Motion writes
+ * gesture styles inline, and its hover-end can be deferred (while pressed) or
+ * dropped entirely if the pointerleave/pointerup never lands — which is exactly
+ * what a click-then-navigate does. A dropped hover-end freezes the inline
+ * background, and inline styles outrank the Tailwind classes, so the item stays
+ * highlighted with no way for CSS to clear it. The browser cannot lose :hover.
  */
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useId } from "react";
 
 interface NavGroup {
   title: string;
@@ -46,8 +53,24 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-export function SidebarNav({ roleKey }: { roleKey: string | null }) {
+interface SidebarNavProps {
+  roleKey: string | null;
+  /**
+   * Only one mounted instance may own the data-tour attributes — OnboardingTour
+   * resolves them with querySelector(), which returns the first match in DOM
+   * order regardless of visibility. See Sidebar's `variant` prop.
+   */
+  withTourIds?: boolean;
+}
+
+export function SidebarNav({ roleKey, withTourIds = true }: SidebarNavProps) {
   const pathname = usePathname();
+
+  // The desktop sidebar and the mobile drawer both mount a SidebarNav at the
+  // same time. Framer keys shared-layout nodes in one global stack per
+  // layoutId and promotes a single node to "lead", so a hardcoded id would let
+  // the hidden drawer's bar win and strand the visible one on the old item.
+  const activeBarId = `nav-active-bar-${useId()}`;
 
   const groups = NAV_GROUPS.map((group) => ({
     ...group,
@@ -85,33 +108,31 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
               >
                 <Link
                   href={link.href}
-                  data-tour={link.tourId}
-                  className="block"
+                  data-tour={withTourIds ? link.tourId : undefined}
+                  data-active={active ? "true" : "false"}
+                  aria-current={active ? "page" : undefined}
+                  className="group relative block rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
                 >
-                  <motion.div
-                    whileHover={{ x: 3, backgroundColor: "var(--surface-hover)" }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className={`relative flex items-center justify-between px-4 py-1.5 text-[12.5px] transition-colors rounded-sm ${
+                  {/* Active left border. Lives on the untransformed Link so the
+                      hover translate can't drag it off the sidebar edge, and is
+                      rendered bare — wrapping a layoutId in AnimatePresence keeps
+                      the outgoing node alive alongside the incoming one, which is
+                      what left the bar sitting on the item you just left. */}
+                  {active && (
+                    <motion.span
+                      layoutId={activeBarId}
+                      transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                      className="absolute left-0 top-1/2 h-[70%] w-0.5 -translate-y-1/2 bg-[var(--accent)]"
+                    />
+                  )}
+
+                  <div
+                    className={`flex items-center justify-between rounded-sm px-4 py-1.5 text-[12.5px] transition-[background-color,color,transform] duration-150 ease-out group-hover:translate-x-[3px] group-hover:bg-[var(--surface-hover)] group-hover:text-[var(--text-primary)] group-focus-visible:bg-[var(--surface-hover)] group-active:scale-[0.98] motion-reduce:transition-none motion-reduce:group-hover:translate-x-0 ${
                       active
                         ? "bg-[var(--surface-hover)] font-medium text-[var(--text-primary)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        : "text-[var(--text-secondary)]"
                     }`}
                   >
-                    {/* Animated left border */}
-                    <AnimatePresence>
-                      {active && (
-                        <motion.span
-                          layoutId="nav-active-bar"
-                          initial={{ scaleY: 0 }}
-                          animate={{ scaleY: 1 }}
-                          exit={{ scaleY: 0 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                          className="absolute left-0 top-0 h-full w-0.5 bg-[var(--accent)] origin-center"
-                        />
-                      )}
-                    </AnimatePresence>
-
                     <span>{link.label}</span>
 
                     {link.badge && (
@@ -125,7 +146,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                         {link.badge}
                       </motion.span>
                     )}
-                  </motion.div>
+                  </div>
                 </Link>
               </motion.div>
             );

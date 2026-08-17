@@ -12,7 +12,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile: drawer wrapping the same Sidebar content */}
       <MobileSidebarDrawer>
-        <Sidebar />
+        <Sidebar variant="mobile" />
       </MobileSidebarDrawer>
 
       {/* Main content — on mobile add top padding for the fixed top bar */}

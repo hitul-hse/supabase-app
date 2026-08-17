@@ -11,6 +11,11 @@ const PUBLIC_ROUTES = new Set([
   "/auth/callback",
   "/auth/set-password",
   "/auth/forgot-password",
+  // The public marketing page, plus its aliases. The aliases have no page of
+  // their own — next.config.ts redirects them to /demo — but they must stay
+  // listed here, because this proxy runs BEFORE the redirect and would
+  // otherwise bounce an anonymous visitor to login instead of letting them
+  // through to the redirect.
   "/demo",
   "/showcase",
   "/product-tour",

@@ -25,24 +25,21 @@ const nextConfig: NextConfig = {
   // the build output lean in production.
   reactStrictMode: true,
 
+  // NOTE: do NOT add an `env: { NEXT_PUBLIC_SITE_URL: ... }` block here.
+  // A previous version did, and its `A ?? B ? C : D` expression parsed as
+  // `(A ?? B) ? C : D` — so whenever NEXT_PUBLIC_SITE_URL *was* set it got
+  // thrown away and replaced with the per-deployment VERCEL_URL, which is
+  // what invite/reset emails are built from. Site URL resolution belongs to
+  // getSiteUrl() in src/utils/site-url.ts, which reads the raw env vars in
+  // the correct precedence. Inlining it here only shadows that helper.
 
-  // Expose the site's own URL as a typed env var for redirects, invite links,
-  // etc. NEXT_PUBLIC_SITE_URL is set in Vercel; falls back to localhost in dev.
-  env: {
-    NEXT_PUBLIC_SITE_URL:
-      process.env.NEXT_PUBLIC_SITE_URL ??
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000",
-  },
-
-  // All showcase aliases resolve to /hub (cinematic video page).
-  // /demo keeps its existing Turbopack-cached tab-based content.
+  // The showcase aliases all resolve to /demo, the one public marketing page.
   async redirects() {
     return [
-      { source: "/video",        destination: "/hub", permanent: false },
-      { source: "/showcase",     destination: "/hub", permanent: false },
-      { source: "/product-tour", destination: "/hub", permanent: false },
+      { source: "/video",        destination: "/demo", permanent: false },
+      { source: "/showcase",     destination: "/demo", permanent: false },
+      { source: "/product-tour", destination: "/demo", permanent: false },
+      { source: "/hub",          destination: "/demo", permanent: false },
     ];
   },
 

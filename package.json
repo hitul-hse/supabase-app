@@ -41,7 +41,8 @@
     "test:time-transform": "node --experimental-strip-types scripts/check-time-transform.mjs",
     "test:login-redirect": "node scripts/check-login-redirect.mjs",
     "test:time-page-data": "node scripts/check-time-page-data.mjs",
-    "test:time-page-render": "node scripts/check-time-page-render.mjs"
+    "test:time-page-render": "node scripts/check-time-page-render.mjs",
+    "check:live-ready": "node scripts/check-time-live-ready.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

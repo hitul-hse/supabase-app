@@ -1,0 +1,81 @@
+# Going live with a module schema
+
+The platform splits each module into its own Postgres schema
+(`PLATFORM-ARCHITECTURE.md` §2). That buys real isolation, but it adds one
+deploy step that a `public`-only schema never needed, and it is easy to miss
+because **nothing in the test suite can see it**.
+
+## The trap
+
+Every database gate in this repo (`npm run test:db`, 30 suites) runs against
+PGlite built fresh from `supabase/schema.sql`. Those gates prove the schema is
+*correct*. They cannot prove it has been *applied*, and they cannot see the
+Supabase project's API configuration at all.
+
+This is not hypothetical. It is exactly what happened with the `time` module:
+
+- `/time` was merged, built, auth-gated, and green on all 30 suites.
+- On the live project, `time` was **not** in the API's exposed-schemas list, so
+  every query returned `406 PGRST106 Invalid schema: time`.
+- The query layer returns `[]` rather than throwing on that error — deliberately,
+  so a missing schema renders an empty state instead of an exception page.
+- Net effect: the page looked *fine*, worked in every test, and would have shown
+  every single user "No time-tracking record linked to your account".
+
+An empty state is the correct failure mode, but it is indistinguishable from
+"you have not tracked any time", which is why this needs its own check.
+
+## The two steps
+
+### 1. Apply the schema
+
+Run `supabase/schema.sql` in the project's SQL Editor.
+
+Note that the file is **not** end-to-end idempotent: the legacy `create policy`
+statements in section 1 have no `if not exists` guard and error on a second run.
+The module sections (7 `raw`, 8 `time`) *are* guarded and safe to re-run — copy
+just the section you need rather than the whole file on an existing database.
+
+### 2. Expose the schema to PostgREST
+
+**Dashboard → Project Settings → API → Exposed schemas.** Add every module
+schema alongside `public`:
+
+```
+public, graphql_public, raw, time
+```
+
+A table can exist, be correct, and be completely invisible to the client until
+its schema appears here. `supabase.schema("time")` fails with `PGRST106` until
+then, and no amount of re-running SQL changes it.
+
+`raw` matters too: `scripts/import-trackingtime.mjs` writes the landing zone
+through the API, so the importer cannot store anything until `raw` is exposed.
+
+### 3. Correct the module tile if it predates the page
+
+`app_module` is seeded with `on conflict do nothing`, so the seed **cannot**
+update a row that already exists. A module whose page is built after its tile was
+seeded keeps the old route forever. `schema.sql` carries a narrowly-scoped repair
+for the known case:
+
+```sql
+update app_module set href = '/time' where module_key = 'time' and href = '/timesheets';
+```
+
+## Checking it
+
+```
+node scripts/check-time-live-ready.mjs
+```
+
+Reports, against the real project, whether the `time` tables are reachable,
+whether the tile points at the page that exists, and how many rows are behind it.
+It prints the specific fix for whatever it finds.
+
+It is **not** in the `test:db` chain, on purpose: it needs credentials CI does not
+have, and a check that goes red for a missing secret is a check people learn to
+ignore. Run it after a deploy, or when a module page renders an unexpected empty
+state.
+
+It skips silently with no `.env.local`, and only ever issues SELECTs.

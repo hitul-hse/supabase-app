@@ -23,6 +23,12 @@ const preamble = `
     if not exists (select 1 from pg_roles where rolname = 'authenticated') then
       create role authenticated nologin;
     end if;
+    -- Supabase provisions service_role; PGlite does not. schema.sql §9 grants
+    -- to it so the TrackingTime importer can write, and those grants error
+    -- without the role.
+    if not exists (select 1 from pg_roles where rolname = 'service_role') then
+      create role service_role nologin bypassrls;
+    end if;
   end $$;
   -- Stand-in for Supabase's auth.uid(), which reads the request JWT.
   create or replace function auth.uid() returns uuid
@@ -30,7 +36,7 @@ const preamble = `
 `;
 
 await db.exec(preamble);
-console.log("preamble: auth schema, anon/authenticated roles, auth.uid() created");
+console.log("preamble: auth schema, anon/authenticated/service_role roles, auth.uid() created");
 
 const sql = readFileSync("supabase/schema.sql", "utf8");
 

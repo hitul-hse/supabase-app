@@ -15,14 +15,35 @@
 -- ---------------------------------------------------------------------------
 -- STEP 1 of 2  Run this file in the Supabase SQL Editor.
 --
--- STEP 2 of 2  Dashboard -> Project Settings -> API -> "Exposed schemas".
---              Set it to:   public, graphql_public, raw, time
+-- STEP 2 of 2  Expose the schemas to PostgREST. Either route works.
 --
---              This one cannot be done from SQL. PostgREST only serves schemas
---              in that list; until `time` appears there every query answers
---              406 PGRST106 "Invalid schema", the query layer turns that into an
---              empty result by design, and /time shows "No time-tracking record
---              linked to your account" to every user while looking healthy.
+--              (a) Dashboard -> Integrations -> Data API -> Settings ->
+--                  "Exposed schemas". Set it to:
+--                     public, graphql_public, raw, time
+--                  NOTE the location moved: it used to live under Project
+--                  Settings -> API, and Supabase's own docs still say so. On
+--                  some projects it appears as Project Settings -> Data API.
+--
+--              (b) Or from SQL, if the dashboard control cannot be found:
+--                     alter role authenticator
+--                       set pgrst.db_schemas = 'public, graphql_public, raw, time';
+--                     notify pgrst, 'reload config';
+--                     notify pgrst, 'reload schema';
+--                  Trade-off: setting this by hand takes exposed-schema
+--                  management AWAY from the dashboard UI for this project.
+--                  Undo with: alter role authenticator reset pgrst.db_schemas;
+--                  The statement REPLACES the whole list, so public and
+--                  graphql_public must stay in it or the rest of the app breaks.
+--
+--              Until the schemas are exposed every query answers 406 PGRST106
+--              "Invalid schema", the query layer turns that into an empty result
+--              by design, and /time shows "No time-tracking record linked to
+--              your account" to every user while looking healthy.
+--
+--              PGRST106 rejects the schema NAME before it looks at any table, so
+--              while it persists "the DDL landed" and "the DDL did not land" are
+--              indistinguishable from any PostgREST client. Do not read it as
+--              evidence that this file failed.
 --
 -- Verify both:  npm run check:live-ready
 -- Background:   docs/architecture/MODULE-GO-LIVE.md
@@ -155,6 +176,14 @@ end $$;
 grant usage on schema raw to authenticated;
 grant select on raw.sync_run to authenticated;
 
+-- service_role needs USAGE explicitly. It bypasses RLS but NOT schema
+-- permissions, so without this the importer fails with 42501 "permission denied
+-- for schema raw" -- which looks identical to the schema not existing. Measured
+-- against live: every raw/time table returned 403 while public returned 200.
+-- Table-level grants are applied at the end of this file, once every table in
+-- both schemas exists.
+grant usage on schema raw to service_role;
+
 
 -- ---------------------------------------------------------------------------
 -- 8. time -- the Time Tracking module
@@ -170,6 +199,10 @@ grant select on raw.sync_run to authenticated;
 
 create schema if not exists time;
 grant usage on schema time to authenticated;
+
+-- As for raw above: service_role bypasses RLS but not schema permissions, and
+-- the TrackingTime importer writes with the service key.
+grant usage on schema time to service_role;
 
 
 -- Services -- the closest thing to HSE's real service catalogue that exists in
@@ -831,3 +864,31 @@ insert into time.service (name, is_travel, is_paid_travel, is_internal, sort_ord
   ('Anfahrt & Abfahrt / Travelltime (unpayed)',   true,  false, false, 90),
   ('intern',                                      false, false, true, 100)
 on conflict (name) do nothing;
+
+
+-- ---------------------------------------------------------------------------
+-- 9. Module schema grants for service_role
+-- ---------------------------------------------------------------------------
+-- Deliberately last: `grant all on all tables in schema` resolves the table
+-- list at execution time, so it must run after every table above exists.
+--
+-- Why this is needed at all: service_role bypasses RLS, which makes it easy to
+-- assume it bypasses everything. It does not -- schema and table permissions
+-- still apply. Without these grants the TrackingTime importer fails with
+-- 42501 "permission denied for schema time", which reads exactly like the
+-- schema not existing and sends you looking in the wrong place. Measured
+-- against live: every raw.* and time.* probe returned 403 while public
+-- returned 200.
+--
+-- The `alter default privileges` lines cover tables added later, so a new
+-- module table does not silently break the importer.
+
+grant all on all tables    in schema raw  to service_role;
+grant all on all sequences in schema raw  to service_role;
+alter default privileges in schema raw  grant all on tables    to service_role;
+alter default privileges in schema raw  grant all on sequences to service_role;
+
+grant all on all tables    in schema time to service_role;
+grant all on all sequences in schema time to service_role;
+alter default privileges in schema time grant all on tables    to service_role;
+alter default privileges in schema time grant all on sequences to service_role;

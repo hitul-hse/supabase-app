@@ -28,6 +28,10 @@ await db.exec(`
   do $$ begin
     if not exists (select 1 from pg_roles where rolname='anon') then create role anon nologin; end if;
     if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if;
+    -- Supabase provisions service_role; PGlite does not. The schema grants to
+    -- it, and the TrackingTime importer writes as it, so the gate needs it to
+    -- exist or the grants below are never exercised.
+    if not exists (select 1 from pg_roles where rolname='service_role') then create role service_role nologin bypassrls; end if;
   end $$;
   create or replace function auth.uid() returns uuid
     language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
@@ -198,6 +202,43 @@ check(
   "the same source_id in another workspace is still allowed",
   otherAccount === null,
   `account_ref must be part of the key: ${otherAccount}`,
+);
+
+// --- service_role can actually write ----------------------------------------
+// The importer runs as service_role. That role bypasses RLS, which makes it
+// tempting to assume it bypasses everything -- it does not. Schema and table
+// permissions still apply, and a missing `grant usage on schema` fails with
+// 42501 "permission denied for schema raw", which reads exactly like the schema
+// not existing. Measured against live before the grant was added: every raw.*
+// and time.* probe returned 403 while public returned 200.
+async function asServiceRole(sql) {
+  await db.exec("begin");
+  try {
+    await db.exec(`set local role service_role`);
+    const rows = await db.query(sql);
+    await db.exec("rollback");
+    return { rows: rows.rows, error: null };
+  } catch (e) {
+    await db.exec("rollback");
+    return { rows: [], error: e.message };
+  }
+}
+
+const svcRaw = await asServiceRole(
+  `insert into raw.vendor_record (source, entity, endpoint, source_id, account_ref, payload, payload_hash)
+   values ('trackingtime','users','/1/users','svc','1','{}'::jsonb,'svc-hash') returning id`,
+);
+check(
+  "service_role can write raw.vendor_record (the importer's landing step)",
+  svcRaw.error === null,
+  `the importer cannot land payloads: ${svcRaw.error}`,
+);
+
+const svcTime = await asServiceRole(`select count(*)::int as n from time.entry`);
+check(
+  "service_role can reach the time schema (the importer's transform step)",
+  svcTime.error === null,
+  `grant usage on schema time to service_role is missing: ${svcTime.error}`,
 );
 
 // --- NEGATIVE CONTROL -------------------------------------------------------

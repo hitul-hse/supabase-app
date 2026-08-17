@@ -1578,6 +1578,14 @@ end $$;
 grant usage on schema raw to authenticated;
 grant select on raw.sync_run to authenticated;
 
+-- service_role needs USAGE explicitly. It bypasses RLS but NOT schema
+-- permissions, so without this the importer fails with 42501 "permission denied
+-- for schema raw" -- which looks identical to the schema not existing. Measured
+-- against live: every raw/time table returned 403 while public returned 200.
+-- Table-level grants are applied at the end of this file, once every table in
+-- both schemas exists.
+grant usage on schema raw to service_role;
+
 
 -- ---------------------------------------------------------------------------
 -- 8. time -- the Time Tracking module
@@ -1593,6 +1601,10 @@ grant select on raw.sync_run to authenticated;
 
 create schema if not exists time;
 grant usage on schema time to authenticated;
+
+-- As for raw above: service_role bypasses RLS but not schema permissions, and
+-- the TrackingTime importer writes with the service key.
+grant usage on schema time to service_role;
 
 
 -- Services -- the closest thing to HSE's real service catalogue that exists in
@@ -2254,3 +2266,31 @@ insert into time.service (name, is_travel, is_paid_travel, is_internal, sort_ord
   ('Anfahrt & Abfahrt / Travelltime (unpayed)',   true,  false, false, 90),
   ('intern',                                      false, false, true, 100)
 on conflict (name) do nothing;
+
+
+-- ---------------------------------------------------------------------------
+-- 9. Module schema grants for service_role
+-- ---------------------------------------------------------------------------
+-- Deliberately last: `grant all on all tables in schema` resolves the table
+-- list at execution time, so it must run after every table above exists.
+--
+-- Why this is needed at all: service_role bypasses RLS, which makes it easy to
+-- assume it bypasses everything. It does not -- schema and table permissions
+-- still apply. Without these grants the TrackingTime importer fails with
+-- 42501 "permission denied for schema time", which reads exactly like the
+-- schema not existing and sends you looking in the wrong place. Measured
+-- against live: every raw.* and time.* probe returned 403 while public
+-- returned 200.
+--
+-- The `alter default privileges` lines cover tables added later, so a new
+-- module table does not silently break the importer.
+
+grant all on all tables    in schema raw  to service_role;
+grant all on all sequences in schema raw  to service_role;
+alter default privileges in schema raw  grant all on tables    to service_role;
+alter default privileges in schema raw  grant all on sequences to service_role;
+
+grant all on all tables    in schema time to service_role;
+grant all on all sequences in schema time to service_role;
+alter default privileges in schema time grant all on tables    to service_role;
+alter default privileges in schema time grant all on sequences to service_role;

@@ -64,7 +64,9 @@ function Bar({ percent, tone = "accent" }: { percent: number; tone?: "accent" | 
   const bg =
     tone === "over" ? "var(--critical)" : tone === "muted" ? "var(--border)" : "var(--accent)";
   return (
-    <span className="block h-1 w-full bg-[var(--page)]" aria-hidden>
+    // h-1.5 rather than h-1: at one pixel on a dark track the fill was hard to
+    // see at all, which made the column decoration rather than information.
+    <span className="block h-1.5 w-full bg-[var(--page)]" aria-hidden>
       <span className="block h-full transition-[width] duration-300" style={{ width: `${w}%`, background: bg }} />
     </span>
   );
@@ -100,6 +102,21 @@ export function BreakdownTable({
 }) {
   const linked = hrefFor ?? {};
   const anyLinked = rows.some((r) => linked[r.key]);
+
+  /**
+   * The largest row's share, used to scale the magnitude bars.
+   *
+   * WHY NOT SCALE TO 100%: with 60 projects the biggest share is 3.3%, so every
+   * bar rendered as a 3-pixel sliver and the column was decoration -- you could
+   * not tell the top row from the twentieth, which is the one thing a bar is for.
+   * Scaling to the largest row makes the column a comparison BETWEEN rows, which
+   * is how a bar in a data table is read.
+   *
+   * The number beside it is still the true share of the grand total, and the
+   * column header says so, so nothing here overstates a row's size -- the bar is
+   * relative, the figure is absolute.
+   */
+  const maxShare = rows.reduce((m, r) => Math.max(m, r.sharePercent), 0);
 
   const columns: Column<GroupRow>[] = [
     {
@@ -208,11 +225,13 @@ export function BreakdownTable({
       align: "right",
       className: "w-[9rem]",
       compare: (a, b) => a.sharePercent - b.sharePercent,
+      title:
+        "Share of the selection's total hours. The figure is the true share; the bar is scaled to the largest row so the column compares rows against each other.",
       csv: (r) => Math.round(r.sharePercent * 10) / 10,
       cell: (r) => (
         <span className="flex items-center gap-2">
           <span className="flex-1">
-            <Bar percent={r.sharePercent} />
+            <Bar percent={maxShare > 0 ? (r.sharePercent / maxShare) * 100 : 0} />
           </span>
           <span className="w-[3.2rem] text-right font-mono text-[10.5px] tabular-nums text-[var(--text-faint)]">
             {r.sharePercent.toFixed(1)}%
@@ -413,12 +432,21 @@ export function EconomicsTable({
       csv: (r) => r.projectName,
       cell: (r) => (
         <>
-          <Link
-            href={`/projects/${r.projectId}`}
-            className="block truncate text-[12px] text-[var(--text-primary)] hover:text-[var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          >
-            {r.projectName}
-          </Link>
+          {/* The "(no project)" row aggregates entries with no project_id.
+              There is no record to open, so it is plain text — a link that
+              looks live and 404s is worse than no link. */}
+          {r.projectId === null ? (
+            <span className="block truncate text-[12px] italic text-[var(--text-secondary)]">
+              {r.projectName}
+            </span>
+          ) : (
+            <Link
+              href={`/projects/${r.projectId}`}
+              className="block truncate text-[12px] text-[var(--text-primary)] hover:text-[var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            >
+              {r.projectName}
+            </Link>
+          )}
           {r.customerName && (
             <span className="block truncate text-[10.5px] text-[var(--text-faint)]">
               {r.customerName}
@@ -522,7 +550,7 @@ export function EconomicsTable({
         hint="rates are effective-dated to each entry · exec only"
         rows={rows}
         columns={columns}
-        rowKey={(r) => r.projectId}
+        rowKey={(r) => r.projectId ?? "unattributed"}
         initialSort="revenue"
         exportName={`trackingtime-economics-${period}`}
         searchPlaceholder="Find project…"

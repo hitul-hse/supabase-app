@@ -401,6 +401,20 @@ try {
     domain: "localhost", path: "/", httpOnly: false, secure: false, sameSite: "Lax",
   }]);
 
+  // Mark the onboarding tour as seen BEFORE the page exists. It is a first-login
+  // modal that dims the whole page behind it, so without this every screenshot
+  // is of an overlay and a click can land on the scrim rather than the control it
+  // named. addInitScript must be registered on the CONTEXT before newPage(), or
+  // it does not run for the first navigation -- which is the only one that
+  // matters here.
+  await ctx.addInitScript(() => {
+    try {
+      window.localStorage.setItem("hse_tour_done", "1");
+    } catch {
+      /* storage disabled; the tour is cosmetic here either way */
+    }
+  });
+
   const page = await ctx.newPage();
   // Surface a client-side crash instead of letting it read as "the table has no
   // rows". A hydration error in DataTable would otherwise fail the row-count
@@ -820,6 +834,35 @@ try {
   );
 
   // ── 12. The filter bar survives a scroll ─────────────────────────────────
+  // First: the magnitude bars must be readable. Scaled to 100%, the biggest of 60
+  // projects is a 3.3% share, so every bar rendered as a 3-pixel sliver and the
+  // whole column was decoration -- indistinguishable at a glance from a column of
+  // empty cells. They are now scaled to the LARGEST row, so the top row's bar is
+  // full width while the number beside it still reads the true 3.3%.
+  //
+  // Re-navigated first so the table is back on its default hours-descending sort:
+  // the earlier sort assertions left it ordered by name, where the first row is
+  // NOT the largest and a correct bar would legitimately be short.
+  await goto("preset=this_month&group=project&bucket=day");
+  const topBar = await page.evaluate(() => {
+    const section = [...document.querySelectorAll("section")].find((s) =>
+      s.querySelector("h2")?.textContent?.includes("BY PROJECT"),
+    );
+    const row = section?.querySelector("tbody tr");
+    // The bar is the inner fill span inside the last cell.
+    const fill = row?.querySelector("td:last-child span span span");
+    if (!fill || !row) return null;
+    return {
+      fill: fill.getBoundingClientRect().width,
+      track: fill.parentElement.getBoundingClientRect().width,
+    };
+  });
+  check(
+    "the top row's magnitude bar fills its track, rather than rendering as a sliver",
+    topBar !== null && topBar.track > 0 && topBar.fill / topBar.track > 0.9,
+    `fill ${topBar?.fill}px of a ${topBar?.track}px track — scaled to 100% instead of to the largest row, every bar in a 60-row table is about 3% wide`,
+  );
+
   // Grouping by project over live data is 334 rows. Without a sticky bar, by the
   // time you reach a row worth asking about, every control that could narrow the
   // report is off-screen and the only way back is to scroll up and lose your

@@ -388,12 +388,53 @@ export function ReportFilters({
 
   return (
     <div
-      // Dim while the server re-renders, so it is visible that the numbers on
-      // screen are the previous ones rather than the new result.
-      className={`flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 transition-opacity ${
-        pending ? "opacity-60" : "opacity-100"
+      // A stable hook for the gate, which asserts stickiness by GEOMETRY rather
+      // than by looking for a class name: `position: sticky` silently does
+      // nothing inside an ancestor that sets `overflow: hidden`, so the class
+      // being present proves nothing about the behaviour.
+      data-filter-bar="1"
+      /**
+       * STICKY, because the tables below it are long. Grouping by project over
+       * live data is 334 rows: by the time you have scrolled to a row worth
+       * asking about, every control that could narrow the report is off-screen,
+       * and the only way back is to scroll to the top and lose your place. It
+       * stays reachable instead.
+       *
+       * `z-20` sits above the sticky table headers (z-10) so the popovers, which
+       * open downward over the first rows, are not clipped by them.
+       */
+      //
+      // No `relative` alongside `sticky`: both set `position`, so Tailwind would
+      // emit two competing declarations. `position: sticky` already establishes a
+      // containing block, which is what the absolutely-placed indicator needs.
+      //
+      // `top-12` on mobile, `top-0` from lg: MobileSidebar renders a FIXED 48px
+      // (h-12) top bar below lg, so sticking to 0 would park the whole filter bar
+      // underneath it -- visible in a screenshot only as controls that vanish
+      // halfway through a scroll. The breakpoint matches the one that hides that
+      // bar.
+      className={`sticky top-12 z-20 flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[0_6px_16px_-12px_rgba(0,0,0,0.9)] transition-opacity lg:top-0 ${
+        pending ? "opacity-70" : "opacity-100"
       }`}
     >
+      {/*
+       * An explicit "updating" line rather than dimming alone.
+       *
+       * Dimming was the only feedback, and on a fast filter change it reads as a
+       * flicker while on a slow one it reads as a broken page -- in neither case
+       * does it say that the numbers on screen are the PREVIOUS result. Stating
+       * it costs one line and removes the ambiguity. aria-live so it is
+       * announced rather than merely visible.
+       */}
+      <p
+        aria-live="polite"
+        className={`pointer-events-none absolute right-3 top-3 font-mono text-[9.5px] tracking-[0.12em] text-[var(--accent)] transition-opacity ${
+          pending ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        UPDATING…
+      </p>
+
       {/* Row 1 — period */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap overflow-hidden border border-[var(--border)]">

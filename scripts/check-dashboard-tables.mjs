@@ -805,6 +805,53 @@ try {
     `${height}px — the secondary tables should ship collapsed; every row is still one click away`,
   );
 
+  // ── 12. The filter bar survives a scroll ─────────────────────────────────
+  // Grouping by project over live data is 334 rows. Without a sticky bar, by the
+  // time you reach a row worth asking about, every control that could narrow the
+  // report is off-screen and the only way back is to scroll up and lose your
+  // place. Asserted by geometry rather than by the presence of a class, because
+  // `position: sticky` silently does nothing inside an ancestor with
+  // `overflow: hidden` -- which this page's shell does set on <main>.
+  const barBox = async () =>
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-filter-bar="1"]');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom };
+    });
+
+  const before = await barBox();
+  check("the filter bar is findable for the sticky assertion", before !== null);
+  await page.evaluate(() => window.scrollTo(0, 1600));
+  await page.waitForTimeout(400);
+  const after = await barBox();
+  check(
+    "the filter bar stays on screen after scrolling past it",
+    after !== null && after.bottom > 0 && after.top < 200,
+    `after scrolling 1600px the bar sits at top=${after?.top}, bottom=${after?.bottom} — a negative bottom means sticky is being defeated by an ancestor's overflow`,
+  );
+
+  // The sticky fix changed the SHARED app shell from overflow-x-hidden to
+  // overflow-x-clip, so this confirms the thing `hidden` was there for still
+  // holds: no page-level horizontal scrollbar, on the widest table this app has
+  // and at the narrowest viewport it supports. Without this the fix could trade
+  // a sticky bar for every page scrolling sideways on a phone.
+  for (const width of [1440, 420]) {
+    await page.setViewportSize({ width, height: 900 });
+    await goto("preset=this_month&group=project&bucket=day");
+    await expand("TIME ENTRIES");
+    const overflow = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth,
+      win: window.innerWidth,
+    }));
+    check(
+      `no page-level horizontal scroll at ${width}px`,
+      overflow.doc <= overflow.win + 1,
+      `document is ${overflow.doc}px wide in a ${overflow.win}px viewport — a wide table is pushing the page sideways instead of scrolling inside its own panel`,
+    );
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
   // ── Screenshots, for judging the layout rather than the numbers ──────────
   // Opt-in: SHOTS=1. Assertions cannot see crowding, a misaligned column, or a
   // control that has become invisible against its background, and this page is

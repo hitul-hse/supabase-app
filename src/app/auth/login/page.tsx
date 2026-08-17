@@ -12,6 +12,7 @@ import {
   authInputClass,
   authLabelClass,
 } from "@/components/AuthShell";
+import { OAuthButtons } from "@/components/OAuthButtons";
 
 /**
  * Where to go after a successful login, restricted to this app.
@@ -90,6 +91,23 @@ function LoginForm() {
 
       {(error || linkError) && <AuthNotice tone="error">{error ?? linkError}</AuthNotice>}
 
+      {/* Single sign-on first: most staff already carry a Google or Microsoft
+          session, so the password form below is the fallback rather than the
+          default path. Errors surface through the same notice as password
+          failures, so there is only one place to look. */}
+      <OAuthButtons
+        redirectTo={redirectTo}
+        disabled={loading}
+        onError={(message) => setError(message || null)}
+      />
+
+      <div className="my-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-[var(--border)]" />
+        <span className="font-mono text-[10px] tracking-[0.14em] text-[var(--text-faint)]">
+          OR WITH EMAIL
+        </span>
+        <span className="h-px flex-1 bg-[var(--border)]" />
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="email" className={authLabelClass}>
@@ -140,7 +158,10 @@ function LoginForm() {
 
       <div className="mt-6 border-t border-[var(--border)] pt-6">
         <p className="text-sm text-[var(--text-secondary)]">
-          Accounts are created by an administrator. Contact yours if you need access.
+          Access is granted by an administrator. Signing in with Google or
+          Microsoft identifies you, but you&apos;ll need a role assigned before you
+          can see any data — contact your administrator if you land on
+          &ldquo;Access pending&rdquo;.
         </p>
       </div>
     </>

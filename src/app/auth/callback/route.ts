@@ -3,22 +3,41 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/server";
 
 /**
- * Landing point for links that arrive from an email — invites and password
- * resets. Supabase hands the credential over in one of two shapes depending
- * on the project's flow settings, so both are handled rather than betting on
- * one and 404-ing the other:
+ * Landing point for every credential that arrives by redirect — email invites,
+ * password resets, and OAuth (Google / Microsoft).
  *
- *   ?code=...                  PKCE — exchange it for a session
- *   ?token_hash=...&type=...   verify the one-time token directly
+ * Supabase hands the credential over in one of three shapes depending on the
+ * flow, so all of them are handled rather than betting on one and 404-ing the
+ * others:
  *
- * A third shape exists: implicit flow puts tokens in the URL *fragment*
- * (#access_token=...), which browsers never send to the server, so this
- * handler cannot see it. /auth/set-password handles that case client-side.
+ *   ?code=...                  PKCE — exchange it for a session. Used by OAuth
+ *                              and by email links on projects using PKCE.
+ *   ?token_hash=...&type=...   verify the one-time token directly.
+ *   #access_token=...          implicit flow puts tokens in the URL *fragment*,
+ *                              which browsers never send to the server, so this
+ *                              handler cannot see it. /auth/set-password deals
+ *                              with that case client-side.
  *
- * On success the visitor continues to `next` (defaulting to set-password,
- * since an invited user has no password yet). On failure they land back on
+ * On success the visitor continues to `next`. On failure they land back on
  * login with a readable reason instead of a blank screen.
  */
+
+/**
+ * Where to send the visitor afterwards.
+ *
+ * Same-origin relative paths only. `next` comes from the query string, so an
+ * absolute URL here would turn this route into an open redirect at the exact
+ * moment the visitor has just authenticated — the same class of bug that was
+ * fixed on the login page. Protocol-relative "//evil.com" and the "/\evil.com"
+ * form some browsers normalise to it are both rejected, because each starts with
+ * "/" and is otherwise indistinguishable from a local path.
+ */
+function safeNext(raw: string | null, fallback: string): string {
+  if (!raw || !raw.startsWith("/")) return fallback;
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return fallback;
+  return raw;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
 
@@ -26,19 +45,32 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
 
-  // Only allow same-origin relative paths — an attacker-supplied absolute URL
-  // here would turn this route into an open redirect.
-  const requestedNext = searchParams.get("next");
-  const next =
-    requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//")
-      ? requestedNext
-      : "/auth/set-password";
+  // The provider reports user-facing refusals (consent denied, admin policy) as
+  // query params rather than as a failed exchange, so there is no code to trade
+  // and the useful message is right here.
+  const providerError = searchParams.get("error_description") ?? searchParams.get("error");
+
+  /**
+   * Default destination differs by flow, and getting this wrong is a real dead
+   * end rather than a cosmetic slip:
+   *
+   *  - An *invited* user has no password yet, so they must go to set-password.
+   *  - An *OAuth* user has no password at all and never will. Sending them to
+   *    set-password would strand them on a form they cannot meaningfully use.
+   *
+   * `type` is present for email OTP flows and absent for OAuth, which is the
+   * distinction used here.
+   */
+  const isEmailFlow = Boolean(tokenHash && type);
+  const next = safeNext(searchParams.get("next"), isEmailFlow ? "/auth/set-password" : "/");
 
   const failure = (reason: string) =>
     NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(reason)}`);
 
-  if (!code && !(tokenHash && type)) {
-    return failure("That link is missing its verification token. Ask for a new invite.");
+  if (providerError) return failure(providerError);
+
+  if (!code && !isEmailFlow) {
+    return failure("That sign-in link is missing its verification token. Try again, or ask for a new invite.");
   }
 
   const supabase = await createClient();

@@ -51,7 +51,8 @@
     "check:time-integration": "node scripts/check-time-integration.mjs",
     "test:oauth-callback": "node scripts/check-oauth-callback.mjs",
     "test:oauth-access": "node scripts/check-oauth-access-model.mjs",
-    "check:acceptance": "node scripts/check-time-acceptance.mjs"
+    "check:acceptance": "node scripts/check-time-acceptance.mjs",
+    "check:sso-ui": "node scripts/check-sso-ui.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

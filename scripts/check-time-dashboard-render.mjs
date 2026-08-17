@@ -167,6 +167,15 @@ console.log("\n--- totals strip ------------------------------------------------
     const bp = total > 0 ? Math.round((billable / total) * 100) : null;
     check(`BILLABLE share is of LOGGED, so "90% of logged"`, bp === 90,
       `got ${bp}% -- dividing by tracked instead of total gives 100%`);
+    // Negative control on the denominator itself. `tracked` EXCLUDES calendar
+    // time while `billable` does not, so the two are not nested sets and the
+    // old ratio could exceed 100. Asserting the wrong denominator still
+    // produces a wrong answer keeps the assertion above from going vacuous if
+    // a future fixture ever made total and tracked equal.
+    const wrong = tracked > 0 ? Math.round((billable / tracked) * 100) : null;
+    check(`fixture can still detect the bug: billable/tracked != billable/total`,
+      wrong !== null && wrong !== bp,
+      `both denominators gave ${bp}% -- fixture no longer exposes the regression`);
     check(`PEOPLE tile is peak DISTINCT members, "2"`, members === 2, `got ${members}`);
     check("entry count is 3", entries === 3, `got ${entries}`);
   } else {

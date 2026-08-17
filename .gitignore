@@ -75,3 +75,13 @@ docs/discovery/
 # stub Supabase in its own distDir so the shared .next is never disturbed.
 .next-action-probe/
 .next-acceptance/
+
+# Throwaway scratch scripts. Debugging a live API or a browser flow means
+# writing one-off probes, and PowerShell mangles inline quoting badly enough
+# that a file is the only reliable route — so they get created constantly.
+# Untracked they still reach eslint (a bare require() is an error under the
+# app's ESM rule), so a stray scratch file fails `npm run lint` for everyone
+# with a problem in code that is not part of the app. Ignored by prefix so
+# cleaning up late costs nothing.
+/tmp-*
+.tmp-*

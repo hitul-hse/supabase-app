@@ -1110,10 +1110,19 @@ on conflict (role_key) do nothing;
 insert into app_module (module_key, display_name, tagline, href, accent, is_live, sort_order) values
   ('hub',      'HSE Hub',            'Analytics and approvals for leads',      '/',           '#91C2B7', true,  10),
   ('projects', 'Project Management', 'Projects, tasks, boards, milestones',    '/projects',   '#F0A868', true,  20),
-  ('time',     'Time Tracking',      'Clock in, billable hours, services',     '/timesheets', '#7FB5D5', true,  30),
+  ('time',     'Time Tracking',      'Tracked intervals, billable hours, services', '/time',  '#7FB5D5', true,  30),
   ('hr',       'HSE HR',             'Leave, absences, contracts, clocking',   null,          '#C08FD0', false, 40),
   ('crm',      'CRM',                'Deals, pipeline, companies',             null,          '#D08F8F', false, 50)
 on conflict (module_key) do nothing;
+
+-- The tile's route is the one field that legitimately changes after a module is
+-- seeded, and `on conflict do nothing` above cannot deliver it: the `time` tile
+-- pointed at /timesheets (the Hub's hours grid) while the module's own page did
+-- not exist yet, and a re-run of this file would have left the live database on
+-- the stale route forever. Routing is corrected explicitly, and only where it is
+-- actually wrong, so a deliberate change made in the admin UI is not clobbered.
+update app_module set href = '/time', tagline = 'Tracked intervals, billable hours, services'
+ where module_key = 'time' and href = '/timesheets';
 
 -- Canonical permission catalogue. These 22 keys are the ones src/lib/permissions.ts
 -- checks, and check-permissions-rls.mjs asserts the two lists stay in step --

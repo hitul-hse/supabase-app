@@ -34,6 +34,10 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/people",     label: "People",          tourId: "tour-people"     },
       { href: "/projects",   label: "Projects",        tourId: "tour-projects"   },
       { href: "/timesheets", label: "Timesheets",      tourId: "tour-timesheets" },
+      // The Time Tracking module's own page, deliberately alongside Timesheets
+      // rather than replacing it: /timesheets is the Hub's editable weekly grid
+      // in hours, /time is the module's tracked intervals in seconds.
+      { href: "/time",       label: "Time Tracking"                              },
       { href: "/leave",      label: "Leave & Time Off", tourId: "tour-leave"     },
     ],
   },

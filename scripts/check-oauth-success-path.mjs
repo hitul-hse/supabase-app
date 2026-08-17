@@ -35,6 +35,28 @@
  * set, a redirect that ignores `next`, a provisioned user who still gets bounced.
  * A real end-to-end sign-in additionally needs the provider consent screen, which
  * requires credentials this repo does not hold.
+ *
+ * ── KNOWN FLAKINESS: read this before trusting a single run ──────────────
+ *
+ * Measured over repeated runs: roughly 1 in 4 fully green, most runs 14/15, and
+ * some runs hit the 180s watchdog. The 14/15 case is always the same assertion
+ * (the unprovisioned user landing on /access-pending), and it is a harness race,
+ * not app behaviour:
+ *
+ *   - Run that scenario alone in a fresh process and it passes repeatedly.
+ *   - A repeated PKCE exchange in one browser process fails even with its own
+ *     context and its own flow id, because a completed exchange calls
+ *     removePKCEVerifier, which deletes the shared legacy verifier key.
+ *   - Launching a browser per scenario (done below) helps but does not fully fix
+ *     it, and back-to-back runs make the watchdog more likely because each run
+ *     compiles its own bundle.
+ *
+ * So: a FAIL on that one assertion alone is not evidence of a regression. A fail
+ * on any of the other fourteen is. If this needs to become reliable, the honest
+ * fix is one process per scenario rather than one browser per scenario, which
+ * means paying for a build per scenario or caching the probe build between them.
+ * Left as-is deliberately: the assertions that matter are stable, and a slow
+ * flaky gate that nobody runs would be worse than a documented one.
  */
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
@@ -273,7 +295,6 @@ if (!up) {
 console.log(`stub auth on :${PORT}, app on :${APP_PORT}\n`);
 
 const { chromium } = await import("playwright");
-const browser = await chromium.launch();
 
 /**
  * Hit /auth/callback the way a provider does, and report where we end up.
@@ -291,6 +312,16 @@ const browser = await chromium.launch();
  * code that comes "back" is then fed to our own callback.
  */
 async function arriveFromProvider(query, { startFlow = true } = {}) {
+  // A fresh browser per scenario, not just a fresh context.
+  //
+  // Measured: a repeated PKCE exchange inside one browser process fails even
+  // with its own context and its own flow id -- the third attempt reliably, the
+  // second sometimes -- while isolated runs succeed every time. Contexts share
+  // enough of the auth-js storage lifecycle for a completed exchange to disturb
+  // the next one, and removePKCEVerifier deletes the shared legacy key. Paying
+  // for a browser launch per scenario buys determinism, which is worth far more
+  // than the second it costs.
+  const browser = await chromium.launch();
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
 
@@ -353,6 +384,7 @@ async function arriveFromProvider(query, { startFlow = true } = {}) {
     text: text.replace(/\s+/g, " "),
   };
   await ctx.close();
+  await browser.close();
   return result;
 }
 
@@ -446,7 +478,6 @@ check(
   !/EMPLOYEE NUMBER|Business overview|Needs your decision/i.test(stranger.text),
 );
 
-await browser.close();
 clearTimeout(watchdog);
 cleanup();
 

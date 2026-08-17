@@ -100,12 +100,30 @@ check(
 // handling it the visitor sees "missing its verification token", which is both
 // wrong and unhelpful.
 check(
-  "a provider error_description is surfaced rather than swallowed",
+  "a provider error_description is read from the query string",
   /error_description/.test(src),
 );
 check(
+  "the provider error is actually returned to the user, not just read",
+  /if \(providerError\) return failure\(providerError\)/.test(src),
+);
+
+/**
+ * Ordering matters: a denied consent screen arrives WITH error_description and
+ * WITHOUT a code, so if the missing-code branch runs first the user gets
+ * "missing its verification token" instead of the real reason.
+ *
+ * Both indexes are checked for existence before comparing. The earlier version
+ * compared them directly, and deleting the providerError branch made indexOf
+ * return -1 — which is less than any real index, so the assertion passed
+ * vacuously. Caught by mutation testing this gate against its own removal.
+ */
+const iProviderCheck = src.indexOf("if (providerError)");
+const iMissingCode = src.indexOf("if (!code && !isEmailFlow)");
+check(
   "provider errors are checked BEFORE the missing-code branch",
-  src.indexOf("if (providerError)") < src.indexOf("if (!code && !isEmailFlow)"),
+  iProviderCheck !== -1 && iMissingCode !== -1 && iProviderCheck < iMissingCode,
+  `providerError@${iProviderCheck}, missingCode@${iMissingCode}`,
 );
 
 // ── The button's pending state ──────────────────────────────────────────────

@@ -238,8 +238,13 @@ export function summariseOrgWeeks(weeks: OrgWeekRow[]): OrgTotals {
     entryCount,
     totalHours: secondsToHours(totalSeconds),
     billableHours: secondsToHours(billableSeconds),
+    // Denominator is totalSeconds, NOT trackedSeconds. 427 live entries are BOTH
+    // is_calendar and is_billable, so they are excluded from tracked while still
+    // counted in billable — dividing by tracked yields 102-109%, which is
+    // nonsense on a percentage a CEO reads. total is the only denominator that
+    // contains every second in the numerator.
     billablePercent:
-      trackedSeconds > 0 ? Math.round((billableSeconds / trackedSeconds) * 100) : null,
+      totalSeconds > 0 ? Math.round((billableSeconds / totalSeconds) * 100) : null,
     activeMembers,
     activeProjects,
     weeksCovered: weeks.length,

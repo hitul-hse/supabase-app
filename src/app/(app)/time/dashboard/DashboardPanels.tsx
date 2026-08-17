@@ -110,8 +110,10 @@ export function OrgTotalsStrip({ totals }: { totals: OrgTotals }) {
     {
       label: "BILLABLE",
       value: hrs(totals.billableHours),
-      // Divided by deliberate work, not by everything — see summariseOrgWeeks.
-      sub: totals.billablePercent === null ? "—" : `${totals.billablePercent}% of tracked`,
+      // Denominator is ALL logged time, including calendar placeholders. Some
+      // calendar entries are also flagged billable, so dividing by tracked-only
+      // produced >100%. See summariseOrgWeeks.
+      sub: totals.billablePercent === null ? "—" : `${totals.billablePercent}% of logged`,
       accent: true,
     },
     {

@@ -43,6 +43,15 @@ const args = process.argv.slice(2);
 const DRY_RUN = args.includes("--dry-run");
 const DAYS = Number(args[args.indexOf("--days") + 1]) || 180;
 
+/**
+ * valid_from for a member's FIRST rate row. Deliberately far in the past: the
+ * vendor exposes only a current rate with no history, and dating the first row
+ * "today" leaves every imported entry uncosted, because project_economics joins
+ * a rate to an entry on the entry's own date. Later real changes are dated
+ * properly (see the rates block below); this floor only backfills the unknown.
+ */
+const RATE_HISTORY_FLOOR = "2000-01-01";
+
 /** .env.local is gitignored and holds the App Password; never log its value. */
 function loadEnv() {
   const env = { ...process.env };
@@ -352,12 +361,27 @@ async function main() {
 
       const today = new Date().toISOString().slice(0, 10);
       if (cur) {
+        // A genuine rate CHANGE: close the old row today and open a new one, so
+        // work before today keeps costing at the old rate.
         await db.schema("time").from("member_rate").update({ valid_to: today }).eq("id", cur.id);
+        await db
+          .schema("time")
+          .from("member_rate")
+          .insert({ member_id: mid, hourly_rate: rate, hourly_cost: cost, valid_from: today });
+      } else {
+        // FIRST rate row for this member. Dating it today would leave every
+        // imported entry uncosted -- project_economics joins on the entry's own
+        // date, so nothing before today matches and revenue reads a confident
+        // EUR 0. The vendor exposes only a current rate with no history, so the
+        // only usable assumption is that it also applied to the imported past.
+        // That is an APPROXIMATION: if someone's rate rose mid-period, earlier
+        // revenue is overstated. It is corrected the moment a real dated row is
+        // entered, and every later change is dated properly by the branch above.
+        await db
+          .schema("time")
+          .from("member_rate")
+          .insert({ member_id: mid, hourly_rate: rate, hourly_cost: cost, valid_from: RATE_HISTORY_FLOOR });
       }
-      await db
-        .schema("time")
-        .from("member_rate")
-        .insert({ member_id: mid, hourly_rate: rate, hourly_cost: cost, valid_from: today });
     }
     console.log("rates: reconciled");
   }

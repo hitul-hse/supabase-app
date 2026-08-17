@@ -76,7 +76,9 @@
     "check:rls-hoisting": "node scripts/check-rls-hoisting.mjs",
     "profile:dashboard": "node --experimental-strip-types scripts/profile-dashboard-render.mjs",
     "check:dashboard-acceptance": "node scripts/check-dashboard-acceptance.mjs",
-    "measure:latency-variance": "node scripts/measure-latency-variance.mjs"
+    "measure:latency-variance": "node scripts/measure-latency-variance.mjs",
+    "recheck:dashboard-claims": "node --experimental-strip-types scripts/recheck-dashboard-claims.mjs",
+    "recheck:economics-access": "node scripts/recheck-economics-access.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

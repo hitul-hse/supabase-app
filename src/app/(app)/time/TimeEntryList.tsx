@@ -124,24 +124,32 @@ export function TimeEntryList({
 
   return (
     <div className="flex flex-col gap-4">
-      {populated.map((day) => (
-        <div key={day.date} className="border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2">
-            <span className="text-[12px] font-medium text-[var(--text-primary)]">
-              {formatDayHeading(day.date)}
-            </span>
-            <span className="font-mono text-[11.5px] tabular-nums text-[var(--text-secondary)]">
-              {formatSeconds(day.totalSeconds)}
-            </span>
-          </div>
+      {populated.map((day) => {
+        // A day whose only entry is a running timer has a total of zero finished
+        // seconds. Rendering "0:00" there says "you logged nothing today" while
+        // the clock is actually running, so it gets the same dash the entry row
+        // uses. Zero with no timer running really is zero and stays "0:00".
+        const onlyRunning = day.totalSeconds === 0 && day.entries.some((e) => e.isRunning);
 
-          <ul className="divide-y divide-[var(--border)]">
-            {day.entries.map((e) => (
-              <EntryRow key={e.id} e={e} showMember={showMember} />
-            ))}
-          </ul>
-        </div>
-      ))}
+        return (
+          <div key={day.date} className="border border-[var(--border)] bg-[var(--surface)]">
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2">
+              <span className="text-[12px] font-medium text-[var(--text-primary)]">
+                {formatDayHeading(day.date)}
+              </span>
+              <span className="font-mono text-[11.5px] tabular-nums text-[var(--text-secondary)]">
+                {onlyRunning ? "—" : formatSeconds(day.totalSeconds)}
+              </span>
+            </div>
+
+            <ul className="divide-y divide-[var(--border)]">
+              {day.entries.map((e) => (
+                <EntryRow key={e.id} e={e} showMember={showMember} />
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

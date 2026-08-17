@@ -85,3 +85,6 @@ docs/discovery/
 # cleaning up late costs nothing.
 /tmp-*
 .tmp-*
+
+# OAuth success-path probe build (scripts/check-oauth-success-path.mjs)
+.next-oauth-probe/

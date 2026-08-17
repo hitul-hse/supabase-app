@@ -83,5 +83,41 @@ export async function GET(request: NextRequest) {
     if (error) return failure(error.message);
   }
 
+  /**
+   * An OAuth sign-in with no provisioned profile goes to /access-pending.
+   *
+   * Without this it lands in the app shell instead, and reads as a broken page
+   * rather than a permissions state. Most pages gate with requireUser() and let
+   * RLS scope the data (see require-profile.ts) — a deliberate choice, and the
+   * right one — but it means an authenticated stranger reaches /timesheets and
+   * sees an *empty grid* with no explanation. No data leaks, RLS denies all of
+   * it; it just looks broken. Observed in scripts/check-oauth-success-path.mjs
+   * before this existed.
+   *
+   * Deciding it here rather than by changing each page's gate keeps the choice in
+   * the sign-in flow, where it belongs, and touches nothing else.
+   *
+   * Email flows are exempt: an invited user legitimately has no profile yet and
+   * must reach /auth/set-password to set a password first.
+   */
+  if (!isEmailFlow) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from("app_user_profile")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!profile) {
+        return NextResponse.redirect(`${origin}/access-pending`);
+      }
+    }
+  }
+
   return NextResponse.redirect(`${origin}${next}`);
 }

@@ -57,7 +57,8 @@
     "check:acceptance": "node scripts/check-time-acceptance.mjs",
     "check:sso-ui": "node scripts/check-sso-ui.mjs",
     "check:sso-providers": "node scripts/check-sso-providers.mjs",
-    "check:action-auth": "node scripts/check-server-action-auth.mjs"
+    "check:action-auth": "node scripts/check-server-action-auth.mjs",
+    "check:oauth-success": "node scripts/check-oauth-success-path.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

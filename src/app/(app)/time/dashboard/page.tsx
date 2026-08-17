@@ -16,20 +16,18 @@ import {
   summarise,
   trend,
   type GroupBy,
-  type GroupRow,
   type TrendBucket,
 } from "@/lib/queries/trackingtime-report";
 import { getProjectEconomics, getSyncFreshness } from "@/lib/queries/time-dashboard";
-import { EconomicsTable } from "./DashboardPanels";
 import { ReportFilters } from "./ReportFilters";
+import { FreshnessBanner, TotalsStrip } from "./ReportPanels";
+import { TrendChart } from "./TrendChart";
 import {
   BreakdownTable,
   BudgetTable,
-  FreshnessBanner,
-  RecentEntries,
-  TotalsStrip,
-  TrendChart,
-} from "./ReportPanels";
+  EconomicsTable,
+  EntriesTable,
+} from "./ReportTables";
 
 /**
  * TrackingTime Dashboard — filtered reporting over imported TrackingTime data.
@@ -65,13 +63,52 @@ import {
  * redirects a failure to "/", so the other three roles would have clicked their
  * own module's tile and been thrown out to the Hub with no explanation. They are
  * sent to /time instead: the page they actually have the rights to read.
+ *
+ * WHY THE TABLES GET EVERY ROW
+ * ----------------------------
+ * Each table used to receive `rows.slice(0, 40)`. With 334 live projects that
+ * meant 294 of them could not be reached from anywhere on the page — the hint
+ * said "top 40 of 334", which was honest and useless. The rows handed down are
+ * AGGREGATES (one per project/person/customer, not one per entry), so the full
+ * set is small, and the client tables can then sort, search and page it without
+ * a round trip. The raw entry list is the one genuinely large payload and is
+ * bounded below.
  */
 
 const GROUPS: GroupBy[] = ["member", "project", "customer", "service", "task"];
 const BUCKETS: TrendBucket[] = ["day", "week", "month"];
 
+/**
+ * Entry rows shipped to the browser for the entry-level table.
+ *
+ * The aggregates above are naturally small; the raw entries are not — an
+ * all-time selection is 4,000+ rows today and grows with every sync. Rendering
+ * all of them would put megabytes into the HTML payload for a table nobody
+ * scrolls past the first page of, so this is capped and the table says so. The
+ * cap is generous enough that any single week or month is complete, which is
+ * what the filters are for.
+ */
+const ENTRY_ROW_LIMIT = 2000;
+
 function one(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
+}
+
+/** The bucket a trend bar covers, as an inclusive date range. */
+function bucketRange(bucketStart: string, bucket: TrendBucket): { from: string; to: string } {
+  const start = new Date(`${bucketStart}T00:00:00.000Z`);
+  const end = new Date(start);
+  if (bucket === "day") {
+    // Same day, inclusive on both ends.
+  } else if (bucket === "week") {
+    end.setUTCDate(end.getUTCDate() + 6);
+  } else {
+    // Day 0 of the next month is the last day of this one — no 28/30/31 table
+    // and February in a leap year comes out right for free.
+    end.setUTCMonth(end.getUTCMonth() + 1);
+    end.setUTCDate(0);
+  }
+  return { from: bucketStart, to: end.toISOString().slice(0, 10) };
 }
 
 export default async function TrackingTimeDashboardPage({
@@ -108,7 +145,16 @@ export default async function TrackingTimeDashboardPage({
   const [{ entries, truncated }, options, economics, freshness] = await Promise.all([
     fetchAllEntries(supabase, filters),
     getFilterOptions(supabase),
-    getProjectEconomics(supabase, { canSeeMoney: canSeeMoney === true, limit: 15 }),
+    // Scoped to the SELECTED PERIOD. It previously ran unbounded and the panel
+    // carried a caveat saying so — which made it the one panel on the page that
+    // silently ignored the filter bar, so a June report showed June's hours
+    // beside all-time revenue and the margin belonged to neither. The RPC has
+    // taken p_from/p_to all along; the page simply never passed them.
+    getProjectEconomics(supabase, {
+      canSeeMoney: canSeeMoney === true,
+      from: filters.from,
+      to: filters.to,
+    }),
     getSyncFreshness(supabase),
   ]);
 
@@ -129,6 +175,8 @@ export default async function TrackingTimeDashboardPage({
   );
 
   const period = `${filters.from} → ${filters.to}`;
+  // Used in export filenames, so it must be filesystem-safe.
+  const periodSlug = `${filters.from}_${filters.to}`;
 
   /**
    * Drill-down target for a breakdown row: the same report, narrowed to that
@@ -140,6 +188,10 @@ export default async function TrackingTimeDashboardPage({
    * a project, so customer → project → member composes into a genuine path
    * rather than resetting each time. The date range and every other filter are
    * carried through by buildQuery.
+   *
+   * Precomputed into a plain object rather than passed as a function, because
+   * the table is now a Client Component and a closure cannot cross that
+   * boundary. Keyed by GroupRow.key, which is already unique per row.
    */
   const DRILL: Partial<Record<GroupBy, { param: string; next: GroupBy }>> = {
     customer: { param: "customers", next: "project" },
@@ -150,30 +202,50 @@ export default async function TrackingTimeDashboardPage({
     // (e.id is null for every one), so there is nothing to filter on.
   };
 
-  function drillHref(row: GroupRow): string | null {
+  const drillHrefs: Record<string, string> = {};
+  {
     const rule = DRILL[group];
-    if (!rule || row.id === null) return null;
+    if (rule) {
+      const current =
+        filters[
+          rule.param === "customers"
+            ? "customerIds"
+            : rule.param === "projects"
+              ? "projectIds"
+              : rule.param === "members"
+                ? "memberIds"
+                : "serviceIds"
+        ];
+      for (const row of breakdown) {
+        if (row.id === null) continue;
+        // Already the only selection on this dimension — the link would be a
+        // no-op that appears to do something. Left out, so the cell renders as
+        // plain text.
+        if (current.length === 1 && current[0] === row.id) continue;
+        const merged = current.includes(row.id) ? current : [...current, row.id];
+        drillHrefs[row.key] = `/time/dashboard?${buildQuery(filters, {
+          [rule.param]: merged.join(","),
+          group: rule.next,
+          bucket,
+        })}`;
+      }
+    }
+  }
 
-    // Already the only selection on this dimension — the link would be a no-op
-    // that appears to do something. Render it as plain text instead.
-    const current = filters[
-      rule.param === "customers"
-        ? "customerIds"
-        : rule.param === "projects"
-          ? "projectIds"
-          : rule.param === "members"
-            ? "memberIds"
-            : "serviceIds"
-    ];
-    if (current.length === 1 && current[0] === row.id) return null;
-
-    const merged = current.includes(row.id) ? current : [...current, row.id];
-    const qs = buildQuery(filters, {
-      [rule.param]: merged.join(","),
-      group: rule.next,
+  /** Clicking a trend bar narrows the period to that bucket. */
+  const trendHrefs: Record<string, string> = {};
+  for (const p of points) {
+    const { from, to } = bucketRange(p.bucket, bucket);
+    // Only if it would actually change the range; a single-day report whose one
+    // bar spans the whole selection should not offer a link that does nothing.
+    if (from === filters.from && to === filters.to) continue;
+    trendHrefs[p.bucket] = `/time/dashboard?${buildQuery(filters, {
+      preset: "custom",
+      from,
+      to,
+      group,
       bucket,
-    });
-    return `/time/dashboard?${qs}`;
+    })}`;
   }
 
   // Which filters are actually narrowing the view, so they can be shown as
@@ -198,6 +270,20 @@ export default async function TrackingTimeDashboardPage({
       })}`,
     })),
   );
+
+  const entryRows = entries.slice(0, ENTRY_ROW_LIMIT).map((e) => ({
+    id: e.id,
+    startedAt: e.startedAt,
+    memberName: e.memberName,
+    projectName: e.projectName,
+    customerName: e.customerName,
+    taskName: e.taskName,
+    serviceName: e.serviceName,
+    durationSeconds: e.durationSeconds,
+    isBillable: e.isBillable,
+    isCalendar: e.isCalendar,
+    notes: e.notes,
+  }));
 
   return (
     <PageTransition>
@@ -250,6 +336,7 @@ export default async function TrackingTimeDashboardPage({
                 <Link
                   key={chip.key}
                   href={chip.href}
+                  scroll={false}
                   className="group inline-flex items-center gap-1.5 border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[11px] text-[var(--text-primary)] transition-colors hover:border-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 >
                   <span className="text-[var(--text-faint)]">{chip.label}</span>
@@ -269,6 +356,7 @@ export default async function TrackingTimeDashboardPage({
                   group,
                   bucket,
                 })}`}
+                scroll={false}
                 className="text-[11px] text-[var(--text-secondary)] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
               >
                 Clear all
@@ -290,29 +378,44 @@ export default async function TrackingTimeDashboardPage({
             />
           ) : (
             <>
-              <TotalsStrip totals={totals} />
+              <TotalsStrip
+                totals={totals}
+                billableHref={`/time/dashboard?${buildQuery(filters, { billable: "yes", group, bucket })}`}
+                nonBillableHref={`/time/dashboard?${buildQuery(filters, { billable: "no", group, bucket })}`}
+                groupLabel={`Every figure covers ${period}`}
+              />
 
-              <TrendChart points={points} bucket={bucket} />
+              <TrendChart
+                points={points}
+                bucket={bucket}
+                hrefFor={(p) => trendHrefs[p.bucket] ?? null}
+              />
 
               {/* Economics sits high when present: for the audience allowed to
-                  see it, margin is the first question rather than the last.
-                  It reads all-time project totals from the security-definer
-                  RPC and is deliberately NOT filtered — see the hint below. */}
+                  see it, margin is the first question rather than the last. */}
               {economics !== null && economics.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <EconomicsTable rows={economics} />
-                  <p className="text-[10.5px] text-[var(--text-faint)]">
-                    Economics covers all time on each project, not the filtered period. Rates are
-                    resolved inside a security-definer function so the total is never partial.
-                  </p>
-                </div>
+                <EconomicsTable rows={economics} period={periodSlug} />
               )}
 
-              <BudgetTable rows={budgetRows} />
+              <BreakdownTable
+                rows={breakdown}
+                dimension={group}
+                hrefFor={drillHrefs}
+                period={periodSlug}
+              />
 
-              <BreakdownTable rows={breakdown} dimension={group} hrefFor={drillHref} />
+              <BudgetTable rows={budgetRows} period={periodSlug} />
 
-              <RecentEntries rows={entries.slice(0, 25)} />
+              <EntriesTable rows={entryRows} period={periodSlug} />
+
+              {entries.length > ENTRY_ROW_LIMIT && (
+                <p className="text-[10.5px] text-[var(--text-faint)]">
+                  The entry table lists the {ENTRY_ROW_LIMIT.toLocaleString("en-GB")} most recent of{" "}
+                  {entries.length.toLocaleString("en-GB")} entries in range. Every total above
+                  covers all {entries.length.toLocaleString("en-GB")}; narrow the period to list
+                  the rest.
+                </p>
+              )}
             </>
           )}
         </div>

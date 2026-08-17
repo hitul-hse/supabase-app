@@ -157,7 +157,7 @@ function MultiSelect({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${label.toLowerCase()}…`}
-              className="w-full border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              className="w-full border border-[var(--border)] bg-[var(--page)] px-2 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
           </div>
 
@@ -314,7 +314,7 @@ export function ReportFilters({
             max={to}
             onChange={(e) => push({ preset: "custom", from: e.target.value, to })}
             aria-label="From date"
-            className={`border bg-[var(--bg)] px-2 py-1.5 font-mono text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`border bg-[var(--page)] px-2 py-1.5 font-mono text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />
@@ -325,7 +325,7 @@ export function ReportFilters({
             min={from}
             onChange={(e) => push({ preset: "custom", from, to: e.target.value })}
             aria-label="To date"
-            className={`border bg-[var(--bg)] px-2 py-1.5 font-mono text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`border bg-[var(--page)] px-2 py-1.5 font-mono text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />

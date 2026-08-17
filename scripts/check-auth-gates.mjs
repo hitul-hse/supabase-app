@@ -1,13 +1,51 @@
 // Runtime check: unauthenticated requests to protected routes must redirect to
 // /auth/login, and must NOT return page content.
-const routes = ["/", "/people", "/projects", "/timesheets", "/team-lead", "/admin/users"];
+//
+// The protected list is DERIVED from the filesystem, not hardcoded. It used to
+// be a literal array of six paths, which meant every route added afterwards was
+// silently exempt from the only check that proves it is gated: /leave,
+// /admin/roles and /time all existed and none was ever probed. A hardcoded list
+// here fails in the worst direction -- it stays green while coverage shrinks.
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
 // Public auth routes are read from the middleware's own PUBLIC_ROUTES set
 // rather than hardcoded. Hardcoding them made this check depend on whichever
 // routes happened to exist in one working copy: it passed locally, where a
 // parallel session had added the password-reset routes, and failed in CI,
 // which checks out the committed tree without them. Deriving the list means
 // the check tests what the app actually declares, wherever it runs.
-import { readFileSync } from "node:fs";
+
+/**
+ * Every route under src/app/(app), which is the authenticated route group.
+ *
+ * A route group directory in parentheses contributes nothing to the URL, so
+ * `(app)/admin/users/page.tsx` is `/admin/users`. Dynamic segments are skipped:
+ * probing `/projects/[id]` literally would 404 for reasons that say nothing
+ * about the auth gate.
+ */
+function protectedRoutes(dir = "src/app/(app)", prefix = "") {
+  const found = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name === "page.tsx") {
+      found.push(prefix === "" ? "/" : prefix);
+      continue;
+    }
+    if (!entry.isDirectory()) continue;
+    // Skip dynamic and catch-all segments, and nested route groups' parentheses.
+    if (entry.name.startsWith("[")) continue;
+    const segment = entry.name.startsWith("(") ? "" : `/${entry.name}`;
+    found.push(...protectedRoutes(join(dir, entry.name), prefix + segment));
+  }
+  return found;
+}
+
+const routes = protectedRoutes().sort();
+if (routes.length === 0) {
+  console.log("FAIL: found no pages under src/app/(app) — the route scan is broken");
+  process.exit(1);
+}
+console.log(`probing ${routes.length} protected routes: ${routes.join(", ")}\n`);
 
 const middleware = readFileSync("src/utils/supabase/middleware.ts", "utf8");
 const publicRoutesBlock = middleware.match(/PUBLIC_ROUTES\s*=\s*new Set\(\[([\s\S]*?)\]\)/);

@@ -13,10 +13,30 @@ import {
   authLabelClass,
 } from "@/components/AuthShell";
 
+/**
+ * Where to go after a successful login, restricted to this app.
+ *
+ * `redirect_to` arrives from the URL, so it is attacker-controlled. Passing it
+ * straight to router.push() is an open redirect: `?redirect_to=https://evil.com`
+ * would send a user who has *just authenticated* to another origin, which is
+ * exactly the moment they are most likely to trust the page they land on and
+ * re-enter a credential.
+ *
+ * Only a same-site absolute path is allowed. Protocol-relative "//evil.com" is
+ * rejected explicitly because it starts with "/" and is otherwise indistinguishable
+ * from a local path, and a backslash is rejected because some browsers normalise
+ * "/\evil.com" to a protocol-relative URL.
+ */
+function safeRedirect(raw: string | null): string {
+  if (!raw || !raw.startsWith("/")) return "/";
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/";
+  return raw;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect_to") || "/";
+  const redirectTo = safeRedirect(searchParams.get("redirect_to"));
   // /auth/callback sends failures back here with a readable reason.
   const linkError = searchParams.get("error");
 

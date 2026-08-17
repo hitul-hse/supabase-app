@@ -37,7 +37,7 @@
     "asana:backlog": "node scripts/generate-asana-backlog.mjs",
     "test:asana-backlog": "node scripts/check-asana-backlog.mjs",
     "test:backfill": "node scripts/check-backfill.mjs",
-    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:task-write-rls && npm run test:timesheet-write-rls && npm run test:org-chart-view && npm run test:task-comments-rls && npm run test:subtasks-rls && npm run test:leave-requests-rls && npm run test:billable-rates-rls && npm run test:timer-rls && npm run test:project-budget-rls && npm run test:timesheet-withdraw-rls && npm run test:duration && npm run test:trend-window && npm run test:discovery && npm run test:trackingtime && npm run test:raw-rls && npm run test:time-transform && npm run test:time-rls && npm run test:time-analytics && npm run test:time-dashboard-render && npm run test:sections-rls && npm run test:permissions-rls && npm run test:modules-rls && npm run test:backfill && npm run test:verify-query && npm run test:policy-control && npm run test:asana-backlog && npm run test:login-redirect && npm run test:time-page-data && npm run test:time-page-render && npm run test:time-write-path && npm run test:tt-report && npm run test:apply-modules && npm run test:oauth-callback && npm run test:oauth-access && npm run test:identity-linking && npm run test:sync-drilldown && npm run test:projects-module && npm run test:project-write-auth && npm run test:economics-scope && npm run test:lint-scope",
+    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:task-write-rls && npm run test:timesheet-write-rls && npm run test:org-chart-view && npm run test:task-comments-rls && npm run test:subtasks-rls && npm run test:leave-requests-rls && npm run test:billable-rates-rls && npm run test:timer-rls && npm run test:project-budget-rls && npm run test:timesheet-withdraw-rls && npm run test:duration && npm run test:trend-window && npm run test:discovery && npm run test:trackingtime && npm run test:raw-rls && npm run test:time-transform && npm run test:time-rls && npm run test:time-analytics && npm run test:time-dashboard-render && npm run test:sections-rls && npm run test:permissions-rls && npm run test:modules-rls && npm run test:backfill && npm run test:verify-query && npm run test:policy-control && npm run test:asana-backlog && npm run test:login-redirect && npm run test:time-page-data && npm run test:time-page-render && npm run test:time-write-path && npm run test:tt-report && npm run test:apply-modules && npm run test:oauth-callback && npm run test:oauth-access && npm run test:identity-linking && npm run test:sync-drilldown && npm run test:projects-module && npm run test:project-write-auth && npm run test:economics-scope && npm run test:entry-policy-equivalence && npm run test:lint-scope",
     "test:verify-query": "node scripts/check-verify-policies-query.mjs",
     "test:traceability": "node scripts/traceability-run.mjs",
     "test:policy-control": "node scripts/check-policy-count-control.mjs",
@@ -70,7 +70,10 @@
     "test:sync-drilldown": "node scripts/check-sync-and-drilldown.mjs",
     "test:projects-module": "node scripts/check-projects-module.mjs",
     "test:project-write-auth": "node scripts/check-project-write-auth.mjs",
-    "test:economics-scope": "node scripts/check-economics-scope.mjs"
+    "test:economics-scope": "node scripts/check-economics-scope.mjs",
+    "test:entry-policy-equivalence": "node scripts/check-entry-policy-equivalence.mjs",
+    "check:rls-hoisting": "node scripts/check-rls-hoisting.mjs",
+    "profile:dashboard": "node --experimental-strip-types scripts/profile-dashboard-render.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

@@ -1955,10 +1955,45 @@ begin
   end if;
 
   -- Entries: read what you are allowed to see.
+  --
+  -- WHY THIS IS WRITTEN AS THREE OR'D BRANCHES rather than the one call to
+  -- time.can_view_member(member_id) it replaces, which read far better:
+  --
+  -- MEASURED on the live project (scripts/check-rls-hoisting.mjs), fetching the
+  -- same 4,194 entries the TrackingTime dashboard reads:
+  --
+  --     as service_role, RLS bypassed      311ms
+  --     as a real exec, RLS applied      2,870ms
+  --
+  -- 2.5s of policy evaluation, and it SCALED with rows scanned (~55ms for a month,
+  -- ~170ms per 1000 rows) which is the signature of a per-row predicate. The cause
+  -- is that can_view_member takes a per-ROW argument: it is STABLE, but a stable
+  -- function whose input varies per row must be called per row -- 4,194 times, each
+  -- invoking app_user_role(), which itself reads app_user_profile.
+  --
+  -- The first two branches below do not depend on the row at all. Wrapping each in
+  -- a scalar subquery lets the planner evaluate it ONCE per statement as an
+  -- InitPlan (this is Supabase's documented RLS performance pattern), and because
+  -- `or` short-circuits, an exec never reaches the per-row branch at all.
+  --
+  -- SEMANTICS ARE UNCHANGED, and that is checkable rather than asserted:
+  -- can_view_member is literally `app_user_role() = 'exec' OR target = current_member_id()
+  -- OR exists(department check)`. Hoisting the first two disjuncts out of the
+  -- function and leaving the third to the function computes the same boolean --
+  -- `A or B or f(row)` where f = `A or B or C`. The third branch still goes through
+  -- can_view_member, so the department rule has exactly one implementation.
+  --
+  -- The RLS gates (npm run test:time-rls, test:rls, test:rls-control) cover the
+  -- access outcomes and must pass unchanged; this is a performance rewrite and any
+  -- behaviour difference is a bug, not a trade-off.
   if not exists (select 1 from pg_policies where schemaname='time' and tablename='entry'
                  and policyname='scoped read of entry') then
     create policy "scoped read of entry" on time.entry
-      for select to authenticated using (time.can_view_member(member_id));
+      for select to authenticated using (
+        (select app_user_role()) = 'exec'
+        or member_id = (select time.current_member_id())
+        or time.can_view_member(member_id)
+      );
   end if;
 
   -- Write only your OWN time. member_id is pinned to the caller in WITH CHECK,
@@ -2042,8 +2077,10 @@ grant select on time.week_summary to authenticated;
 --      time.project_economics(), a security definer function gated on a
 --      permission, which returns zero rows rather than a partial total.
 --
---   2. CALENDAR TIME IS REPORTED, NEVER SILENTLY MIXED IN. 34% of live events
---      are GHOST calendar placeholders with no customer and no project. Folding
+--   2. CALENDAR TIME IS REPORTED, NEVER SILENTLY MIXED IN. 46% of live events
+--      (42% of logged hours) are GHOST calendar placeholders, most with no
+--      customer and no project -- measured, and higher than the 34% previously
+--      recorded here. Folding
 --      them into a utilisation or billable figure would make that figure
 --      meaningless, so every view carries calendar_seconds as its own column
 --      and the deliberate-work total excludes it.
@@ -2223,7 +2260,7 @@ language sql stable security definer set search_path = time, public
 as $$
   select
     p.id,
-    p.name,
+    coalesce(p.name, '(no project)'),
     c.name,
     coalesce(sum(e.duration_seconds), 0)::bigint,
     coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0)::bigint,
@@ -2253,7 +2290,16 @@ as $$
                   else 0 end), 0), 0) * 100, 1)
     end
   from time.entry e
-  join time.project p on p.id = e.project_id
+  -- LEFT, not INNER. 1,691 of 4,194 live entries carry no project_id, and an
+  -- inner join dropped every one of them from the only panel that reports cost
+  -- -- so economics and the totals strip disagreed about the same period (866.9h
+  -- against 649h for July) with nothing on screen to explain the difference.
+  -- Unattributed time still costs money: a member rate times hours worked is
+  -- spend the business incurred whether or not anyone filed it against a
+  -- project, and hiding it flatters every margin on the page. It surfaces as a
+  -- single "(no project)" row with a null project_id, which the UI renders
+  -- unlinked because there is no record to open.
+  left join time.project p on p.id = e.project_id
   left join time.customer c on c.id = p.customer_id
   left join time.member_rate r
          on r.member_id = e.member_id

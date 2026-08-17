@@ -147,3 +147,65 @@ console.log(
     ? `\nParallel paging would save ~${saved.toFixed(0)}ms on every all-time load and every\nfilter change over a wide range. Worth doing.`
     : `\nSequential paging costs ~${saved.toFixed(0)}ms versus parallel, which is not the\nbottleneck. Look elsewhere before adding concurrency.`,
 );
+
+// ── The widest selection, broken down per query ────────────────────────────
+// The live browser gate measures 3,256ms end to end for "all time + calendar,
+// grouped by customer", over the 3s budget. The page already runs its queries
+// with Promise.all, so the wall-clock cost is the SLOWEST of them, not the sum --
+// which means guessing is useless and each one has to be timed.
+console.log("\n=== the widest selection (all time + calendar), per query ===");
+
+const WIDE = "started_at=gte.2000-01-01T00:00:00.000Z&started_at=lt.2028-01-01T00:00:00.000Z&duration_seconds=not.is.null";
+
+{
+  // The entry pages, in parallel, as the page now does.
+  const t = performance.now();
+  const pages = 5;
+  await Promise.all(
+    Array.from({ length: pages }, (_, p) =>
+      timed(`entry?select=${encodeURIComponent(SELECT)}&${WIDE}&order=started_at.desc&offset=${p * 1000}&limit=1000`),
+    ),
+  );
+  console.log(`  entries (5 pages, parallel)        ${(performance.now() - t).toFixed(0).padStart(6)}ms`);
+}
+
+{
+  // The economics RPC, which is a security-definer function doing a rate join
+  // over every entry in range. A plausible suspect precisely because it is the
+  // one query here that aggregates server-side.
+  const t = performance.now();
+  const res = await fetch(`${URL_BASE}/rest/v1/rpc/project_economics`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json", "Content-Profile": "time" },
+    body: JSON.stringify({ p_from: "2000-01-01", p_to: "2027-12-31" }),
+  });
+  const rows = JSON.parse(await res.text());
+  console.log(
+    `  project_economics RPC              ${(performance.now() - t).toFixed(0).padStart(6)}ms  (${Array.isArray(rows) ? rows.length : "?"} rows, HTTP ${res.status})`,
+  );
+}
+
+{
+  // The calendar-exclusion sum, which pages sequentially over ~1,950 calendar
+  // rows -- two round trips, and it selects only duration_seconds.
+  const t = performance.now();
+  let page = 0;
+  for (;;) {
+    const r = await timed(`entry?select=duration_seconds&${WIDE}&is_calendar=eq.true&offset=${page * 1000}&limit=1000`);
+    if ((r.rows ?? 0) < 1000) break;
+    if (++page > 24) break;
+  }
+  console.log(`  excluded-calendar sum (sequential) ${(performance.now() - t).toFixed(0).padStart(6)}ms  (${page + 1} serial requests)`);
+}
+
+{
+  const t = performance.now();
+  await timed("../rest/v1/sync_runs?select=*&order=started_at.desc&limit=1");
+  console.log(`  sync freshness                     ${(performance.now() - t).toFixed(0).padStart(6)}ms`);
+}
+
+console.log(
+  "\nThe page runs these with Promise.all, so its floor is the SLOWEST line above,\n" +
+    "plus React rendering ~180 table rows and the trend. Anything materially below\n" +
+    "the slowest line is not worth optimising.",
+);

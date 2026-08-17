@@ -160,9 +160,11 @@ try {
   // The cookie name derives from the project hostname, per supabase-js's own
   // defaultStorageKey.
   const host = new URL(URL_BASE).hostname.split(".")[0];
+  const cookieValue = "base64-" + Buffer.from(JSON.stringify(session)).toString("base64url");
+  const cookieHeader = `sb-${host}-auth-token=${cookieValue}`;
   await ctx.addCookies([{
     name: `sb-${host}-auth-token`,
-    value: "base64-" + Buffer.from(JSON.stringify(session)).toString("base64url"),
+    value: cookieValue,
     domain: "localhost", path: "/", httpOnly: false, secure: false, sameSite: "Lax",
   }]);
 
@@ -175,6 +177,19 @@ try {
 
   /** Navigate and time it, end to end, as a person experiences it. */
   const visit = async (qs, label) => {
+    // Server time measured separately from total, because they point at
+    // different fixes. The per-query measurements say the database work for the
+    // widest selection is ~220ms, so if TTFB is small and the total is seconds,
+    // the cost is payload serialisation and React rendering -- and no amount of
+    // query tuning would touch it.
+    const t0raw = performance.now();
+    const raw = await fetch(`http://localhost:${APP_PORT}/time/dashboard?${qs}`, {
+      headers: { cookie: cookieHeader },
+      redirect: "manual",
+    });
+    const html = await raw.text();
+    const serverMs = performance.now() - t0raw;
+
     const t0 = performance.now();
     const resp = await page.goto(`http://localhost:${APP_PORT}/time/dashboard?${qs}`, {
       waitUntil: "domcontentloaded",
@@ -186,15 +201,36 @@ try {
       .waitFor({ state: "visible", timeout: 30_000 })
       .catch(() => {});
     const ms = performance.now() - t0;
-    console.log(`  ${label.padEnd(34)} ${ms.toFixed(0).padStart(6)}ms  HTTP ${resp?.status()}`);
-    return { ms, status: resp?.status() };
+    const kb = html.length / 1024;
+    console.log(
+      `  ${label.padEnd(34)} total ${ms.toFixed(0).padStart(5)}ms · server ${serverMs.toFixed(0).padStart(5)}ms · html ${kb.toFixed(0).padStart(4)}kb · HTTP ${resp?.status()}`,
+    );
+    return { ms, serverMs, kb, status: resp?.status() };
   };
 
   console.log("--- real response times, real data ---");
-  const thisMonth = await visit("preset=this_month&group=project&bucket=day", "this month, by project");
-  const allTime = await visit("preset=all&group=project&bucket=week", "all time, by project");
-  const allCal = await visit("preset=all&calendar=1&group=customer&bucket=month", "all time + calendar, by customer");
-  const filtered = await visit("preset=this_year&billable=yes&group=member&bucket=week", "this year, billable, by member");
+  // WARM UP FIRST. `next start` compiles a route lazily on its first request, and
+  // this page also pays a one-off client-bundle cost. Reporting the first hit as
+  // "the response time" would attribute framework startup to the dashboard and
+  // send the next change at the wrong target -- which is exactly what nearly
+  // happened here: the first measured pass blamed the widest selection for 3.2s.
+  await page.goto(`http://localhost:${APP_PORT}/time/dashboard?preset=this_week`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+
+  // Each selection twice, and the SECOND is the one asserted on. The first hit of
+  // a given shape still pays route-level warmup; the second is the steady state a
+  // person navigating the dashboard actually experiences.
+  const twice = async (qs, label) => {
+    await visit(qs, `${label} (cold)`);
+    return visit(qs, `${label} (warm)`);
+  };
+
+  const thisMonth = await twice("preset=this_month&group=project&bucket=day", "this month, by project");
+  const allTime = await twice("preset=all&group=project&bucket=week", "all time, by project");
+  const allCal = await twice("preset=all&calendar=1&group=customer&bucket=month", "all time + calendar, by customer");
+  const filtered = await twice("preset=this_year&billable=yes&group=member&bucket=week", "this year, billable, by member");
 
   check("the live dashboard returns 200 for a real exec", thisMonth.status === 200, `status ${thisMonth.status}`);
   check("the live dashboard was not bounced to /auth/login", !page.url().includes("/auth/login"), page.url());

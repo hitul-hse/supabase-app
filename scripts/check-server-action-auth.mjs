@@ -177,6 +177,11 @@ function restoreTsconfig() {
   }
 }
 
+// Registered rather than only called from cleanup(): a failing assertion or an
+// early process.exit() bypasses cleanup(), and one such run did leave the probe
+// paths behind. exit fires on every ordinary termination path.
+process.on("exit", restoreTsconfig);
+
 console.log("building against the stub (NEXT_PUBLIC_* are compile-time)...");
 const build = spawnSync("npx", ["next", "build"], { env: stubEnv, shell: true, encoding: "utf8" });
 if (build.status !== 0) {

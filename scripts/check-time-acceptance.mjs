@@ -25,7 +25,33 @@
  */
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import fs, { existsSync, rmSync } from "node:fs";
+
+/**
+ * tsconfig.json is rewritten by `next build`: it appends the dist dir's own type
+ * paths to "include". With a probe distDir that pollutes the SHARED config with
+ * entries naming a directory that exists only during this test -- committed noise
+ * pointing at nothing. Snapshot it and put it back.
+ */
+const TSCONFIG_SNAPSHOT = existsSync("tsconfig.json")
+  ? fs.readFileSync("tsconfig.json")
+  : null;
+
+function restoreTsconfig() {
+  if (!TSCONFIG_SNAPSHOT) return;
+  try {
+    if (!fs.readFileSync("tsconfig.json").equals(TSCONFIG_SNAPSHOT)) {
+      fs.writeFileSync("tsconfig.json", TSCONFIG_SNAPSHOT);
+    }
+  } catch {
+    // Non-fatal: a stale include path is harmless to tsc, just untidy.
+  }
+}
+
+// Registered rather than only called from cleanup(): a failing assertion or an
+// early process.exit() bypasses cleanup(), and one such run did leave the probe
+// paths behind. exit fires on every ordinary termination path.
+process.on("exit", restoreTsconfig);
 
 let failed = false;
 const check = (name, ok, detail = "") => {
@@ -158,6 +184,33 @@ const PROFILE = {
 const PORT = 54329;
 const requests = [];
 
+/**
+ * Bind the stub, or skip with an explanation.
+ *
+ * server.listen()'s callback form never rejects, so a port left bound by an earlier
+ * run surfaced as an unhandled 'error' event and a raw stack trace -- while the
+ * earlier run's app server stayed orphaned on its own port. A port already in use
+ * is a stale-environment problem, not a defect in the app, so it reports what to do
+ * instead of failing.
+ */
+function listenOrSkip(srv, port) {
+  return new Promise((resolve) => {
+    srv.once("error", (e) => {
+      if (e.code === "EADDRINUSE") {
+        console.log(
+          `SKIP: port ${port} is already in use, probably by an earlier run that did\n` +
+            `      not shut down. Free it and re-run:\n` +
+            `        netstat -ano | findstr ${port}`,
+        );
+        resolve(false);
+        return;
+      }
+      throw e;
+    });
+    srv.listen(port, () => resolve(true));
+  });
+}
+
 const server = createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const profile = req.headers["accept-profile"] || req.headers["content-profile"] || "public";
@@ -190,7 +243,50 @@ const server = createServer((req, res) => {
     if (url.pathname === "/rest/v1/entry") {
       // A single-row lookup (the running-timer probe) asks for maybeSingle.
       if (url.searchParams.has("ended_at")) return send(null);
-      return send(entries);
+
+      // The dashboard sends `is_billable=eq.true` and friends. Answering with
+      // the full set regardless would make every filter assertion pass
+      // VACUOUSLY — the page would show the right totals for the wrong reason,
+      // and a filter that silently did nothing would still look correct. So the
+      // stub honours the handful of predicates the report actually emits.
+      let rows = entries;
+
+      const eqBool = (param, field) => {
+        const raw = url.searchParams.get(param);
+        if (raw === "eq.true") rows = rows.filter((e) => e[field] === true);
+        else if (raw === "eq.false") rows = rows.filter((e) => e[field] === false);
+      };
+      eqBool("is_billable", "is_billable");
+      eqBool("is_calendar", "is_calendar");
+
+      const gte = url.searchParams.get("started_at");
+      // PostgREST repeats the key for a range; URLSearchParams.getAll gets both.
+      for (const bound of url.searchParams.getAll("started_at")) {
+        if (bound.startsWith("gte.")) {
+          const v = bound.slice(4);
+          rows = rows.filter((e) => e.started_at >= v);
+        } else if (bound.startsWith("lt.")) {
+          const v = bound.slice(3);
+          rows = rows.filter((e) => e.started_at < v);
+        }
+      }
+      void gte;
+
+      const members = url.searchParams.get("member_id");
+      if (members?.startsWith("in.")) {
+        const ids = members.slice(3).replace(/[()]/g, "").split(",").map(Number);
+        rows = rows.filter((e) => ids.includes(e.member_id));
+      }
+
+      // Paging. The report asks for range 0-999; an offset beyond the data must
+      // answer [] so the loop terminates rather than spinning to MAX_PAGES.
+      const range = req.headers["range"];
+      if (typeof range === "string" && /^\d+-/.test(range)) {
+        const start = Number(range.split("-")[0]);
+        if (start > 0) rows = [];
+      }
+
+      return send(rows);
     }
     if (url.pathname === "/rest/v1/week_summary") return send(weekSummary);
     if (url.pathname === "/rest/v1/rpc/current_member_id") return send(MEMBER_ID);
@@ -220,7 +316,7 @@ const server = createServer((req, res) => {
   send({}, 404);
 });
 
-await new Promise((r) => server.listen(PORT, r));
+if (!(await listenOrSkip(server, PORT))) process.exit(0);
 console.log(`stub Supabase on http://localhost:${PORT}`);
 
 // ── The real Next.js server, built and run against the stub ────────────────
@@ -244,7 +340,9 @@ if (REBUILD) {
   // so swapping it can destroy another session's build. One run did leave the stub
   // build in .next and it had to be rebuilt by hand. A separate dist dir touches
   // nothing shared, so there is nothing to restore.
-  console.log("building against the stub (NEXT_PUBLIC_* are compile-time)...");
+  
+
+console.log("building against the stub (NEXT_PUBLIC_* are compile-time)...");
   const build = spawnSync("npx", ["next", "build"], {
     env: { ...stubEnv, NEXT_ACCEPTANCE_DIST: DIST },
     shell: true,
@@ -253,6 +351,7 @@ if (REBUILD) {
   if (build.status !== 0) {
     console.log("FAIL: build against the stub failed");
     console.log((build.stdout ?? "") + (build.stderr ?? ""));
+    restoreTsconfig();
     server.close();
     process.exit(1);
   }
@@ -271,6 +370,7 @@ app.stdout.on("data", (d) => (appLog += d));
 app.stderr.on("data", (d) => (appLog += d));
 
 const cleanup = () => {
+  restoreTsconfig();
   clearTimeout(watchdog);
   // `npm run start` under a shell spawns a grandchild (next-server) that owns the
   // port. Killing only the npm wrapper leaves that grandchild listening -- it
@@ -493,6 +593,131 @@ try {
     "the tracker does not offer a team scope switch",
     !/Track Records My time Team/.test(track),
     "offering 'Team' on the tracker would imply you can start a timer for a colleague",
+  );
+
+  // ── The TrackingTime Dashboard ──────────────────────────────────────────
+  // The reporting surface. Its whole risk is arithmetic done in TypeScript
+  // rather than SQL, so these assertions check NUMBERS, not just that panels
+  // rendered. The seed is 2h billable + 30m non-billable + 1h calendar.
+  //
+  // Calendar time is excluded by default, so the unfiltered dashboard must
+  // report 2.5h — NOT the 3.5h the week view shows. That difference is the
+  // point: if the dashboard ever reads 3.5h here, the calendar exclusion has
+  // silently stopped working and every billable ratio in the product is wrong.
+  const dashResp = await page.goto(
+    `http://localhost:${APP_PORT}/time/dashboard?preset=all&group=member&bucket=day`,
+    { waitUntil: "domcontentloaded", timeout: 30_000 },
+  );
+  // Wait for real content, not just the document — same reason the records
+  // assertions above do. Reading innerText straight after domcontentloaded
+  // returned an empty body and failed twelve assertions while the page was
+  // rendering perfectly, which is the most misleading shape a failing gate can
+  // take. The KPI strip is the first thing painted below the header.
+  await page
+    .locator("text=TOTAL HOURS")
+    .first()
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .catch(() => {});
+  const dash = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  if (process.env.ACCEPTANCE_DUMP === "1") {
+    fs.writeFileSync("tmp-dash-text.txt", dash);
+  }
+
+  check(
+    "GET /time/dashboard returns 200 for a signed-in user",
+    dashResp?.status() === 200,
+    `status ${dashResp?.status()}`,
+  );
+  check(
+    "the dashboard was not bounced to /auth/login",
+    !page.url().includes("/auth/login"),
+    page.url(),
+  );
+
+  check("the dashboard is titled TrackingTime Dashboard", dash.includes("TrackingTime Dashboard"));
+
+  check(
+    "calendar time is excluded by default (2.5h, not 3.5h)",
+    dash.includes("2.5h") && !dash.includes("3.5h"),
+    "a 3.5h total means calendar placeholders leaked into the headline figure",
+  );
+  check("billable hours are reported", dash.includes("2h"));
+  check(
+    "the billable share is 80% of non-calendar time",
+    dash.includes("80%"),
+    "2h billable of 2.5h logged",
+  );
+
+  check("the KPI strip renders", dash.includes("TOTAL HOURS") && dash.includes("BILLABLE"));
+  // Scoped to the panel's own heading, NOT a bare /TREND/ over the whole page.
+  // The filter bar has a "TREND" label of its own (Daily/Weekly/Monthly), so a
+  // loose match would pass even with the chart entirely absent — the assertion
+  // would be testing the control that selects the panel rather than the panel.
+  check(
+    "the trend panel renders",
+    dash.includes("DAILY TREND"),
+    `chart heading absent (the bare word "TREND" in the filter bar does not count)`,
+  );
+  check("the breakdown groups by member", dash.includes("BY MEMBER") && dash.includes("Anna Beck"));
+  check("the latest-entries panel renders", dash.includes("LATEST ENTRIES"));
+
+  // Filter controls must actually be present — the report is useless without
+  // them, and a missing picker is invisible in a totals-only assertion.
+  for (const label of ["MEMBER", "PROJECT", "CUSTOMER", "SERVICE"]) {
+    check(`the ${label.toLowerCase()} filter is offered`, dash.includes(label));
+  }
+  check(
+    "date presets are offered",
+    dash.includes("This week") && dash.includes("Last month") && dash.includes("All time"),
+  );
+  check("group-by controls are offered", dash.includes("GROUP BY"));
+
+  check(
+    "the dashboard did not render its empty state",
+    !dash.includes("No time logged in this selection"),
+  );
+
+  // Now prove a filter CHANGES the result rather than merely being present.
+  // The stub honours is_billable, so non-billable-only must drop the 2h entry
+  // and leave 0.5h.
+  await page.goto(`http://localhost:${APP_PORT}/time/dashboard?preset=all&billable=no`, {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  await page
+    .locator("text=TOTAL HOURS")
+    .first()
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .catch(() => {});
+  const nonBillable = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  check(
+    "filtering to non-billable changes the total to 0.5h",
+    nonBillable.includes("0.5h") && !nonBillable.includes("2.5h"),
+    "the filter reached the query and the totals recomputed",
+  );
+
+  // And that switching calendar ON brings the third entry back.
+  await page.goto(`http://localhost:${APP_PORT}/time/dashboard?preset=all&calendar=1`, {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  await page
+    .locator("text=TOTAL HOURS")
+    .first()
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .catch(() => {});
+  const withCal = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  check(
+    "including calendar time raises the total to 3.5h",
+    withCal.includes("3.5h"),
+    "the calendar toggle is wired to the query",
+  );
+
+  // The unit bug the whole module guards against, checked here too: 12600
+  // seconds rendered as minutes would read 210.
+  check(
+    "no seconds-as-minutes artefact on the dashboard",
+    !dash.includes("210") && !withCal.includes("210:00"),
   );
 } finally {
   await browser.close();

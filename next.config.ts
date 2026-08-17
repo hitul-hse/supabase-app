@@ -21,6 +21,20 @@ for (const key of requiredEnvVars) {
 }
 
 const nextConfig: NextConfig = {
+
+  // Build output directory. Defaults to .next; a test harness can point it
+  // elsewhere via NEXT_ACCEPTANCE_DIST.
+  //
+  // This exists because scripts/check-server-action-auth.mjs must build the app
+  // against a stub Supabase (NEXT_PUBLIC_* are compile-time constants, so there
+  // is no way to redirect them at runtime). Its first version moved .next aside
+  // and put it back, which was wrong twice over: on Windows the rename hits EPERM
+  // while any handle is open, and parallel sessions run their own servers out of
+  // .next, so swapping it can destroy another agent's build. A separate distDir
+  // touches nothing shared.
+  //
+  // Unset in every normal path -- dev, CI and Vercel all get .next.
+  distDir: process.env.NEXT_ACCEPTANCE_DIST || ".next",
   // Surfaces server-side errors to the client during development, and keeps
   // the build output lean in production.
   reactStrictMode: true,

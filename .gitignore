@@ -70,3 +70,7 @@ docs/discovery/
 # rebuilt to point elsewhere). Restored on every exit path, but if a run is
 # killed mid-flight this directory holds the real build. Never commit it.
 .next-real/
+
+# Build output for scripts/check-server-action-auth.mjs, which builds against a
+# stub Supabase in its own distDir so the shared .next is never disturbed.
+.next-action-probe/

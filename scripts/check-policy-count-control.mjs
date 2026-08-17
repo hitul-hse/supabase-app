@@ -13,8 +13,12 @@ const broken = orig.replace(
   "",
 );
 
-const declaredOrig = (orig.match(/^create policy/gim) || []).length;
-const declaredBroken = (broken.match(/^create policy/gim) || []).length;
+// Same regex as check-schema-executes.mjs, leading whitespace included: the
+// `time` module declares its policies inside a `do $$ ... $$` idempotency guard,
+// so they are indented. If these two regexes ever drift apart, this control
+// reports a mismatch that does not exist in the check it is meant to police.
+const declaredOrig = (orig.match(/^[ \t]*create policy/gim) || []).length;
+const declaredBroken = (broken.match(/^[ \t]*create policy/gim) || []).length;
 
 console.log(`declared in real schema:  ${declaredOrig}`);
 console.log(`declared in broken copy:  ${declaredBroken}`);

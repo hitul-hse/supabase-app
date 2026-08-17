@@ -1556,3 +1556,437 @@ create policy "authenticated can read sync_run"
 
 grant usage on schema raw to authenticated;
 grant select on raw.sync_run to authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- 8. time -- the Time Tracking module
+-- ---------------------------------------------------------------------------
+-- The first typed module schema, written FROM the discovery field inventories
+-- (docs/architecture/DISCOVERY-trackingtime.md), not from vendor documentation.
+-- Every non-obvious decision below cites the measurement that forced it.
+--
+-- Why a schema rather than more public tables: PLATFORM-ARCHITECTURE.md §2. A
+-- module client is pinned with supabase.schema('time'), so it physically cannot
+-- reach another module's tables even by typo, while Hub still joins across all
+-- of them in one query because it is one database.
+
+create schema if not exists time;
+grant usage on schema time to authenticated;
+
+
+-- Services -- the closest thing to HSE's real service catalogue that exists in
+-- any vendor system. A small, stable vocabulary (~10 values observed).
+--
+-- is_travel/is_paid_travel are real columns rather than a string match on the
+-- name. The vendor encodes the distinction in the label itself
+-- ("Anfahrt & Abfahrt / Travelltime (Payed)" vs "(unpayed)"), which means any
+-- report that needs it is one typo away from being wrong.
+create table if not exists time.service (
+  id             bigint generated always as identity primary key,
+  source_id      text unique,                    -- TrackingTime service id, when imported
+  name           text not null unique,
+  is_travel      boolean not null default false,
+  is_paid_travel boolean not null default false,
+  is_internal    boolean not null default false,
+  is_active      boolean not null default true,
+  sort_order     int not null default 0,
+  created_at     timestamptz not null default now(),
+
+  -- Unpaid travel is still travel. Paid-but-not-travel is a contradiction.
+  constraint paid_travel_is_travel check (not is_paid_travel or is_travel)
+);
+
+
+-- Customers. Deliberately thin: the CRM module owns the commercial record, this
+-- is only what time tracking needs to attribute an hour.
+create table if not exists time.customer (
+  id          bigint generated always as identity primary key,
+  source_id   text unique,
+  name        text not null,
+  is_archived boolean not null default false,
+  -- 21 vendor custom fields exist and most are 100% null in the sample, so they
+  -- are held verbatim rather than promoted to columns until one earns it.
+  custom      jsonb not null default '{}'::jsonb,
+  created_at  timestamptz not null default now()
+);
+
+create unique index if not exists time_customer_name_idx on time.customer (lower(name));
+
+
+create table if not exists time.project (
+  id             bigint generated always as identity primary key,
+  source_id      text unique,
+  customer_id    bigint references time.customer(id) on delete set null,
+  name           text not null,
+  code           text,
+  -- The Hub's own projects table is keyed by text id. Linking here rather than
+  -- with an FK keeps the modules decoupled: `time` must not fail to insert
+  -- because a Hub row has not been created yet.
+  hub_project_id text,
+  service_id     bigint references time.service(id) on delete set null,
+  is_billable    boolean not null default true,
+  is_archived    boolean not null default false,
+  -- Observed as fractional HOURS on the vendor's project entity (0.833333),
+  -- while events carry SECONDS. Same concept, different unit, different entity
+  -- -- which is exactly why the unit is in the column name.
+  estimated_hours numeric(10,2),
+  custom         jsonb not null default '{}'::jsonb,
+  created_at     timestamptz not null default now()
+);
+
+create index if not exists time_project_customer_idx on time.project (customer_id);
+
+
+-- Tasks. Type matters more than it looks:
+--
+--   PERSONAL -- a real task somebody created. 70% billable.
+--   GHOST    -- a calendar placeholder. 96.5% carry CALENDAR_SYNC_*, 98%
+--               non-billable, and 1,508 of them collapse onto just 33 ids.
+--
+-- Measured over 4,189 live events: every one of the 1,427 events with neither a
+-- customer nor a project is GHOST, and no PERSONAL event lacks a customer. That
+-- is why time.entry.project_id is nullable and there is no "Internal"
+-- pseudo-customer -- the absence is structural, not a tagging failure.
+create table if not exists time.task (
+  id            bigint generated always as identity primary key,
+  source_id     text unique,
+  project_id    bigint references time.project(id) on delete set null,
+  name          text,
+  task_type     text not null default 'PERSONAL' check (task_type in ('PERSONAL', 'GHOST')),
+  is_archived   boolean not null default false,
+  custom        jsonb not null default '{}'::jsonb,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists time_task_project_idx on time.task (project_id);
+
+
+-- A tracked person. Separate from public.people because the module owns its own
+-- roster and must not break when Hub's identity map lags.
+create table if not exists time.member (
+  id             bigint generated always as identity primary key,
+  source_id      text unique,
+  email          text,
+  display_name   text not null,
+  hub_person_id  text,                            -- resolved to public.people.id
+  user_id        uuid references auth.users(id) on delete set null,
+  role           text not null default 'CO_WORKER'
+                 check (role in ('ADMIN', 'MANAGER', 'PROJECT_MANAGER', 'CO_WORKER')),
+  status         text not null default 'REGISTERED'
+                 check (status in ('REGISTERED', 'VERIFIED', 'INVITED')),
+  is_archived    boolean not null default false,
+  -- Per-weekday contracted hours, observed on every vendor user
+  -- (mon..fri: 8, sat/sun: 0). The honest denominator for utilisation.
+  weekly_hours   numeric(5,2) not null default 40,
+  created_at     timestamptz not null default now()
+);
+
+create unique index if not exists time_member_email_idx on time.member (lower(email))
+  where email is not null;
+create index if not exists time_member_user_idx on time.member (user_id);
+
+
+-- Rates, effective-dated from day one.
+--
+-- The vendor carries a single current hourly_rate/hourly_cost per user with no
+-- history. Re-costing last year at this year's rate is simply wrong, and the
+-- history cannot be reconstructed after the fact -- so the table is dated now
+-- even though the first import will write one open-ended row per member.
+create table if not exists time.member_rate (
+  id           bigint generated always as identity primary key,
+  member_id    bigint not null references time.member(id) on delete cascade,
+  hourly_rate  numeric(10,2),                     -- what the client is charged
+  hourly_cost  numeric(10,2),                     -- what the person costs us
+  currency     text not null default 'EUR',
+  valid_from   date not null default current_date,
+  valid_to     date,                              -- null = currently in force
+
+  constraint rate_dates_ordered check (valid_to is null or valid_to > valid_from)
+);
+
+create index if not exists time_member_rate_lookup_idx
+  on time.member_rate (member_id, valid_from desc);
+
+
+-- The entry. One tracked interval -- the table this whole module is about.
+create table if not exists time.entry (
+  id               bigint generated always as identity primary key,
+  source_id        text unique,                   -- vendor event id, null for entries we created
+
+  member_id        bigint not null references time.member(id) on delete restrict,
+  task_id          bigint references time.task(id) on delete set null,
+  project_id       bigint references time.project(id) on delete set null,
+  customer_id      bigint references time.customer(id) on delete set null,
+  service_id       bigint references time.service(id) on delete set null,
+
+  started_at       timestamptz not null,
+  ended_at         timestamptz,                   -- null while a timer is running
+
+  -- SECONDS. Proved arithmetically, not assumed: across 800 sampled live events
+  -- (End - Start) equalled Duration exactly 800/800 times. This repo already
+  -- stores Factorial in minutes and TrackingTime in seconds, so the unit is in
+  -- the column name deliberately -- never call this column `hours`.
+  duration_seconds integer,
+
+  is_billable      boolean not null default true,
+  is_billed        boolean not null default false,
+  notes            text,
+  timezone         text,
+
+  -- Where the row came from. GHOST/calendar time is kept rather than discarded,
+  -- but it is distinguishable so utilisation can exclude it deliberately.
+  source_system    text not null default 'manual'
+                   check (source_system in ('manual', 'timer', 'trackingtime', 'calendar')),
+  is_calendar      boolean not null default false,
+
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+
+  -- A finished entry must have a coherent interval. A running timer (ended_at
+  -- null) is exempt -- that is the one legitimate open state.
+  constraint entry_interval_ordered check (ended_at is null or ended_at >= started_at),
+  constraint entry_duration_nonneg  check (duration_seconds is null or duration_seconds >= 0),
+  -- A finished entry must know how long it was.
+  constraint entry_finished_has_duration
+    check (ended_at is null or duration_seconds is not null)
+);
+
+create index if not exists time_entry_member_start_idx on time.entry (member_id, started_at desc);
+create index if not exists time_entry_project_idx      on time.entry (project_id, started_at desc);
+create index if not exists time_entry_customer_idx     on time.entry (customer_id, started_at desc);
+create index if not exists time_entry_started_idx      on time.entry (started_at desc);
+
+-- At most one running timer per member. A partial unique index is the only way
+-- to express this that a concurrent second insert cannot slip past.
+create unique index if not exists time_entry_one_running_per_member
+  on time.entry (member_id) where ended_at is null;
+
+
+-- Which time.member is the caller. security definer for the same reason as the
+-- public helpers: a policy on time.entry that reads time.member inside its own
+-- USING clause recurses through RLS unpredictably.
+create or replace function time.current_member_id()
+returns bigint
+language sql stable security definer set search_path = time, public
+as $$
+  select m.id from time.member m
+  where m.user_id = auth.uid()
+     or (m.hub_person_id is not null and m.hub_person_id = app_user_person_id())
+  limit 1;
+$$;
+
+-- Can the caller see this member's time? Mirrors can_view_person(): exec sees
+-- all, dept_head sees their department via the Hub person link, everyone sees
+-- their own.
+create or replace function time.can_view_member(target_member_id bigint)
+returns boolean
+language sql stable security definer set search_path = time, public
+as $$
+  select
+    app_user_role() = 'exec'
+    or target_member_id = time.current_member_id()
+    or exists (
+      select 1 from time.member m
+      where m.id = target_member_id
+        and m.hub_person_id is not null
+        and can_view_person(m.hub_person_id)
+    );
+$$;
+
+revoke execute on function time.current_member_id(), time.can_view_member(bigint)
+  from public, anon;
+grant execute on function time.current_member_id(), time.can_view_member(bigint)
+  to authenticated;
+
+
+alter table time.service     enable row level security;
+alter table time.customer    enable row level security;
+alter table time.project     enable row level security;
+alter table time.task        enable row level security;
+alter table time.member      enable row level security;
+alter table time.member_rate enable row level security;
+alter table time.entry       enable row level security;
+
+-- Guarded so re-running the whole file is silent rather than erroring on a
+-- policy that already exists.
+do $$
+begin
+  -- Reference data: any signed-in colleague needs to pick from these to log time.
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='service'
+                 and policyname='authenticated can read service') then
+    create policy "authenticated can read service" on time.service
+      for select to authenticated using (true);
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='customer'
+                 and policyname='authenticated can read customer') then
+    create policy "authenticated can read customer" on time.customer
+      for select to authenticated using (true);
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='project'
+                 and policyname='authenticated can read project') then
+    create policy "authenticated can read project" on time.project
+      for select to authenticated using (true);
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='task'
+                 and policyname='authenticated can read task') then
+    create policy "authenticated can read task" on time.task
+      for select to authenticated using (true);
+  end if;
+
+  -- Only someone who can manage projects reshapes the catalogue.
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='project'
+                 and policyname='project writers can manage project') then
+    create policy "project writers can manage project" on time.project
+      for all to authenticated
+      using (app_user_has_permission('projects:write'))
+      with check (app_user_has_permission('projects:write'));
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='customer'
+                 and policyname='project writers can manage customer') then
+    create policy "project writers can manage customer" on time.customer
+      for all to authenticated
+      using (app_user_has_permission('projects:write'))
+      with check (app_user_has_permission('projects:write'));
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='task'
+                 and policyname='project writers can manage task') then
+    create policy "project writers can manage task" on time.task
+      for all to authenticated
+      using (app_user_has_permission('projects:write'))
+      with check (app_user_has_permission('projects:write'));
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='service'
+                 and policyname='project writers can manage service') then
+    create policy "project writers can manage service" on time.service
+      for all to authenticated
+      using (app_user_has_permission('projects:write'))
+      with check (app_user_has_permission('projects:write'));
+  end if;
+
+  -- Roster: visible to whoever may see that person's time.
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='member'
+                 and policyname='scoped read of member') then
+    create policy "scoped read of member" on time.member
+      for select to authenticated using (time.can_view_member(id));
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='member'
+                 and policyname='user admins can manage member') then
+    create policy "user admins can manage member" on time.member
+      for all to authenticated
+      using (app_user_has_permission('admin:users:write'))
+      with check (app_user_has_permission('admin:users:write'));
+  end if;
+
+  -- Rates are commercially sensitive: hourly_cost is what a colleague costs the
+  -- company. Own rate, or exec. Deliberately NOT visible to dept_head, who can
+  -- otherwise see their department's time.
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='member_rate'
+                 and policyname='own rate or exec can read member_rate') then
+    create policy "own rate or exec can read member_rate" on time.member_rate
+      for select to authenticated
+      using (app_user_role() = 'exec' or member_id = time.current_member_id());
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='member_rate'
+                 and policyname='exec can manage member_rate') then
+    create policy "exec can manage member_rate" on time.member_rate
+      for all to authenticated
+      using (app_user_role() = 'exec')
+      with check (app_user_role() = 'exec');
+  end if;
+
+  -- Entries: read what you are allowed to see.
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='entry'
+                 and policyname='scoped read of entry') then
+    create policy "scoped read of entry" on time.entry
+      for select to authenticated using (time.can_view_member(member_id));
+  end if;
+
+  -- Write only your OWN time. member_id is pinned to the caller in WITH CHECK,
+  -- so an entry cannot be filed under a colleague even by a crafted request.
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='entry'
+                 and policyname='own entry insert') then
+    create policy "own entry insert" on time.entry
+      for insert to authenticated
+      with check (
+        member_id = time.current_member_id()
+        and app_user_has_permission('timesheets:write')
+      );
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='entry'
+                 and policyname='own entry update') then
+    create policy "own entry update" on time.entry
+      for update to authenticated
+      using (member_id = time.current_member_id() and not is_billed)
+      with check (member_id = time.current_member_id());
+  end if;
+
+  -- An invoiced entry is not deletable by its owner -- that is the point of
+  -- is_billed. Exec can still correct a mistake.
+  if not exists (select 1 from pg_policies where schemaname='time' and tablename='entry'
+                 and policyname='own entry delete') then
+    create policy "own entry delete" on time.entry
+      for delete to authenticated
+      using (
+        (member_id = time.current_member_id() and not is_billed)
+        or app_user_role() = 'exec'
+      );
+  end if;
+end $$;
+
+grant select on time.service, time.customer, time.project, time.task, time.member, time.member_rate
+  to authenticated;
+grant select, insert, update, delete on time.entry to authenticated;
+grant insert, update, delete on time.service, time.customer, time.project, time.task, time.member,
+  time.member_rate to authenticated;
+grant usage, select on all sequences in schema time to authenticated;
+
+
+-- A row per member per ISO week: logged, billable, and the contracted
+-- denominator. security_invoker so the caller's RLS still applies -- without it
+-- this view would be a hole straight through time.entry's policies.
+create or replace view time.week_summary
+with (security_invoker = true) as
+select
+  e.member_id,
+  m.display_name,
+  m.hub_person_id,
+  date_trunc('week', e.started_at)::date                             as week_start,
+  sum(e.duration_seconds)                                            as total_seconds,
+  sum(e.duration_seconds) filter (where e.is_billable)               as billable_seconds,
+  -- GHOST/calendar time is real time but usually not deliberate work, so it is
+  -- reported separately rather than silently inflating utilisation.
+  sum(e.duration_seconds) filter (where e.is_calendar)               as calendar_seconds,
+  count(*)                                                           as entry_count,
+  m.weekly_hours * 3600                                              as contracted_seconds
+from time.entry e
+join time.member m on m.id = e.member_id
+where e.duration_seconds is not null
+group by e.member_id, m.display_name, m.hub_person_id, date_trunc('week', e.started_at), m.weekly_hours;
+
+grant select on time.week_summary to authenticated;
+
+
+-- Seed the service catalogue observed in the live account. on conflict do
+-- nothing so a re-run never disturbs edits made in the app.
+insert into time.service (name, is_travel, is_paid_travel, is_internal, sort_order) values
+  ('DGUV V2: Sifa / Safety Engeineer',            false, false, false, 10),
+  ('DGUV V2: Betriebsarzt / Company doctor',      false, false, false, 20),
+  ('SiGeKo / construction coordination',          false, false, false, 30),
+  ('Brandschutzhelfer',                           false, false, false, 40),
+  ('Brandschutzbeauftragter (Fire Safety Officer)', false, false, false, 45),
+  ('Risk Assessment',                             false, false, false, 50),
+  ('Grundunterweisung / Trainingsacademy',        false, false, false, 60),
+  ('Projekt: Health & Safety Consulting',         false, false, false, 70),
+  ('Anfahrt & Abfahrt / Travelltime (Payed)',     true,  true,  false, 80),
+  ('Anfahrt & Abfahrt / Travelltime (unpayed)',   true,  false, false, 90),
+  ('intern',                                      false, false, true, 100)
+on conflict (name) do nothing;

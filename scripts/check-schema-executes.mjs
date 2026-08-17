@@ -118,7 +118,11 @@ check("all 5 role helper functions created", missingFns.length === 0, missingFns
 // a parallel session added weekly_employee_summary and this went red), which
 // trains people to edit the expected number instead of reading the failure.
 // The real property is that every declared policy exists in the database.
-const declaredPolicies = (sql.match(/^create policy/gim) || []).length;
+// Leading whitespace is allowed deliberately: the `time` module wraps its
+// policies in a `do $$ ... if not exists ... $$` guard so the file re-runs
+// cleanly, which indents them. Anchoring hard to column 0 counted 55 of 71 and
+// went red for bookkeeping, not for a missing policy.
+const declaredPolicies = (sql.match(/^[ \t]*create policy/gim) || []).length;
 check(
   `every declared policy was created (${declaredPolicies})`,
   policies.length === declaredPolicies,

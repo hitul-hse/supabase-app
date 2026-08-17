@@ -1,5 +1,45 @@
 # Supabase schema & procedures
 
+## ⚠ Pending migration: `migrations/hoist_entry_read_policy.sql`
+
+**Not yet applied to production.** It makes the TrackingTime dashboard roughly 2.5s
+faster on a wide selection and changes no access.
+
+Measured on the live project (`npm run check:rls-hoisting`), fetching the same
+4,194 rows the dashboard reads:
+
+| | time |
+| --- | --- |
+| as `service_role` (RLS bypassed) | 311ms |
+| as a real exec (RLS applied) | 2,870ms |
+
+The `scoped read of entry` policy called `time.can_view_member(member_id)` with a
+per-**row** argument, so Postgres evaluated it once per candidate row — 4,194
+times, each invoking `app_user_role()`, which reads `app_user_profile`. The
+migration hoists the two caller-scoped disjuncts into scalar subqueries so the
+planner evaluates them once per statement.
+
+Access is unchanged, and that is proved rather than argued: `npm run
+test:entry-policy-equivalence` installs the old and new predicates against the
+same fixture and compares the exact set of entry ids visible to all four roles,
+with negative controls (the fixture must discriminate between roles, and a
+deliberately permissive `using (true)` must be detected as different). It runs in
+`test:db`.
+
+`schema.sql` is already updated, so a **fresh** install gets the fast policy. An
+existing database needs this migration, because that policy block is guarded by
+`if not exists`.
+
+**To apply:** paste `migrations/hoist_entry_read_policy.sql` into the Supabase SQL
+Editor. It is one transaction; if it fails halfway the table has no SELECT policy
+and RLS defaults to DENY, so the failure mode is "reads are locked out", never
+"reads are open". With a direct Postgres connection available,
+`node scripts/apply-rls-hoisting.mjs` does it with before/after timings and a
+`--rollback` flag.
+
+**To confirm afterwards:** `npm run check:live-dashboard` — its 3s budget for the
+widest selection currently fails at ~3.3s and should pass once this lands.
+
 ## Fresh setup
 
 Run [`schema.sql`](./schema.sql) once in the Supabase SQL Editor (Dashboard →

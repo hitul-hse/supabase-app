@@ -12,7 +12,8 @@
 //
 // Each of those reads as a harmless simplification to someone tidying up, and
 // each produces a confidently wrong dashboard rather than an error.
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
 let failures = 0;
 function check(label, ok, detail) {
@@ -26,7 +27,18 @@ const IMPORT = read("scripts/import-trackingtime.mjs");
 const SYNC = read("scripts/sync-trackingtime.mjs");
 const FRESHNESS = read("scripts/check-sync-freshness.mjs");
 const QUERIES = read("src/lib/queries/time-dashboard.ts");
-const PANELS = read("src/app/(app)/time/dashboard/ReportPanels.tsx");
+// The dashboard's presentation is split across several files and the split
+// MOVES: BreakdownTable and BudgetTable began in ReportPanels.tsx and were
+// lifted into ReportTables.tsx once they gained sorting and paging state.
+// Pinning a filename here made this gate fail on a legitimate refactor that had
+// faithfully preserved every behaviour it checks — a gate that cries wolf on a
+// file move is one people learn to skip. Read the whole directory and assert on
+// the BEHAVIOUR, wherever it now lives.
+const DASHBOARD_DIR = "src/app/(app)/time/dashboard";
+const PANELS = readdirSync(DASHBOARD_DIR)
+  .filter((f) => f.endsWith(".tsx"))
+  .map((f) => read(join(DASHBOARD_DIR, f)))
+  .join("\n");
 const PAGE = read("src/app/(app)/time/dashboard/page.tsx");
 const WORKFLOW = read(".github/workflows/sync-trackingtime.yml");
 const PKG = JSON.parse(read("package.json"));
@@ -126,13 +138,19 @@ check(
 );
 
 // ── 4. Drill-down composes ─────────────────────────────────────────────────
+// These three assert BEHAVIOUR, not shape. The drill-down was refactored from
+// an `hrefFor` callback into a precomputed `drillHrefs` map when the tables
+// became Client Components — a Server Component cannot pass a function across
+// that boundary, so the change was forced and correct. Matching the old
+// callback signature would have failed a refactor that preserved every property
+// below.
 check(
-  "the breakdown table accepts a drill-down href builder",
-  /hrefFor/.test(PANELS) && /hrefFor\?:/.test(PANELS),
+  "the breakdown table receives per-row drill-down hrefs",
+  /hrefFor/.test(PANELS) || /drillHrefs|hrefs\s*[:?]/.test(PANELS),
 );
 check(
   "rows with no id are not linked",
-  /row\.id === null\) return null/.test(PAGE),
+  /row\.id === null\)\s*(return null|continue)/.test(PAGE),
   "task rows are grouped by name and have no id to filter on",
 );
 check(

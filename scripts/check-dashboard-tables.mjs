@@ -777,10 +777,24 @@ try {
     !/not the filtered period/.test(econBody),
     "the caveat is still there, so the panel is still unscoped",
   );
+  // NOTE this runs on the billable-filtered page, where only the 30 even-indexed
+  // projects have billable entries and economics is intersected with the
+  // projects actually in scope -- so 15 of the RPC's 30 rows is the CORRECT
+  // answer here, not truncation. The point being asserted is that the old hard
+  // limit of 15 is gone, so the count must be driven by the data. Re-checked on
+  // the unfiltered page below, where all 30 are in scope.
   check(
-    "the economics table pages its 30 rows rather than truncating at 15",
-    /of 30/.test(econBody),
+    "the economics table row count follows the selection",
+    /1–15 of 15/.test(econBody),
     `panel says: ${econBody.slice(0, 200)}`,
+  );
+  await goto("preset=this_month&group=project&bucket=day");
+  check("economics expands on the unfiltered page", await expand("PROJECT ECONOMICS"));
+  const econAll = (await panel("PROJECT ECONOMICS").innerText()).replace(/\s+/g, " ");
+  check(
+    "unfiltered, the economics table exposes all 30 rows rather than the old 15",
+    /of 30/.test(econAll),
+    `panel says: ${econAll.slice(0, 200)} — a hard-coded limit of 15 was applied at the query before this change`,
   );
 
   // ── 10. Nothing crashed in the browser ───────────────────────────────────
@@ -851,6 +865,81 @@ try {
     );
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
+
+  // ── 13. The filter picker: uncapped, and drivable from the keyboard ───────
+  // The picker capped its option list at 200 rows, applied after the search
+  // filter and stated nowhere, so with 334 live projects the list stopped at 200
+  // with no hint anything was missing. 60 seeded projects cannot exceed 200, so
+  // what is asserted here is the property that made the cap unnecessary: the
+  // count is on screen, and it matches the data.
+  await goto("preset=this_month&group=project&bucket=day");
+  const picker = page.locator('[data-filter-bar="1"]').getByRole("button", { name: /PROJECT/ }).first();
+  await clickUntil(picker, async () =>
+    (await page.getByPlaceholder(/Search project/i).count()) > 0,
+  );
+  const pickerBody = page.locator('[role="listbox"][aria-label="Project"]');
+  check(
+    "the picker states how many options exist, so a capped list cannot look complete",
+    /60 options/.test(
+      (await page.locator('[data-filter-bar="1"]').innerText()).replace(/\s+/g, " "),
+    ),
+    "the option count is the fix for the old silent 200-row cap",
+  );
+  check(
+    "every seeded project is present in the picker, not capped",
+    (await pickerBody.locator("[data-option]").count()) === PROJECT_COUNT,
+    `${await pickerBody.locator("[data-option]").count()} options rendered of ${PROJECT_COUNT}`,
+  );
+
+  // Keyboard: arrow down twice, Enter, and the filter must actually apply. This
+  // is the whole feature -- a highlight that moves but cannot commit is
+  // decoration.
+  const search2 = page.getByPlaceholder(/Search project/i);
+  await search2.fill("Projekt 07");
+  await page.waitForTimeout(200);
+  await search2.press("ArrowDown");
+  await search2.press("Enter");
+  // The selection travels through the URL, which is the source of truth.
+  await page.waitForFunction(() => window.location.search.includes("projects="), null, {
+    timeout: 10_000,
+  }).catch(() => {});
+  check(
+    "Enter on a highlighted option applies the filter",
+    /projects=/.test(page.url()),
+    `url is ${page.url()} — the keyboard path must reach the URL, which is the report's source of truth`,
+  );
+  const afterPick = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  if (process.env.DUMP === "1") fs.writeFileSync("tmp-afterpick.txt", afterPick);
+  check(
+    "the applied filter narrows the report to the one project",
+    // Case-insensitive: the chip label is uppercased by CSS, so innerText reads
+    // "FILTERED TO" and a case-sensitive match failed while the chip was right
+    // there on screen.
+    /filtered to/i.test(afterPick) && /1 project with logged time|1–1 of 1/.test(afterPick),
+    `page after the keyboard pick: ${afterPick.slice(afterPick.indexOf("BY PROJECT"), afterPick.indexOf("BY PROJECT") + 160)}`,
+  );
+
+  // ── 14. Money cannot contradict the report beside it ─────────────────────
+  // With the report narrowed to ONE project, the economics panel still summed
+  // all 30, so €46,500 of revenue sat directly above a report reading 1.3
+  // hours. Both numbers were true and they described different populations,
+  // which is worse than either being absent -- an exec reads the big one.
+  //
+  // The RPC takes only a date range (rates resolve inside a security-definer
+  // function with no filter surface), so the fix is to intersect its rows with
+  // the projects the selection actually covers.
+  check(
+    "economics narrows with the report rather than showing every project's money",
+    /PROJECT ECONOMICS 1 project/.test(afterPick),
+    `the money panel still claims: ${afterPick.slice(afterPick.indexOf("PROJECT ECONOMICS"), afterPick.indexOf("PROJECT ECONOMICS") + 90)}`,
+  );
+  // The seeded revenue for Projekt 07 alone is (7+1)*100 = 800, so a five-figure
+  // total here would mean the intersection silently did nothing.
+  check(
+    "the money tiles report this project's revenue, not the whole portfolio's",
+    /REVENUE €800\b/.test(afterPick),
+    `expected €800 for Projekt 07 alone; panel shows ${afterPick.slice(afterPick.indexOf("REVENUE"), afterPick.indexOf("REVENUE") + 60)}`,
+  );
 
   // ── Screenshots, for judging the layout rather than the numbers ──────────
   // Opt-in: SHOTS=1. Assertions cannot see crowding, a misaligned column, or a

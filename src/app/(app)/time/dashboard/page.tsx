@@ -10,6 +10,7 @@ import {
   budgets,
   buildQuery,
   fetchAllEntries,
+  fetchExcludedCalendarSeconds,
   getFilterOptions,
   groupBy as groupEntries,
   parseFilters,
@@ -142,7 +143,8 @@ export default async function TrackingTimeDashboardPage({
     p_key: PERMISSIONS.OVERVIEW_EXPORT,
   });
 
-  const [{ entries, truncated }, options, economics, freshness] = await Promise.all([
+  const [{ entries, truncated }, options, economics, freshness, calendarExcludedSeconds] =
+    await Promise.all([
     fetchAllEntries(supabase, filters),
     getFilterOptions(supabase),
     // Scoped to the SELECTED PERIOD. It previously ran unbounded and the panel
@@ -156,6 +158,9 @@ export default async function TrackingTimeDashboardPage({
       to: filters.to,
     }),
     getSyncFreshness(supabase),
+    // What the calendar exclusion is hiding, so TOTAL HOURS can say so instead
+    // of quietly disagreeing with TrackingTime's own report by ~39%.
+    fetchExcludedCalendarSeconds(supabase, filters),
   ]);
 
   const totals = summarise(entries);
@@ -175,6 +180,31 @@ export default async function TrackingTimeDashboardPage({
   );
 
   const period = `${filters.from} → ${filters.to}`;
+
+  /**
+   * Economics, restricted to the projects this selection actually contains.
+   *
+   * The RPC takes a date range and nothing else -- it cannot see a member,
+   * customer or service filter, because rates are resolved inside a
+   * security-definer function that deliberately exposes no filter surface. So
+   * with the report narrowed to one project, the money panel still summed all
+   * 30: €46,500 of revenue sat directly above a report reading 1.3 hours. Two
+   * true numbers about different populations, side by side, is worse than either
+   * being absent.
+   *
+   * Intersecting on the project ids the entries actually cover is the honest
+   * narrowing available here. It is not the same as re-running the money query
+   * under the full filter: a member filter still leaves each project's FULL
+   * revenue in the row, because per-member revenue is not something this RPC
+   * returns. The panel says which of the two it is doing (see the footnote in
+   * EconomicsTable), rather than leaving the reader to assume.
+   */
+  const economicsRows =
+    economics === null
+      ? null
+      : selectedProjectIds.size > 0
+        ? economics.filter((r) => selectedProjectIds.has(r.projectId))
+        : economics;
   // Used in export filenames, so it must be filesystem-safe.
   const periodSlug = `${filters.from}_${filters.to}`;
 
@@ -383,14 +413,28 @@ export default async function TrackingTimeDashboardPage({
                 billableHref={`/time/dashboard?${buildQuery(filters, { billable: "yes", group, bucket })}`}
                 nonBillableHref={`/time/dashboard?${buildQuery(filters, { billable: "no", group, bucket })}`}
                 groupLabel={`Every figure covers ${period}`}
+                calendarExcludedSeconds={calendarExcludedSeconds}
+                includeCalendarHref={`/time/dashboard?${buildQuery(filters, { calendar: "1", group, bucket })}`}
               />
 
               <TrendChart points={points} bucket={bucket} hrefFor={trendHrefs} />
 
               {/* Economics sits high when present: for the audience allowed to
                   see it, margin is the first question rather than the last. */}
-              {economics !== null && economics.length > 0 && (
-                <EconomicsTable rows={economics} period={periodSlug} />
+              {economicsRows !== null && economicsRows.length > 0 && (
+                <EconomicsTable
+                  rows={economicsRows}
+                  period={periodSlug}
+                  // Whether a member/customer/service filter is narrowing the
+                  // report is something only the page knows, and it changes what
+                  // the money figures mean, so the panel states it rather than
+                  // letting the reader assume.
+                  perMemberFilterActive={
+                    filters.memberIds.length > 0 ||
+                    filters.serviceIds.length > 0 ||
+                    filters.billable !== null
+                  }
+                />
               )}
 
               <BreakdownTable

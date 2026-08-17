@@ -382,9 +382,20 @@ function eur(v: number): string {
 export function EconomicsTable({
   rows,
   period,
+  perMemberFilterActive = false,
 }: {
   rows: ProjectEconomicsRow[];
   period: string;
+  /**
+   * True when a member, service or billable filter is narrowing the report.
+   *
+   * These figures come from a security-definer RPC that accepts only a date
+   * range, so those filters cannot reach it: each row still carries the
+   * project's FULL revenue for the period. That is worth one line of text --
+   * without it, revenue silently means something different from every other
+   * number on the page while looking exactly as authoritative.
+   */
+  perMemberFilterActive?: boolean;
 }) {
   const revenue = rows.reduce((a, r) => a + r.revenue, 0);
   const cost = rows.reduce((a, r) => a + r.cost, 0);
@@ -516,6 +527,11 @@ export function EconomicsTable({
         exportName={`trackingtime-economics-${period}`}
         searchPlaceholder="Find project…"
         emptyText="No project in this period has both logged time and a rate on file."
+        footnote={
+          perMemberFilterActive
+            ? "Scoped to the projects in this selection, but each row is the project's full revenue for the period: rates resolve inside a security-definer function that takes only a date range, so the member and billable filters cannot reach it."
+            : "Scoped to the projects and period in this selection. Rates are resolved inside a security-definer function, so no total here is ever partial."
+        }
         // The three money tiles above stay visible while this is shut, so the
         // figure an executive opens the page for is never behind a click; the
         // per-project detail is.

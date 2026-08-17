@@ -220,6 +220,70 @@ export type FetchResult = {
 };
 
 /**
+ * How many seconds the calendar exclusion is currently hiding.
+ *
+ * WHY THIS EXISTS: `includeCalendar` defaults to false, and for a live July that
+ * removes 420 of 1069 hours — 39%. The dashboard rendered the remaining 649h as
+ * "TOTAL HOURS" with nothing beside it saying so, so the only way to discover
+ * the gap was to already know the toggle existed. Measured against the vendor
+ * API, TrackingTime's own report for the same month says 1069.3h: the two
+ * numbers disagreeing with no explanation reads as a data fault, and was
+ * reported as one.
+ *
+ * Returns 0 when calendar time is already included, so the caller can render
+ * unconditionally without asking twice.
+ *
+ * Only `duration_seconds` is selected: this is a sum, and pulling the full row
+ * shape for entries that are never displayed would double the page's data cost.
+ */
+export async function fetchExcludedCalendarSeconds(
+  supabase: SupabaseTyped,
+  filters: TimeFilters,
+): Promise<number> {
+  if (filters.includeCalendar) return 0;
+
+  const toExclusive = new Date(`${filters.to}T00:00:00.000Z`);
+  toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+
+  let total = 0;
+
+  try {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      let q = timeSchema(supabase)
+        .from("entry")
+        .select("duration_seconds")
+        .gte("started_at", `${filters.from}T00:00:00.000Z`)
+        .lt("started_at", toExclusive.toISOString())
+        .not("duration_seconds", "is", null)
+        // The one difference from fetchAllEntries: this asks for exactly the
+        // rows that call excludes.
+        .eq("is_calendar", true)
+        .range(page * PAGE, page * PAGE + PAGE - 1);
+
+      if (filters.memberIds.length) q = q.in("member_id", filters.memberIds);
+      if (filters.projectIds.length) q = q.in("project_id", filters.projectIds);
+      if (filters.customerIds.length) q = q.in("customer_id", filters.customerIds);
+      if (filters.serviceIds.length) q = q.in("service_id", filters.serviceIds);
+      if (filters.billable !== null) q = q.eq("is_billable", filters.billable);
+
+      const { data, error } = await q;
+      if (error || !data) break;
+
+      for (const r of data as { duration_seconds: number | null }[]) {
+        total += num(r.duration_seconds);
+      }
+      if (data.length < PAGE) break;
+    }
+  } catch {
+    // A failure here must not take the page down: the caveat is additive, and
+    // 0 renders as "no note", which is the same as the old behaviour.
+    return 0;
+  }
+
+  return total;
+}
+
+/**
  * Fetch every entry matching the filters, paging past the 1000-row cap.
  *
  * The date bound on `to` is `< to + 1 day` rather than `<= to`. `started_at` is

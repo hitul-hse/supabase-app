@@ -88,20 +88,33 @@ export function TotalsStrip({
   billableHref,
   nonBillableHref,
   groupLabel,
+  calendarExcludedSeconds = 0,
+  includeCalendarHref,
 }: {
   totals: Totals;
   billableHref?: string;
   nonBillableHref?: string;
   /** What "PEOPLE"/"PROJECTS" are counted over, for the tooltip. */
   groupLabel?: string;
+  /**
+   * Seconds withheld by the calendar exclusion, 0 when calendar time is already
+   * included. Stated next to TOTAL HOURS because the number is large enough
+   * (39% of a live July) that omitting it silently makes this figure disagree
+   * with TrackingTime's own report for the same period.
+   */
+  calendarExcludedSeconds?: number;
+  /** Same report with calendar time switched on. */
+  includeCalendarHref?: string;
 }) {
   // Average over ACTIVE days, not calendar days in the range. Dividing by the
   // full span would report a part-time consultant who works Tuesdays as though
   // they were idle four days a week, which is a different claim entirely.
   const perDay = totals.activeDays > 0 ? totals.totalHours / totals.activeDays : null;
   const nonBillableHours = Math.round((totals.nonBillableSeconds / 3600) * 10) / 10;
+  const calendarExcludedHours = Math.round((calendarExcludedSeconds / 3600) * 10) / 10;
 
   return (
+    <>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <Kpi
         label="TOTAL HOURS"
@@ -143,6 +156,26 @@ export function TotalsStrip({
         title="Total hours divided by the number of days that actually have entries, not by the length of the period"
       />
     </div>
+
+    {/* Stated on the happy path too, not only when something looks wrong: a
+        caveat that appears only in an empty state teaches people to read the
+        absence of a note as "nothing was excluded". */}
+    {calendarExcludedHours > 0 && (
+      <p className="mt-2 text-[11.5px] text-[var(--text-muted)]">
+        <span className="font-mono">{hrs(calendarExcludedHours)}</span> of calendar time is excluded
+        from these figures.{" "}
+        {includeCalendarHref ? (
+          <a
+            href={includeCalendarHref}
+            className="text-[var(--accent)] underline-offset-2 hover:underline"
+          >
+            Include it
+          </a>
+        ) : null}{" "}
+        to match TrackingTime&rsquo;s own report.
+      </p>
+    )}
+    </>
   );
 }
 

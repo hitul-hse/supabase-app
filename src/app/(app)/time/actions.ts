@@ -1,0 +1,580 @@
+"use server";
+
+/**
+ * Write path for the Time Tracking module — the timer and manual entry actions
+ * behind /time?view=track.
+ *
+ * Until this file existed the module could only *read* imported TrackingTime
+ * data: `getRunningEntry()` and `getTimeLookups()` were written for a tracker UI
+ * that did not exist yet. These actions are that UI's server half.
+ *
+ * Four rules govern everything below, and each one is here because the obvious
+ * implementation is wrong:
+ *
+ * 1. **The clock is the server's, never the client's.** Elapsed time is computed
+ *    from the stored `started_at` against `now()` on this side. A browser clock
+ *    that is merely wrong (or deliberately set forward) must not be able to
+ *    inflate billable hours — that is an invoice, not a cosmetic bug.
+ *
+ * 2. **`member_id` is never taken from the request.** It is resolved from the
+ *    session via `time.current_member_id()`. RLS pins it again in the policy's
+ *    WITH CHECK, so filing time under a colleague fails twice, but the app must
+ *    not be the layer that tries.
+ *
+ * 3. **RLS is the boundary; these checks are for the error message.** Every
+ *    validation here has a matching database guarantee (the partial unique index
+ *    for one running timer, `entry_interval_ordered`, the `is_billed` clause in
+ *    the update/delete policies). We check first only so the user gets a sentence
+ *    instead of a raw Postgres error code.
+ *
+ * 4. **Durations are SECONDS.** `time.entry.duration_seconds` is seconds, while
+ *    `public.timesheet_entries.hours` is hours and Factorial is minutes. Every
+ *    conversion in this file is explicit and rounds once, at the edge.
+ */
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/utils/supabase/server";
+import { PERMISSIONS } from "@/lib/permissions";
+
+/**
+ * What every action returns.
+ *
+ * A discriminated result rather than a thrown error: these are called from
+ * forms, and a rejected promise in a Server Action surfaces to the user as an
+ * opaque "something went wrong" digest with the real reason only in the server
+ * log. `ok: false` with a sentence is the difference between a usable app and a
+ * support ticket.
+ */
+export type TimeActionResult = { ok: boolean; message?: string };
+
+/** Longest a single entry may be: 24h in seconds. */
+const MAX_ENTRY_SECONDS = 24 * 3600;
+
+/** How far back a manual entry may be backdated, in days. */
+const MAX_BACKDATE_DAYS = 90;
+
+type Client = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * The `time` schema handle.
+ *
+ * `database.types.ts` is generated from `public` only, so the typed client
+ * rejects `.schema("time")` outright. Narrowed here once rather than casting at
+ * every call site — the same approach `@/lib/queries/time` takes, and for the
+ * same reason.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const timeSchema = (s: Client) => (s as any).schema("time");
+
+/**
+ * Everything an action needs before it may write: an authenticated session, the
+ * `timesheets:write` permission, and a `time.member` row to attribute the entry
+ * to.
+ *
+ * Returns a `TimeActionResult` on failure so each action can bail with one line.
+ * The three failure modes are deliberately worded differently — "not signed in",
+ * "not permitted" and "not linked" send the user to three different places, and
+ * collapsing them into one message is how a linking problem gets misreported as
+ * a permissions problem for a week.
+ */
+async function authorise(
+  supabase: Client,
+): Promise<{ memberId: number } | { error: TimeActionResult }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: { ok: false, message: "You are not signed in." } };
+  }
+
+  // Checked in the app as well as in RLS. The policy would reject the insert
+  // anyway, but as a bare 42501 with no indication of which permission is
+  // missing.
+  const { data: canWrite } = await supabase.rpc("app_user_has_permission", {
+    p_key: PERMISSIONS.TIMESHEETS_WRITE,
+  });
+
+  if (canWrite !== true) {
+    return {
+      error: { ok: false, message: "Your role does not permit logging time." },
+    };
+  }
+
+  const { data: memberId } = await timeSchema(supabase).rpc("current_member_id");
+
+  // Null is an ordinary state, not a fault: a colleague with no TrackingTime
+  // account has no member row. It is also what `npm run link:time-members`
+  // fixes, so the message names the actual remedy.
+  if (memberId === null || memberId === undefined) {
+    return {
+      error: {
+        ok: false,
+        message:
+          "Your account isn't linked to a Time Tracking member yet, so there is nothing to log time against. An administrator can link it.",
+      },
+    };
+  }
+
+  return { memberId: Number(memberId) };
+}
+
+/** Both /time views read the same rows, so both must be refreshed after a write. */
+function revalidateTime(): void {
+  revalidatePath("/time");
+  revalidatePath("/time/dashboard");
+}
+
+/**
+ * A positive integer from a form field, or null.
+ *
+ * `Number("")` is 0 and `Number(null)` is 0, so a blank optional picker would
+ * become id 0 and fail an FK lookup with a confusing error. Anything that is not
+ * a positive integer becomes null — "not chosen" — rather than a bad id.
+ */
+function optionalId(raw: FormDataEntryValue | null): number | null {
+  if (raw === null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** A trimmed string, or null when blank. */
+function optionalText(raw: FormDataEntryValue | null): string | null {
+  if (raw === null) return null;
+  const s = String(raw).trim();
+  return s.length ? s : null;
+}
+
+/**
+ * Combine a `YYYY-MM-DD` date and an `HH:MM` time into an ISO instant.
+ *
+ * Read as **UTC**, deliberately and consistently with the rest of the module:
+ * the importer stores vendor timestamps as UTC, `getEntriesForWeek()` filters on
+ * half-open UTC bounds, and `TimeEntryList` renders with `timeZone: "UTC"`. A
+ * local-time reading here would place a manual entry in a different day than the
+ * list shows it in — visible only to users off UTC, and only near midnight.
+ *
+ * Returns null on anything malformed, including a date that matches the shape
+ * but does not exist ("2026-02-31", which `Date` would roll into March).
+ */
+function combineInstant(date: string, time: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  if (!/^\d{2}:\d{2}$/.test(time)) return null;
+
+  const iso = `${date}T${time}:00.000Z`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  // Round-trip check catches both an impossible date and an impossible clock
+  // time ("25:00"), which the regex above happily allows.
+  if (d.toISOString().slice(0, 10) !== date) return null;
+  if (d.toISOString().slice(11, 16) !== time) return null;
+
+  return d.toISOString();
+}
+
+// ─── Timer ───────────────────────────────────────────────────────────────────
+
+/**
+ * Start a timer: an entry with `started_at` set and `ended_at` still null.
+ *
+ * "At most one running timer per member" is enforced by the partial unique index
+ * `time_entry_one_running_per_member`, not by the pre-check below. That ordering
+ * matters: two rapid submissions can both pass a SELECT and then both INSERT, so
+ * the index is what actually prevents a second timer silently double-counting an
+ * afternoon. The pre-check exists only to turn 23505 into a sentence.
+ *
+ * `duration_seconds` is left null while running rather than set to 0. The check
+ * constraint `entry_finished_has_duration` permits null only while `ended_at` is
+ * null, and the UI renders null as "—" instead of "0:00", which would read as
+ * "you logged nothing" while the clock is going.
+ */
+export async function startTimer(formData: FormData): Promise<TimeActionResult> {
+  const supabase = await createClient();
+  const auth = await authorise(supabase);
+  if ("error" in auth) return auth.error;
+
+  const projectId = optionalId(formData.get("project_id"));
+  const taskId = optionalId(formData.get("task_id"));
+  const serviceId = optionalId(formData.get("service_id"));
+  const notes = optionalText(formData.get("notes"));
+  const isBillable = formData.get("is_billable") === "on";
+
+  // A timer with no project and no task is untraceable after the fact: it lands
+  // in the week as an unattributed block nobody can attribute later. Requiring
+  // one of the two is the lightest possible guard that keeps the data useful.
+  if (projectId === null && taskId === null) {
+    return { ok: false, message: "Pick a project or a task before starting the timer." };
+  }
+
+  const { data: existing } = await timeSchema(supabase)
+    .from("entry")
+    .select("id")
+    .eq("member_id", auth.memberId)
+    .is("ended_at", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    return { ok: false, message: "A timer is already running. Stop it before starting another." };
+  }
+
+  // customer_id is derived from the chosen project rather than accepted from the
+  // form: an entry whose customer contradicts its project's customer would
+  // corrupt every per-customer rollup, and time.customer_summary has no way to
+  // detect it.
+  let customerId: number | null = null;
+  if (projectId !== null) {
+    const { data: project } = await timeSchema(supabase)
+      .from("project")
+      .select("customer_id")
+      .eq("id", projectId)
+      .maybeSingle();
+    customerId = project?.customer_id ?? null;
+  }
+
+  const { error } = await timeSchema(supabase)
+    .from("entry")
+    .insert({
+      member_id: auth.memberId,
+      project_id: projectId,
+      task_id: taskId,
+      customer_id: customerId,
+      service_id: serviceId,
+      started_at: new Date().toISOString(),
+      ended_at: null,
+      duration_seconds: null,
+      is_billable: isBillable,
+      is_billed: false,
+      notes,
+      // 'timer' distinguishes live-tracked time from 'manual' backfill and from
+      // 'trackingtime' imports, so the dashboard can tell them apart later.
+      source_system: "timer",
+      is_calendar: false,
+    });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, message: "A timer is already running. Stop it before starting another." };
+    }
+    return { ok: false, message: error.message };
+  }
+
+  revalidateTime();
+  return { ok: true };
+}
+
+/**
+ * Stop the running timer and write its elapsed duration.
+ *
+ * The duration is `now() - started_at` measured here, from the value already in
+ * the database. Nothing about the length of the entry comes from the client
+ * (see rule 1 in the file header).
+ *
+ * A timer left running overnight is clamped to 24h rather than rejected: the
+ * person still needs to be able to stop it, and a 400-hour entry from a forgotten
+ * tab would distort every rollup it appears in. The clamp is reported so the
+ * correction is visible rather than silent.
+ */
+export async function stopTimer(): Promise<TimeActionResult> {
+  const supabase = await createClient();
+  const auth = await authorise(supabase);
+  if ("error" in auth) return auth.error;
+
+  const { data: running } = await timeSchema(supabase)
+    .from("entry")
+    .select("id, started_at")
+    .eq("member_id", auth.memberId)
+    .is("ended_at", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (!running) return { ok: false, message: "No timer is running." };
+
+  const endedAt = new Date();
+  const startedAt = new Date(running.started_at);
+  const elapsed = Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
+
+  // Clock skew or a corrected server time can produce a negative interval.
+  // `entry_duration_nonneg` would reject it, so floor at zero here to give the
+  // user a stopped timer instead of a constraint violation.
+  const clamped = Math.min(Math.max(elapsed, 0), MAX_ENTRY_SECONDS);
+  const wasClamped = elapsed > MAX_ENTRY_SECONDS;
+
+  // ended_at is derived from the clamped duration, not from `now()`, so the
+  // stored interval and the stored duration always agree. Writing the real
+  // `now()` alongside a clamped duration would violate the arithmetic every
+  // report assumes (ended_at - started_at == duration_seconds).
+  const consistentEnd = new Date(startedAt.getTime() + clamped * 1000);
+
+  const { error } = await timeSchema(supabase)
+    .from("entry")
+    .update({
+      ended_at: consistentEnd.toISOString(),
+      duration_seconds: clamped,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", running.id);
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidateTime();
+  return {
+    ok: true,
+    message: wasClamped
+      ? "Timer ran longer than 24 hours and was capped at 24:00. Edit the entry if that isn't right."
+      : undefined,
+  };
+}
+
+/** Abandon the running timer, logging nothing. */
+export async function discardTimer(): Promise<TimeActionResult> {
+  const supabase = await createClient();
+  const auth = await authorise(supabase);
+  if ("error" in auth) return auth.error;
+
+  const { error } = await timeSchema(supabase)
+    .from("entry")
+    .delete()
+    .eq("member_id", auth.memberId)
+    .is("ended_at", null);
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidateTime();
+  return { ok: true };
+}
+
+// ─── Manual entries ──────────────────────────────────────────────────────────
+
+/**
+ * Log a completed entry after the fact — the common case, since most people
+ * reconstruct their day rather than run a timer all of it.
+ *
+ * Both ends are explicit rather than start-plus-duration. It matches how people
+ * actually remember work ("9 to 11", not "two hours starting at 9"), and it means
+ * `ended_at - started_at == duration_seconds` holds by construction rather than
+ * by a second calculation that can disagree.
+ */
+export async function createEntry(formData: FormData): Promise<TimeActionResult> {
+  const supabase = await createClient();
+  const auth = await authorise(supabase);
+  if ("error" in auth) return auth.error;
+
+  const date = String(formData.get("date") || "").trim();
+  const startTime = String(formData.get("start_time") || "").trim();
+  const endTime = String(formData.get("end_time") || "").trim();
+
+  const startedAt = combineInstant(date, startTime);
+  const endedAt = combineInstant(date, endTime);
+
+  if (!startedAt || !endedAt) {
+    return { ok: false, message: "Enter a valid date with a start and end time." };
+  }
+
+  const startMs = new Date(startedAt).getTime();
+  const endMs = new Date(endedAt).getTime();
+
+  // Both times are on the same calendar date by construction, so an end before
+  // the start is a typo, not a shift crossing midnight. Telling the user to
+  // split it is more honest than silently adding a day and inventing an
+  // overnight shift they did not work.
+  if (endMs <= startMs) {
+    return {
+      ok: false,
+      message: "The end time must be after the start time. Split a shift that crosses midnight into two entries.",
+    };
+  }
+
+  const durationSeconds = Math.floor((endMs - startMs) / 1000);
+  if (durationSeconds > MAX_ENTRY_SECONDS) {
+    return { ok: false, message: "A single entry cannot be longer than 24 hours." };
+  }
+
+  // Guard rails on the date, in both directions. Far-future time is not
+  // trackable work, and unbounded backdating would let somebody rewrite an
+  // already-invoiced month.
+  const now = Date.now();
+  if (startMs > now + 86_400_000) {
+    return { ok: false, message: "You cannot log time in the future." };
+  }
+  if (startMs < now - MAX_BACKDATE_DAYS * 86_400_000) {
+    return {
+      ok: false,
+      message: `You cannot log time more than ${MAX_BACKDATE_DAYS} days in the past. Ask an administrator to add it.`,
+    };
+  }
+
+  const projectId = optionalId(formData.get("project_id"));
+  const taskId = optionalId(formData.get("task_id"));
+  const serviceId = optionalId(formData.get("service_id"));
+  const notes = optionalText(formData.get("notes"));
+  const isBillable = formData.get("is_billable") === "on";
+
+  if (projectId === null && taskId === null) {
+    return { ok: false, message: "Pick a project or a task for this entry." };
+  }
+
+  // Same reasoning as startTimer: the customer follows the project so no rollup
+  // can be fed a contradictory pair.
+  let customerId: number | null = null;
+  if (projectId !== null) {
+    const { data: project } = await timeSchema(supabase)
+      .from("project")
+      .select("customer_id")
+      .eq("id", projectId)
+      .maybeSingle();
+    customerId = project?.customer_id ?? null;
+  }
+
+  const { error } = await timeSchema(supabase)
+    .from("entry")
+    .insert({
+      member_id: auth.memberId,
+      project_id: projectId,
+      task_id: taskId,
+      customer_id: customerId,
+      service_id: serviceId,
+      started_at: startedAt,
+      ended_at: endedAt,
+      duration_seconds: durationSeconds,
+      is_billable: isBillable,
+      is_billed: false,
+      notes,
+      source_system: "manual",
+      is_calendar: false,
+    });
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidateTime();
+  return { ok: true };
+}
+
+/**
+ * Change an entry's times, notes or billable flag.
+ *
+ * Deliberately does NOT accept `member_id` or `is_billed`. Reassigning an entry
+ * to a colleague and marking your own time as invoiced are both things this form
+ * has no business doing, and the RLS update policy pins `member_id` to the caller
+ * in its WITH CHECK anyway. Omitting them from the update payload means a crafted
+ * request cannot even attempt it.
+ */
+export async function updateEntry(formData: FormData): Promise<TimeActionResult> {
+  const supabase = await createClient();
+  const auth = await authorise(supabase);
+  if ("error" in auth) return auth.error;
+
+  const entryId = optionalId(formData.get("entry_id"));
+  if (entryId === null) return { ok: false, message: "No entry was specified." };
+
+  // Fetch first so we can distinguish "does not exist or not yours" (RLS returns
+  // no row) from "invoiced, so locked". Both would otherwise surface as an
+  // update that silently affected zero rows and looked like success.
+  const { data: existing } = await timeSchema(supabase)
+    .from("entry")
+    .select("id, member_id, is_billed, started_at")
+    .eq("id", entryId)
+    .maybeSingle();
+
+  if (!existing) {
+    return { ok: false, message: "That entry no longer exists, or you may not edit it." };
+  }
+  if (existing.member_id !== auth.memberId) {
+    return { ok: false, message: "You can only edit your own time." };
+  }
+  if (existing.is_billed) {
+    return {
+      ok: false,
+      message: "This entry has been invoiced and can no longer be changed. Ask an administrator.",
+    };
+  }
+
+  const date = String(formData.get("date") || "").trim();
+  const startTime = String(formData.get("start_time") || "").trim();
+  const endTime = String(formData.get("end_time") || "").trim();
+
+  const startedAt = combineInstant(date, startTime);
+  const endedAt = combineInstant(date, endTime);
+
+  if (!startedAt || !endedAt) {
+    return { ok: false, message: "Enter a valid date with a start and end time." };
+  }
+
+  const startMs = new Date(startedAt).getTime();
+  const endMs = new Date(endedAt).getTime();
+
+  if (endMs <= startMs) {
+    return { ok: false, message: "The end time must be after the start time." };
+  }
+
+  const durationSeconds = Math.floor((endMs - startMs) / 1000);
+  if (durationSeconds > MAX_ENTRY_SECONDS) {
+    return { ok: false, message: "A single entry cannot be longer than 24 hours." };
+  }
+
+  const notes = optionalText(formData.get("notes"));
+  const isBillable = formData.get("is_billable") === "on";
+
+  const { error } = await timeSchema(supabase)
+    .from("entry")
+    .update({
+      started_at: startedAt,
+      ended_at: endedAt,
+      duration_seconds: durationSeconds,
+      is_billable: isBillable,
+      notes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", entryId);
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidateTime();
+  return { ok: true };
+}
+
+/**
+ * Delete an entry.
+ *
+ * Scoped by `member_id` as well as `id` so a guessed id cannot delete somebody
+ * else's row even if the RLS delete policy were ever loosened. The `is_billed`
+ * check mirrors the policy: an invoiced entry is not the owner's to remove,
+ * because the invoice already went out against it.
+ */
+export async function deleteEntry(formData: FormData): Promise<TimeActionResult> {
+  const supabase = await createClient();
+  const auth = await authorise(supabase);
+  if ("error" in auth) return auth.error;
+
+  const entryId = optionalId(formData.get("entry_id"));
+  if (entryId === null) return { ok: false, message: "No entry was specified." };
+
+  const { data: existing } = await timeSchema(supabase)
+    .from("entry")
+    .select("id, member_id, is_billed")
+    .eq("id", entryId)
+    .maybeSingle();
+
+  if (!existing) {
+    return { ok: false, message: "That entry no longer exists, or you may not delete it." };
+  }
+  if (existing.member_id !== auth.memberId) {
+    return { ok: false, message: "You can only delete your own time." };
+  }
+  if (existing.is_billed) {
+    return { ok: false, message: "This entry has been invoiced and cannot be deleted." };
+  }
+
+  const { error } = await timeSchema(supabase)
+    .from("entry")
+    .delete()
+    .eq("id", entryId)
+    .eq("member_id", auth.memberId);
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidateTime();
+  return { ok: true };
+}

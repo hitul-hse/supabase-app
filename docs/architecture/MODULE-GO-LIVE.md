@@ -43,16 +43,47 @@ reaching the module sections. `schema.sql` is for a fresh project.
 
 ### 2. Expose the schema to PostgREST
 
-**Dashboard → Project Settings → API → Exposed schemas.** Add every module
-schema alongside `public`:
+Two routes. Use whichever you can actually find in the dashboard you have.
+
+**(a) Dashboard → Integrations → Data API → Settings → Exposed schemas.** Add
+every module schema alongside `public`:
 
 ```
 public, graphql_public, raw, time
 ```
 
+⚠️ **This setting moved.** It used to live under *Project Settings → API*, which
+is what earlier versions of this document said and what
+[Supabase's own docs](https://supabase.com/docs/guides/api/using-custom-schemas)
+still say. On some projects it appears as *Project Settings → Data API*. If you
+cannot find it, use route (b) — that is not a sign anything is wrong.
+
+**(b) From SQL**, which is the documented fallback when the UI control is
+missing:
+
+```sql
+alter role authenticator
+  set pgrst.db_schemas = 'public, graphql_public, raw, time';
+notify pgrst, 'reload config';
+notify pgrst, 'reload schema';
+```
+
+Two things to know before choosing (b):
+
+- It takes exposed-schema management **away from the dashboard UI** for this
+  project — Supabase's PGRST002 note is explicit about that. Hand it back with
+  `alter role authenticator reset pgrst.db_schemas;`.
+- It **replaces** the whole list rather than appending, so `public` and
+  `graphql_public` must stay in it or the rest of the app and GraphQL break.
+
 A table can exist, be correct, and be completely invisible to the client until
-its schema appears here. `supabase.schema("time")` fails with `PGRST106` until
+its schema is exposed. `supabase.schema("time")` fails with `PGRST106` until
 then, and no amount of re-running SQL changes it.
+
+**`PGRST106` is not evidence that step 1 failed.** PostgREST rejects the schema
+*name* before it ever inspects a table, so from any PostgREST client — including
+the service-role key and `check:live-ready` — "the DDL applied" and "the DDL
+never ran" look identical. Expose the schemas first, *then* judge step 1.
 
 `raw` matters too: `scripts/import-trackingtime.mjs` writes the landing zone
 through the API, so the importer cannot store anything until `raw` is exposed.

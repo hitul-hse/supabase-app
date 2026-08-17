@@ -36,27 +36,30 @@
  * A real end-to-end sign-in additionally needs the provider consent screen, which
  * requires credentials this repo does not hold.
  *
- * ── KNOWN FLAKINESS: read this before trusting a single run ──────────────
+ * ── Reliability, measured rather than assumed ────────────────────────────
  *
- * Measured over repeated runs: roughly 1 in 4 fully green, most runs 14/15, and
- * some runs hit the 180s watchdog. The 14/15 case is always the same assertion
- * (the unprovisioned user landing on /access-pending), and it is a harness race,
- * not app behaviour:
+ * Two things were wrong with the first version and both are fixed:
  *
- *   - Run that scenario alone in a fresh process and it passes repeatedly.
- *   - A repeated PKCE exchange in one browser process fails even with its own
- *     context and its own flow id, because a completed exchange calls
- *     removePKCEVerifier, which deletes the shared legacy verifier key.
- *   - Launching a browser per scenario (done below) helps but does not fully fix
- *     it, and back-to-back runs make the watchdog more likely because each run
- *     compiles its own bundle.
+ *   1. One long-lived server for every scenario. A completed PKCE exchange calls
+ *      auth-js's removePKCEVerifier, which deletes the shared legacy verifier
+ *      key, so by the third exchange in one process the next flow could not find
+ *      its verifier -- even with a fresh browser, context and flow id. The app is
+ *      not involved. Each scenario now gets a freshly restarted server, which is
+ *      cheap because the build is done once and reused.
  *
- * So: a FAIL on that one assertion alone is not evidence of a regression. A fail
- * on any of the other fourteen is. If this needs to become reliable, the honest
- * fix is one process per scenario rather than one browser per scenario, which
- * means paying for a build per scenario or caching the probe build between them.
- * Left as-is deliberately: the assertions that matter are stable, and a slow
- * flaky gate that nobody runs would be worse than a documented one.
+ *   2. A 180s watchdog. Idle runs take 24-46s, but under competing load a run
+ *      took ~200s, so the ceiling was converting machine load into a reported
+ *      failure. Now 420s.
+ *
+ * Measured after both: 4/4 runs fully green on an idle machine. A residual PKCE
+ * verifier race remains possible, so the three code-carrying scenarios retry that
+ * one specific miss up to three times, each attempt against a fresh server. The
+ * retry is deliberately narrow -- any other outcome returns on the first attempt,
+ * so a real regression still fails immediately instead of being hidden by
+ * repetition.
+ *
+ * If it does fail, check WHICH assertion. All fifteen failing usually means the
+ * app never started; one failing on /access-pending is the known race.
  */
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
@@ -264,15 +267,21 @@ const cleanup = () => {
   try { rmSync(DIST, { recursive: true, force: true }); } catch { /* windows may hold a handle */ }
 };
 
-// A hard ceiling. The first version of this file hung indefinitely and had to be
-// killed by hand, which is worse than failing: an unbounded check blocks whoever
-// runs it and teaches them to skip it. 180s is far more than the ~40s this needs.
+// A hard ceiling, because the first version of this file hung indefinitely and had
+// to be killed by hand -- an unbounded check blocks whoever runs it and teaches
+// them to skip it.
+//
+// 420s, not 180s. Measured on an idle machine this takes 24-46s, but with another
+// heavy job running it took ~200s and the old 180s ceiling turned machine load
+// into a reported failure. A watchdog that fires on load is worse than useless:
+// it teaches people the gate is unreliable and they stop reading it.
+const WATCHDOG_MS = 420_000;
 const watchdog = setTimeout(() => {
-  console.log("\nFAIL: timed out after 180s");
+  console.log(`\nFAIL: timed out after ${WATCHDOG_MS / 1000}s`);
   console.log(appLog.slice(-1500));
   cleanup();
   process.exit(1);
-}, 180_000);
+}, WATCHDOG_MS);
 watchdog.unref();
 
 let up = false;
@@ -388,11 +397,40 @@ async function arriveFromProvider(query, { startFlow = true } = {}) {
   return result;
 }
 
+/**
+ * arriveFromProvider, retried only when the PKCE exchange misses its verifier.
+ *
+ * Measured before this existed: 5 of 8 runs fully green, the other 3 failing the
+ * same single assertion. The exchange occasionally lands before the verifier for
+ * that flow is readable, and the callback then redirects to /auth/login with a
+ * PKCE error. That is a race in this harness -- the same scenario passes when it
+ * is the first exchange in a process -- and the app cannot influence when
+ * Chromium surfaces a cookie write to a later request.
+ *
+ * Deliberately narrow: only a PKCE/flow-state error on the login redirect is
+ * retried. Everything else returns immediately, so a genuine regression fails on
+ * the first attempt. Each retry restarts the app, so attempts are independent.
+ */
+async function arriveFromProviderStable(query, opts) {
+  let last;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    last = await arriveFromProvider(query, opts);
+    const decoded = decodeURIComponent(last.url);
+    const transientPkceMiss =
+      last.url.includes("/auth/login") &&
+      /pkce|flow state|code verifier/i.test(decoded);
+    if (!transientPkceMiss) return last;
+    if (attempt < 3) {
+      console.log(`  (retrying: transient PKCE verifier miss, attempt ${attempt})`);
+    }
+  }
+  return last;
+}
 // ── 1. The success path for a provisioned user ─────────────────────────────
 currentUser = { id: STAFF, email: "anna@hs-experts.com" };
 provisioned = true;
 
-const ok = await arriveFromProvider("?code=stub-auth-code&next=%2Ftimesheets");
+const ok = await arriveFromProviderStable("?code=stub-auth-code&next=%2Ftimesheets");
 
 check(
   "the callback exchanged the code rather than erroring",
@@ -416,7 +454,7 @@ check(
 );
 
 // ── 2. next= must still be same-site here ──────────────────────────────────
-const hostile = await arriveFromProvider("?code=stub-auth-code&next=https%3A%2F%2Fevil.com");
+const hostile = await arriveFromProviderStable("?code=stub-auth-code&next=https%3A%2F%2Fevil.com");
 check(
   "a hostile next= is refused even with a valid code",
   !hostile.url.includes("evil.com"),
@@ -457,7 +495,7 @@ check(
 currentUser = { id: STRANGER, email: "random.person@gmail.com" };
 provisioned = false;
 
-const stranger = await arriveFromProvider("?code=stub-auth-code&next=%2Ftimesheets");
+const stranger = await arriveFromProviderStable("?code=stub-auth-code&next=%2Ftimesheets");
 check(
   "an unprovisioned OAuth user does NOT reach the requested page",
   !stranger.url.endsWith("/timesheets"),

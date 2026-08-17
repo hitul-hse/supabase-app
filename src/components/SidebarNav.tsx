@@ -34,10 +34,16 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/people",     label: "People",          tourId: "tour-people"     },
       { href: "/projects",   label: "Projects",        tourId: "tour-projects"   },
       { href: "/timesheets", label: "Timesheets",      tourId: "tour-timesheets" },
-      // The Time Tracking module's own page, deliberately alongside Timesheets
-      // rather than replacing it: /timesheets is the Hub's editable weekly grid
-      // in hours, /time is the module's tracked intervals in seconds.
-      { href: "/time",       label: "Time Tracking"                              },
+      // The TrackingTime module, deliberately alongside Timesheets rather than
+      // replacing it: /timesheets is the Hub's editable weekly grid in hours,
+      // this is the imported TrackingTime data in seconds.
+      //
+      // Points at /time/dashboard, not /time. The dashboard is the module's
+      // primary surface — filtered organisation-wide reporting — while /time is
+      // the personal tracker reached from it. Note the active-state check below
+      // matches `startsWith(href)`, so this entry correctly stays highlighted on
+      // the nested dashboard route.
+      { href: "/time/dashboard", label: "TrackingTime Dashboard"                 },
       { href: "/leave",      label: "Leave & Time Off", tourId: "tour-leave"     },
     ],
   },

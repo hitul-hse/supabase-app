@@ -40,19 +40,23 @@ function formatDay(day: string): string {
 export function TimeViewTabs({
   weekStart,
   scope,
+  view,
   currentWeek,
 }: {
   weekStart: string;
   scope: "mine" | "team";
+  /** "track" is the write surface; "records" is the read-only week list. */
+  view: "records" | "track";
   /** Monday of the real current week, so "This week" can be disabled when on it. */
   currentWeek: string;
 }) {
   // Every link carries the whole state. Omitting a param would reset it to its
   // default, so switching scope would silently jump back to the current week.
-  const url = (next: { week?: string; scope?: string }) =>
+  const url = (next: { week?: string; scope?: string; view?: string }) =>
     `/time?${new URLSearchParams({
       week: next.week ?? weekStart,
       scope: next.scope ?? scope,
+      view: next.view ?? view,
     }).toString()}`;
 
   const weekEnd = shiftWeek(weekStart, 1);
@@ -66,9 +70,22 @@ export function TimeViewTabs({
 
   return (
     <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex overflow-hidden border border-[var(--border)]">
-        <Tab href={url({ scope: "mine" })} label="My time" active={scope === "mine"} />
-        <Tab href={url({ scope: "team" })} label="Team" active={scope === "team"} />
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Track first: logging time is the action, reading it is the report. */}
+        <div className="flex overflow-hidden border border-[var(--border)]">
+          <Tab href={url({ view: "track" })} label="Track" active={view === "track"} />
+          <Tab href={url({ view: "records" })} label="Records" active={view === "records"} />
+        </div>
+
+        {/* Scope only means something for the records list — the tracker is
+            always the signed-in member's own time, so offering "Team" there
+            would imply you could start a timer for a colleague. */}
+        {view === "records" && (
+          <div className="flex overflow-hidden border border-[var(--border)]">
+            <Tab href={url({ scope: "mine" })} label="My time" active={scope === "mine"} />
+            <Tab href={url({ scope: "team" })} label="Team" active={scope === "team"} />
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

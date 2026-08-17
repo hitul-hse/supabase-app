@@ -7,14 +7,19 @@ import { PERMISSIONS } from "@/lib/permissions";
 import {
   currentTimeWeek,
   getCurrentMemberId,
+  getEntriesForDay,
   getEntriesForWeek,
+  getRunningEntry,
+  getTimeLookups,
   getWeekSummary,
   groupByDay,
   summariseEntries,
+  todayIso,
 } from "@/lib/queries/time";
 import { TimeViewTabs } from "./TimeViewTabs";
 import { TimeTotalsStrip } from "./TimeTotalsStrip";
 import { TimeEntryList } from "./TimeEntryList";
+import { TimeTracker } from "./TimeTracker";
 import { WeekSummaryTable } from "./WeekSummaryTable";
 
 /**
@@ -52,10 +57,20 @@ function parseScopeParam(raw: string | undefined): "mine" | "team" {
   return raw === "team" ? "team" : "mine";
 }
 
+/**
+ * Which half of the module to show.
+ *
+ * Defaults to "track": the first thing somebody opening a time tracker wants is
+ * to start the clock, not to read last week's report.
+ */
+function parseViewParam(raw: string | undefined): "records" | "track" {
+  return raw === "records" ? "records" : "track";
+}
+
 export default async function TimePage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; scope?: string }>;
+  searchParams: Promise<{ week?: string; scope?: string; view?: string }>;
 }) {
   await requirePermission("/time", PERMISSIONS.TIMESHEETS_READ_OWN);
   const supabase = await createClient();
@@ -63,6 +78,7 @@ export default async function TimePage({
   const params = await searchParams;
   const weekStart = parseWeekParam(params.week);
   const scope = parseScopeParam(params.scope);
+  const view = parseViewParam(params.view);
 
   // Who the caller is inside this module. Null is an ordinary state: a colleague
   // who has never tracked time has no time.member row, and nobody has one before
@@ -78,11 +94,33 @@ export default async function TimePage({
   // the entry query rather than issuing one that cannot be meaningful.
   const unlinked = scope === "mine" && memberId === null;
 
-  const [entries, weekSummary] = await Promise.all([
-    unlinked
+  // Read-only viewers still see the tracker, with its controls disabled and the
+  // reason stated. Hiding it outright would leave them wondering where the timer
+  // is; a disabled panel that explains itself is the honest version.
+  const { data: canWrite } = await supabase.rpc("app_user_has_permission", {
+    p_key: PERMISSIONS.TIMESHEETS_WRITE,
+  });
+
+  const today = todayIso();
+
+  // Only fetch what the active view renders. The tracker needs lookups and
+  // today's rows; the records view needs the week. Fetching both on every load
+  // would put a 300-project lookup query on the critical path of a report that
+  // never uses it.
+  const wantsTracker = view === "track" && !unlinked;
+
+  const [entries, weekSummary, running, lookups, todayEntries] = await Promise.all([
+    unlinked || view === "track"
       ? Promise.resolve([])
       : getEntriesForWeek(supabase, weekStart, { memberId: memberFilter }),
-    getWeekSummary(supabase, weekStart),
+    view === "records" ? getWeekSummary(supabase, weekStart) : Promise.resolve([]),
+    wantsTracker && memberId !== null
+      ? getRunningEntry(supabase, memberId)
+      : Promise.resolve(null),
+    wantsTracker ? getTimeLookups(supabase) : Promise.resolve(null),
+    wantsTracker && memberId !== null
+      ? getEntriesForDay(supabase, today, { memberId })
+      : Promise.resolve([]),
   ]);
 
   const totals = summariseEntries(entries);
@@ -92,17 +130,24 @@ export default async function TimePage({
     <PageTransition>
       <div className="flex flex-col">
         <PageHeader
-          category="TIME TRACKING / RECORDS"
+          category={view === "track" ? "TIME TRACKING / TRACK" : "TIME TRACKING / RECORDS"}
           title="Time"
-          meta={`TRACKINGTIME-EQUIVALENT · SECONDS · ${
-            scope === "mine" ? "MY TIME" : "TEAM"
-          }`}
+          meta={
+            view === "track"
+              ? `TRACKINGTIME-EQUIVALENT · SECONDS · ${
+                  running ? "TIMER RUNNING" : "NO TIMER RUNNING"
+                }`
+              : `TRACKINGTIME-EQUIVALENT · SECONDS · ${
+                  scope === "mine" ? "MY TIME" : "TEAM"
+                }`
+          }
         />
 
         <div className="flex flex-col gap-5 p-4 sm:p-6">
           <TimeViewTabs
             weekStart={weekStart}
             scope={scope}
+            view={view}
             currentWeek={currentTimeWeek()}
           />
 
@@ -110,6 +155,14 @@ export default async function TimePage({
             <EmptyState
               title="No time-tracking record linked to your account"
               description="Your account isn't linked to a Time Tracking member yet, so there is no personal time to show. That is expected before the first TrackingTime import runs, or if your email doesn't match a tracked user. Switch to Team to see what you're permitted to view, or ask an administrator to link it."
+            />
+          ) : view === "track" && lookups !== null ? (
+            <TimeTracker
+              running={running}
+              lookups={lookups}
+              todayEntries={todayEntries}
+              today={today}
+              canWrite={canWrite === true}
             />
           ) : (
             <>
@@ -126,7 +179,7 @@ export default async function TimePage({
             </>
           )}
 
-          {weekSummary.length > 0 && (
+          {view === "records" && weekSummary.length > 0 && (
             <WeekSummaryTable rows={weekSummary} weekStart={weekStart} />
           )}
         </div>

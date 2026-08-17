@@ -1,6 +1,6 @@
 ---
 name: integrations
-description: External API connector specialist — Asana, TrackingTime, FactorialHR, Samdock. Use for discovery runs against a vendor API, designing `stg_*` tables from observed payloads, sync/cursor/retry logic, identity resolution against a source system, and anything in `scripts/discover/` or `src/lib/connectors/`. Do not use for warehouse modelling of the conformed star schema (use `backend`) or for dashboards (use `frontend`).
+description: External API connector specialist — Asana, TrackingTime, FactorialHR, Samdock. Use for discovery runs against a vendor API, designing `stg_*` tables from observed payloads, sync/cursor/retry logic, identity resolution against a source system, and anything under `scripts/discover/`. Do not use for warehouse modelling of the conformed star schema (use `backend`) or for dashboards (use `frontend`).
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 

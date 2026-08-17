@@ -38,10 +38,12 @@ jobs:
       - name: Database and RLS checks
         run: npm run test:db
 
+      # Runs via the npm script rather than naming the two files here, so this
+      # gate is reachable locally with `npm run test:agents`. Previously it
+      # existed only in this workflow, which meant a false reference in an agent
+      # prompt could not be caught before pushing.
       - name: Verify agent prompt claims
-        run: |
-          node scripts/check-agent-claims.cjs
-          node scripts/check-agent-references.cjs
+        run: npm run test:agents
 
       # The build needs Supabase env vars present but never contacts Supabase.
       # Dummy values are correct here: the route probes assert that

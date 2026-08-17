@@ -88,3 +88,13 @@ docs/discovery/
 
 # OAuth success-path probe build (scripts/check-oauth-success-path.mjs)
 .next-oauth-probe/
+
+# Probe builds for the OAuth flake/order investigations, same pattern as above.
+.next-flake-probe/
+.next-order-probe/
+
+# Editor-local state: the active plan, scratch scripts, and a mirror of the
+# third-party agent skills from .claude/skills (V3Code's loader scans this
+# directory and does not follow the .claude ones). Machine-specific, ~150 files
+# of somebody else's code, and regenerable with .v3code/sync-claude-skills.ps1.
+.v3code/

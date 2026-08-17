@@ -38,6 +38,12 @@ const eslintConfig = defineConfig([
     ".github/skills/**",
     ".claude/skills/**",
     ".agents/skills/**",
+    // Same third-party skills again, mirrored into the editor's own skills
+    // directory so V3Code's loader can find them (it scans .v3code/skills and
+    // does NOT follow .claude/skills). The copy is real files, not links, so
+    // the three entries above did not cover it and all 152 warnings came
+    // straight back the moment the mirror was created.
+    ".v3code/**",
   ]),
   // Plain Node CommonJS scripts (CI checks, etc.) — not app source, so the
   // app's ESM-only import rule doesn't apply.

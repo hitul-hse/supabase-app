@@ -34,10 +34,11 @@
     "asana:backlog": "node scripts/generate-asana-backlog.mjs",
     "test:asana-backlog": "node scripts/check-asana-backlog.mjs",
     "test:backfill": "node scripts/check-backfill.mjs",
-    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:task-write-rls && npm run test:timesheet-write-rls && npm run test:org-chart-view && npm run test:task-comments-rls && npm run test:subtasks-rls && npm run test:leave-requests-rls && npm run test:billable-rates-rls && npm run test:timer-rls && npm run test:project-budget-rls && npm run test:timesheet-withdraw-rls && npm run test:duration && npm run test:trend-window && npm run test:discovery && npm run test:trackingtime && npm run test:raw-rls && npm run test:time-rls && npm run test:sections-rls && npm run test:permissions-rls && npm run test:modules-rls && npm run test:backfill && npm run test:verify-query && npm run test:policy-control && npm run test:asana-backlog",
+    "test:db": "npm run test:schema && npm run test:rls && npm run test:rls-control && npm run test:task-write-rls && npm run test:timesheet-write-rls && npm run test:org-chart-view && npm run test:task-comments-rls && npm run test:subtasks-rls && npm run test:leave-requests-rls && npm run test:billable-rates-rls && npm run test:timer-rls && npm run test:project-budget-rls && npm run test:timesheet-withdraw-rls && npm run test:duration && npm run test:trend-window && npm run test:discovery && npm run test:trackingtime && npm run test:raw-rls && npm run test:time-transform && npm run test:time-rls && npm run test:sections-rls && npm run test:permissions-rls && npm run test:modules-rls && npm run test:backfill && npm run test:verify-query && npm run test:policy-control && npm run test:asana-backlog",
     "test:verify-query": "node scripts/check-verify-policies-query.mjs",
     "test:traceability": "node scripts/traceability-run.mjs",
-    "test:policy-control": "node scripts/check-policy-count-control.mjs"
+    "test:policy-control": "node scripts/check-policy-count-control.mjs",
+    "test:time-transform": "node --experimental-strip-types scripts/check-time-transform.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

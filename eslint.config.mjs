@@ -15,6 +15,13 @@ const eslintConfig = defineConfig([
     // Vendored, generated runtime for the design mockup — not part of the
     // app and explicitly marked "do not edit" at its own source.
     "docs/design/hse-hub-mockup/support.js",
+    // Third-party agent skills installed via `npx skills add` / `impeccable`.
+    // Not our code and not editable by us — linting them produced 152 warnings
+    // that drowned out real signal from src/. Excluded so `npm run lint` output
+    // stays readable and a genuine new warning is actually noticeable.
+    ".github/skills/**",
+    ".claude/skills/**",
+    ".agents/skills/**",
   ]),
   // Plain Node CommonJS scripts (CI checks, etc.) — not app source, so the
   // app's ESM-only import rule doesn't apply.

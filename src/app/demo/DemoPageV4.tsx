@@ -21,6 +21,7 @@
  */
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   motion,
@@ -155,7 +156,16 @@ function SplitLine({
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-12%" });
-  let i = 0;
+
+  // Per-word starting glyph index, precomputed. A mutable counter incremented
+  // inside the render map violates React 19's immutability rule (and is a real
+  // bug under StrictMode double-render), so the offsets are derived instead.
+  const words = text.split(" ");
+  const wordOffsets: number[] = [];
+  words.reduce((acc, word) => {
+    wordOffsets.push(acc);
+    return acc + word.length;
+  }, 0);
 
   return (
     <span ref={ref} className={className} style={{ display: "block", ...style }}>
@@ -172,27 +182,27 @@ function SplitLine({
       >
         {text}{" "}
       </span>
-      {text.split(" ").map((word, w) => (
+      {words.map((word, w) => (
         <span
           key={w}
           aria-hidden="true"
           style={{ display: "inline-block", overflow: "hidden", verticalAlign: "top" }}
         >
-          {word.split("").map((ch) => {
-            const d = delay + i * 0.016;
-            i += 1;
-            return (
-              <motion.span
-                key={`${w}-${i}`}
-                style={{ display: "inline-block", color }}
-                initial={{ y: "110%" }}
-                animate={inView ? { y: 0 } : { y: "110%" }}
-                transition={{ duration: 0.8, ease: EASE, delay: d }}
-              >
-                {ch}
-              </motion.span>
-            );
-          })}
+          {word.split("").map((ch, c) => (
+            <motion.span
+              key={`${w}-${c}`}
+              style={{ display: "inline-block", color }}
+              initial={{ y: "110%" }}
+              animate={inView ? { y: 0 } : { y: "110%" }}
+              transition={{
+                duration: 0.8,
+                ease: EASE,
+                delay: delay + (wordOffsets[w] + c) * 0.016,
+              }}
+            >
+              {ch}
+            </motion.span>
+          ))}
           <span style={{ display: "inline-block", width: "0.28em" }} />
         </span>
       ))}
@@ -202,19 +212,34 @@ function SplitLine({
 
 /* ------------------------------------------------- odometer stat (SSTR) */
 
-/** One vertically-scrolling 0-9 strip. Lands on `digit` when in view. */
-function Reel({ digit, delay, size }: { digit: number; delay: number; size: number }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-15%" });
+/**
+ * One vertically-scrolling 0-9 strip. Lands on `digit` when `run` turns true.
+ *
+ * GOTCHA: `run` is passed IN rather than each reel owning its own
+ * `useInView({once:true})`. With one observer per reel, sibling digits of the
+ * same number could disagree — "41" rendered as "01" because reel[0]'s observer
+ * latched false while reel[1]'s latched true, despite identical rects. One
+ * observer per Odometer makes that disagreement impossible.
+ */
+function Reel({
+  digit,
+  delay,
+  size,
+  run,
+}: {
+  digit: number;
+  delay: number;
+  size: number;
+  run: boolean;
+}) {
   return (
     <span
-      ref={ref}
       style={{ display: "inline-block", height: size, overflow: "hidden", lineHeight: `${size}px` }}
     >
       <motion.span
         style={{ display: "block" }}
         initial={{ y: 0 }}
-        animate={inView ? { y: -digit * size } : { y: 0 }}
+        animate={run ? { y: -digit * size } : { y: 0 }}
         transition={{ duration: 1.5, ease: EASE, delay }}
       >
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -228,10 +253,26 @@ function Reel({ digit, delay, size }: { digit: number; delay: number; size: numb
 }
 
 function Odometer({ value, size = 64 }: { value: string; size?: number }) {
+  // ONE observer for the whole number. See the GOTCHA on Reel: a per-reel
+  // observer let sibling digits disagree, rendering "41" as "01".
+  const ref = useRef<HTMLSpanElement>(null);
+  const run = useInView(ref, { once: true, margin: "-10%" });
   const chars = value.split("");
-  let d = 0;
+  // Digit-ordinal per character, precomputed: non-digits (%, +, h) don't get a
+  // reel and must not consume a stagger slot. A mutable counter here violates
+  // React 19's immutability rule, so the ordinals are derived up front.
+  const digitOrdinals: (number | null)[] = [];
+  chars.reduce((n, c) => {
+    if (/\d/.test(c)) {
+      digitOrdinals.push(n);
+      return n + 1;
+    }
+    digitOrdinals.push(null);
+    return n;
+  }, 0);
   return (
     <span
+      ref={ref}
       style={{
         fontFamily: FD,
         fontSize: size,
@@ -242,10 +283,17 @@ function Odometer({ value, size = 64 }: { value: string; size?: number }) {
       }}
     >
       {chars.map((c, idx) => {
-        if (/\d/.test(c)) {
-          const delay = d * 0.09;
-          d += 1;
-          return <Reel key={idx} digit={Number(c)} delay={delay} size={size} />;
+        const ord = digitOrdinals[idx];
+        if (ord !== null) {
+          return (
+            <Reel
+              key={idx}
+              digit={Number(c)}
+              delay={ord * 0.09}
+              size={size}
+              run={run}
+            />
+          );
         }
         return (
           <span key={idx} style={{ display: "inline-block", height: size }}>
@@ -516,7 +564,7 @@ export default function DemoPage() {
         }}
       >
         <div className={`${WRAP} flex h-16 items-center justify-between`}>
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <Image src="/hse-logo.png" alt="HSE" width={26} height={26} />
             <span
               style={{
@@ -529,7 +577,7 @@ export default function DemoPage() {
             >
               HSE HUB
             </span>
-          </a>
+          </Link>
           <div
             className="hidden items-center gap-8 md:flex text-[11px] uppercase"
             style={{ fontFamily: FM, color: T.onInkDim, letterSpacing: "0.16em" }}
@@ -538,7 +586,7 @@ export default function DemoPage() {
             <a href="#reel" className="transition-colors hover:text-white">Showreel</a>
             <a href="#stack" className="transition-colors hover:text-white">Stack</a>
           </div>
-          <a
+          <Link
             href="/"
             className="text-[11px] uppercase px-5 py-2.5"
             style={{
@@ -550,7 +598,7 @@ export default function DemoPage() {
             }}
           >
             Sign in
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -757,7 +805,10 @@ export default function DemoPage() {
               className="text-[11px] uppercase"
               style={{ fontFamily: FM, color: T.onInkDim, letterSpacing: "0.14em" }}
             >
-              // 1920×1080 · H264
+              {/* the leading "//" is the No Art Music typographic motif — it is
+                  deliberate visible text, so it must be a string expression or
+                  JSX parses it as a comment (react/jsx-no-comment-textnodes) */}
+              {"// 1920×1080 · H264"}
             </div>
           </div>
 

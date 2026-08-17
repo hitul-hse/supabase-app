@@ -58,3 +58,9 @@ scripts/_e2e_tmp/
 
 # Playwright verification output
 test-results/
+
+# API discovery output (scripts/discover). Vendor payloads contain real names,
+# emails, contract and salary data — inventories are for local review, never the
+# repo. The inventory redacts PII from its reports, but the raw .json alongside
+# them is not redacted, so the whole directory stays out.
+docs/discovery/

@@ -1,274 +1,196 @@
+/**
+ * Projects — every project imported from TrackingTime, with real budget burn.
+ *
+ * WHAT THIS REPLACED, AND WHY
+ * ---------------------------
+ * This route previously rendered ONE hardcoded project (`getProjectDetail(…,
+ * "prj-1")`) out of the five-row `public.projects` demo table, complete with a
+ * burn-down chart whose SVG polyline coordinates were literals in the markup and
+ * a header reading "SIGNED 12 JAN · PLANNED END 30 SEP". Meanwhile `time.project`
+ * holds 334 real projects with real estimates. A page that looks like data but
+ * is not is worse than an empty one: nobody thinks to check it.
+ *
+ * The old single-project view now lives at /projects/[id], driven by whichever
+ * project you click.
+ *
+ * ACCESS
+ * ------
+ * Gated on `projects:read_all`, hand-rolled rather than via requirePermission()
+ * for the same reason the TrackingTime Dashboard is: the portal tile for this
+ * module is shown to anyone holding ANY `projects` permission, and all four
+ * roles hold `projects:read_own`. requirePermission() redirects a failure to
+ * "/", so three of four roles would click their own module's tile and be thrown
+ * to the Hub with no explanation. They get an explanatory panel instead.
+ *
+ * RLS still scopes the rows underneath; this gate only decides whether the
+ * org-wide rollup is the right page to show.
+ */
+import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
-import { SyncBar } from "@/components/SyncBar";
+import { EmptyState } from "@/components/EmptyState";
+import PageTransition from "@/components/animations/PageTransition";
 import { createClient } from "@/utils/supabase/server";
-import { getProjectDetail, getTaskComments, getProjectBudgetStatus } from "@/lib/queries/hse";
-import { requireUser } from "@/utils/supabase/require-user";
-import { TasksSection } from "./TasksSection";
-import { BudgetPanel } from "./BudgetPanel";
+import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
+import { PERMISSIONS } from "@/lib/permissions";
+import { getProjectList, type ProjectSort } from "@/lib/queries/projects-live";
+import { getSyncFreshness } from "@/lib/queries/time-dashboard";
+import { FreshnessBanner } from "../time/dashboard/ReportPanels";
+import { ProjectTable, ProjectTotalsStrip } from "./ProjectPanels";
 
-export default async function ProjectsPage() {
-  await requireUser("/projects");
-  const supabase = await createClient();
-  const prj = await getProjectDetail(supabase, "prj-1");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+const SORTS: { key: ProjectSort; label: string }[] = [
+  { key: "burn", label: "Budget burn" },
+  { key: "hours", label: "Most hours" },
+  { key: "recent", label: "Recent activity" },
+  { key: "name", label: "Name" },
+];
 
-  if (!prj) {
+function one(v: string | string[] | undefined): string | undefined {
+  return Array.isArray(v) ? v[0] : v;
+}
+
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await requireProfile("/projects");
+
+  const canReadAll = await userHasPermission(PERMISSIONS.PROJECTS_READ_ALL);
+  const params = await searchParams;
+
+  const rawSort = one(params.sort);
+  const sort: ProjectSort = SORTS.some((s) => s.key === rawSort)
+    ? (rawSort as ProjectSort)
+    : "burn";
+
+  // Archived projects are hidden by default but never dropped from the query —
+  // the toggle has to be able to bring them back, and their hours still count
+  // toward any total that reconciles against the entry table.
+  const showArchived = one(params.archived) === "1";
+
+  if (!canReadAll) {
     return (
-      <div>
-        <PageHeader category="HSE HUB / RECORDS" title="Project Record" />
-        <div className="p-6 text-[var(--text-secondary)]">Project not found.</div>
-      </div>
+      <PageTransition>
+        <div className="flex flex-col">
+          <PageHeader category="PROJECTS" title="Projects" />
+          <div className="p-6">
+            <EmptyState
+              title="You don't have access to the project portfolio"
+              description="Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is visible under Time. An administrator can grant wider access under Role Permissions."
+              action={
+                <Link
+                  href="/time"
+                  className="text-[12px] font-medium text-[var(--accent)] hover:underline"
+                >
+                  Go to Time →
+                </Link>
+              }
+            />
+          </div>
+        </div>
+      </PageTransition>
     );
   }
 
-  const budgetStatus = await getProjectBudgetStatus(supabase, prj.id);
+  const supabase = await createClient();
+  const [{ rows: allRows, truncated }, freshness] = await Promise.all([
+    getProjectList(supabase, sort),
+    getSyncFreshness(supabase),
+  ]);
 
-  const commentsByTask = Object.fromEntries(
-    await getTaskComments(
-      supabase,
-      prj.project_tasks.map((t) => t.id),
-    ),
-  );
+  const rows = showArchived ? allRows : allRows.filter((p) => !p.isArchived);
+  const archivedCount = allRows.length - allRows.filter((p) => !p.isArchived).length;
+
+  // Totals describe what is ON SCREEN, not the whole table. A strip that says
+  // "6,254 h" above a list filtered to 40 projects invites the reader to add up
+  // the rows, fail to reach the total, and distrust both numbers.
+  const totalHours = rows.reduce((s, p) => s + p.actualHours, 0);
+  const billableHours = rows.reduce((s, p) => s + p.billableHours, 0);
+  const overBudget = rows.filter((p) => p.isOver).length;
+  const noBudget = rows.filter((p) => p.burnPercent === null).length;
+
+  const qs = (over: Record<string, string | null>) => {
+    const sp = new URLSearchParams();
+    const merged: Record<string, string | null> = {
+      sort: sort === "burn" ? null : sort,
+      archived: showArchived ? "1" : null,
+      ...over,
+    };
+    for (const [k, v] of Object.entries(merged)) if (v !== null) sp.set(k, v);
+    const s = sp.toString();
+    return s ? `/projects?${s}` : "/projects";
+  };
 
   return (
-    <div className="flex flex-col">
-      <SyncBar />
+    <PageTransition>
+      <div className="flex flex-col">
+        <PageHeader
+          category="PROJECTS / PORTFOLIO"
+          title="Projects"
+          meta={`${rows.length.toLocaleString("en-GB")} PROJECTS · ${totalHours.toLocaleString("en-GB", { maximumFractionDigits: 0 })}H TRACKED`}
+        />
 
-      <PageHeader
-        category="HSE HUB / RECORDS"
-        title="Project Record"
-        meta="PROJECTS · CONTRACTS · ASANA TASKS"
-      />
+        <div className="flex flex-col gap-5 p-4 sm:p-6">
+          {/* Same reasoning as the dashboard: "no projects match" and "the
+              import stopped running three weeks ago" look identical, and the
+              second explains the first. */}
+          <FreshnessBanner freshness={freshness} />
 
-      <div className="flex flex-col gap-5 p-6">
-        {/* Project Header Banner */}
-        <div className="flex flex-wrap items-start justify-between gap-4 border border-[var(--border)] bg-[var(--surface)] p-5">
-          <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10.5px] tracking-[0.1em] text-[var(--text-muted)]">
-              {prj.customer.toUpperCase()} · {prj.code} · {prj.contract_type}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--text-faint)]">
+              Sort
             </span>
-            <h2 className="text-[20px] font-semibold text-[var(--text-primary)]">{prj.name}</h2>
-            <div className="flex flex-wrap gap-2 pt-1 font-mono text-[10.5px]">
-              <span className="bg-[#4a251d] px-2 py-0.5 font-medium text-[#f0a08c]">
-                {prj.status}
-              </span>
-              <span className="bg-[var(--surface-2)] px-2 py-0.5 text-[var(--text-secondary)]">
-                LEAD {prj.lead}
-              </span>
-              <span className="bg-[var(--surface-2)] px-2 py-0.5 text-[var(--text-secondary)]">
-                {prj.team_size} PEOPLE ASSIGNED
-              </span>
-            </div>
+            {SORTS.map((s) => (
+              <Link
+                key={s.key}
+                href={qs({ sort: s.key === "burn" ? null : s.key })}
+                aria-current={sort === s.key ? "true" : undefined}
+                className={`border px-2.5 py-1 text-[11px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+                  sort === s.key
+                    ? "border-[var(--accent)] bg-[var(--surface-2)] text-[var(--text-primary)]"
+                    : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]"
+                }`}
+              >
+                {s.label}
+              </Link>
+            ))}
+
+            {archivedCount > 0 && (
+              <Link
+                href={qs({ archived: showArchived ? null : "1" })}
+                className="ml-auto text-[11px] text-[var(--text-secondary)] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              >
+                {showArchived ? "Hide" : "Show"} {archivedCount} archived
+              </Link>
+            )}
           </div>
 
-          {/* Quick Metrics */}
-          <div className="flex flex-wrap items-center gap-6 pt-1 font-mono">
-            <div className="flex flex-col">
-              <span className="text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
-                CONTRACTED
-              </span>
-              <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-                {prj.contract_hours} h
-              </span>
-            </div>
+          {truncated && (
+            <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+              This portfolio exceeds the reporting ceiling, so the hours below cover only the most
+              recent entries. Totals per project may be understated.
+            </p>
+          )}
 
-            <div className="flex flex-col">
-              <span className="text-[10px] tracking-[0.1em] text-[var(--text-muted)]">LOGGED</span>
-              <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-                {prj.logged_hours} h
-              </span>
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
-                REMAINING
-              </span>
-              <span className="text-[18px] font-semibold text-[var(--critical)]">
-                {prj.remaining_hours} h
-              </span>
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-[10px] tracking-[0.1em] text-[var(--text-muted)]">FORECAST</span>
-              <span className="text-[18px] font-semibold text-[var(--critical)]">
-                +{prj.forecast_overrun} h
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <BudgetPanel status={budgetStatus} />
-
-        {/* Hours Burndown Chart */}
-        <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-5">
-          <div className="flex flex-wrap items-baseline gap-3">
-            <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-              Hours burn-down
-            </span>
-            <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-              SIGNED 12 JAN · PLANNED END 30 SEP
-            </span>
-            <div className="ml-auto flex items-center gap-4 font-mono text-[10.5px] text-[var(--text-secondary)]">
-              <span className="flex items-center gap-1.5">
-                <span className="h-0.5 w-3 bg-[#8f979d]" /> PLANNED
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-0.5 w-3 bg-[var(--accent)]" /> ACTUAL
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-0.5 w-3 bg-[var(--critical)]" /> FORECAST
-              </span>
-            </div>
-          </div>
-
-          {/* SVG Burn-down chart */}
-          <div className="relative h-[180px] w-full border-b border-l border-[#4d5661] pt-2">
-            {/* Gridlines */}
-            <div className="absolute inset-0 flex flex-col justify-between opacity-20">
-              <div className="border-b border-[#4d5661]" />
-              <div className="border-b border-[#4d5661]" />
-              <div className="border-b border-[#4d5661]" />
-              <div className="border-b border-[#4d5661]" />
-            </div>
-
-            <svg
-              viewBox="0 0 900 170"
-              preserveAspectRatio="none"
-              className="absolute inset-0 h-full w-full"
-            >
-              {/* Planned trajectory line (dashed gray) */}
-              <polyline
-                points="0,10 100,28 200,45 300,64 400,82 500,101 600,120 700,138 800,157 900,165"
-                fill="none"
-                stroke="#8f979d"
-                strokeWidth="2"
-                strokeDasharray="6 5"
+          {rows.length === 0 ? (
+            <EmptyState
+              title="No projects yet"
+              description="Nothing has been imported from TrackingTime yet. The nightly sync populates this list; you can also run it manually with `npm run sync:trackingtime`."
+            />
+          ) : (
+            <>
+              <ProjectTotalsStrip
+                projectCount={rows.length}
+                totalHours={totalHours}
+                billableHours={billableHours}
+                overBudget={overBudget}
+                noBudget={noBudget}
               />
-              {/* Actual consumed hours line (solid mint) */}
-              <polyline
-                points="0,10 90,22 180,38 270,47 360,69 450,78 540,98 630,110 700,134 760,161"
-                fill="none"
-                stroke="#91c2b7"
-                strokeWidth="2.5"
-              />
-              {/* Forecast overrun line (dashed red) */}
-              <polyline
-                points="760,161 830,185 900,205"
-                fill="none"
-                stroke="#e0603f"
-                strokeWidth="2.5"
-                strokeDasharray="5 4"
-              />
-              <circle cx="760" cy="161" r="4.5" fill="#91c2b7" />
-            </svg>
-
-            {/* Today vertical line */}
-            <div className="absolute bottom-0 top-0 left-[78%] w-px bg-[#616a75]" />
-            <div className="absolute top-1.5 left-[calc(78%+8px)] font-mono text-[10.5px] font-medium text-[var(--text-primary)]">
-              TODAY · 36 H LEFT
-            </div>
-          </div>
-
-          <div className="flex justify-between font-mono text-[10.5px] text-[var(--text-faint)]">
-            <span>JAN</span>
-            <span>MAR</span>
-            <span>MAY</span>
-            <span>JUL</span>
-            <span>SEP</span>
-            <span className="text-[var(--critical)]">OVERRUN NOV</span>
-          </div>
-        </div>
-
-        {/* Lower Grid: Tasks Breakdown & Milestone Timeline */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-          {/* Asana Tasks & Hours (7 cols) */}
-          <TasksSection
-            projectId={prj.id}
-            tasks={prj.project_tasks}
-            sections={prj.sections}
-            commentsByTask={commentsByTask}
-            currentUserId={user?.id ?? null}
-          />
-
-          {/* Timeline & Invoicing (5 cols) */}
-          <div className="flex flex-col gap-4 lg:col-span-5">
-            {/* Timeline */}
-            <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-                Milestone Timeline
-              </span>
-              <div className="flex flex-col gap-2.5">
-                {prj.project_timeline.map((t) => (
-                  <div key={t.period} className="flex items-center gap-3 text-[11.5px]">
-                    <span className="w-16 font-mono text-[10.5px] text-[var(--text-muted)]">
-                      {t.period}
-                    </span>
-                    <div className="h-2.5 flex-1 bg-[var(--border)]">
-                      <div
-                        className="h-full"
-                        style={{
-                          width: `${t.progress_percent}%`,
-                          background:
-                            t.status === "forecast"
-                              ? "repeating-linear-gradient(45deg, #4a251d, #4a251d 4px, #2a1613 4px, #2a1613 8px)"
-                              : t.status === "in_progress"
-                              ? "var(--warning)"
-                              : t.status === "done"
-                              ? "var(--accent)"
-                              : "var(--border)",
-                        }}
-                      />
-                    </div>
-                    <span className="w-16 text-right text-[var(--text-secondary)]">{t.title}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Contract & Documents */}
-            <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-                Contract &amp; Invoicing
-              </span>
-              <div className="flex flex-col gap-1.5 text-[12px]">
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-muted)]">Contract value:</span>
-                  <span className="font-mono text-[var(--text-primary)]">
-                    €{(prj.contract_value_eur ?? 0).toLocaleString("de-DE")}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-muted)]">Invoiced to date:</span>
-                  <span className="font-mono text-[var(--text-primary)]">
-                    €{(prj.invoiced_eur ?? 0).toLocaleString("de-DE")}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-muted)]">Change requests:</span>
-                  <span className="font-mono text-[var(--warning)]">{prj.change_requests}</span>
-                </div>
-              </div>
-
-              <div className="mt-1 flex gap-2">
-                {["CONTRACT", "CR-01", "REPORT"].map((slot) => (
-                  <div
-                    key={slot}
-                    className="flex h-11 flex-1 items-end p-1.5"
-                    style={{
-                      background:
-                        "repeating-linear-gradient(45deg, #3a414c, #3a414c 4px, #15191c 4px, #15191c 8px)",
-                    }}
-                  >
-                    <span className="font-mono text-[9px] text-[var(--text-faint)]">{slot}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+              <ProjectTable rows={rows} />
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }

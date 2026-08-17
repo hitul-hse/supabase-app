@@ -290,6 +290,25 @@ export async function fetchExcludedCalendarSeconds(
  * a timestamptz; `lte('started_at', '2026-06-30')` compares against
  * midnight, so it silently drops everything logged during the final day of the
  * range — the most recent day, the one users check first.
+ *
+ * PAGES IN PARALLEL, and that is a measured decision rather than a stylistic one.
+ * Against the live project (scripts/measure-dashboard-cost.mjs, 4,194 entries):
+ *
+ *     one page of 1000 rows with its joins   ~173ms
+ *     all-time paged sequentially            ~893ms   <- what this used to do
+ *     all-time paged in parallel             ~252ms
+ *
+ * 641ms, paid on every wide load AND on every filter change over a wide range,
+ * because the whole report re-runs server-side each time. The sequential loop
+ * existed because it discovered the end of the data by hitting a short page --
+ * it could not know the page count in advance. An exact `count` in the first
+ * request removes that dependency, so the remaining pages can go at once.
+ *
+ * The first request therefore does double duty: it returns page 0 AND the total,
+ * which costs nothing extra over the request that had to happen anyway. When the
+ * count is unavailable (a PostgREST version or a policy that declines to report
+ * it) this falls back to the original sequential probe rather than guessing, so
+ * correctness never depends on the optimisation.
  */
 export async function fetchAllEntries(
   supabase: SupabaseTyped,
@@ -298,65 +317,104 @@ export async function fetchAllEntries(
   const toExclusive = new Date(`${filters.to}T00:00:00.000Z`);
   toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
 
-  const out: ReportEntry[] = [];
-  let truncated = false;
+  /** The filtered query for one page. Shared so every page is identical bar its range. */
+  const pageQuery = (page: number, opts: { count?: "exact" } = {}) => {
+    let q = timeSchema(supabase)
+      .from("entry")
+      .select(SELECT, opts.count ? { count: opts.count } : undefined)
+      .gte("started_at", `${filters.from}T00:00:00.000Z`)
+      .lt("started_at", toExclusive.toISOString())
+      // A running timer has no duration yet. Including it would add a null
+      // that coerces to 0 and inflate the entry count with a non-fact.
+      .not("duration_seconds", "is", null)
+      .order("started_at", { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+
+    if (filters.memberIds.length) q = q.in("member_id", filters.memberIds);
+    if (filters.projectIds.length) q = q.in("project_id", filters.projectIds);
+    if (filters.customerIds.length) q = q.in("customer_id", filters.customerIds);
+    if (filters.serviceIds.length) q = q.in("service_id", filters.serviceIds);
+    if (filters.billable !== null) q = q.eq("is_billable", filters.billable);
+    if (!filters.includeCalendar) q = q.eq("is_calendar", false);
+
+    return q;
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const flatten = (rows: any[]): ReportEntry[] =>
+    rows.map((r) => ({
+      id: num(r.id),
+      memberId: num(r.member_id),
+      memberName: r.member?.display_name ?? "Unknown",
+      projectId: numOrNull(r.project_id),
+      projectName: r.project?.name ?? null,
+      customerId: numOrNull(r.customer_id),
+      customerName: r.customer?.name ?? null,
+      serviceId: numOrNull(r.service_id),
+      serviceName: r.service?.name ?? null,
+      taskName: r.task?.name ?? null,
+      startedAt: String(r.started_at),
+      durationSeconds: num(r.duration_seconds),
+      isBillable: Boolean(r.is_billable),
+      isBilled: Boolean(r.is_billed),
+      isCalendar: Boolean(r.is_calendar),
+      notes: r.notes ?? null,
+    }));
 
   try {
-    for (let page = 0; page < MAX_PAGES; page++) {
-      let q = timeSchema(supabase)
-        .from("entry")
-        .select(SELECT)
-        .gte("started_at", `${filters.from}T00:00:00.000Z`)
-        .lt("started_at", toExclusive.toISOString())
-        // A running timer has no duration yet. Including it would add a null
-        // that coerces to 0 and inflate the entry count with a non-fact.
-        .not("duration_seconds", "is", null)
-        .order("started_at", { ascending: false })
-        .range(page * PAGE, page * PAGE + PAGE - 1);
+    // Page 0 plus the total, in one request.
+    const first = await pageQuery(0, { count: "exact" });
+    if (first.error || !first.data) return { entries: [], truncated: false };
 
-      if (filters.memberIds.length) q = q.in("member_id", filters.memberIds);
-      if (filters.projectIds.length) q = q.in("project_id", filters.projectIds);
-      if (filters.customerIds.length) q = q.in("customer_id", filters.customerIds);
-      if (filters.serviceIds.length) q = q.in("service_id", filters.serviceIds);
-      if (filters.billable !== null) q = q.eq("is_billable", filters.billable);
-      if (!filters.includeCalendar) q = q.eq("is_calendar", false);
+    const out = flatten(first.data as unknown[]);
 
-      const { data, error } = await q;
-      if (error || !data) break;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const r of data as any[]) {
-        out.push({
-          id: num(r.id),
-          memberId: num(r.member_id),
-          memberName: r.member?.display_name ?? "Unknown",
-          projectId: numOrNull(r.project_id),
-          projectName: r.project?.name ?? null,
-          customerId: numOrNull(r.customer_id),
-          customerName: r.customer?.name ?? null,
-          serviceId: numOrNull(r.service_id),
-          serviceName: r.service?.name ?? null,
-          taskName: r.task?.name ?? null,
-          startedAt: String(r.started_at),
-          durationSeconds: num(r.duration_seconds),
-          isBillable: Boolean(r.is_billable),
-          isBilled: Boolean(r.is_billed),
-          isCalendar: Boolean(r.is_calendar),
-          notes: r.notes ?? null,
-        });
-      }
-
-      // A short page is the last page. Only a FULL page implies more may exist.
-      if (data.length < PAGE) return { entries: out, truncated: false };
-      if (page === MAX_PAGES - 1) truncated = true;
+    // A short first page is the whole result. This is the common case by far --
+    // a week or a month is well under 1000 entries -- and it costs exactly one
+    // request, as it always did.
+    if ((first.data as unknown[]).length < PAGE) {
+      return { entries: out, truncated: false };
     }
+
+    const total = typeof first.count === "number" ? first.count : null;
+
+    if (total === null) {
+      // No count: fall back to the original sequential probe. Slower, but it
+      // cannot over- or under-fetch, and correctness must not depend on an
+      // optimisation being available.
+      for (let page = 1; page < MAX_PAGES; page++) {
+        const { data, error } = await pageQuery(page);
+        if (error || !data) break;
+        out.push(...flatten(data as unknown[]));
+        if ((data as unknown[]).length < PAGE) return { entries: out, truncated: false };
+        if (page === MAX_PAGES - 1) return { entries: out, truncated: true };
+      }
+      return { entries: out, truncated: false };
+    }
+
+    const neededPages = Math.ceil(total / PAGE);
+    // The ceiling still applies: it bounds how much this will pull into memory,
+    // and exceeding it is reported to the user rather than silently truncating.
+    const lastPage = Math.min(neededPages, MAX_PAGES);
+
+    // Pages 1..last, all at once. Measured at 252ms against 893ms sequential.
+    const rest = await Promise.all(
+      Array.from({ length: lastPage - 1 }, (_, i) => pageQuery(i + 1)),
+    );
+
+    // Appended IN PAGE ORDER, not in completion order: `entries` is consumed as
+    // "most recent first" (the entry table's default sort and the trend's input),
+    // and Promise.all preserves input order, so this holds by construction.
+    for (const r of rest) {
+      if (r.error || !r.data) break;
+      out.push(...flatten(r.data as unknown[]));
+    }
+
+    return { entries: out, truncated: neededPages > MAX_PAGES };
   } catch {
     // A failed report renders as empty rather than a 500. RLS denial and a
     // network fault are indistinguishable here and both mean "show nothing".
-    return { entries: out, truncated };
+    return { entries: [], truncated: false };
   }
-
-  return { entries: out, truncated };
 }
 
 /* ---------------------------------------------------------- aggregation */

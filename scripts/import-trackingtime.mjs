@@ -184,19 +184,45 @@ function idMap(rows) {
   return new Map(rows.filter((r) => r.source_id).map((r) => [String(r.source_id), r.id]));
 }
 
+/**
+ * When this process actually began. Captured at module load, NOT at insert
+ * time, because raw.sync_run.started_at defaults to now() -- which is evaluated
+ * by Postgres when the row is written, i.e. AFTER the run has finished. The
+ * single row this import wrote before the fix has
+ * finished_at 14:30:37.151 < started_at 14:30:37.405, so any duration derived
+ * from it is negative. A dashboard that reports "last sync took -0.3s" is not a
+ * cosmetic wart; it means the column does not mean what its name says.
+ */
+const RUN_STARTED_AT = new Date();
+
+/**
+ * Records one sync attempt in raw.sync_run — the row the dashboard's freshness
+ * indicator reads. Writes started_at explicitly so the pair brackets the real
+ * work, and stamps cursor_ref with the window actually covered so a later
+ * incremental run can tell what has already been pulled.
+ */
 async function recordRun(entity, status, count, error) {
   if (DRY_RUN) return;
-  await db
+  const { error: runError } = await db
     .schema("raw")
     .from("sync_run")
     .insert({
       source: "trackingtime",
       entity,
+      started_at: RUN_STARTED_AT.toISOString(),
       finished_at: new Date().toISOString(),
       status,
       record_count: count,
       error_message: error ?? null,
+      cursor_ref: `days=${DAYS}`,
     });
+  // Loud, not silent. If this insert fails the import may still have written
+  // 4,000 entries, and the dashboard would then report data far older than it
+  // is -- the failure mode is a confident wrong number, not an obvious break.
+  if (runError) {
+    console.warn(`\nWARNING: could not record the sync run: ${runError.message}`);
+    console.warn("The data may have imported, but freshness will read stale.\n");
+  }
 }
 
 // --- run --------------------------------------------------------------------

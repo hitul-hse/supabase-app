@@ -1,0 +1,102 @@
+name: Sync TrackingTime
+
+# The scheduled refresh behind the TrackingTime API Dashboard.
+#
+# WHY THIS EXISTS: before it, `raw.sync_run` held exactly one row -- a single
+# manual import someone ran by hand. Every figure on the dashboard was a
+# snapshot frozen at that moment, and it degraded in the worst possible way:
+# silently, still rendering confident precise totals that were weeks stale.
+#
+# DELIBERATELY SEPARATE FROM ci.yml. CI must never hold live credentials or
+# touch production data -- the db-tests job says so explicitly. This workflow is
+# the one place that does, so the boundary stays legible: ci.yml proves the code
+# is right, this one moves real data.
+
+on:
+  schedule:
+    # 04:17 UTC daily. Off the hour on purpose: GitHub's scheduler queues a
+    # spike of jobs at :00 and delays them unpredictably, and an odd minute
+    # makes this run's timestamps easy to pick out of a log.
+    - cron: "17 4 * * *"
+
+  # Manual trigger, because the first question after a failure is "can I just
+  # run it again", and the second is "can I pull more than the usual window".
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Days to pull (blank = size from the last successful run)"
+        required: false
+        type: string
+      full:
+        description: "Full 180-day re-pull"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  # Never two syncs at once. Both would upsert the same source_ids, and while
+  # that is safe by design, it doubles the load on a vendor that rate-limits us.
+  # cancel-in-progress is FALSE: a half-finished import is worse than a late one.
+  group: sync-trackingtime
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Import and link
+    runs-on: ubuntu-latest
+    # A full pull is ~4,000 entries across several paginated endpoints with a
+    # 350ms pause between calls. Ten minutes is generous; the default 360 would
+    # let a wedged call burn six hours of runner time.
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync
+        env:
+          TRACKINGTIME_AUTH: ${{ secrets.TRACKINGTIME_AUTH }}
+          TRACKINGTIME_ACCOUNT_ID: ${{ secrets.TRACKINGTIME_ACCOUNT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # Fail early and loudly rather than recording a "successful" run that
+          # pulled nothing. A missing secret is the likeliest cause of a sync
+          # that appears to work and silently imports zero rows.
+          if [ -z "$TRACKINGTIME_AUTH" ]; then
+            echo "TRACKINGTIME_AUTH is not set -- add it as a repository secret."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY is not set -- add it as a repository secret."
+            exit 1
+          fi
+
+          if [ "${{ inputs.full }}" = "true" ]; then
+            node scripts/sync-trackingtime.mjs --full
+          elif [ -n "${{ inputs.days }}" ]; then
+            node scripts/sync-trackingtime.mjs --days "${{ inputs.days }}"
+          else
+            # --since-last, not a fixed window: if the schedule missed a week,
+            # this pulls a week. A fixed --days 14 would silently lose the rest.
+            node scripts/sync-trackingtime.mjs --since-last
+          fi
+
+      - name: Report freshness
+        # Runs even when the sync failed -- that is exactly when someone wants to
+        # know how old the data now is. The failure is already recorded in
+        # raw.sync_run by the importer, so the dashboard shows ageing data rather
+        # than a green tick.
+        if: always()
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/check-sync-freshness.mjs || true

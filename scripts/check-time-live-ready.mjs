@@ -141,24 +141,34 @@ if (schemaExposed) {
 
 // ── 2. Does the portal tile point at the page that exists? ─────────────────
 const tileRes = await fetch(
-  `${url}/rest/v1/app_module?select=module_key,href,is_live&module_key=eq.time`,
+  `${url}/rest/v1/app_module?select=module_key,display_name,href,is_live&module_key=eq.time`,
   { headers },
 );
 const tile = tileRes.status === 200 ? (await tileRes.json())[0] : null;
 
 if (!tile) {
-  report(false, "the Time Tracking tile exists", `app_module unreadable (${tileRes.status})`);
+  report(false, "the TrackingTime tile exists", `app_module unreadable (${tileRes.status})`);
 } else {
+  // The destination is the organisation dashboard, not the personal tracker.
+  // A tile still on /time is not a cosmetic wart: everyone entering through
+  // the portal lands on their own week and never reaches the company report.
   report(
-    tile.href === "/time",
-    "the Time Tracking tile points at /time",
+    tile.href === "/time/dashboard",
+    "the TrackingTime tile points at /time/dashboard",
     `href=${tile.href}`,
   );
-  if (tile.href === "/timesheets") {
+  report(
+    tile.display_name === "TrackingTime API Dashboard",
+    'the tile is named "TrackingTime API Dashboard"',
+    `display_name=${tile.display_name}`,
+  );
+  if (tile.href === "/timesheets" || tile.href === "/time") {
     console.log(
       "\n  FIX: the seed uses `on conflict do nothing`, so it cannot correct an\n" +
-        "       existing row. Run the repair statement from supabase/schema.sql:\n" +
-        "         update app_module set href = '/time' where module_key = 'time';",
+        "       existing row. Run the repair statements from supabase/schema.sql:\n" +
+        "         update app_module set href = '/time/dashboard',\n" +
+        "                display_name = 'TrackingTime API Dashboard'\n" +
+        "          where module_key = 'time';",
     );
   }
 }

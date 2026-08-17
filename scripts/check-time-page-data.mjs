@@ -50,14 +50,19 @@ await db.exec(readFileSync("supabase/schema.sql", "utf8"));
 // database that already has the row. An explicit UPDATE does. This asserts the
 // end state rather than the mechanism.
 const { rows: tile } = await db.query(
-  `select href, is_live from app_module where module_key = 'time'`,
+  `select href, display_name, is_live from app_module where module_key = 'time'`,
 );
 check(
-  "the Time Tracking tile points at /time, not the Hub's hours grid",
-  tile[0]?.href === "/time",
+  "the TrackingTime tile points at the organisation dashboard, not one person's week",
+  tile[0]?.href === "/time/dashboard",
   `href=${tile[0]?.href}`,
 );
-check("the Time Tracking module is live", tile[0]?.is_live === true);
+check(
+  'the tile is named "TrackingTime API Dashboard"',
+  tile[0]?.display_name === "TrackingTime API Dashboard",
+  `display_name=${tile[0]?.display_name}`,
+);
+check("the TrackingTime module is live", tile[0]?.is_live === true);
 
 // Prove the UPDATE is what fixes it, rather than the INSERT having merely
 // happened to be first: re-point the row to the stale value and re-apply just
@@ -74,6 +79,18 @@ const hrefRepair = schemaSql.match(
 check(
   "schema.sql contains an explicit href repair, not just a do-nothing insert",
   hrefRepair !== null,
+);
+
+// The second repair, which moves the tile from the personal tracker to the
+// organisation dashboard. Matched separately because it is a distinct statement
+// with a distinct precondition (href = '/time', not '/timesheets') -- a single
+// regex over both would pass while only one of them existed.
+const dashboardRepair = schemaSql.match(
+  /update app_module\s*\n\s*set href\s*=\s*'\/time\/dashboard'[\s\S]*?;/,
+);
+check(
+  "schema.sql repoints the tile at /time/dashboard on an already-seeded database",
+  dashboardRepair !== null,
 );
 
 if (hrefRepair) {
@@ -100,7 +117,44 @@ if (hrefRepair) {
     custom[0]?.href === "/custom-time",
     `href=${custom[0]?.href}`,
   );
-  await db.exec(`update app_module set href = '/time' where module_key = 'time'`);
+  await db.exec(`update app_module set href = '/time/dashboard' where module_key = 'time'`);
+}
+
+// The dashboard repair, exercised the same way: a database seeded before this
+// change sits on /time, and only an explicit UPDATE moves it.
+if (dashboardRepair) {
+  await db.exec(
+    `update app_module set href = '/time', display_name = 'Time Tracking' where module_key = 'time'`,
+  );
+  await db.exec(dashboardRepair[0]);
+  const { rows: moved } = await db.query(
+    `select href, display_name from app_module where module_key = 'time'`,
+  );
+  check(
+    "that statement moves a legacy /time tile onto the dashboard",
+    moved[0]?.href === "/time/dashboard",
+    `href=${moved[0]?.href}`,
+  );
+  check(
+    "and renames it in the same statement, so route and label cannot drift apart",
+    moved[0]?.display_name === "TrackingTime API Dashboard",
+    `display_name=${moved[0]?.display_name}`,
+  );
+
+  // Narrow in the same way as the first repair.
+  await db.exec(`update app_module set href = '/custom-time' where module_key = 'time'`);
+  await db.exec(dashboardRepair[0]);
+  const { rows: custom2 } = await db.query(
+    `select href from app_module where module_key = 'time'`,
+  );
+  check(
+    "a customised href survives the dashboard repair too",
+    custom2[0]?.href === "/custom-time",
+    `href=${custom2[0]?.href}`,
+  );
+  await db.exec(
+    `update app_module set href = '/time/dashboard', display_name = 'TrackingTime API Dashboard' where module_key = 'time'`,
+  );
 }
 
 // ── 2. Seed entries whose totals are checkable by hand ────────────────────

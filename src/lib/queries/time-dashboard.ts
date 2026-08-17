@@ -483,3 +483,131 @@ export async function getProjectEconomics(
     return [];
   }
 }
+
+// ---------------------------------------------------------------------------
+// Freshness
+// ---------------------------------------------------------------------------
+
+export type SyncFreshness = {
+  /** When the last SUCCESSFUL run finished. Null if there has never been one. */
+  lastSuccessAt: string | null;
+  /** Whole hours since that run, or null when there is nothing to measure from. */
+  hoursSince: number | null;
+  /** Rows written by that run — the sanity check on "it said ok". */
+  recordCount: number | null;
+  /**
+   * A run that started and never finished, or finished as 'failed', SINCE the
+   * last success. This is the case that must not read as healthy: the data is
+   * intact and correct, but it is no longer being refreshed.
+   */
+  failedSince: number;
+  /** True when the newest run is still 'running' — a sync in flight right now. */
+  inProgress: boolean;
+  /**
+   * ok      — refreshed within a day
+   * stale   — a day to a week old, or something has failed since the last success
+   * missing — over a week old, or no successful run has ever been recorded
+   *
+   * Thresholds are deliberately generous: the schedule is daily, so a single
+   * missed run should not shout, but a week of silence is a real outage.
+   */
+  status: "ok" | "stale" | "missing";
+};
+
+/** Hours after which the data stops being "today's" and starts being old. */
+const STALE_AFTER_HOURS = 24;
+/** Hours after which nobody should trust the numbers without asking why. */
+const MISSING_AFTER_HOURS = 24 * 7;
+
+/**
+ * How fresh the TrackingTime import is — the read behind the dashboard's
+ * freshness banner.
+ *
+ * WHY THIS EXISTS: every figure on the dashboard is a snapshot of whenever the
+ * importer last ran. Without this, a page whose data stopped updating three
+ * weeks ago renders exactly like one refreshed an hour ago — confident, precise
+ * and wrong. That is the same failure class as the billable-percent and €0
+ * revenue bugs: a plausible number, not an error anyone would notice.
+ *
+ * Reads the last SUCCESSFUL run, not the last run, and counts failures since it
+ * separately. A cron job that fails every night while the dashboard shows a
+ * green tick is the exact outcome this is written to prevent.
+ *
+ * Degrades to a null/`missing` shape rather than throwing: `raw` may not be
+ * exposed in a given environment, and a dashboard that 500s over its own
+ * freshness widget is worse than one that admits it does not know.
+ */
+export async function getSyncFreshness(
+  supabase: SupabaseTyped,
+  source = "trackingtime",
+): Promise<SyncFreshness> {
+  const empty: SyncFreshness = {
+    lastSuccessAt: null,
+    hoursSince: null,
+    recordCount: null,
+    failedSince: 0,
+    inProgress: false,
+    status: "missing",
+  };
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawSchema = (supabase as any).schema("raw");
+
+    const { data: okRows, error } = await rawSchema
+      .from("sync_run")
+      .select("finished_at, record_count")
+      .eq("source", source)
+      .eq("status", "ok")
+      .not("finished_at", "is", null)
+      .order("finished_at", { ascending: false })
+      .limit(1);
+
+    if (error) return empty;
+
+    const last = okRows?.[0] ?? null;
+    const lastSuccessAt: string | null = last?.finished_at ?? null;
+
+    // Anything that has run since the last success, so a silent string of
+    // failures cannot hide behind an old green row.
+    const { data: sinceRows } = await rawSchema
+      .from("sync_run")
+      .select("status, started_at")
+      .eq("source", source)
+      .order("started_at", { ascending: false })
+      .limit(50);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recent = (sinceRows ?? []) as any[];
+    const cutoff = lastSuccessAt ? new Date(lastSuccessAt).getTime() : 0;
+
+    const failedSince = recent.filter(
+      (r) => r.status === "failed" && new Date(r.started_at).getTime() > cutoff,
+    ).length;
+    const inProgress = recent.some((r) => r.status === "running");
+
+    if (!lastSuccessAt) return { ...empty, failedSince, inProgress };
+
+    const hoursSince = Math.floor((Date.now() - new Date(lastSuccessAt).getTime()) / 3_600_000);
+
+    // A failure since the last success is at least "stale" no matter how recent
+    // that success was: the pipeline is broken now, which is what matters.
+    const status: SyncFreshness["status"] =
+      hoursSince >= MISSING_AFTER_HOURS
+        ? "missing"
+        : hoursSince >= STALE_AFTER_HOURS || failedSince > 0
+          ? "stale"
+          : "ok";
+
+    return {
+      lastSuccessAt,
+      hoursSince,
+      recordCount: numOrNull(last?.record_count),
+      failedSince,
+      inProgress,
+      status,
+    };
+  } catch {
+    return empty;
+  }
+}

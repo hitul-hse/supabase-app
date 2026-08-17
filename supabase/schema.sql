@@ -1124,6 +1124,25 @@ on conflict (module_key) do nothing;
 update app_module set href = '/time', tagline = 'Tracked intervals, billable hours, services'
  where module_key = 'time' and href = '/timesheets';
 
+-- Second correction, same mechanism and same reason. The tile pointed at /time
+-- (one person's own week) while the module's actual destination is the
+-- organisation-wide report at /time/dashboard. Anyone arriving through the
+-- portal therefore landed on the personal tracker and never saw the company
+-- dashboard at all -- the sidebar had been repointed, the tile had not.
+--
+-- Named "TrackingTime API Dashboard" deliberately: it reports data imported
+-- FROM the TrackingTime API, and while that pipeline is the thing being built
+-- the name should say so plainly rather than read as a second, competing
+-- time-tracking product.
+--
+-- Narrow, like the repair above: only a tile still on the old route is moved,
+-- so a deliberate re-route made in the admin UI survives a re-run.
+update app_module
+   set href         = '/time/dashboard',
+       display_name = 'TrackingTime API Dashboard',
+       tagline      = 'Company hours, projects, customers, budgets'
+ where module_key = 'time' and href = '/time';
+
 -- Canonical permission catalogue. These 22 keys are the ones src/lib/permissions.ts
 -- checks, and check-permissions-rls.mjs asserts the two lists stay in step --
 -- adding a key to one without the other fails that gate.

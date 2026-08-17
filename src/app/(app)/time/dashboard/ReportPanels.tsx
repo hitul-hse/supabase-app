@@ -16,6 +16,8 @@ import type {
   Totals,
   TrendPoint,
 } from "@/lib/queries/trackingtime-report";
+import Link from "next/link";
+import type { SyncFreshness } from "@/lib/queries/time-dashboard";
 
 /* ------------------------------------------------------------------ shared */
 
@@ -260,24 +262,46 @@ export function TrendChart({
 
 /* -------------------------------------------------------------- breakdown */
 
+/**
+ * Breakdown by one dimension, with each named row acting as a drill-down.
+ *
+ * WHY DRILL-DOWN IS A LINK AND NOT A DETAIL PAGE: every number a customer or
+ * project page would show — hours, billable split, trend, budget, entries — is
+ * already computed here from the same filtered `entries` array. A separate
+ * route would be a second implementation of the same arithmetic reading the
+ * same rows, and the two would eventually disagree; the version people trust
+ * would then be whichever they opened last. Narrowing the existing filter keeps
+ * one code path and one set of totals, and it composes: customer → project →
+ * member is three clicks with no extra query written.
+ *
+ * `hrefFor` is supplied by the page because only the page knows the current
+ * filter state. Rows with a null id (the deliberate "(no project)" bucket, and
+ * every task row, since tasks are grouped by name) are NOT linked: there is no
+ * id to filter on, and a link that silently does nothing is worse than plain
+ * text.
+ */
 export function BreakdownTable({
   rows,
   dimension,
+  hrefFor,
 }: {
   rows: GroupRow[];
   dimension: string;
+  hrefFor?: (row: GroupRow) => string | null;
 }) {
   if (rows.length === 0) return null;
 
   const shown = rows.slice(0, 40);
+  const anyLinked = hrefFor ? shown.some((r) => hrefFor(r) !== null) : false;
 
   return (
     <Panel
       title={`BY ${dimension.toUpperCase()}`}
       hint={
-        rows.length > shown.length
+        (rows.length > shown.length
           ? `top ${shown.length} of ${rows.length} · ranked by hours`
-          : `${rows.length} ${rows.length === 1 ? "row" : "rows"} · ranked by hours`
+          : `${rows.length} ${rows.length === 1 ? "row" : "rows"} · ranked by hours`) +
+        (anyLinked ? " · select a row to filter" : "")
       }
     >
       <div className="overflow-x-auto">
@@ -300,12 +324,34 @@ export function BreakdownTable({
                 className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]"
               >
                 <td className="max-w-[26rem] px-4 py-2">
-                  <div className="truncate text-[12px] text-[var(--text-primary)]">{r.label}</div>
-                  {r.secondary && (
-                    <div className="truncate text-[10.5px] text-[var(--text-faint)]">
-                      {r.secondary}
-                    </div>
-                  )}
+                  {(() => {
+                    const href = hrefFor ? hrefFor(r) : null;
+                    const label = (
+                      <>
+                        <div className="truncate text-[12px] text-[var(--text-primary)]">
+                          {r.label}
+                        </div>
+                        {r.secondary && (
+                          <div className="truncate text-[10.5px] text-[var(--text-faint)]">
+                            {r.secondary}
+                          </div>
+                        )}
+                      </>
+                    );
+                    return href === null ? (
+                      label
+                    ) : (
+                      <Link
+                        href={href}
+                        // Underline on hover only, and a real focus ring: this is
+                        // a dense table, and underlining 40 rows by default turns
+                        // the panel into noise.
+                        className="block rounded-[2px] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                      >
+                        {label}
+                      </Link>
+                    );
+                  })()}
                 </td>
                 <Td right mono>
                   {hrs(r.totalHours)}
@@ -487,5 +533,102 @@ export function RecentEntries({
         </table>
       </div>
     </Panel>
+  );
+}
+
+/* --------------------------------------------------------------- freshness */
+
+/** "17 Aug, 14:30" — precise enough to correlate with a sync log. */
+function stamp(isoTs: string): string {
+  const d = new Date(isoTs);
+  if (Number.isNaN(d.getTime())) return isoTs;
+  return d.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function age(hours: number): string {
+  if (hours < 1) return "less than an hour ago";
+  if (hours === 1) return "1 hour ago";
+  if (hours < 48) return `${hours} hours ago`;
+  return `${Math.floor(hours / 24)} days ago`;
+}
+
+/**
+ * States how old this data is, on the page itself.
+ *
+ * WHY IT IS ALWAYS RENDERED, even when everything is fine: the whole dashboard
+ * is a snapshot of the last import, and a snapshot that does not say when it was
+ * taken is indistinguishable from live data. Hiding the indicator on the happy
+ * path would train people to assume freshness whenever they see nothing — which
+ * is precisely the state a broken sync produces.
+ *
+ * The "ok" case is deliberately quiet: one faint line, no colour, no icon. A
+ * green badge on every page view is noise, and noise is what stops anyone
+ * reading the banner on the day it finally turns red.
+ *
+ * `failedSince > 0` is called out separately from age because it is a different
+ * problem: the numbers are still correct, but they have stopped moving, and the
+ * person reading needs to know the pipeline is broken rather than merely quiet.
+ */
+export function FreshnessBanner({ freshness }: { freshness: SyncFreshness }) {
+  const { status, lastSuccessAt, hoursSince, recordCount, failedSince, inProgress } = freshness;
+
+  if (status === "ok" && lastSuccessAt && hoursSince !== null) {
+    return (
+      <p className="text-[10.5px] text-[var(--text-faint)]">
+        Imported from the TrackingTime API {age(hoursSince)} ({stamp(lastSuccessAt)})
+        {recordCount !== null ? ` · ${recordCount.toLocaleString("en-GB")} entries` : ""}
+        {inProgress ? " · a sync is running now" : ""}
+      </p>
+    );
+  }
+
+  // stale and missing share a shape and differ in tone: amber for "older than it
+  // should be", red for "nobody has successfully synced in a week or ever".
+  const critical = status === "missing";
+  const colour = critical ? "var(--critical)" : "var(--warning)";
+  const wash = critical ? "var(--critical-wash)" : "var(--warning-wash)";
+
+  const headline = !lastSuccessAt
+    ? "This data has never been refreshed automatically"
+    : critical
+      ? `This data is ${age(hoursSince ?? 0)} old`
+      : `This data was last refreshed ${age(hoursSince ?? 0)}`;
+
+  return (
+    <div
+      role="status"
+      className="border px-4 py-2.5"
+      style={{ borderColor: colour, background: wash }}
+    >
+      <p className="text-[12px] font-medium" style={{ color: colour }}>
+        {headline}
+        {lastSuccessAt ? ` (${stamp(lastSuccessAt)})` : ""}
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+        {failedSince > 0 ? (
+          <>
+            {failedSince} sync {failedSince === 1 ? "attempt has" : "attempts have"} failed since
+            then, so the figures below are correct but no longer updating.{" "}
+          </>
+        ) : !lastSuccessAt ? (
+          <>
+            Every figure below comes from a one-off manual import, so it reflects whenever that was
+            run rather than today.{" "}
+          </>
+        ) : (
+          <>
+            Every figure below is a snapshot from that import, not a live reading.{" "}
+          </>
+        )}
+        {inProgress
+          ? "A sync is running right now — reload shortly."
+          : "Run `npm run sync:trackingtime` to refresh."}
+      </p>
+    </div>
   );
 }

@@ -33,12 +33,21 @@ function label(isoDay: string, bucket: string): string {
 export function TrendChart({
   points,
   bucket,
-  /** Given a bucket start, the report narrowed to that bucket. */
   hrefFor,
 }: {
   points: TrendPoint[];
   bucket: string;
-  hrefFor?: (point: TrendPoint) => string | null;
+  /**
+   * Drill-down target per bucket start, e.g. { "2026-08-10": "/time/dashboard?…" }.
+   *
+   * A RECORD rather than a callback, because this is a Client Component and a
+   * function cannot cross that boundary -- React refuses with "Functions cannot
+   * be passed directly to Client Components", which surfaces as the page's error
+   * boundary rather than as a type error. Only the server knows the rest of the
+   * filter state, so it precomputes the links; buckets absent from the record
+   * simply do not link.
+   */
+  hrefFor?: Record<string, string>;
 }) {
   const [active, setActive] = useState<string | null>(null);
 
@@ -92,7 +101,7 @@ export function TrendChart({
           const h = (p.totalSeconds / max) * 100;
           const billShare = p.totalSeconds > 0 ? (p.billableSeconds / p.totalSeconds) * 100 : 0;
           const on = active === p.bucket;
-          const href = hrefFor ? hrefFor(p) : null;
+          const href = hrefFor?.[p.bucket] ?? null;
 
           const bar = (
             <span

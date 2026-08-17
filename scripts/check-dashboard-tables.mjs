@@ -221,14 +221,16 @@ const server = createServer((req, res) => {
       inList("customer_id", "customer_id");
       inList("service_id", "service_id");
 
-      // Paging: an offset past the data must answer [] so the report's loop
-      // terminates rather than spinning to MAX_PAGES.
-      const range = req.headers["range"];
-      if (typeof range === "string" && /^\d+-/.test(range)) {
-        const start = Number(range.split("-")[0]);
-        if (start > 0) rows = [];
-      }
-      return send(rows);
+      // Paging. supabase-js's .range() compiles to `offset`/`limit` QUERY
+      // PARAMS, not to a Range header -- checking the header (as an earlier
+      // version of this stub did) meant every page returned all 60 rows, the
+      // report never saw a short page, and fetchAllEntries looped to its
+      // 25-page ceiling and reported 1,500 duplicated entries. An offset past
+      // the data must answer [] so the loop terminates.
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      const limit = Number(url.searchParams.get("limit") ?? rows.length);
+      const paged = rows.slice(offset, offset + (Number.isFinite(limit) ? limit : rows.length));
+      return send(paged);
     }
 
     if (url.pathname === "/rest/v1/project") return send(projects);
@@ -421,12 +423,67 @@ try {
 
   const rowCount = async (title) => panel(title).locator("tbody tr").count();
 
+  /**
+   * Row count after a client-side interaction, polled.
+   *
+   * Reading the count immediately after a click races React's re-render: an
+   * earlier version asserted "ALL shows 60" against a DOM that still held the
+   * previous 25 and reported the feature broken when it worked. Polling to an
+   * EXPECTED value with a timeout keeps the failure message honest -- it still
+   * fails if the number never arrives.
+   */
+  const waitForRows = async (title, expected, timeout = 5000) => {
+    const started = Date.now();
+    let last = -1;
+    while (Date.now() - started < timeout) {
+      last = await rowCount(title);
+      if (last === expected) return last;
+      await page.waitForTimeout(100);
+    }
+    return last;
+  };
+
+  /**
+   * Click a control and confirm it took effect, retrying if not.
+   *
+   * THE RACE THIS EXISTS FOR: the first click after a navigation can land before
+   * React has hydrated the table, so the DOM button exists, Playwright clicks it
+   * happily, and nothing happens because no handler is attached yet. That failed
+   * as "ALL shows 25 rows" -- indistinguishable from the truncation bug this
+   * whole gate is about, which is the worst possible false positive here.
+   */
+  const clickUntil = async (locator, settled, attempts = 12) => {
+    for (let i = 0; i < attempts; i++) {
+      await locator.click();
+      // A short settle window per attempt rather than one long one, so a lost
+      // pre-hydration click is retried rather than waited out.
+      for (let j = 0; j < 10; j++) {
+        if (await settled()) return true;
+        await page.waitForTimeout(100);
+      }
+    }
+    return await settled();
+  };
+
   // ── 1. The report loads at all ───────────────────────────────────────────
   const resp = await goto("preset=this_month&group=project&bucket=day");
   check("GET /time/dashboard returns 200 for a signed-in exec", resp?.status() === 200, `status ${resp?.status()}`);
   check("not bounced to /auth/login", !page.url().includes("/auth/login"), page.url());
 
   const text = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  if (process.env.DUMP === "1") {
+    fs.writeFileSync("tmp-tables-text.txt", text);
+    fs.writeFileSync("tmp-tables-requests.txt", requests.join("\n"));
+    fs.writeFileSync("tmp-tables-applog.txt", appLog);
+    console.log("(dumped page text and stub requests)");
+  }
+  // The page has an error boundary, so a server-side throw renders as a tidy
+  // "This page couldn't load" card -- which then fails every assertion below
+  // with a misleading message about missing rows. Name the real cause instead.
+  if (/This page couldn't load/.test(text)) {
+    check("the dashboard rendered rather than hitting its error boundary", false,
+      `server threw. Last app log:\n${appLog.slice(-2500)}`);
+  }
   check(
     "the seeded total is reported",
     text.includes(`${TOTAL_HOURS.toLocaleString("en-GB")}h`),
@@ -449,7 +506,10 @@ try {
   );
 
   // Reaching row 60 is the whole point. ALL removes the page limit.
-  await panel("BY PROJECT").getByRole("button", { name: "ALL" }).click();
+  await clickUntil(
+    panel("BY PROJECT").getByRole("button", { name: "ALL" }),
+    async () => (await rowCount("BY PROJECT")) === PROJECT_COUNT,
+  );
   const allRows = await rowCount("BY PROJECT");
   check(
     "every one of the 60 projects is reachable via ALL",
@@ -502,13 +562,41 @@ try {
 
   // ── 4. In-table search narrows ───────────────────────────────────────────
   const search = panel("BY PROJECT").getByPlaceholder(/Find project/i);
-  await search.fill("Projekt 1");
-  // Projekt 1, 10-19 = 11 rows.
-  const searched = await rowCount("BY PROJECT");
+  // "Betreuung 1" would be ambiguous: every row's customer hint is "Kunde N", so
+  // a bare "1" also matches Kunde 1. Searching a full padded name is exact --
+  // "Projekt 07" matches precisely one row, which is the sharpest possible
+  // assertion that the search reaches the data.
+  await search.fill("Projekt 07");
+  const searchedOne = await waitForRows("BY PROJECT", 1);
   check(
-    "in-table search narrows to matching rows",
-    searched === 11,
-    `${searched} rows for "Projekt 1", expected 11 (Projekt 1 plus 10–19)`,
+    "search narrows to the single exact match",
+    searchedOne === 1,
+    `${searchedOne} rows for "Projekt 07", expected exactly 1`,
+  );
+
+  // The expectation is computed by REPLAYING the component's own rule -- every
+  // whitespace-separated term must appear somewhere in the row's searchable text
+  // -- rather than by eyeballing a number.
+  //
+  // That distinction matters here: "Projekt 1" is two terms, so the "1" also
+  // matches every project whose customer hint is "Kunde 1". The answer is 25,
+  // not the 11 a name-only reading suggests, and 11 was what an earlier version
+  // of this gate asserted and failed on while the search worked correctly.
+  const matchesSearch = (p, q) => {
+    const hay = `${p.name} ${p.customer.name}`.toLowerCase();
+    return q
+      .toLowerCase()
+      .trim()
+      .split(/\s+/)
+      .every((t) => hay.includes(t));
+  };
+  const EXPECT_PROJEKT_1 = projects.filter((p) => matchesSearch(p, "Projekt 1")).length;
+  await search.fill("Projekt 1");
+  const searched = await waitForRows("BY PROJECT", EXPECT_PROJEKT_1);
+  check(
+    "in-table search matches on the customer hint as well as the name",
+    searched === EXPECT_PROJEKT_1 && searched < PROJECT_COUNT,
+    `${searched} rows for "Projekt 1", expected ${EXPECT_PROJEKT_1} — and fewer than all ${PROJECT_COUNT}, or the search filtered nothing`,
   );
   const searchedText = (await panel("BY PROJECT").innerText()).replace(/\s+/g, " ");
   check(
@@ -516,14 +604,23 @@ try {
     /filtered from 60/.test(searchedText),
     "a filtered count with no 'of 60' reads as the whole dataset",
   );
-  // Multi-term search must AND, not OR: "kunde 1" alongside a project term
-  // should narrow further, never widen.
-  await search.fill("Projekt 1 Kunde 2");
-  const anded = await rowCount("BY PROJECT");
+  // Multi-term search must AND, not OR. "Projekt 07 Kunde 3" is Projekt 07 and
+  // its own customer, so it stays at one row; swapping in a customer that
+  // project does NOT belong to must drop to zero. That pair is the sharp test:
+  // an OR would return every Kunde 3 project in both cases.
+  await search.fill("Projekt 07 Kunde 3");
+  const andedHit = await waitForRows("BY PROJECT", 1);
   check(
-    "multi-term search ANDs the terms rather than ORing them",
-    anded > 0 && anded < searched,
-    `${anded} rows, expected fewer than the ${searched} for "Projekt 1" alone`,
+    "AND-search keeps a row when every term matches it",
+    andedHit === 1,
+    `${andedHit} rows for "Projekt 07 Kunde 3" (Projekt 07 belongs to Kunde 3), expected 1`,
+  );
+  await search.fill("Projekt 07 Kunde 4");
+  const andedMiss = await waitForRows("BY PROJECT", 0);
+  check(
+    "AND-search drops a row when one term does not match, rather than ORing",
+    andedMiss === 0,
+    `${andedMiss} rows for "Projekt 07 Kunde 4" — Projekt 07 is Kunde 3, so ANDing gives 0 while ORing would list every Kunde 4 project`,
   );
 
   await search.fill("zzzzz-no-such-project");

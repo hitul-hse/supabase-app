@@ -385,11 +385,7 @@ export default async function TrackingTimeDashboardPage({
                 groupLabel={`Every figure covers ${period}`}
               />
 
-              <TrendChart
-                points={points}
-                bucket={bucket}
-                hrefFor={(p) => trendHrefs[p.bucket] ?? null}
-              />
+              <TrendChart points={points} bucket={bucket} hrefFor={trendHrefs} />
 
               {/* Economics sits high when present: for the audience allowed to
                   see it, margin is the first question rather than the last. */}

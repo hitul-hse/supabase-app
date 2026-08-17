@@ -144,7 +144,7 @@ console.log("\n--- a real flat event becomes a draft ---------------------------
   check("the vendor timezone is retained", draft?.timezone === "GMT+02:00");
 }
 {
-  // The structural GHOST case: 34% of live rows, no customer and no project.
+  // The structural GHOST case: 46% of live rows, no customer and no project.
   const draft = toEntryDraft({
     ID: 118477558,
     "User Id": 527218,
@@ -160,7 +160,7 @@ console.log("\n--- a real flat event becomes a draft ---------------------------
     "CALENDAR_SYNC_EVENT (Event CF)": "Google Calendar Event",
     "Task Type": "GHOST",
   });
-  check("an untagged GHOST event still maps", draft !== null, "34% of live rows look like this");
+  check("an untagged GHOST event still maps", draft !== null, "46% of live rows look like this");
   check(
     "no project and no customer is preserved as null, not invented",
     draft?.projectSourceId === null && draft?.customerSourceId === null

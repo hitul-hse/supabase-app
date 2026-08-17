@@ -75,7 +75,8 @@
     "test:entry-policy-equivalence": "node scripts/check-entry-policy-equivalence.mjs",
     "check:rls-hoisting": "node scripts/check-rls-hoisting.mjs",
     "profile:dashboard": "node --experimental-strip-types scripts/profile-dashboard-render.mjs",
-    "check:dashboard-acceptance": "node scripts/check-dashboard-acceptance.mjs"
+    "check:dashboard-acceptance": "node scripts/check-dashboard-acceptance.mjs",
+    "measure:latency-variance": "node scripts/measure-latency-variance.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

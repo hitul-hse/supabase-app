@@ -68,6 +68,24 @@ const hrs = (s) => Math.round((s ?? 0) / 3600);
 // undercount both the members and the hours.
 const perMemberAll = new Map();
 const perMemberBounded = new Map();
+// Split further by whether the entry falls in a COMPLETED week or the week in
+// progress, so the headline comparison further down can restrict both sides to
+// completed weeks. Without that split, the in-progress week's planned days make
+// the two aggregates differ for a legitimate reason and there is nothing to
+// compare against.
+const completedByMember = new Map();
+const currentByMember = new Map();
+
+// The Monday of the week in progress, in UTC to match how week_start is stored;
+// a local-midnight boundary would shift the cutoff by a day either side of
+// midnight.
+const mondayUtc = (iso) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+};
+const currentMonday = mondayUtc(today);
+
 let entryRows = 0;
 for (let from = 0; ; from += 1000) {
   const page = await must(
@@ -85,9 +103,16 @@ for (let from = 0; ; from += 1000) {
   for (const r of page) {
     if (!r.member_id) continue;
     const secs = Number(r.duration_seconds ?? 0);
+    const day = (r.started_at ?? "").slice(0, 10);
     perMemberAll.set(r.member_id, (perMemberAll.get(r.member_id) ?? 0) + secs);
-    if ((r.started_at ?? "").slice(0, 10) <= today) {
+    if (day && day <= today) {
       perMemberBounded.set(r.member_id, (perMemberBounded.get(r.member_id) ?? 0) + secs);
+    }
+    if (!day) continue;
+    if (mondayUtc(day) < currentMonday) {
+      completedByMember.set(r.member_id, (completedByMember.get(r.member_id) ?? 0) + secs);
+    } else if (mondayUtc(day) === currentMonday && day <= today) {
+      currentByMember.set(r.member_id, (currentByMember.get(r.member_id) ?? 0) + secs);
     }
   }
   if (page.length < 1000) break;
@@ -147,23 +172,57 @@ check(
 );
 
 // ── The headline agreement: People's sum vs the org total ────────────────
-const viewTotal = view.reduce((s, r) => s + Number(r.total_seconds ?? 0), 0);
+//
+// COMPARED LIKE WITH LIKE, which needs saying because the two sides bound
+// differently ON PURPOSE:
+//
+//   - org_week (Overview) bounds by WEEK. getOrgWeeks includes the in-progress
+//     week whole, because a lead needs to see the week they are in. That row is a
+//     sum over all seven days, so it carries days that have not happened.
+//   - member_utilisation (People) bounds by DAY, at current_date, so planned work
+//     is excluded per person.
+//
+// The difference is therefore exactly this week's unelapsed planned time, and it
+// is real: measured today, org_week reports 182h for the current week while only
+// 88h has actually been logged, a 94h residue that would shrink to zero by Sunday
+// and reappear on Monday. A percentage tolerance would "pass" by being loose
+// enough to swallow a drifting number, and would have swallowed a genuine fault
+// on a quiet week.
+//
+// So the current week is excluded from BOTH sides and compared on completed weeks
+// only, where the two definitions coincide and the expected difference is zero
+// apart from per-week rounding.
 const weeks = await must(
   "read time.org_week",
   admin.schema("time").from("org_week").select("week_start, total_seconds"),
 );
-const orgBounded = weeks
-  .filter((w) => w.week_start <= today)
+
+const orgCompleted = weeks
+  .filter((w) => w.week_start < currentMonday)
   .reduce((s, w) => s + Number(w.total_seconds ?? 0), 0);
 
-// Weekly buckets round per week, so a small residue is expected; 1% is far
-// tighter than the 9% the real bug produced.
-const drift = Math.abs(viewTotal - orgBounded);
-const tolerance = orgBounded * 0.01;
+// The same restriction on the People side, rebuilt from entries: the view has no
+// per-week breakdown, so completed-week hours have to be recomputed here.
+const peopleCompleted = [...perMemberBounded.keys()].reduce((sum, id) => sum + (completedByMember.get(id) ?? 0), 0);
+
+const drift = Math.abs(peopleCompleted - orgCompleted);
+// Per-week rounding only; an order of magnitude tighter than the 1% that let the
+// 94h definitional residue sit undetected as "within tolerance".
+const tolerance = orgCompleted * 0.001;
 check(
-  "the sum of per-person hours agrees with the organisation total",
+  "per-person and organisation hours agree on completed weeks",
   drift <= tolerance,
-  `people ${hrs(viewTotal)}h vs overview ${hrs(orgBounded)}h -- ${hrs(drift)}h apart (${Math.round((drift / orgBounded) * 100)}%), tolerance ${hrs(tolerance)}h`,
+  `people ${hrs(peopleCompleted)}h vs overview ${hrs(orgCompleted)}h across weeks before ${currentMonday} -- ${hrs(drift)}h apart, tolerance ${hrs(tolerance)}h`,
+);
+
+// And state the in-progress week's difference rather than hiding it: it is
+// expected, but a reader comparing the two tabs today deserves the reason.
+const orgCurrent = Number(weeks.find((w) => w.week_start === currentMonday)?.total_seconds ?? 0);
+const peopleCurrent = [...perMemberBounded.keys()].reduce((sum, id) => sum + (currentByMember.get(id) ?? 0), 0);
+console.log(
+  `\n  in-progress week (${currentMonday}): Overview shows ${hrs(orgCurrent)}h, of which ${hrs(peopleCurrent)}h has\n` +
+    `  actually been logged. The remaining ${hrs(orgCurrent - peopleCurrent)}h is planned work on days that have\n` +
+    "  not happened yet, which the Overview includes by design and the People tab does not.",
 );
 
 // ── "Last active" must not be in the future ─────────────────────────────

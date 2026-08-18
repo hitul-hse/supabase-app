@@ -58,6 +58,16 @@
  * they test a real, separate thing (the page itself does not render or
  * leak data while signed out) and cost nothing to keep.
  *
+ * FIX ROUND 2 (Important): fix round 1 covered four of the five exported
+ * actions in actions.ts -- ACTIONS omitted changePassword, so the docstring's
+ * claim of "each profile Server Action" was still false for the one action
+ * that changes a password, architecturally identical to the other four and
+ * defended by nothing action-specific. Added it, and added a count assertion
+ * (below) that fails loudly if ACTIONS and actions.ts's exported functions
+ * ever drift apart again, rather than relying on someone remembering to keep
+ * the array in sync by hand -- which is exactly how changePassword was
+ * missed the first time.
+ *
  * SKIPs unless a server is already running at PROFILE_GATE_URL, so CI
  * cannot go red for want of a build. The action-invocation checks
  * specifically SKIP (not the whole file) if `.next`'s
@@ -70,6 +80,8 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
+const ACTIONS_SRC_PATH = path.join("src", "app", "(app)", "profile", "actions.ts");
 
 const base = process.env.PROFILE_GATE_URL || "http://localhost:3000";
 
@@ -124,7 +136,13 @@ if (!existsSync(MANIFEST_PATH)) {
   );
 } else {
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
-  const ACTIONS = ["updateDisplayName", "uploadAvatar", "removeAvatar", "updatePreferences"];
+  const ACTIONS = [
+    "updateDisplayName",
+    "uploadAvatar",
+    "removeAvatar",
+    "updatePreferences",
+    "changePassword",
+  ];
 
   const idsByName = {};
   for (const [id, info] of Object.entries(manifest.node ?? {})) {
@@ -132,6 +150,22 @@ if (!existsSync(MANIFEST_PATH)) {
       idsByName[info.exportedName] = id;
     }
   }
+
+  // Coverage must not silently lag actions.ts. Rather than trust ACTIONS to
+  // stay in sync by hand (that's exactly how changePassword went uncovered
+  // in fix round 1), count the actual exported async functions in the
+  // source and assert it matches how many ids this gate resolved. If a
+  // sixth action is added later and nobody adds it to ACTIONS above, this
+  // fails loudly instead of quietly testing five out of six forever.
+  const actionsSrc = readFileSync(ACTIONS_SRC_PATH, "utf8");
+  const exportedActionCount = (actionsSrc.match(/^export async function \w+/gm) ?? []).length;
+  const resolvedCount = Object.keys(idsByName).length;
+  check(
+    resolvedCount === exportedActionCount,
+    `this gate resolves an id for every exported action in ${ACTIONS_SRC_PATH}`,
+    `resolved ${resolvedCount} of ${exportedActionCount} exported actions — ` +
+      `ACTIONS lists [${ACTIONS.join(", ")}]`,
+  );
 
   for (const name of ACTIONS) {
     const id = idsByName[name];

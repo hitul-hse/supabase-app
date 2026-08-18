@@ -1,26 +1,52 @@
 "use client";
 
+/**
+ * The Team Lead workload board.
+ *
+ * Every figure here is measured. The version this replaces rendered, for a
+ * company of 49 real people:
+ *
+ *   - a grid of five mockup names (Anna Brandt, C. Haas, P. Novak, R. Yilmaz,
+ *     J. Weiß) with hand-written hours, under fixed "W31"-"W34" headers that were
+ *     literal strings and so described the wrong weeks from week 35 onward;
+ *   - a KPI strip of four constants: 76%, 3, 14, "2 PEOPLE";
+ *   - three invented projects ("Site risk assessment 2026", 1 164/1 200 h);
+ *   - TIMESHEET and CERTS columns fed by `people.timesheet_status` and
+ *     `people.certificate_text`, i.e. strings like "SIFA EXP 12 SEP" for data no
+ *     system in this project holds.
+ *
+ * The certificate and timesheet columns are GONE rather than rewired. Nothing
+ * here tracks certificate expiry, and a board telling a lead "CERTS OK" when
+ * nothing is checking is worse than a board that stays quiet about it.
+ */
+
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import type { TeamLeadBooking, ApprovalDecisionRow, WeekBooking } from "@/lib/queries/types";
+import type { ApprovalDecisionRow } from "@/lib/queries/types";
+import type { TeamLeadBoardData, BoardCell } from "@/lib/queries/team-lead-live";
 import { approveDecision, approveAllPending } from "./actions";
+import { Button } from "@/components/ui/Button";
+import { IconCheck } from "@/components/nav-icons";
 
-function weekCell(week: WeekBooking) {
-  return week.status === "leave" ? "LEAVE" : week.hours;
+/** Hours to one decimal, or an em dash when the person logged nothing. */
+function cellText(cell: BoardCell): string {
+  if (cell.hours === null) return "–";
+  return cell.hours % 1 === 0 ? String(cell.hours) : cell.hours.toFixed(1);
 }
 
 export function TeamLeadBoard({
-  bookings,
+  board,
   initialDecisions,
-  weeks = ["W31", "W32", "W33", "W34"],
 }: {
-  bookings: TeamLeadBooking[];
+  board: TeamLeadBoardData;
   initialDecisions: ApprovalDecisionRow[];
-  weeks?: string[];
 }) {
   const [decisions, setDecisions] = useState(initialDecisions);
   const [approvedAll, setApprovedAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { weeks, rows, teamUtilisationPercent, activeCount, idleCount, overBudgetProjects } = board;
+  const range = weeks.length ? `${weeks[0].label}–${weeks[weeks.length - 1].label}` : "";
 
   const handleApprove = async (id: string) => {
     const previous = decisions;
@@ -51,94 +77,126 @@ export function TeamLeadBoard({
       <PageHeader
         category="HSE HUB / TEAM LEAD"
         title="Workload board"
-        meta={`${weeks[0]}–${weeks[3] ?? weeks[weeks.length - 1]} · ${bookings.length} PEOPLE`}
+        meta={`${range} · ${rows.length} PEOPLE · TRACKINGTIME`}
         actions={
           <>
             <span className="hidden font-mono text-[11px] text-[var(--text-muted)] border border-[var(--border)] px-3 py-1.5 sm:inline">
-              {weeks[0]}–{weeks[3] ?? weeks[weeks.length - 1]}
+              {range}
             </span>
-            <button
+            <Button
+              variant="primary"
               onClick={handleApproveAll}
               disabled={approvedAll || decisions.length === 0}
-              className="rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-1.5 text-[11.5px] font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] disabled:opacity-50"
             >
-              {approvedAll ? "All Approved ✓" : "Approve all clean"}
-            </button>
+              {approvedAll && <IconCheck className="h-3.5 w-3.5" />}
+              {approvedAll ? "All approved" : "Approve all clean"}
+            </Button>
           </>
         }
       />
 
       <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
-        {/* 4-KPI Strip — 2×2 on mobile, 4 across on lg */}
+        {/* Measured KPIs. Each renders "n/a" rather than 0 when there is no
+            basis: "nobody logged anything" and "the value is zero" are
+            different claims, and 0% reads as a team sitting idle. */}
         <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] lg:grid-cols-4">
           <div className="flex flex-col gap-1 border-b border-r border-[var(--border)] p-3 sm:p-3.5 lg:border-b-0">
             <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
               TEAM UTILISATION
             </span>
             <span className="font-mono text-[20px] font-semibold text-[var(--text-primary)] sm:text-[23px]">
-              76%
+              {teamUtilisationPercent === null ? "n/a" : `${teamUtilisationPercent}%`}
+            </span>
+            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
+              {board.weeklyHoursAreNominal ? "VS NOMINAL 40 H WEEK" : "VS CONTRACTED"}
             </span>
           </div>
 
           <div className="flex flex-col gap-1 border-b border-[var(--border)] p-3 sm:p-3.5 lg:border-b-0 lg:border-r">
             <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-              UNSUBMITTED
+              LOGGED THIS WINDOW
             </span>
-            <span className="font-mono text-[20px] font-semibold text-[var(--warning)] sm:text-[23px]">
-              3
+            <span className="font-mono text-[20px] font-semibold text-[var(--text-primary)] sm:text-[23px]">
+              {activeCount}
             </span>
+            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">PEOPLE</span>
           </div>
 
           <div className="flex flex-col gap-1 border-r border-[var(--border)] p-3 sm:p-3.5 lg:border-r">
             <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-              OVERDUE TASKS
+              NO TIME LOGGED
             </span>
-            <span className="font-mono text-[20px] font-semibold text-[var(--critical)] sm:text-[23px]">
-              14
+            <span
+              className="font-mono text-[20px] font-semibold sm:text-[23px]"
+              style={{ color: idleCount > 0 ? "var(--warning)" : "var(--text-primary)" }}
+            >
+              {idleCount}
+            </span>
+            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
+              ACTIVE MEMBERS
             </span>
           </div>
 
           <div className="flex flex-col gap-1 p-3 sm:p-3.5">
             <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-              ABSENCE NEXT 2W
+              OVER ESTIMATE
             </span>
-            <span className="font-mono text-[20px] font-semibold text-[var(--text-primary)] sm:text-[23px]">
-              2 <span className="text-[12px] text-[var(--text-muted)] font-normal">PEOPLE</span>
+            <span
+              className="font-mono text-[20px] font-semibold sm:text-[23px]"
+              style={{
+                color: overBudgetProjects.some((p) => p.burnPercent >= 100)
+                  ? "var(--critical)"
+                  : "var(--text-primary)",
+              }}
+            >
+              {overBudgetProjects.filter((p) => p.burnPercent >= 100).length}
             </span>
+            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">PROJECTS</span>
           </div>
         </div>
 
-        {/* Workload & Booking Table — horizontally scrollable with sticky name column */}
+        {/* Workload grid — horizontally scrollable with a sticky name column */}
         <div className="border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex items-baseline gap-2.5 border-b border-[var(--border)] px-4 py-3">
+          <div className="flex flex-wrap items-baseline gap-2.5 border-b border-[var(--border)] px-4 py-3">
             <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-              Workload &amp; booking
+              Hours logged per week
             </span>
             <span className="hidden font-mono text-[10.5px] text-[var(--text-muted)] sm:inline">
-              PLANNED H PER WEEK · CONTRACT H MINUS ABSENCE
+              FROM TRACKINGTIME ENTRIES · BOUNDED AT TODAY
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            {/* Fixed-width table with sticky first column */}
-            <table className="min-w-[580px] w-full border-collapse">
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--surface-2)] font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                  <th className="sticky left-0 bg-[var(--surface-2)] px-4 py-2 text-left font-normal">PERSON</th>
-                  {weeks.map((w) => (
-                    <th key={w} className="px-2 py-2 text-center font-normal">{w}</th>
-                  ))}
-                  <th className="px-4 py-2 text-right font-normal">TIMESHEET</th>
-                  <th className="px-4 py-2 text-right font-normal">CERTS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((member) => {
-                  const weekData = [member.w31, member.w32, member.w33, member.w34];
-                  return (
+          {rows.length === 0 ? (
+            <div className="p-8 text-center font-mono text-[12px] text-[var(--text-muted)]">
+              NO TIME LOGGED IN THE LAST {weeks.length} WEEKS
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-[560px] w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--surface-2)] font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+                    <th className="sticky left-0 bg-[var(--surface-2)] px-4 py-2 text-left font-normal">
+                      PERSON
+                    </th>
+                    {weeks.map((w) => (
+                      <th key={w.weekStart} className="px-2 py-2 text-center font-normal">
+                        {w.label}
+                        {/* The current week is only partly elapsed, so a low
+                            number there is not the same signal as a low number
+                            in a finished week. */}
+                        {w.isCurrent && (
+                          <span className="ml-1 text-[var(--text-muted)]">·</span>
+                        )}
+                      </th>
+                    ))}
+                    <th className="px-4 py-2 text-right font-normal">TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((member) => (
                     <tr
-                      key={member.name}
-                      className="border-b border-[#3a414c] text-[12.5px] hover:bg-[var(--surface-hover)]"
+                      key={member.memberId}
+                      className="border-b border-[var(--divider)] text-[12.5px] hover:bg-[var(--surface-hover)]"
                     >
                       <td className="sticky left-0 bg-[var(--surface)] px-4 py-2 hover:bg-[var(--surface-hover)]">
                         <div className="flex items-center gap-2">
@@ -152,61 +210,52 @@ export function TeamLeadBoard({
                           <span className="font-medium text-[var(--text-primary)] whitespace-nowrap">
                             {member.name}
                           </span>
+                          {member.isArchived && (
+                            <span className="font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)]">
+                              ARCHIVED
+                            </span>
+                          )}
                         </div>
                       </td>
 
-                      {weekData.map((week, idx) => (
-                        <td key={idx} className="px-2 py-2 text-center">
+                      {member.cells.map((cell, idx) => (
+                        <td key={weeks[idx]?.weekStart ?? idx} className="px-2 py-2 text-center">
                           <span
                             className={`inline-block min-w-[3rem] px-1 py-0.5 font-mono text-[11px] font-medium ${
-                              week.status === "over"
+                              cell.status === "over"
                                 ? "bg-[var(--critical)] text-black"
-                                : week.status === "leave"
-                                ? "bg-[#3a414c] text-[var(--text-muted)] text-[10px]"
-                                : week.status === "under"
+                                : cell.status === "none"
+                                ? "bg-transparent text-[var(--text-faint)]"
+                                : cell.status === "under"
                                 ? "bg-[#3a2f11] text-[#e5be6a]"
                                 : "bg-[#2a474b] text-[#b4d6ce]"
                             }`}
                           >
-                            {weekCell(week)}
+                            {cellText(cell)}
                           </span>
                         </td>
                       ))}
 
-                      <td className="px-4 py-2 text-right">
-                        <span
-                          className={`font-mono text-[11px] font-medium ${
-                            member.timesheetStatus === "SUBMITTED"
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--warning)]"
-                          }`}
-                        >
-                          {member.timesheetStatus}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-2 text-right">
-                        <span
-                          className={`font-mono text-[11px] ${
-                            member.certificates.status === "EXPIRING"
-                              ? "font-medium text-[var(--critical)]"
-                              : "text-[var(--text-muted)]"
-                          }`}
-                        >
-                          {member.certificates.text}
-                        </span>
+                      <td className="px-4 py-2 text-right font-mono text-[11.5px] text-[var(--text-secondary)]">
+                        {member.totalHours} h
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="border-t border-[var(--border)] px-4 py-2 font-mono text-[9.5px] text-[var(--text-faint)]">
+            {board.weeklyHoursAreNominal
+              ? "OVER / UNDER IS AGAINST A NOMINAL 40 H WEEK — TRACKINGTIME'S ACCOUNT DEFAULT, NOT A CONTRACT"
+              : "OVER / UNDER IS AGAINST CONTRACTED HOURS"}
+            {weeks.some((w) => w.isCurrent) && " · THE LAST COLUMN IS THE WEEK IN PROGRESS"}
           </div>
         </div>
 
-        {/* Lower Grid: Decisions & Team Projects */}
+        {/* Lower grid: decisions and the projects worth a lead's attention */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Decisions Queue */}
           <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex items-center justify-between">
               <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
@@ -266,30 +315,58 @@ export function TeamLeadBoard({
             </div>
           </div>
 
-          {/* Team Projects */}
           <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
-            <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-              Team projects
-            </span>
-
-            <div className="flex flex-col gap-3">
-              {[
-                { name: "Site risk assessment 2026", hours: "1 164 / 1 200 h", pct: 97, color: "var(--critical)", sub: "18 OPEN TASKS · 6 OVERDUE" },
-                { name: "Noise mapping – plant 2", hours: "402 / 560 h", pct: 72, color: "var(--accent)", sub: "11 OPEN TASKS · ON PLAN" },
-                { name: "Hazardous substances audit", hours: "118 / 320 h", pct: 37, color: "var(--accent)", sub: "KICK-OFF 18 AUG" },
-              ].map((project) => (
-                <div key={project.name} className="flex flex-col gap-1">
-                  <div className="flex flex-wrap justify-between gap-1 text-[12.5px]">
-                    <span className="font-medium text-[var(--text-primary)]">{project.name}</span>
-                    <span className="font-mono" style={{ color: project.color }}>{project.hours}</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-[var(--border)]">
-                    <div className="h-full" style={{ width: `${project.pct}%`, background: project.color }} />
-                  </div>
-                  <span className="font-mono text-[10.5px] text-[var(--text-muted)]">{project.sub}</span>
-                </div>
-              ))}
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+                Projects over estimate
+              </span>
+              <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                LOGGED / ESTIMATED
+              </span>
             </div>
+
+            {overBudgetProjects.length === 0 ? (
+              <div className="p-4 text-center font-mono text-[12px] text-[var(--text-muted)]">
+                NO PROJECT WITH AN ESTIMATE HAS LOGGED TIME YET
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {overBudgetProjects.map((project) => {
+                  const tone =
+                    project.burnPercent >= 100
+                      ? "var(--critical)"
+                      : project.burnPercent >= 85
+                      ? "var(--warning)"
+                      : "var(--accent)";
+                  return (
+                    <div key={project.projectId} className="flex flex-col gap-1">
+                      <div className="flex flex-wrap justify-between gap-1 text-[12.5px]">
+                        <span className="font-medium text-[var(--text-primary)]">
+                          {project.name}
+                        </span>
+                        <span className="font-mono" style={{ color: tone }}>
+                          {project.loggedHours} / {project.estimatedHours} h
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-[var(--border)]">
+                        {/* Capped at 100% width so a 422% burn does not overflow
+                            the track; the number beside it carries the truth. */}
+                        <div
+                          className="h-full"
+                          style={{
+                            width: `${Math.min(100, project.burnPercent)}%`,
+                            background: tone,
+                          }}
+                        />
+                      </div>
+                      <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+                        {project.burnPercent}% OF ESTIMATE
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

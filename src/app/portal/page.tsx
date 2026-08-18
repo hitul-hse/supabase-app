@@ -15,6 +15,7 @@ import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { requireProfile } from "@/utils/supabase/require-profile";
 import { getUserModules, isModuleReachable } from "@/lib/queries/modules";
+import { BrandMark } from "@/components/BrandMark";
 import { LogoutButton } from "@/components/LogoutButton";
 
 export const metadata = {
@@ -34,8 +35,12 @@ export default async function PortalPage() {
       <header className="border-b border-[var(--border)] bg-[var(--surface-2)]">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element -- brand mark is a fixed 499px asset; next/image adds no value and its loader is one more thing to configure for a self-hosted move */}
-            <img src="/hse-logo.png" alt="" width={28} height={28} className="rounded" />
+            {/*
+              Static: the portal is the hub people come back to between tasks,
+              not a first-run screen. Vector now, so it no longer needs the
+              raster escape hatch (`no-img-element`) this line used to carry.
+            */}
+            <BrandMark size={28} className="flex-none" />
             <div>
               <p className="text-sm font-semibold tracking-tight text-[var(--text-primary)]">
                 HSE Platform

@@ -10,8 +10,7 @@
  * 83 of 334 live projects have `estimated_hours = 0`, and painting them as
  * healthy would be a confident false claim about a quarter of the portfolio.
  */
-import Link from "next/link";
-import type { BurnPoint, ProjectContributor, ProjectListRow, ProjectTaskRow } from "@/lib/queries/projects-live";
+import type { BurnPoint, ProjectContributor, ProjectTaskRow } from "@/lib/queries/projects-live";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
@@ -44,155 +43,83 @@ export function ProjectTotalsStrip({
   const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : null;
 
   const cells = [
-    { label: "PROJECTS", value: projectCount.toLocaleString("en-GB") },
-    { label: "TRACKED HOURS", value: `${h(totalHours)} h` },
+    { label: "PROJECTS", value: projectCount.toLocaleString("en-GB"), hint: "in this view" },
+    { label: "TRACKED HOURS", value: h(totalHours), unit: "h", hint: "logged to date" },
     {
       label: "BILLABLE",
-      value: billablePercent === null ? "—" : `${billablePercent}%`,
-      hint: `${h(billableHours)} h`,
+      value: billablePercent === null ? "—" : String(billablePercent),
+      unit: billablePercent === null ? undefined : "%",
+      hint: `${h(billableHours)} h billable`,
     },
     {
       label: "OVER BUDGET",
       value: overBudget.toLocaleString("en-GB"),
+      // Only paint it red when there is something to act on. A permanent red
+      // "0" trains the reader to stop seeing the colour, which costs us the
+      // one moment it needs to work.
       color: overBudget > 0 ? "var(--critical)" : undefined,
+      hint: overBudget > 0 ? "needs attention" : "all within budget",
     },
-    { label: "NO BUDGET SET", value: noBudget.toLocaleString("en-GB") },
+    {
+      label: "NO BUDGET SET",
+      value: noBudget.toLocaleString("en-GB"),
+      hint: "burn unknowable",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-3 lg:grid-cols-5">
-      {cells.map((c, i) => (
+    // Separate cards on a gap, rather than five cells fused inside one outlined
+    // box. The old strip shared every border, so the eye read it as a single
+    // table row and the five figures competed instead of reading as five
+    // independent facts. Gap does the grouping work that a shared border cannot.
+    <div
+      data-testid="project-totals"
+      className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5"
+    >
+      {cells.map((c) => (
         <div
           key={c.label}
-          className={`flex flex-col gap-1.5 p-3 sm:p-3.5 ${
-            i < cells.length - 1 ? "border-b border-[var(--border)] lg:border-b-0 lg:border-r" : ""
-          }`}
+          data-tile={c.label}
+          className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3.5 sm:p-4"
         >
           <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
             {c.label}
           </span>
-          <span
-            className="font-mono text-[20px] font-semibold tracking-[-0.02em] sm:text-[24px]"
-            style={{ color: c.color ?? "var(--text-primary)" }}
-          >
-            {c.value}
+          {/* Baseline-aligned so the unit sits ON the number's baseline rather
+              than centred against a 24px glyph, which reads as a typo. */}
+          <span className="flex items-baseline gap-1">
+            <span
+              className="font-mono text-[22px] font-semibold leading-none tracking-[-0.02em] sm:text-[26px]"
+              style={{ color: c.color ?? "var(--text-primary)" }}
+            >
+              {c.value}
+            </span>
+            {c.unit && (
+              <span className="font-mono text-[12px] leading-none text-[var(--text-muted)]">
+                {c.unit}
+              </span>
+            )}
           </span>
-          {c.hint && (
-            <span className="font-mono text-[10.5px] text-[var(--text-faint)]">{c.hint}</span>
-          )}
+          {/* Every tile carries a hint, so the five cards stay the same height
+              on a row. Without it the two that had one were taller and the row
+              looked broken. */}
+          <span className="font-mono text-[10.5px] leading-tight text-[var(--text-faint)]">
+            {c.hint}
+          </span>
         </div>
       ))}
     </div>
   );
 }
 
-export function ProjectTable({ rows }: { rows: ProjectListRow[] }) {
-  return (
-    <div className="border border-[var(--border)] bg-[var(--surface)]">
-      {/* Mobile cards */}
-      <div className="flex flex-col divide-y divide-[var(--border)] sm:hidden">
-        {rows.map((p) => (
-          <Link
-            key={p.id}
-            href={`/projects/${p.id}`}
-            className="flex flex-col gap-2 p-4 hover:bg-[var(--surface-hover)]"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[13px] font-medium text-[var(--text-primary)]">{p.name}</span>
-              <span
-                className="shrink-0 font-mono text-[11px] font-semibold"
-                style={{ color: burnColor(p.burnPercent) }}
-              >
-                {p.burnPercent === null ? "—" : `${p.burnPercent}%`}
-              </span>
-            </div>
-            <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-              {p.customerName ?? "No customer"}
-              {p.isArchived ? " · ARCHIVED" : ""}
-            </span>
-            <div className="h-1.5 w-full bg-[var(--border)]">
-              <div
-                className="h-full"
-                style={{
-                  width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
-                  background: burnColor(p.burnPercent),
-                }}
-              />
-            </div>
-            <div className="flex gap-4 font-mono text-[10.5px] text-[var(--text-secondary)]">
-              <span>{h(p.actualHours)} H LOGGED</span>
-              <span>
-                {p.estimatedHours && p.estimatedHours > 0 ? `${h(p.estimatedHours)} H BUDGET` : "NO BUDGET"}
-              </span>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Desktop table */}
-      <div className="hidden overflow-x-auto sm:block">
-        <div className="grid min-w-[860px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-          <span className="col-span-4">PROJECT</span>
-          <span className="col-span-2">CUSTOMER</span>
-          <span className="col-span-1 text-right">BUDGET H</span>
-          <span className="col-span-1 text-right">LOGGED H</span>
-          <span className="col-span-2">CONSUMED</span>
-          <span className="col-span-1 text-right">PEOPLE</span>
-          <span className="col-span-1 text-right">LAST</span>
-        </div>
-
-        {rows.map((p) => (
-          <div
-            key={p.id}
-            className="grid min-w-[860px] grid-cols-12 items-center gap-3 border-b border-[var(--border)] px-4 py-2.5 text-[12.5px] hover:bg-[var(--surface-hover)]"
-          >
-            <Link
-              href={`/projects/${p.id}`}
-              className="col-span-4 truncate font-medium text-[var(--text-primary)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-            >
-              {p.name}
-              {p.isArchived && (
-                <span className="ml-2 font-mono text-[9.5px] text-[var(--text-faint)]">ARCHIVED</span>
-              )}
-            </Link>
-            <span className="col-span-2 truncate text-[var(--text-secondary)]">
-              {p.customerName ?? "—"}
-            </span>
-            <span className="col-span-1 text-right font-mono text-[var(--text-secondary)]">
-              {p.estimatedHours && p.estimatedHours > 0 ? h(p.estimatedHours) : "—"}
-            </span>
-            <span className="col-span-1 text-right font-mono text-[var(--text-primary)]">
-              {h(p.actualHours)}
-            </span>
-            <div className="col-span-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 bg-[var(--border)]">
-                <div
-                  className="h-full"
-                  style={{
-                    width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
-                    background: burnColor(p.burnPercent),
-                  }}
-                />
-              </div>
-              <span
-                className="w-12 text-right font-mono text-[11px] font-medium"
-                style={{ color: burnColor(p.burnPercent) }}
-              >
-                {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
-              </span>
-            </div>
-            <span className="col-span-1 text-right font-mono text-[11.5px] text-[var(--text-secondary)]">
-              {p.memberCount || "—"}
-            </span>
-            <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-faint)]">
-              {p.lastActivity ?? "never"}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+/*
+ * `ProjectTable` used to live here: a server-rendered list of ALL 334 projects
+ * with no search, no paging and no status filter. It was replaced by
+ * ProjectsLedger.tsx, a client component that pages to 50 rows and filters —
+ * see that file's header for the measurements that forced the change. It is
+ * deleted rather than left in place because an unrendered 100-line table is
+ * exactly the kind of dead code that later gets "fixed" instead of removed.
+ */
 
 /* ---------------------------------------------------------------- detail */
 

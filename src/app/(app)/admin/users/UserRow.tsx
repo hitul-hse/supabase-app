@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { setUserActive, changeUserRole, changeUserDepartment } from "./actions";
+import { teamLabel, teamOptionsFor } from "@/lib/teams";
 import type { AppRoleRow } from "./page";
 
 interface Props {
@@ -50,10 +51,21 @@ export function UserRow({
     });
   }
 
-  function handleDeptBlur() {
+  /**
+   * Save the team as soon as one is picked.
+   *
+   * Not onBlur, which is what the free-text version did. On a select, choosing an
+   * option and then clicking away are two separate actions, and someone who picks
+   * "Tech" and navigates on would reasonably believe it saved. On change there is
+   * exactly one gesture and one outcome.
+   */
+  function handleTeamChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const next = e.target.value;
+    const previous = localDept;
+    setLocalDept(next);
     startTransition(async () => {
-      const res = await changeUserDepartment(userId, localDept);
-      if (res.error) { setLocalDept(department ?? ""); setError(res.error); }
+      const res = await changeUserDepartment(userId, next);
+      if (res.error) { setLocalDept(previous); setError(res.error); }
     });
   }
 
@@ -65,7 +77,10 @@ export function UserRow({
       value={localRole}
       onChange={handleRoleChange}
       disabled={isPending}
-      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11.5px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+      aria-label={`Role for ${email}`}
+      // No focus:outline-none. This control changes someone's permissions, so
+      // it is the last place to make the keyboard focus position invisible.
+      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11.5px] text-[var(--text-primary)] transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed"
     >
       {roles.map(r => (
         <option key={r.role_key} value={r.role_key}>{r.display_name}</option>
@@ -76,26 +91,38 @@ export function UserRow({
   );
 
   const deptInput = canEdit ? (
-    <input
-      type="text"
+    <select
       value={localDept}
-      onChange={e => setLocalDept(e.target.value)}
-      onBlur={handleDeptBlur}
-      placeholder="—"
+      onChange={handleTeamChange}
       disabled={isPending}
-      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11.5px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none"
-    />
+      aria-label={`Team for ${email}`}
+      // No focus:outline-none, same reasoning as the role select above: this is a
+      // control someone operates by keyboard and the focus ring must stay visible.
+      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11.5px] text-[var(--text-primary)] transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed"
+    >
+      <option value="">— None —</option>
+      {/* teamOptionsFor appends a legacy value when one is stored, so a person on
+          the old ENG/SAFETY labels renders as themselves rather than silently
+          showing the first option and overwriting on the next save. */}
+      {teamOptionsFor(localDept).map((t) => (
+        <option key={t.value} value={t.value}>{t.label}</option>
+      ))}
+    </select>
   ) : (
-    <span className="text-[var(--text-secondary)]">{department ?? "—"}</span>
+    <span className="text-[var(--text-secondary)]">{teamLabel(department)}</span>
   );
 
   const statusToggle = canEdit ? (
     <button
       onClick={handleToggleActive}
       disabled={isPending}
-      className={`px-2 py-0.5 font-mono text-[10px] font-semibold transition-colors ${
+      // aria-pressed, not just colour: "ACTIVE" styled two ways is the same
+      // word twice to a screen reader, so the state has to be in the semantics.
+      aria-pressed={localActive}
+      aria-label={`${localActive ? "Deactivate" : "Activate"} ${email}`}
+      className={`rounded-[var(--radius-sm)] px-2 py-0.5 font-mono text-[10px] font-semibold transition-colors active:translate-y-px disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3 ${
         localActive
-          ? "bg-[var(--accent)] text-[var(--accent-contrast)] hover:opacity-80"
+          ? "bg-[var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
           : "border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
       }`}
     >
@@ -111,7 +138,7 @@ export function UserRow({
     <>
       {/* Mobile card — shown below sm */}
       <div
-        className={`flex flex-col gap-3 border-b border-[#3a414c] p-4 transition-opacity sm:hidden ${opacity}`}
+        className={`flex flex-col gap-3 border-b border-[var(--divider)] p-4 transition-opacity sm:hidden ${opacity}`}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -127,7 +154,9 @@ export function UserRow({
         </div>
 
         {error && (
-          <span className="font-mono text-[10px] text-[var(--critical)]">{error}</span>
+          <span role="alert" className="font-mono text-[10px] text-[var(--critical)]">
+            {error}
+          </span>
         )}
 
         <div className="grid grid-cols-2 gap-3">
@@ -136,7 +165,7 @@ export function UserRow({
             {roleSelect}
           </div>
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">DEPARTMENT</span>
+            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">TEAM</span>
             {deptInput}
           </div>
         </div>
@@ -144,7 +173,7 @@ export function UserRow({
 
       {/* Desktop table row — shown from sm up */}
       <div
-        className={`hidden grid-cols-12 items-center gap-3 border-b border-[#3a414c] px-4 py-2.5 text-[12.5px] transition-opacity sm:grid ${opacity}`}
+        className={`hidden grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-4 py-2.5 text-[12.5px] transition-opacity sm:grid ${opacity}`}
       >
         <span className="col-span-3 truncate text-[var(--text-primary)]">{email || "—"}</span>
 
@@ -155,7 +184,12 @@ export function UserRow({
 
         <span className="col-span-2 text-right font-mono text-[11px] text-[var(--text-muted)]">
           {error ? (
-            <span className="text-[var(--critical)] text-[10px]" title={error}>Error</span>
+            // The message itself, not "Error" behind a title= tooltip: a failed
+            // permission change is exactly the case where the reason matters,
+            // and title is unreachable by keyboard and on touch.
+            <span role="alert" className="text-[10px] text-[var(--critical)]">
+              {error}
+            </span>
           ) : (
             new Date(createdAt).toLocaleDateString("de-DE")
           )}

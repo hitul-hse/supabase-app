@@ -582,6 +582,82 @@ async function main() {
   const entryOut = await upsert("entry", entryRows, "source_id");
   console.log(`entries: ${DRY_RUN ? entryRows.length : entryOut.length} (skipped ${skipped})`);
 
+  // --- deletions ------------------------------------------------------------
+  // Upsert-only imports can add and correct, but never forget. When someone
+  // deletes an entry in TrackingTime it stays in our copy for ever, quietly
+  // inflating every total that touches it -- and nothing reports it, because the
+  // sync succeeds and the row still looks perfectly valid. Measured live: two
+  // deleted calendar events survived here and put us 0.2h above the vendor.
+  //
+  // Deleting is the one destructive thing this script does, so it is fenced by
+  // three rules, each of which prevents a way this could destroy real work:
+  //
+  //   1. ONLY INSIDE THE WINDOW WE ACTUALLY FETCHED. Absence of an id outside
+  //      [fromDate, toDate) proves nothing -- we never asked about it. Without
+  //      this, a `--days 7` run would wipe the entire history.
+  //   2. ONLY ROWS THIS IMPORTER OWNS. `source_system` in (trackingtime,
+  //      calendar). Entries the app itself created carry 'timer' or 'manual',
+  //      have no counterpart in the vendor at all, and would otherwise be
+  //      deleted on the very next sync -- silently destroying hours a colleague
+  //      typed in by hand.
+  //   3. NEVER ON A PARTIAL FETCH. If the vendor returned nothing for the whole
+  //      window, that is far more likely an outage or an auth failure than an
+  //      account that deleted everything. Deleting on that signal turns a
+  //      transient vendor error into permanent data loss.
+  let deletedCount = 0;
+  if (!DRY_RUN && events.length > 0) {
+    const seen = new Set(entryRows.map((r) => String(r.source_id)));
+    const windowEnd = new Date(`${toDate}T00:00:00.000Z`);
+    windowEnd.setUTCDate(windowEnd.getUTCDate() + 1); // `to` is inclusive in the vendor API
+    const existing = [];
+    for (let off = 0; ; off += 1000) {
+      const { data, error } = await db
+        .schema("time")
+        .from("entry")
+        .select("id, source_id, duration_seconds")
+        .in("source_system", ["trackingtime", "calendar"])
+        .gte("started_at", `${fromDate}T00:00:00.000Z`)
+        .lt("started_at", windowEnd.toISOString())
+        .range(off, off + 999);
+      if (error) throw new Error(`reading entries for deletion check: ${error.message}`);
+      if (!data?.length) break;
+      existing.push(...data);
+      if (data.length < 1000) break;
+    }
+    const gone = existing.filter((r) => r.source_id && !seen.has(String(r.source_id)));
+
+    // A sanity brake. Losing a few entries a week is normal housekeeping; losing
+    // a fifth of the window in one run is a symptom -- a changed filter, a
+    // truncated response, the wrong account. Report it and change nothing,
+    // because an unexplained mass deletion is exactly what must not happen
+    // unattended at 04:17.
+    const share = existing.length ? gone.length / existing.length : 0;
+    if (gone.length && share > 0.2) {
+      console.warn(
+        `\nWARNING: ${gone.length} of ${existing.length} entries in the window are absent from ` +
+          `TrackingTime (${Math.round(share * 100)}%). That is too many to delete unattended -- ` +
+          `nothing was removed. Investigate the vendor response before re-running.\n`,
+      );
+    } else if (gone.length) {
+      for (let i = 0; i < gone.length; i += 200) {
+        const chunk = gone.slice(i, i + 200);
+        const { error } = await db
+          .schema("time")
+          .from("entry")
+          .delete()
+          .in("id", chunk.map((r) => r.id));
+        if (error) throw new Error(`deleting removed entries: ${error.message}`);
+        deletedCount += chunk.length;
+      }
+      const lostHours = gone.reduce((a, r) => a + (Number(r.duration_seconds) || 0), 0) / 3600;
+      console.log(
+        `deleted: ${gone.length} entries (${lostHours.toFixed(1)}h) removed in TrackingTime`,
+      );
+    } else {
+      console.log("deleted: 0 (nothing removed in TrackingTime)");
+    }
+  }
+
   if (unresolvedMembers.size) {
     console.warn(
       `\nWARNING: ${skipped} events (${(skippedSeconds / 3600).toFixed(1)}h) reference ` +
@@ -597,7 +673,8 @@ async function main() {
     .reduce((a, r) => a + (r.duration_seconds ?? 0), 0);
   console.log(
     `\ntotal ${(totalSeconds / 3600).toFixed(1)}h, billable ${(billableSeconds / 3600).toFixed(1)}h ` +
-      `(${totalSeconds ? Math.round((billableSeconds / totalSeconds) * 100) : 0}%)`,
+      `(${totalSeconds ? Math.round((billableSeconds / totalSeconds) * 100) : 0}%)` +
+      (deletedCount ? `, ${deletedCount} removed` : ""),
   );
 
   await recordRun("events-flat", "ok", entryRows.length, null);

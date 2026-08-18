@@ -8,12 +8,13 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { useSidebarCollapse } from "./SidebarCollapseContext";
+import { Button } from "./ui/Button";
 
 /* ─────────────────────────── tour steps ────────────────────────────── */
 const STEPS = [
   {
     id:       "welcome",
-    title:    "Welcome to HSE Hub 👋",
+    title:    "Welcome to HSE Hub",
     body:     "Your all-in-one analytics and operations portal for Health & Safety Experts GmbH. Let us show you around — it takes about 45 seconds.",
     target:   null, // no spotlight for welcome
     position: "center",
@@ -62,7 +63,7 @@ const STEPS = [
   },
   {
     id:       "done",
-    title:    "You're all set! 🚀",
+    title:    "You're all set",
     body:     "HSE Hub updates every few minutes in the background. You can replay this tour any time from the Help menu in the sidebar. Happy analysing!",
     target:   null,
     position: "center",
@@ -234,7 +235,15 @@ export default function OnboardingTour() {
                   transition={{ type: "spring", stiffness: 300, damping: 35 }}
                   className="absolute rounded-xl"
                   style={{
-                    boxShadow: "0 0 0 2px #d4a843, 0 0 20px rgba(212,168,67,0.4)",
+                    /*
+                     * Brand accent, not the old gold. DESIGN.md names #d4a843
+                     * "the previous placeholder palette, not the real brand",
+                     * and this tour is the FIRST thing a new colleague sees —
+                     * it was introducing the product in a colour the product
+                     * does not use anywhere else.
+                     */
+                    boxShadow:
+                      "0 0 0 2px var(--accent), 0 0 20px var(--accent-wash)",
                     pointerEvents: "none",
                   }}
                 />
@@ -259,8 +268,14 @@ export default function OnboardingTour() {
               animate={{ opacity: 1, scale: 1,    y: 0 }}
               exit={{    opacity: 0, scale: 0.95,  y: -8 }}
               transition={{ type: "spring", stiffness: 400, damping: 35 }}
-              className="pointer-events-auto bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-6 w-[340px] max-w-[90vw]"
-              style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(212,168,67,0.15)" }}
+              className="pointer-events-auto w-[340px] max-w-[90vw] rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface)] p-6"
+              /*
+               * A real offset + blur, not a zero-offset halo: craft-floor is
+               * explicit that a glow with no offset is decoration rather than
+               * depth. This card floats above the whole app, so it earns the
+               * largest shadow in the product.
+               */
+              style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.3)" }}
             >
               {/* Progress dots */}
               <div className="flex gap-1.5 mb-4">
@@ -272,7 +287,7 @@ export default function OnboardingTour() {
                       opacity: i <= step ? 1 : 0.25,
                     }}
                     transition={{ duration: 0.3 }}
-                    className="h-1.5 rounded-full bg-[#d4a843]"
+                    className="h-1.5 rounded-full bg-[var(--accent)]"
                   />
                 ))}
               </div>
@@ -286,42 +301,36 @@ export default function OnboardingTour() {
                   exit={{    opacity: 0, x: -12 }}
                   transition={{ duration: 0.22 }}
                 >
-                  <h3 className="text-white font-bold text-lg mb-2 leading-snug">
+                  <h3 className="mb-2 text-[17px] font-semibold leading-snug text-[var(--text-primary)]">
                     {current.title}
                   </h3>
-                  <p className="text-zinc-400 text-sm leading-relaxed">
+                  <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
                     {current.body}
                   </p>
                 </motion.div>
               </AnimatePresence>
 
               {/* Actions */}
-              <div className="flex items-center justify-between mt-5 pt-4 border-t border-zinc-800">
-                <button
-                  onClick={skip}
-                  className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors"
-                >
+              <div className="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-4">
+                <Button variant="ghost" size="md" onClick={skip}>
                   {isFirst ? "Skip tour" : "End tour"}
-                </button>
+                </Button>
 
                 <div className="flex gap-2">
                   {step > 0 && !isFirst && (
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setStep(s => s - 1)}
-                      className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 transition-colors"
-                    >
+                    <Button variant="secondary" size="md" onClick={() => setStep((s) => s - 1)}>
                       Back
-                    </motion.button>
+                    </Button>
                   )}
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{  scale: 0.97 }}
-                    onClick={next}
-                    className="px-5 py-2 rounded-lg text-sm font-semibold bg-[#d4a843] text-zinc-900 hover:bg-[#e0b84a] transition-colors shadow-md"
-                  >
-                    {isLast ? "Finish 🎉" : isFirst ? "Start tour →" : "Next →"}
-                  </motion.button>
+                  {/*
+                    "Finish", not "Finish 🎉": craft-floor bans emoji standing
+                    in for an icon system, and this one sat next to two arrows
+                    that are also not from any icon set. Plain words are the
+                    honest version at this size.
+                  */}
+                  <Button variant="primary" size="md" onClick={next}>
+                    {isLast ? "Finish" : isFirst ? "Start tour" : "Next"}
+                  </Button>
                 </div>
               </div>
             </motion.div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
+import { ButtonLink } from "@/components/ui/Button";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { getLiveOverview, OVERVIEW_WEEKS } from "@/lib/queries/overview-live";
@@ -56,12 +57,9 @@ export default async function OverviewPage() {
         title="Business overview"
         meta={`${counts.currentQuarter} · ${counts.activeMembers} PEOPLE · ${counts.activeProjects} ACTIVE PROJECTS · ${counts.customers} CUSTOMERS`}
         actions={
-          <Link
-            href="/time/dashboard"
-            className="rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-1.5 text-[11.5px] font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-          >
+          <ButtonLink variant="primary" href="/time/dashboard">
             Full dashboard
-          </Link>
+          </ButtonLink>
         }
       />
 
@@ -153,7 +151,7 @@ export default async function OverviewPage() {
                   BILLABLE
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 bg-[#8a9197]" />
+                  <span className="h-2 w-2 bg-[var(--text-faint)]" />
                   NON-BILLABLE
                 </span>
               </div>
@@ -172,23 +170,36 @@ export default async function OverviewPage() {
                     week.totalHours === 0
                       ? null
                       : Math.round((week.billableHours / week.totalHours) * 100);
+                  const readout =
+                    billablePercent === null
+                      ? `${formatWeekLabel(week.weekStart)}: no hours`
+                      : `${formatWeekLabel(week.weekStart)}: ${billablePercent}% billable (${week.billableHours}h of ${week.totalHours}h)`;
                   return (
+                    /*
+                     * A focusable group, not a bare div. The readout used to be
+                     * `hidden group-hover:block`, which put the only way to
+                     * read a week's actual numbers behind a mouse — a keyboard
+                     * or screen-reader user could see twelve bars and no
+                     * values at all. `tabIndex` + `group-focus-visible` gives
+                     * the same detail to Tab, and the `title` covers touch.
+                     */
                     <div
                       key={week.weekStart}
-                      className="group relative flex h-full flex-1 flex-col justify-end gap-0.5"
+                      tabIndex={0}
+                      role="img"
+                      aria-label={readout}
+                      title={readout}
+                      className="group relative flex h-full flex-1 cursor-default flex-col justify-end gap-0.5 rounded-[2px]"
                     >
-                      <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#1c2427] px-2 py-1 font-mono text-[10px] text-white shadow group-hover:block">
-                        {formatWeekLabel(week.weekStart)}
-                        {billablePercent === null
-                          ? ": no hours"
-                          : `: ${billablePercent}% (${week.billableHours}h / ${week.totalHours}h)`}
+                      <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] text-[var(--text-primary)] shadow-lg group-hover:block group-focus-visible:block">
+                        {readout}
                       </div>
                       <div
-                        className="w-full bg-[#8a9197] transition-all"
+                        className="w-full bg-[var(--text-faint)] transition-all duration-150 group-hover:brightness-125 group-focus-visible:brightness-125"
                         style={{ height: `${(nonBillable / chartMax) * 100}%` }}
                       />
                       <div
-                        className="w-full bg-[var(--accent)] transition-all"
+                        className="w-full bg-[var(--accent)] transition-all duration-150 group-hover:brightness-110 group-focus-visible:brightness-110"
                         style={{ height: `${(week.billableHours / chartMax) * 100}%` }}
                       />
                     </div>
@@ -222,9 +233,21 @@ export default async function OverviewPage() {
                 </p>
               ) : (
                 teams.map((team) => (
-                  <div key={team.name} className="flex flex-col gap-1">
+                  /*
+                   * Each row names a real person who has a record on /people —
+                   * so it links there. A bar chart of colleagues where nothing
+                   * is clickable makes the reader go find the search box and
+                   * retype a name they are already looking at.
+                   */
+                  <Link
+                    key={team.name}
+                    href={`/people?q=${encodeURIComponent(team.name)}`}
+                    className="group -mx-1.5 flex flex-col gap-1 rounded-[var(--radius-sm)] px-1.5 py-1 transition-colors hover:bg-[var(--surface-hover)]"
+                  >
                     <div className="flex justify-between text-[12px] text-[var(--text-secondary)]">
-                      <span className="truncate pr-2">{team.name}</span>
+                      <span className="truncate pr-2 group-hover:text-[var(--text-primary)]">
+                        {team.name}
+                      </span>
                       <span className="shrink-0 font-mono font-medium text-[var(--text-primary)]">
                         {/*
                           "n/a" not "0%": no contracted hours means the ratio is
@@ -236,23 +259,28 @@ export default async function OverviewPage() {
                     <div className="h-1.5 w-full bg-[var(--border)]">
                       {team.percent !== null ? (
                         <div
-                          className="h-full"
+                          className="h-full transition-[filter] duration-150 group-hover:brightness-110"
                           style={{
                             width: `${Math.min(100, team.percent)}%`,
                             background: toneColour(team.tone),
                           }}
                         />
                       ) : (
+                        /*
+                         * Hatched, not empty and not zero-width: "we have no
+                         * basis to compute this" must look different from
+                         * "this person is at 0%".
+                         */
                         <div
                           className="h-full w-full"
                           style={{
                             background:
-                              "repeating-linear-gradient(45deg, #414954, #414954 4px, #333a44 4px, #333a44 8px)",
+                              "repeating-linear-gradient(45deg, var(--border), var(--border) 4px, var(--surface-2) 4px, var(--surface-2) 8px)",
                           }}
                         />
                       )}
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>
@@ -353,7 +381,7 @@ export default async function OverviewPage() {
                 {projects.map((prj) => (
                   <div
                     key={prj.id}
-                    className="grid min-w-[700px] grid-cols-12 items-center gap-3 border-b border-[#3a414c] px-4 py-2.5 text-[12.5px] hover:bg-[var(--surface-hover)]"
+                    className="grid min-w-[700px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-4 py-2.5 text-[12.5px] transition-colors hover:bg-[var(--surface-hover)]"
                   >
                     <Link
                       href={`/projects/${prj.id}`}

@@ -5,6 +5,9 @@ import { requestLeave, cancelLeaveRequest } from "./actions";
 import type { LeaveRequestRow, LeaveBalanceRow } from "@/lib/queries/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { Button } from "@/components/ui/Button";
+import { TextInput } from "@/components/ui/Field";
+import { IconArrowRight, IconCross } from "@/components/nav-icons";
 
 export function MyLeavePanel({
   balance,
@@ -33,21 +36,10 @@ export function MyLeavePanel({
       <form action={formAction} className="flex flex-col gap-2 border-b border-[var(--border)] pb-4">
         <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">Request leave</span>
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            name="start_date"
-            type="date"
-            required
-            disabled={isPending}
-            className="border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50"
-          />
-          <input
-            name="end_date"
-            type="date"
-            required
-            disabled={isPending}
-            className="border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50"
-          />
-          <input
+          <TextInput label="Leave start date" name="start_date" type="date" required disabled={isPending} />
+          <TextInput label="Leave end date" name="end_date" type="date" required disabled={isPending} />
+          <TextInput
+            label="Number of days"
             name="days"
             type="number"
             min="0.5"
@@ -55,25 +47,35 @@ export function MyLeavePanel({
             required
             disabled={isPending}
             placeholder="Days"
-            className="w-20 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+            className="w-20"
           />
-          <input
+          <TextInput
+            label="Reason (optional)"
             name="reason"
             type="text"
             disabled={isPending}
             placeholder="Reason (optional)"
-            className="min-w-[140px] flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+            className="min-w-[140px] flex-1"
           />
-          <button
-            type="submit"
-            disabled={isPending}
-            className="bg-[var(--accent)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] disabled:opacity-50"
-          >
-            {isPending ? "Requesting…" : "Request leave"}
-          </button>
+          <Button type="submit" variant="primary" busy={isPending}>
+            Request leave
+          </Button>
         </div>
-        {state.status === "error" && <p className="text-[11.5px] text-[var(--critical)]">{state.message}</p>}
-        {state.status === "success" && <p className="text-[11.5px] text-[var(--accent)]">{state.message}</p>}
+        {/*
+          role="status" on both: a Server Action result that only changes colour
+          is invisible to a screen reader, and the failure case is the one a
+          user most needs told rather than left to notice.
+        */}
+        {state.status === "error" && (
+          <p role="status" className="text-[11.5px] text-[var(--critical)]">
+            {state.message}
+          </p>
+        )}
+        {state.status === "success" && (
+          <p role="status" className="text-[11.5px] text-[var(--accent)]">
+            {state.message}
+          </p>
+        )}
       </form>
 
       <div className="flex flex-col gap-2">
@@ -87,11 +89,13 @@ export function MyLeavePanel({
         {requests.map((r) => (
           <div
             key={r.id}
-            className="flex items-center justify-between gap-2 border-b border-[#3a414c] pb-2 text-[12px]"
+            className="flex items-center justify-between gap-2 border-b border-[var(--divider)] pb-2 text-[12px]"
           >
             <div className="flex flex-col">
-              <span className="text-[var(--text-primary)]">
-                {r.start_date} → {r.end_date}
+              <span className="flex items-center gap-1.5 text-[var(--text-primary)]">
+                {r.start_date}
+                <IconArrowRight className="h-3 w-3 text-[var(--text-faint)]" />
+                {r.end_date}
               </span>
               <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
                 {r.days} DAY{Number(r.days) === 1 ? "" : "S"}
@@ -103,13 +107,15 @@ export function MyLeavePanel({
               {r.status === "pending" && (
                 <form action={cancelLeaveRequest}>
                   <input type="hidden" name="request_id" value={r.id} />
-                  <button
+                  <Button
                     type="submit"
-                    aria-label="Cancel leave request"
-                    className="text-[var(--text-faint)] hover:text-[var(--critical)]"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Cancel leave request for ${r.start_date}`}
+                    className="hover:text-[var(--critical)]"
                   >
-                    ✕
-                  </button>
+                    <IconCross className="h-3.5 w-3.5" />
+                  </Button>
                 </form>
               )}
             </div>

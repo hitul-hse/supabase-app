@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { ButtonLink } from "@/components/ui/Button";
+import { FilterChip, SearchInput, SortHeader, type SortDirection } from "@/components/ui/Field";
 import { capacityLabel, type LivePerson } from "@/lib/queries/people-live";
 
 /**
@@ -26,36 +28,66 @@ export function PeopleDirectory({
   archivedCount,
   unlinkedCount,
   mailboxCount,
+  initialQuery = "",
 }: {
   people: LivePerson[];
   archivedCount: number;
   unlinkedCount: number;
   mailboxCount: number;
+  initialQuery?: string;
 }) {
   // `people` can legitimately be empty: RLS scopes the underlying reads, and a
   // fresh database has no import yet. The detail pane dereferences the
   // selection unconditionally, so without this guard the page white-screened.
   const [selectedId, setSelectedId] = useState<number | null>(people[0]?.memberId ?? null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [onlyLogged, setOnlyLogged] = useState(false);
+  const [onlyNoAccount, setOnlyNoAccount] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
+
+  // Counts are computed on the FULL roster, not the filtered list, so a chip
+  // always shows how many rows it would bring in. A count that shrinks to
+  // match the current filter tells you nothing you cannot already see.
+  const loggedCount = useMemo(() => people.filter((p) => p.totalHours > 0).length, [people]);
+  const noAccountCount = useMemo(() => people.filter((p) => !p.hasAccount).length, [people]);
 
   const query = searchQuery.trim().toLowerCase();
-  const filteredPeople = people.filter((p) => {
-    const matchesSearch =
-      query === "" ||
-      p.name.toLowerCase().includes(query) ||
-      (p.email ?? "").toLowerCase().includes(query) ||
-      (p.accountRole ?? "").toLowerCase().includes(query);
-    // "Has logged time" rather than a department filter: TrackingTime has no
-    // department concept, and the old SAFETY/ENG/LAB tabs were mockup values.
-    const matchesLogged = !onlyLogged || p.totalHours > 0;
-    return matchesSearch && matchesLogged;
-  });
+  const filteredPeople = useMemo(() => {
+    const matched = people.filter((p) => {
+      const matchesSearch =
+        query === "" ||
+        p.name.toLowerCase().includes(query) ||
+        (p.email ?? "").toLowerCase().includes(query) ||
+        (p.accountRole ?? "").toLowerCase().includes(query);
+      // "Has logged time" rather than a department filter: TrackingTime has no
+      // department concept, and the old SAFETY/ENG/LAB tabs were mockup values.
+      const matchesLogged = !onlyLogged || p.totalHours > 0;
+      const matchesAccount = !onlyNoAccount || !p.hasAccount;
+      return matchesSearch && matchesLogged && matchesAccount;
+    });
+    return sortPeople(matched, sortKey, sortDir);
+  }, [people, query, onlyLogged, onlyNoAccount, sortKey, sortDir]);
+
+  const activeFilterCount = (onlyLogged ? 1 : 0) + (onlyNoAccount ? 1 : 0) + (query ? 1 : 0);
 
   // Resolve by id against the live prop rather than holding a snapshot in
   // state, and prefer a selection that is actually in the filtered list.
   const selectedPerson =
     filteredPeople.find((p) => p.memberId === selectedId) ?? filteredPeople[0] ?? people[0];
+
+  /** Re-clicking the active column reverses it; a new column starts fresh. */
+  const handleSort = (key: string) => {
+    const next = key as SortKey;
+    if (next === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(next);
+      // Names read naturally A→Z; every numeric column is more useful
+      // largest-first, which is what someone scanning for outliers wants.
+      setSortDir(next === "name" ? "asc" : "desc");
+    }
+  };
 
   if (!selectedPerson) {
     return (
@@ -112,26 +144,86 @@ export function PeopleDirectory({
               </span>
             </div>
 
-            <input
-              type="text"
+            <SearchInput
+              label="Search people by name, email or role"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onValueChange={setSearchQuery}
               placeholder="Search name, email, role…"
-              className="border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] placeholder-[var(--text-faint)] focus:border-[var(--accent)] focus:outline-none"
             />
 
-            <label className="flex cursor-pointer items-center gap-2 font-mono text-[10.5px] text-[var(--text-secondary)]">
-              <input
-                type="checkbox"
-                checked={onlyLogged}
-                onChange={(e) => setOnlyLogged(e.target.checked)}
-                className="accent-[var(--accent)]"
+            <div className="flex flex-wrap gap-1.5">
+              <FilterChip
+                active={onlyLogged}
+                onToggle={() => setOnlyLogged((v) => !v)}
+                count={loggedCount}
+              >
+                HAS LOGGED TIME
+              </FilterChip>
+              {/*
+                Surfaced as a filter, not just a badge: 16 of 19 active people
+                have no Hub sign-in, and "show me exactly who still needs an
+                account" is the action someone actually takes from this page.
+              */}
+              <FilterChip
+                active={onlyNoAccount}
+                onToggle={() => setOnlyNoAccount((v) => !v)}
+                count={noAccountCount}
+              >
+                NO HUB ACCOUNT
+              </FilterChip>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-[var(--divider)] pt-2">
+              <SortHeader
+                label="NAME"
+                columnKey="name"
+                activeKey={sortKey}
+                direction={sortDir}
+                onSort={handleSort}
               />
-              ONLY PEOPLE WITH LOGGED TIME
-            </label>
+              <div className="flex items-center gap-3">
+                <SortHeader
+                  label="HOURS"
+                  columnKey="hours"
+                  activeKey={sortKey}
+                  direction={sortDir}
+                  onSort={handleSort}
+                />
+                <SortHeader
+                  label="BILLABLE"
+                  columnKey="billable"
+                  activeKey={sortKey}
+                  direction={sortDir}
+                  onSort={handleSort}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col divide-y divide-[#3a414c] overflow-y-auto">
+          <div className="flex flex-col divide-y divide-[var(--divider)] overflow-y-auto">
+            {/*
+              A filtered-to-empty roster is a different situation from an empty
+              database, and needs a different exit: the way out is to relax the
+              filter, not to run a sync.
+            */}
+            {filteredPeople.length === 0 && (
+              <div className="flex flex-col items-start gap-2 p-4">
+                <p className="text-[12.5px] text-[var(--text-secondary)]">
+                  No one matches {query ? `“${searchQuery.trim()}”` : "these filters"}.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setOnlyLogged(false);
+                    setOnlyNoAccount(false);
+                  }}
+                  className="font-mono text-[10.5px] text-[var(--accent)] hover:underline"
+                >
+                  CLEAR {activeFilterCount} FILTER{activeFilterCount === 1 ? "" : "S"}
+                </button>
+              </div>
+            )}
             {filteredPeople.map((person) => {
               const isSelected = selectedPerson.memberId === person.memberId;
               return (
@@ -241,12 +333,12 @@ export function PeopleDirectory({
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              <Link
+              <ButtonLink
+                variant="secondary"
                 href={`/time/dashboard?members=${selectedPerson.memberId}`}
-                className="border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
               >
                 View in dashboard
-              </Link>
+              </ButtonLink>
             </div>
           </div>
 
@@ -328,7 +420,7 @@ export function PeopleDirectory({
                 {selectedPerson.assignments.map((asg) => (
                   <div
                     key={`${asg.projectId ?? "none"}-${asg.projectName}`}
-                    className="grid min-w-[420px] grid-cols-12 items-center border-b border-[#3a414c] py-2 text-[12.5px]"
+                    className="grid min-w-[420px] grid-cols-12 items-center border-b border-[var(--divider)] py-2 text-[12.5px] transition-colors hover:bg-[var(--surface-hover)]"
                   >
                     {/* The unattributed row has no record to link to. */}
                     {asg.projectId !== null ? (
@@ -364,18 +456,44 @@ export function PeopleDirectory({
                 {unlinkedCount} of {people.length} people have no Hub sign-in yet, so they cannot
                 see their own hours.
               </span>
-              <Link
-                href="/admin/users"
-                className="whitespace-nowrap bg-[var(--accent)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
-              >
-                Manage users →
-              </Link>
+              <ButtonLink variant="primary" href="/admin/users" className="whitespace-nowrap">
+                Manage users
+              </ButtonLink>
             </div>
           )}
         </div>
       </div>
     </>
   );
+}
+
+type SortKey = "name" | "hours" | "billable";
+
+/**
+ * Order the roster.
+ *
+ * The trap here is `billablePercent: null`, which means "this person has logged
+ * nothing at all" — four active members are in that state. Coercing null to 0
+ * would sort them among the genuinely-0% people and imply a measurement that
+ * was never taken, so unmeasured rows are pinned to the end in BOTH directions.
+ * Reversing the sort must not promote an absence of data to the top of the list.
+ */
+function sortPeople(rows: LivePerson[], key: SortKey, dir: SortDirection): LivePerson[] {
+  const factor = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    if (key === "name") {
+      // localeCompare, not `<`: "Ärztin" must sort beside "Arztin", and the
+      // live roster contains German names with umlauts.
+      return a.name.localeCompare(b.name, "de") * factor;
+    }
+    const av = key === "hours" ? a.totalHours : a.billablePercent;
+    const bv = key === "hours" ? b.totalHours : b.billablePercent;
+    if (av === null && bv === null) return a.name.localeCompare(b.name, "de");
+    if (av === null) return 1;
+    if (bv === null) return -1;
+    if (av === bv) return a.name.localeCompare(b.name, "de");
+    return (av - bv) * factor;
+  });
 }
 
 /** One measured figure. Renders "n/a" — never 0 — when there is no value. */

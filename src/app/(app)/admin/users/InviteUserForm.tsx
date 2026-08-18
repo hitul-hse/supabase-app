@@ -2,15 +2,12 @@
 
 import { useActionState } from "react";
 import { inviteUser } from "./actions";
-import type { AppRoleRow, PersonOption } from "./page";
+import type { AppRoleRow } from "./page";
+import { TEAMS } from "@/lib/teams";
+import { Button } from "@/components/ui/Button";
+import { IconCheck, IconCross } from "@/components/nav-icons";
 
-export function InviteUserForm({
-  roles,
-  people,
-}: {
-  roles: AppRoleRow[];
-  people: PersonOption[];
-}) {
+export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
   const [state, formAction, isPending] = useActionState(inviteUser, { status: "idle" });
 
   return (
@@ -53,71 +50,73 @@ export function InviteUserForm({
           </select>
         </div>
 
-        <div>
-          <label htmlFor="person_id" className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
-            Linked person (optional)
-          </label>
-          <select
-            id="person_id"
-            name="person_id"
-            disabled={isPending}
-            className="w-full border border-[var(--border)] bg-[var(--page)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50"
-          >
-            <option value="">None</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+        {/*
+          * No "linked person" picker.
+          *
+          * It used to list the eight seeded mockup people, so an admin inviting a
+          * real colleague was asked which fictional character they were. The link
+          * that actually matters is to their TrackingTime member record, and that
+          * is derivable: every Hub account on a real work address already matches
+          * its member on email exactly. So the server does it, and the admin is
+          * told what will happen rather than asked to guess.
+          */}
+        <div className="sm:col-span-2">
+          <span className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
+            TrackingTime link
+          </span>
+          <p className="border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[12.5px] text-[var(--text-secondary)]">
+            Linked automatically by email address. If this person has a
+            TrackingTime account on the same address, their logged hours appear on
+            their own Time page immediately. If not, they can still sign in and
+            use the Hub — the link is made whenever the addresses match.
+          </p>
         </div>
 
         <div>
           <label htmlFor="department" className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
-            Department (for Dept Head scoping)
+            Team
           </label>
           <select
             id="department"
+            /* The form field and the column are still called department: renaming a
+               column that appears in RLS policies is a migration with real risk and
+               no benefit a user would notice. Only the label changes. */
             name="department"
             disabled={isPending}
             className="w-full border border-[var(--border)] bg-[var(--page)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50"
           >
             <option value="">None</option>
-            <option value="SAFETY">Safety</option>
-            <option value="ENG">Engineering</option>
-            <option value="LAB">Lab &amp; measurement</option>
+            {/* From lib/teams, so this form and the users table cannot drift apart
+                about what a valid team is -- they previously did. */}
+            {TEAMS.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
           </select>
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="self-start bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-50"
-      >
-        {isPending ? "Inviting…" : "Send invite"}
-      </button>
+      <Button type="submit" variant="primary" busy={isPending} className="self-start">
+        Send invite
+      </Button>
 
       {state.status === "success" && (
         <div
+          role="status"
           className="flex items-start gap-3 border border-[var(--border)] p-3 text-sm"
           style={{ background: "var(--good-wash)" }}
         >
-          <span aria-hidden className="mt-0.5 text-base text-[var(--good)]">
-            ✓
-          </span>
+          <IconCheck className="mt-0.5 h-4 w-4 flex-none text-[var(--good)]" />
           <p className="text-[var(--text-primary)]">{state.message}</p>
         </div>
       )}
 
       {state.status === "error" && (
         <div
+          role="alert"
           className="flex items-start gap-3 border border-[var(--border)] p-3 text-sm"
           style={{ background: "var(--critical-wash)" }}
         >
-          <span aria-hidden className="mt-0.5 text-base text-[var(--critical)]">
-            ✕
-          </span>
+          <IconCross className="mt-0.5 h-4 w-4 flex-none text-[var(--critical)]" />
           <p className="text-[var(--text-primary)]">{state.message}</p>
         </div>
       )}

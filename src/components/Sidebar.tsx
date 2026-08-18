@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { getProfileView } from "@/lib/queries/profile";
 import { Avatar } from "./Avatar";
+import { BrandMark } from "./BrandMark";
 import { SidebarNav } from "./SidebarNav";
 import { LogoutButton } from "./LogoutButton";
 import { TourReplayButton } from "./TourReplayButton";
@@ -131,16 +131,12 @@ export async function Sidebar({
           aria-label="HSE Hub — go to overview"
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-sm)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] group-data-[collapsed=true]/sidebar:flex-none"
         >
-          <div className="relative h-[26px] w-[26px] flex-none overflow-hidden rounded-[var(--radius-sm)]">
-            <Image
-              src="/hse-logo.png"
-              alt="HSE Logo"
-              width={26}
-              height={26}
-              className="h-full w-full object-contain"
-              priority
-            />
-          </div>
+          {/*
+            Vector, and deliberately NOT animated. This mark is on screen for
+            every module page all day; replaying an assemble on each navigation
+            would be a stutter in the middle of someone's work, not a delight.
+          */}
+          <BrandMark size={26} className="flex-none" />
           <div className="flex min-w-0 flex-col leading-[1.15] transition-opacity duration-150 group-data-[collapsed=true]/sidebar:hidden">
             <span className="font-sans text-[12.5px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
               HSE HUB

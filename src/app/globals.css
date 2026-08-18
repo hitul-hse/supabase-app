@@ -17,19 +17,57 @@
   --text-primary: #f2f3f4;
   --text-secondary: #bcc1c4;
   --text-muted: #a7aeb3;
-  --text-faint: #8f979d;
+  /*
+   * 4.70:1 on --surface, up from #8f979d's 3.69:1.
+   *
+   * The old value passed against --page (4.49) and failed against --surface,
+   * which is where it is actually used: every KPI caption, every table column
+   * header, every "n/a" sits on a card. Measured, not eyeballed.
+   */
+  --text-faint: #a3abb1;
+
+  /*
+   * Divider inside cards and tables.
+   *
+   * Nine files hardcoded #3a414c for this — a colour in no token and in no
+   * design doc, visibly different from --border (#414954) right beside it.
+   * Naming it makes the two-tier system deliberate: --border outlines a
+   * surface, --divider separates rows within one.
+   */
+  --divider: #3d444f;
 
   --accent: #91c2b7;
   --accent-hover: #a8d0c6;
   --accent-contrast: #1c2427;
   --accent-wash: rgba(145, 194, 183, 0.14);
 
+  /*
+   * Motion curve. The browser's built-in `ease-out` is too weak to read as
+   * deliberate, and inventing a cubic-bezier per animation is how a codebase
+   * ends up with six curves that nearly match. One named strong ease-out,
+   * used by anything that enters.
+   *
+   * Never `ease-in` on UI: it starts slow, which delays the exact moment the
+   * user is watching for.
+   */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
   --chart-hue: #3aa88e;
 
-  --good: #3aa88e;
-  --good-wash: rgba(58, 168, 142, 0.14);
-  --critical: #e0603f;
-  --critical-wash: rgba(224, 96, 63, 0.14);
+  /*
+   * Status colours carry meaning ("this project is over budget"), so they are
+   * held to the 4.5:1 body-text floor on BOTH --page and --surface. The
+   * previous values were tuned against --page only and failed on cards:
+   * --good was 3.74:1 and --critical 3.08:1 on --surface.
+   *
+   * --chart-hue keeps the deeper green: it fills bars and areas, where the
+   * relevant floor is 3:1 for large blocks, and the darker tone reads better
+   * as a fill than as text.
+   */
+  --good: #4cc3a6;
+  --good-wash: rgba(76, 195, 166, 0.14);
+  --critical: #f0917a;
+  --critical-wash: rgba(240, 145, 122, 0.14);
   --warning: #d9a13b;
   --warning-wash: rgba(217, 161, 59, 0.14);
 
@@ -105,6 +143,57 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-faint);
+}
+
+/*
+ * BrandMark assemble.
+ *
+ * A CSS animation, not Framer: the motion is predetermined (four pieces, fixed
+ * start offsets, no interruption and no gesture), and CSS animations run off
+ * the main thread — so this still plays smoothly while the sign-in page is
+ * hydrating, which is exactly when it is on screen.
+ *
+ * `transform` and `opacity` only. Both skip layout and paint.
+ *
+ * Each piece supplies its own start offset in --piece-from, so one rule drives
+ * all four instead of four near-identical keyframe blocks.
+ *
+ * Starts at 0.55 opacity, not 0: the pieces should slide in as parts of a mark
+ * that is already there, rather than fade up from nothing.
+ */
+@keyframes brand-mark-assemble {
+  from {
+    transform: var(--piece-from);
+    opacity: 0.55;
+  }
+  to {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+}
+
+.brand-mark__piece {
+  /* 420ms per piece + 3 x 70ms stagger = 630ms for the whole mark. Longer than
+     a UI transition because this is a brand moment on a rare surface, not a
+     control responding to a click. */
+  animation: brand-mark-assemble 420ms var(--ease-out) both;
+}
+
+/*
+ * Reduced motion: keep the piece, drop the travel.
+ *
+ * The global rule below collapses every animation to 0.01ms, which for this
+ * animation would be correct but accidental — it lands on the `to` frame
+ * because the fill is `both`. Stating it here means the mark keeps a short
+ * opacity settle (comprehension survives) and loses only the movement, which is
+ * what "reduce motion" actually asks for.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark__piece {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /*

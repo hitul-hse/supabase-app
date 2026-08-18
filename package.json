@@ -102,7 +102,8 @@
     "check:live-overview-deployed": "node scripts/check-live-overview-deployed.mjs",
     "check:people-live-source": "node scripts/check-people-live-source.mjs",
     "check:people-overview-agree": "node scripts/check-people-overview-agree.mjs",
-    "check:profile-rls": "node scripts/check-profile-rls.mjs"
+    "check:profile-rls": "node scripts/check-profile-rls.mjs",
+    "check:password-strength": "node --experimental-strip-types scripts/check-password-strength.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

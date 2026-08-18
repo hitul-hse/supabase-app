@@ -1,22 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import type { PersonProfile, OrgChartNode, LeaveBalanceRow, BillableValueRow } from "@/lib/queries/types";
+import type { LivePerson } from "@/lib/queries/people-live";
 import { PeopleDirectory } from "./PeopleDirectory";
 import { OrgChartView } from "./OrgChartView";
 
+/**
+ * Directory / org-chart switcher.
+ *
+ * Both views render the SAME live roster. They used to read different sources —
+ * the directory from `time.member` and the org chart from the seeded
+ * `public.org_chart_nodes` — which meant eight mockup names were serialised into
+ * the page payload on every visit, whichever tab was showing.
+ */
 export function PeopleSection({
   people,
-  orgChartNodes,
-  leaveBalances,
-  billableValues,
-  viewerRole,
+  archivedCount,
+  unlinkedCount,
+  mailboxCount,
 }: {
-  people: PersonProfile[];
-  orgChartNodes: OrgChartNode[];
-  leaveBalances: Record<string, LeaveBalanceRow>;
-  billableValues: Record<string, BillableValueRow>;
-  viewerRole: string | null;
+  people: LivePerson[];
+  archivedCount: number;
+  unlinkedCount: number;
+  mailboxCount: number;
 }) {
   const [view, setView] = useState<"directory" | "orgchart">("directory");
 
@@ -45,17 +51,21 @@ export function PeopleSection({
             Org chart
           </button>
         </div>
+
+        <span className="ml-auto font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+          SOURCE: TRACKINGTIME
+        </span>
       </div>
 
       {view === "directory" ? (
         <PeopleDirectory
           people={people}
-          leaveBalances={leaveBalances}
-          billableValues={billableValues}
-          viewerRole={viewerRole}
+          archivedCount={archivedCount}
+          unlinkedCount={unlinkedCount}
+          mailboxCount={mailboxCount}
         />
       ) : (
-        <OrgChartView nodes={orgChartNodes} />
+        <OrgChartView people={people} />
       )}
     </>
   );

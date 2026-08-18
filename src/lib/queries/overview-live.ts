@@ -43,6 +43,7 @@ import {
   getMemberUtilisation,
   type OrgWeekRow,
 } from "./time-dashboard";
+import { getRosterCounts } from "./people-live";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -106,6 +107,8 @@ export type OverviewData = {
     customers: number;
     currentQuarter: string;
   };
+  /** People with a TrackingTime record but no Hub sign-in. */
+  unlinkedPeople: number;
 };
 
 /** One decimal, thousands-separated the way the rest of the app formats hours. */
@@ -150,17 +153,22 @@ function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
  * substituted invented numbers.
  */
 export async function getLiveOverview(supabase: SupabaseTyped): Promise<OverviewData> {
-  const [weeks, projectRows, memberRows, customerCount, projectCount] = await Promise.all([
-    getOrgWeeks(supabase, OVERVIEW_WEEKS),
-    getProjectSummary(supabase, { limit: LEDGER_ROWS }),
-    getMemberUtilisation(supabase),
-    countRows(supabase, "customer"),
-    // The ledger's own length is NOT the project count. It is capped at
-    // LEDGER_ROWS, so using it in the header claimed "8 ACTIVE PROJECTS" for an
-    // organisation with 334 — a figure that looks like a measurement and is
-    // actually a page-size constant.
-    countRows(supabase, "project"),
-  ]);
+  const [weeks, projectRows, memberRows, customerCount, projectCount, roster] =
+    await Promise.all([
+      getOrgWeeks(supabase, OVERVIEW_WEEKS),
+      getProjectSummary(supabase, { limit: LEDGER_ROWS }),
+      getMemberUtilisation(supabase),
+      countRows(supabase, "customer"),
+      // The ledger's own length is NOT the project count. It is capped at
+      // LEDGER_ROWS, so using it in the header claimed "8 ACTIVE PROJECTS" for an
+      // organisation with 334 — a figure that looks like a measurement and is
+      // actually a page-size constant.
+      countRows(supabase, "project"),
+      // Roster counts exclude info@/jobs@, which hold member records but are
+      // inboxes. Counting them as staff inflates the headcount on the page the
+      // whole company reads.
+      getRosterCounts(supabase),
+    ]);
 
   const totals = summariseOrgWeeks(weeks);
 
@@ -230,7 +238,9 @@ export async function getLiveOverview(supabase: SupabaseTyped): Promise<Overview
       value: totals.activeMembers > 0 ? String(totals.activeMembers) : null,
       subtext:
         totals.activeMembers > 0
-          ? `PEAK IN ANY WEEK · ${memberRows.length} ON RECORD`
+          ? // `memberRows.length` counted every member record including the
+            // info@ and jobs@ inboxes. The roster count is people.
+            `PEAK IN ANY WEEK · ${roster.activePeople} ON ROSTER`
           : "NOBODY LOGGED TIME",
       tone: "neutral",
       progressPercent: null,
@@ -279,11 +289,12 @@ export async function getLiveOverview(supabase: SupabaseTyped): Promise<Overview
     teams,
     projects,
     counts: {
-      activeMembers: memberRows.length,
+      activeMembers: roster.activePeople,
       activeProjects: projectCount,
       customers: customerCount,
       currentQuarter: `Q${quarter} ${now.getUTCFullYear()}`,
     },
+    unlinkedPeople: roster.unlinkedPeople,
   };
 }
 

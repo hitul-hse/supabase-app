@@ -21,7 +21,8 @@ import { requireUser } from "@/utils/supabase/require-user";
 export default async function OverviewPage() {
   await requireUser("/");
   const supabase = await createClient();
-  const { metrics, weeks, teams, projects, counts } = await getLiveOverview(supabase);
+  const { metrics, weeks, teams, projects, counts, unlinkedPeople } =
+    await getLiveOverview(supabase);
 
   const chartMax = Math.max(0, ...weeks.map((w) => w.totalHours));
 
@@ -65,6 +66,30 @@ export default async function OverviewPage() {
       />
 
       <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+        {/*
+          Surfaced rather than hidden: most of the roster has a TrackingTime
+          record but no Hub sign-in, so their hours are counted in every figure
+          on this page while they cannot log in to see them. That is an
+          operational gap the exec reading this page is the one who can close.
+        */}
+        {unlinkedPeople > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5">
+            <span className="text-[12px] text-[var(--text-secondary)]">
+              <span className="font-mono font-semibold text-[var(--warning)]">
+                {unlinkedPeople}
+              </span>{" "}
+              of {counts.activeMembers} people have no Hub sign-in yet — their hours
+              count here, but they cannot see them.
+            </span>
+            <Link
+              href="/people"
+              className="whitespace-nowrap text-[11.5px] font-medium text-[var(--accent)] hover:underline"
+            >
+              Review people →
+            </Link>
+          </div>
+        )}
+
         {/* KPI strip — 2 cols mobile, 3 md, 5 lg */}
         <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-3 lg:grid-cols-5">
           {metrics.map((metric, idx) => (
@@ -236,9 +261,15 @@ export default async function OverviewPage() {
               <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
                 BASIS
               </span>
+              {/*
+                "Nominal 40-hour week", not "contracted". Every TrackingTime
+                member reports exactly 40 h/week because that is the account
+                default — describing it as contracted would present a default
+                as a fact about someone's employment.
+              */}
               <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
-                Tracked hours over contracted hours, across the weeks each person
-                was active.
+                Tracked hours against a nominal 40-hour week, across the weeks
+                each person was active. TrackingTime holds no contracted hours.
               </p>
             </div>
           </div>

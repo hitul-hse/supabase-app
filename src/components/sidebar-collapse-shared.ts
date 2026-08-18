@@ -28,3 +28,18 @@ export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 /** Expanded desktop sidebar width, in px. Mirrors --sidebar-width in globals.css. */
 export const SIDEBAR_WIDTH = 220;
+
+/**
+ * Collapsed desktop sidebar width, in px.
+ *
+ * Deliberately NOT 0. Collapsing to nothing removes every wayfinding cue at
+ * once -- you lose which section you are in, and the only way back is a single
+ * button hidden at the page edge. A rail keeps the icons, the active marker and
+ * the logout control on screen, so collapsing trades labels for space rather
+ * than trading away navigation itself.
+ *
+ * 64px is the smallest width that still gives a 40px hit target its full
+ * padding on both sides (40 + 12 + 12) -- below that the icons start colliding
+ * with the panel edge.
+ */
+export const SIDEBAR_RAIL_WIDTH = 64;

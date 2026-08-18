@@ -8,7 +8,6 @@ import { SidebarCollapseProvider } from "@/components/SidebarCollapseContext";
 // of the string. See sidebar-collapse-shared.ts.
 import { SIDEBAR_COOKIE } from "@/components/sidebar-collapse-shared";
 import { DesktopSidebarShell } from "@/components/DesktopSidebarShell";
-import { SidebarToggle } from "@/components/SidebarToggle";
 import { TimerBarSlot } from "./TimerBarSlot";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -40,11 +39,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </DesktopSidebarShell>
 
       {/*
-        The way back in. Lives outside the collapsing shell on purpose -- a
-        control nested inside the panel it hides would disappear along with
-        it, leaving no pointer affordance to reopen.
+        No floating edge button any more. It existed because the sidebar used
+        to collapse to width 0, taking its own toggle with it; the rail keeps
+        the panel -- and therefore the control -- permanently on screen.
       */}
-      <SidebarToggle variant="rail" />
 
       {/* Mobile: drawer wrapping the same Sidebar content */}
       <MobileSidebarDrawer>

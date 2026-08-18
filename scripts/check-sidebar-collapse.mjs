@@ -52,8 +52,12 @@ const TOGGLE_PATH = "src/components/SidebarToggle.tsx";
 const SHELL_PATH = "src/components/DesktopSidebarShell.tsx";
 const LAYOUT_PATH = "src/app/(app)/layout.tsx";
 const TOUR_PATH  = "src/components/OnboardingTour.tsx";
+// SHARED_PATH is declared further down, alongside the client-reference checks
+// that own it; only the two new files are introduced here.
+const SIDEBAR_PATH = "src/components/Sidebar.tsx";
+const NAV_PATH   = "src/components/SidebarNav.tsx";
 
-for (const p of [CTX_PATH, TOGGLE_PATH, SHELL_PATH, LAYOUT_PATH, TOUR_PATH]) {
+for (const p of [CTX_PATH, TOGGLE_PATH, SHELL_PATH, LAYOUT_PATH, TOUR_PATH, SIDEBAR_PATH, NAV_PATH]) {
   if (!existsSync(join(root, p))) {
     check(`${p} exists`, false, "collapse feature file missing");
   }
@@ -65,42 +69,54 @@ const TOGGLE = read(TOGGLE_PATH);
 const SHELL  = read(SHELL_PATH);
 const LAYOUT = read(LAYOUT_PATH);
 const TOUR   = read(TOUR_PATH);
+const SIDEBAR = read(SIDEBAR_PATH);
+const NAV     = read(NAV_PATH);
 
 /* ── 1. The way back in ──────────────────────────────────────────────────── */
 // The single most important property: when collapsed, a pointer-only user must
 // still have something to click.
+//
+// The sidebar now collapses to a 64px ICON RAIL rather than to width 0, which
+// changes HOW this is satisfied. Previously the panel vanished, so a second
+// toggle had to be mounted outside it at the page edge. The rail keeps the
+// panel -- and its toggle -- permanently on screen, so the property is
+// structural instead of bolted on. Assert the property, not the old mechanism.
 
 check(
-  "a rail variant of the toggle exists",
-  /variant["']?\s*[=:]\s*["']rail["']|"rail"/.test(TOGGLE),
-  "no rail affordance -- collapsing would be a one-way door",
+  "collapsed width is non-zero (a rail, not a disappearance)",
+  /SIDEBAR_RAIL_WIDTH/.test(SHELL) && !/collapsed\s*\?\s*0\s*:/.test(SHELL),
+  "collapsing to 0 removes every affordance including the way back",
 );
 
-// The rail control must be mounted OUTSIDE the collapsing shell. If it were a
-// child of DesktopSidebarShell it would be hidden by the very state it undoes.
-const shellOpen = LAYOUT.indexOf("<DesktopSidebarShell");
-const shellClose = LAYOUT.indexOf("</DesktopSidebarShell>");
-const railAt = LAYOUT.search(/<SidebarToggle[^>]*variant=["']rail["']/);
 check(
-  "the layout mounts the rail toggle",
-  railAt !== -1,
-  "layout never renders <SidebarToggle variant=\"rail\" />",
-);
-check(
-  "the rail toggle is NOT nested inside the collapsing shell",
-  railAt !== -1 && shellOpen !== -1 && shellClose !== -1
-    ? railAt < shellOpen || railAt > shellClose
-    : false,
-  "a control inside the panel it hides disappears with it",
+  "the rail width constant is a real, usable size",
+  (() => {
+    // Read directly: SHARED is not bound until section 2.
+    const src = readFileSync(join(root, "src/components/sidebar-collapse-shared.ts"), "utf8");
+    const m = /SIDEBAR_RAIL_WIDTH\s*=\s*(\d+)/.exec(src);
+    return !!m && Number(m[1]) >= 48;
+  })(),
+  "a rail under 48px cannot hold a touch-sized target",
 );
 
-// The rail must be visible at desktop widths. `hidden ... lg:flex` is the
-// project's idiom; a rail that is `hidden` with no lg: escape shows never.
-const railBlock = TOGGLE.slice(TOGGLE.indexOf('variant === "rail"'));
+// One toggle, inside the panel. That is only safe BECAUSE the panel survives
+// collapse -- so tie the two facts together explicitly.
 check(
-  "the rail toggle is visible at lg and up",
-  /lg:(flex|block|inline-flex)/.test(railBlock),
-  "rail never becomes visible on desktop",
+  "the sidebar renders the toggle",
+  /<SidebarToggle\s*\/>/.test(SIDEBAR),
+  "no collapse control in the panel",
+);
+
+check(
+  "the layout no longer mounts a second floating toggle",
+  !/<SidebarToggle/.test(LAYOUT),
+  "a second copy means two controls with the same accessible name",
+);
+
+check(
+  "the toggle is visible at lg and up",
+  /lg:(flex|block|inline-flex)/.test(TOGGLE),
+  "toggle never becomes visible on desktop",
 );
 
 /* ── 2. Persistence without a flash of wrong layout ──────────────────────── */
@@ -191,24 +207,62 @@ check(
   "that import is the exact bug this gate exists to prevent",
 );
 
-/* ── 3. Not a keyboard trap ──────────────────────────────────────────────── */
+/* ── 3. Not a keyboard trap, and not a silent one either ─────────────────── */
+//
+// The old build hid the collapsed panel with aria-hidden + inert, because at
+// width 0 its links were invisible but still focusable. The rail INVERTS that
+// requirement: the panel is now genuinely on screen and genuinely usable, so
+// hiding it from assistive tech would be the bug -- a sighted user would see
+// nine working links that a screen reader flatly denies exist.
 
 check(
-  "the collapsed panel is hidden from assistive tech",
-  /aria-hidden=\{collapsed\}/.test(SHELL),
-  "screen readers would still announce the hidden nav",
+  "the rail is NOT hidden from assistive tech",
+  !/aria-hidden=\{collapsed\}/.test(SHELL),
+  "the rail is visible and clickable; hiding it from AT contradicts the screen",
 );
 
 check(
-  "the collapsed panel is removed from the tab order",
-  /inert=\{collapsed\}/.test(SHELL),
-  "width:0 alone leaves every link focusable -- a keyboard user tabs into nowhere",
+  "the rail is NOT removed from the tab order",
+  !/inert=\{collapsed\}/.test(SHELL),
+  "inert would make visible, clickable nav unreachable by keyboard",
+);
+
+// Labels must survive collapse as TEXT. An icon-only link whose accessible
+// name is a decorative <svg> announces as "link" and nothing else.
+check(
+  "nav labels are clipped, not deleted, in the rail",
+  /group-data-\[collapsed=true\]\/sidebar:w-0/.test(NAV) &&
+    !/group-data-\[collapsed=true\]\/sidebar:hidden[^"]*>\s*\{link\.label\}/.test(NAV),
+  "display:none on the label leaves the link with no accessible name",
 );
 
 check(
   "the collapsed panel clips its overflow",
   /overflow-hidden/.test(SHELL),
-  "at width 0 the 220px content would still paint over the page",
+  "mid-animation the 220px content would paint outside the 64px rail",
+);
+
+/*
+  ...but it must STOP clipping in the rail, or the tooltips -- which are
+  positioned just past the 64px edge and are the only way to read a label there
+  -- get severed by the clipping box.
+*/
+check(
+  "the rail stops clipping so tooltips can escape",
+  /data-\[collapsed=true\]:overflow-visible/.test(SHELL),
+  "a clipping box at 64px cuts every rail tooltip in half",
+);
+
+/*
+  The label stays a flex item at width 0, so a leftover `gap` between the icon
+  and that empty box is still counted by `justify-center` -- pushing every icon
+  off centre by half the gap. Found by measuring the rendered rail (icons at
+  27px against a content centre of 32px), not by reading the class list.
+*/
+check(
+  "the rail zeroes the flex gap so icons sit on centre",
+  /group-data-\[collapsed=true\]\/sidebar:gap-0/.test(NAV),
+  "a leftover gap next to the zero-width label shifts every icon off centre",
 );
 
 // These attributes are asserted against RENDERED markup further down rather
@@ -352,60 +406,56 @@ try {
   const ctxFile = await compile(CTX_PATH, "ctx.cjs", {
     "./sidebar-collapse-shared": posix(sharedFile),
   });
+  // The toggle now draws its chevrons from the shared icon set, so that module
+  // has to be compiled and rewritten too.
+  const iconsFile = await compile("src/components/nav-icons.tsx", "icons.cjs");
   const toggleFile = await compile(TOGGLE_PATH, "toggle.cjs", {
     "./SidebarCollapseContext": posix(ctxFile),
     "./sidebar-collapse-shared": posix(sharedFile),
+    "./nav-icons": posix(iconsFile),
   });
   const { SidebarToggle } = require(toggleFile);
   const { SidebarCollapseProvider } = require(ctxFile);
 
-  const renderIn = (collapsedInitial, variant) =>
+  const renderIn = (collapsedInitial) =>
     renderToStaticMarkup(
       h(
         SidebarCollapseProvider,
         { initialCollapsed: collapsedInitial },
-        h(SidebarToggle, { variant }),
+        h(SidebarToggle, null),
       ),
     );
 
-  // Expanded: the inside control shows, the rail does not.
-  const expandedInside = renderIn(false, "inside");
-  const expandedRail = renderIn(false, "rail");
-  check(
-    "expanded: the in-sidebar control renders",
-    expandedInside.includes("sidebar-toggle-inside"),
-    "nothing to click to hide the sidebar",
-  );
-  check(
-    "expanded: the rail control is absent",
-    expandedRail === "" || !expandedRail.includes("sidebar-toggle-rail"),
-    "a rail button floating over an already-open sidebar",
-  );
+  const expandedInside = renderIn(false);
+  const collapsedRail = renderIn(true);
 
-  // Collapsed: the rail shows -- this is the escape hatch.
-  const collapsedRail = renderIn(true, "rail");
-  const collapsedInside = renderIn(true, "inside");
+  /*
+    ONE control, present in BOTH states. This is the rail's central safety
+    property and it replaces the old two-variant dance: because the panel never
+    disappears, neither does its toggle, so there is no state in which the user
+    has nothing to click.
+  */
   check(
-    "collapsed: the rail control renders (the escape hatch)",
-    collapsedRail.includes("sidebar-toggle-rail"),
-    "COLLAPSE IS A ONE-WAY DOOR -- no way back without clearing a cookie",
+    "expanded: the control renders",
+    expandedInside.includes("sidebar-toggle"),
+    "nothing to click to collapse the sidebar",
   );
   check(
-    "collapsed: the in-sidebar control is absent",
-    collapsedInside === "" || !collapsedInside.includes("sidebar-toggle-inside"),
-    "rendering a control inside a hidden panel",
+    "collapsed: the control STILL renders (no one-way door)",
+    collapsedRail.includes("sidebar-toggle"),
+    "COLLAPSE IS A ONE-WAY DOOR -- no way back without clearing a cookie",
   );
 
   // The accessible label must describe the ACTION, and it must differ between
-  // states -- a button that always says "Hide sidebar" lies once collapsed.
+  // states -- a button that always says "Collapse sidebar" lies once collapsed.
   check(
-    "collapsed: the label offers to show, not hide",
-    /aria-label="Show sidebar"/.test(collapsedRail),
+    "collapsed: the label offers to expand, not collapse",
+    /aria-label="Expand sidebar"/.test(collapsedRail),
     "label does not flip with state",
   );
   check(
-    "expanded: the label offers to hide",
-    /aria-label="Hide sidebar"/.test(expandedInside),
+    "expanded: the label offers to collapse",
+    /aria-label="Collapse sidebar"/.test(expandedInside),
     "label does not flip with state",
   );
   check(
@@ -438,10 +488,17 @@ try {
   const shellCollapsed = shellIn(true);
   const shellExpanded = shellIn(false);
 
+  /*
+    Neither state may be hidden from assistive tech. Under the old width-0
+    model the collapsed panel HAD to be aria-hidden + inert, because its links
+    were invisible yet still focusable. The rail is real, visible, clickable
+    navigation, so doing that now would be the defect: a screen reader would
+    deny the existence of nine links the user can plainly see and click.
+  */
   check(
-    "collapsed shell is aria-hidden",
-    /aria-hidden="true"/.test(shellCollapsed),
-    "hidden nav still announced to screen readers",
+    "collapsed rail is NOT aria-hidden",
+    !/aria-hidden="true"/.test(shellCollapsed),
+    "visible, clickable rail nav hidden from screen readers",
   );
   check(
     "expanded shell is not aria-hidden",
@@ -449,14 +506,19 @@ try {
     "visible nav hidden from screen readers",
   );
   check(
-    "collapsed shell is inert (out of tab order)",
-    /inert/.test(shellCollapsed),
-    "keyboard user tabs through invisible links",
+    "collapsed rail is NOT inert",
+    !/inert/.test(shellCollapsed),
+    "inert makes visible rail nav unreachable by keyboard",
   );
   check(
     "expanded shell is not inert",
     !/inert/.test(shellExpanded),
     "visible nav not focusable -- keyboard users locked out",
+  );
+  check(
+    "collapsed rail renders at a usable width, not zero",
+    /width:\s*64px/.test(shellCollapsed) || /width:64px/.test(shellCollapsed),
+    `rail did not render at 64px -- ${shellCollapsed.slice(0, 160)}`,
   );
   check(
     "the shell still renders its children when collapsed",

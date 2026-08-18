@@ -90,10 +90,15 @@ export default function OnboardingTour() {
     Hold the sidebar open for the duration of the tour.
 
     Five of the eight steps spotlight a sidebar nav link via its `data-tour`
-    attribute. With the sidebar collapsed those elements are inside an
-    `inert`, zero-width container, so `getTargetRect` returns a 0x0 box (or
-    null) and the tour would walk through five steps narrating navigation the
-    user cannot see -- no spotlight, no error, just a dark screen and a card.
+    attribute.
+
+    This used to be about the elements not existing: the sidebar collapsed to
+    width 0, so `getTargetRect` returned a 0x0 box and five steps narrated
+    navigation that was not on screen. The rail fixed that -- the links are
+    now always mounted and measurable -- but the force is still right for a
+    different reason: in the rail those targets are 40px unlabelled icons, so
+    a first-run tour would spotlight a wordless glyph while the card explains
+    a feature by name. Someone learning the app should see the labels.
 
     This does NOT overwrite the stored preference: the provider layers
     `forcedOpen` on top, so a collapsed sidebar springs back shut when the

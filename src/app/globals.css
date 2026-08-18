@@ -38,10 +38,12 @@
   --radius-lg: 8px;
 
   /*
-   * Expanded desktop sidebar width. Mirrored as SIDEBAR_WIDTH in
-   * DesktopSidebarShell.tsx, which animates the real geometry -- change both.
+   * Desktop sidebar geometry. Mirrored as SIDEBAR_WIDTH and
+   * SIDEBAR_RAIL_WIDTH in sidebar-collapse-shared.ts, which is what actually
+   * animates -- change both, and the gate asserts the rail stays >= 48px.
    */
   --sidebar-width: 220px;
+  --sidebar-rail-width: 64px;
 }
 
 @theme inline {
@@ -70,6 +72,61 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/*
+ * Browser surfaces. The parts we did not draw still ship with defaults that
+ * belong to no design system -- a blue selection highlight and a light-grey
+ * scrollbar look wrong against a dark teal shell, and they are the cheapest
+ * tell that a page was assembled rather than built. The demo page already
+ * themes these; the app, which people actually use all day, did not.
+ */
+::selection {
+  background: var(--accent-wash);
+  color: var(--text-primary);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid var(--page);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+/*
+ * Honour the OS "reduce motion" setting globally.
+ *
+ * Framer Motion respects it for its own animations, but only where a component
+ * asks -- and none of the CSS transitions in the sidebar (labels fading, colour
+ * changes, tooltips) go through Framer at all. Without this, someone who has
+ * asked the system for less movement still gets every one of them.
+ *
+ * Not `animation: none`: collapsing that to zero can leave an element stuck at
+ * an initial keyframe. A near-instant duration ends in the final state.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .viz-root {

@@ -1,11 +1,24 @@
 "use client";
 /**
- * SidebarNav — animated navigation with Framer Motion hover/active states
- * and data-tour attributes for the OnboardingTour spotlight.
+ * SidebarNav — the app's primary navigation, in two shapes.
+ *
+ * EXPANDED: icon + label + optional badge, grouped under section headings.
+ * RAIL:     icon only, centred, label surfaced as a hover/focus tooltip.
+ *
+ * The shape is driven by `group-data-[collapsed=true]/sidebar` variants rather
+ * than by React state. That matters: <Sidebar/> is an async SERVER component,
+ * so nothing in this subtree can read the collapse context on the server, and
+ * anything gated on a client hook would render the wrong shape until hydration.
+ * CSS off a data attribute is correct on the very first byte of HTML.
+ *
+ * Labels are never removed from the DOM in rail mode -- they are clipped to a
+ * zero-width box. Deleting them would leave links whose entire accessible name
+ * is a decorative icon, i.e. unusable with a screen reader.
  */
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { IconDot, NAV_ICONS } from "./nav-icons";
 
 interface NavGroup {
   title: string;
@@ -67,16 +80,26 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
   })).filter((group) => group.items.length > 0);
 
   return (
-    <nav className="flex flex-col gap-4">
+    <nav aria-label="Main" className="flex flex-col gap-4">
       {groups.map((group, gi) => (
         <motion.div
           key={group.title}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: gi * 0.06 + 0.1, duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+          transition={{ delay: gi * 0.06 + 0.1, duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
           className="flex flex-col gap-0.5"
         >
-          <div className="px-4 pb-1 font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)]">
+          {/*
+            In rail mode the heading collapses to a hairline rule. A group needs
+            SOME separator or the nine icons read as one undifferentiated column,
+            but the word itself will not fit in 64px and truncating "ANALYSE" to
+            "AN…" is worse than a line.
+          */}
+          <div
+            aria-hidden
+            className="mx-3 mb-1 hidden h-px bg-[var(--border)] group-data-[collapsed=true]/sidebar:block"
+          />
+          <div className="px-4 pb-1 font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
             {group.title}
           </div>
 
@@ -85,6 +108,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
             const active = isRoot
               ? pathname === "/"
               : pathname === link.href || pathname?.startsWith(`${link.href}/`);
+            const Icon = NAV_ICONS[link.href] ?? IconDot;
 
             return (
               <motion.div
@@ -96,46 +120,109 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                 <Link
                   href={link.href}
                   data-tour={link.tourId}
-                  className="block"
+                  data-testid={`nav-link-${link.href}`}
+                  aria-current={active ? "page" : undefined}
+                  /*
+                    `group/item` scopes the tooltip's hover and focus-within to
+                    this one row. `relative` anchors the tooltip. Both live on
+                    the anchor, not the inner div, so keyboard focus reveals the
+                    tooltip too -- a mouse-only tooltip is a rail with no labels
+                    for anyone tabbing through it.
+                  */
+                  className="group/item relative block rounded-[var(--radius-sm)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]"
                 >
-                  <motion.div
-                    whileHover={{ x: 3, backgroundColor: "var(--surface-hover)" }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className={`relative flex items-center justify-between px-4 py-1.5 text-[12.5px] transition-colors rounded-sm ${
+                  <div
+                    /*
+                      `gap-0` in the rail is load-bearing, not tidying.
+
+                      The label is clipped to width 0 rather than removed, so it
+                      is still a flex item -- and `justify-center` centres the
+                      icon PLUS that zero-width span PLUS the 10px gap between
+                      them. The result is every icon sitting 5px left of centre:
+                      visible as a wonky column, and exactly what the visual
+                      probe measured (icon at 27px, content centre at 32px).
+                    */
+                    className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius-sm)] px-4 py-1.5 text-[12.5px] transition-colors duration-150 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5 ${
                       active
                         ? "bg-[var(--surface-hover)] font-medium text-[var(--text-primary)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
                     }`}
                   >
-                    {/* Animated left border */}
-                    <AnimatePresence>
-                      {active && (
-                        <motion.span
-                          layoutId="nav-active-bar"
-                          initial={{ scaleY: 0 }}
-                          animate={{ scaleY: 1 }}
-                          exit={{ scaleY: 0 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                          className="absolute left-0 top-0 h-full w-0.5 bg-[var(--accent)] origin-center"
-                        />
-                      )}
-                    </AnimatePresence>
+                    {/*
+                      Active marker. A left bar in the expanded panel; in the
+                      rail it becomes a short centred stub, because a full-height
+                      bar 2px from a centred icon reads as a rendering artifact.
 
-                    <span>{link.label}</span>
+                      Not `layoutId` any more: a shared layout animation between
+                      two elements of different size and axis makes the marker
+                      visibly fly across the panel every time the rail toggles.
+                    */}
+                    {active && (
+                      <span
+                        aria-hidden
+                        className="absolute left-0 top-1/2 h-full w-0.5 -translate-y-1/2 rounded-r bg-[var(--accent)] group-data-[collapsed=true]/sidebar:h-4"
+                      />
+                    )}
+
+                    <Icon
+                      className={`flex-none transition-colors ${
+                        active ? "text-[var(--accent)]" : "text-current"
+                      }`}
+                    />
+
+                    {/*
+                      Clipped, not removed. `w-0 opacity-0` keeps the text in the
+                      accessible name while taking no space; the parent's
+                      `overflow-hidden` stops it painting over the rail during
+                      the width animation.
+                    */}
+                    <span
+                      data-testid="nav-label"
+                      className="min-w-0 flex-1 truncate transition-[opacity] duration-150 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0"
+                    >
+                      {link.label}
+                    </span>
 
                     {link.badge && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", delay: 0.3 }}
-                        className="px-1.5 py-0.5 font-mono text-[9.5px] font-semibold text-black"
+                      <span
+                        className="flex-none rounded-[3px] px-1.5 py-0.5 font-mono text-[9.5px] font-semibold text-black group-data-[collapsed=true]/sidebar:hidden"
                         style={{ background: link.badgeColor || "var(--accent)" }}
                       >
                         {link.badge}
-                      </motion.span>
+                      </span>
                     )}
-                  </motion.div>
+
+                    {/*
+                      Badge in rail mode: a dot in the icon's top-right corner.
+                      The count will not fit, but losing the signal entirely
+                      would hide the one nav item asking for attention.
+                    */}
+                    {link.badge && (
+                      <span
+                        aria-hidden
+                        className="absolute right-3.5 top-2 hidden h-1.5 w-1.5 rounded-full ring-2 ring-[var(--sidebar)] group-data-[collapsed=true]/sidebar:block"
+                        style={{ background: link.badgeColor || "var(--accent)" }}
+                      />
+                    )}
+                  </div>
+
+                  {/*
+                    Rail tooltip. `aria-hidden` because the clipped label above
+                    already names the link -- announcing both would read the item
+                    twice. Rendered only when collapsed, and never on touch
+                    (`pointer-fine`), where there is no hover to trigger it.
+                  */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
+                  >
+                    {link.label}
+                    {link.badge ? (
+                      <span className="ml-1.5 font-mono text-[10px] text-[var(--text-faint)]">
+                        {link.badge}
+                      </span>
+                    ) : null}
+                  </span>
                 </Link>
               </motion.div>
             );

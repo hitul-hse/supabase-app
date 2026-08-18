@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import type { ProfileView } from "@/lib/queries/profile";
 import { ALLOWED_AVATAR_TYPES, MAX_AVATAR_BYTES, type ProfileActionState } from "./constants";
@@ -20,6 +20,33 @@ export function IdentityCard({
   const [preview, setPreview] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Without this the "Save photo" button stays visible against the now-stale
+  // preview after a successful upload, and a second click re-uploads the same
+  // file.
+  //
+  // Cleared during render rather than in a useEffect: react-hooks/set-state-in-effect
+  // flags a setState call that only derives one piece of state (preview) from
+  // another (photoState) inside an effect, since it costs an extra render pass
+  // for no benefit. `handledPhotoState` tracks the last photoState this
+  // component has reacted to, so the clear happens at most once per action
+  // result, in the same render that observes the new result.
+  const [handledPhotoState, setHandledPhotoState] = useState(photoState);
+  if (photoState !== handledPhotoState) {
+    setHandledPhotoState(photoState);
+    if (photoState.status === "success") setPreview(null);
+  }
+
+  // Revoking the object URL and resetting the file input's value are real
+  // side effects on external state (a browser object URL, DOM element value),
+  // not derived React state, so they belong in an effect keyed on `preview`.
+  // Resetting the input also lets the same file be re-picked immediately.
+  useEffect(() => {
+    if (preview === null && fileRef.current) fileRef.current.value = "";
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
 
   // Optimistic preview so the new photo appears before the round trip. The
   // same limits are enforced in the action; this only saves a wasted upload.

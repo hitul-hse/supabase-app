@@ -36,7 +36,13 @@ export async function updateDisplayName(
     .update({ display_name: raw === "" ? null : raw })
     .eq("user_id", user.id);
 
-  if (error) return { status: "error", message: error.message };
+  if (error) {
+    // The raw error can contain schema/constraint internals (e.g. a check
+    // constraint name) that mean nothing to the caller and shouldn't leave
+    // the server. Logged here for a developer; a short message goes out.
+    console.error("[profile] updateDisplayName failed:", error);
+    return { status: "error", message: "Couldn't save your name. Try again." };
+  }
 
   revalidatePath("/profile");
   return { status: "success", message: raw === "" ? "Using your HR name." : "Name updated." };
@@ -78,13 +84,19 @@ export async function uploadAvatar(
   const { error: upErr } = await supabase.storage
     .from("avatars")
     .upload(key, file, { upsert: true, contentType: file.type });
-  if (upErr) return { status: "error", message: "Upload failed. Try again." };
+  if (upErr) {
+    console.error("[profile] uploadAvatar storage upload failed:", upErr);
+    return { status: "error", message: "Couldn't upload your photo. Try again." };
+  }
 
   const { error: rowErr } = await supabase
     .from("app_user_profile")
     .update({ avatar_url: key })
     .eq("user_id", user.id);
-  if (rowErr) return { status: "error", message: rowErr.message };
+  if (rowErr) {
+    console.error("[profile] uploadAvatar row update failed:", rowErr);
+    return { status: "error", message: "Couldn't save your photo. Try again." };
+  }
 
   if (existing?.avatar_url && existing.avatar_url !== key) {
     await supabase.storage.from("avatars").remove([existing.avatar_url]);
@@ -116,7 +128,10 @@ export async function removeAvatar(): Promise<ProfileActionState> {
     .from("app_user_profile")
     .update({ avatar_url: null })
     .eq("user_id", user.id);
-  if (error) return { status: "error", message: error.message };
+  if (error) {
+    console.error("[profile] removeAvatar failed:", error);
+    return { status: "error", message: "Couldn't remove your photo. Try again." };
+  }
 
   revalidatePath("/profile");
   revalidatePath("/", "layout");

@@ -47,6 +47,18 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Next's default Server Action body limit is 1 MB. uploadAvatar's own
+  // ceiling is MAX_AVATAR_BYTES (2 MB, see profile/constants.ts) -- without
+  // raising this, a 1.2-1.9 MB photo would be killed with an unhandled 413
+  // before uploadAvatar's own size check ever ran, so the user would never
+  // see "That image is over 2 MB." 3 MB covers a 2 MB file plus multipart
+  // overhead while keeping MAX_AVATAR_BYTES as the real, enforced ceiling.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "3mb",
+    },
+  },
+
   // NOTE: do NOT add an `env: { NEXT_PUBLIC_SITE_URL: ... }` block here.
   // A previous version did, and its `A ?? B ? C : D` expression parsed as
   // `(A ?? B) ? C : D` — so whenever NEXT_PUBLIC_SITE_URL *was* set it got

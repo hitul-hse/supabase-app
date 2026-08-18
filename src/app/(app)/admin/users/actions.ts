@@ -30,6 +30,31 @@ async function assertCanManageUsers(): Promise<{ userId: string } | { error: str
   return { userId: user.id };
 }
 
+/**
+ * Does a role hold a permission?
+ *
+ * Asked of app_role_permission rather than hardcoding "exec", so if the
+ * "Manage User Accounts" toggle is ever granted to another role this stays right.
+ * Fails CLOSED: if the lookup errors we report that the role cannot manage users,
+ * because the cost of a wrong "yes" is an administrator locked out of their own
+ * console.
+ */
+async function roleHasPermission(roleKey: string, permissionKey: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("app_role_permission")
+      .select("role_key")
+      .eq("role_key", roleKey)
+      .eq("permission_key", permissionKey)
+      .maybeSingle();
+    if (error) return false;
+    return data !== null;
+  } catch {
+    return false;
+  }
+}
+
 export async function inviteUser(
   _prevState: InviteState,
   formData: FormData,
@@ -134,6 +159,16 @@ export async function inviteUser(
 }
 
 /** Activate or deactivate a user account. */
+/**
+ * Activate or deactivate an account.
+ *
+ * Writes with the ADMIN client, not the caller's. app_user_profile grants
+ * authenticated only `select`, so an UPDATE through the user's own client is
+ * refused by Postgres with 42501 "permission denied for table" before its policy is
+ * ever consulted -- which is why this toggle silently reverted for every exec. The
+ * boundary is assertCanManageUsers() above, the same gate that lets inviteUser
+ * create accounts outright.
+ */
 export async function setUserActive(
   userId: string,
   isActive: boolean,
@@ -141,8 +176,20 @@ export async function setUserActive(
   const guard = await assertCanManageUsers();
   if ("error" in guard) return { error: guard.error };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  // Deactivating yourself removes your own access to this page. Previously the
+  // write failed for everyone so it could not happen; through the service role it
+  // would succeed, and with no other active exec there is no way back in.
+  if (guard.userId === userId && !isActive) {
+    return { error: "You cannot deactivate your own account. Ask another administrator." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Admin client unavailable." };
+  }
+  const { error } = await admin
     .from("app_user_profile")
     .update({ is_active: isActive })
     .eq("user_id", userId);
@@ -152,7 +199,7 @@ export async function setUserActive(
   return {};
 }
 
-/** Change a user's role. */
+/** Change a user's role. Admin client for the reason given on setUserActive. */
 export async function changeUserRole(
   userId: string,
   newRoleKey: string,
@@ -160,8 +207,25 @@ export async function changeUserRole(
   const guard = await assertCanManageUsers();
   if ("error" in guard) return { error: guard.error };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  // Same reasoning as setUserActive: demoting yourself out of the role that grants
+  // admin:users:write locks you out of the console. Checked by permission rather
+  // than by comparing role keys, so a change to which roles hold it stays correct.
+  if (guard.userId === userId) {
+    const stillAllowed = await roleHasPermission(newRoleKey, PERMISSIONS.ADMIN_USERS_WRITE);
+    if (!stillAllowed) {
+      return {
+        error: "That role cannot manage users, so you would lock yourself out. Ask another administrator to change your role.",
+      };
+    }
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Admin client unavailable." };
+  }
+  const { error } = await admin
     .from("app_user_profile")
     .update({ role_key: newRoleKey })
     .eq("user_id", userId);
@@ -171,7 +235,12 @@ export async function changeUserRole(
   return {};
 }
 
-/** Change a user's department. */
+/**
+ * Change a user's team.
+ *
+ * Stored in `department`, which also feeds app_user_department(). The column keeps
+ * its name because it appears in RLS policies; only the label says "team".
+ */
 export async function changeUserDepartment(
   userId: string,
   department: string,
@@ -179,8 +248,13 @@ export async function changeUserDepartment(
   const guard = await assertCanManageUsers();
   if ("error" in guard) return { error: guard.error };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Admin client unavailable." };
+  }
+  const { error } = await admin
     .from("app_user_profile")
     .update({ department: department || null })
     .eq("user_id", userId);

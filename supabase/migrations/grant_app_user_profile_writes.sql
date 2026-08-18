@@ -1,0 +1,44 @@
+-- Let the admin console actually write to app_user_profile.
+--
+-- THE BUG. Changing a user's team in Users & Roles failed with "permission denied
+-- for table app_user_profile" (SQLSTATE 42501). Not only the team: role changes and
+-- the ACTIVE/INACTIVE toggle fail identically. Reproduced against live as a real
+-- exec -- all three writes return 42501 -- so every inline control on that page has
+-- been inert. Only inviting worked, because inviteUser writes through the service
+-- role.
+--
+-- WHY THE POLICIES WERE NOT ENOUGH. schema.sql already has the right ones:
+--
+--     create policy "exec can update profiles" on app_user_profile for update ...
+--     create policy "exec can insert profiles" on app_user_profile for insert ...
+--
+-- and a comment above them says they exist precisely so the console is not stuck.
+-- But Postgres checks the table GRANT *before* any policy. Without `grant update`,
+-- the statement is refused with 42501 and the policy is never consulted.
+--
+-- CONFIRMED, not inferred, in a real engine (npm run check:profile-grants):
+--
+--     policy present, no grant  -> 42501 permission denied for table
+--     policy present, grant     -> 1 row updated
+--     grant present, policy false -> 0 rows, NO error
+--
+-- That last line is the tell. A policy that fails to match is silent; only a
+-- missing grant produces this message. So the fix is the grant, and adding another
+-- policy would have changed nothing.
+--
+-- WHY THIS WAS INVISIBLE. RLS was doing all the visible work: `select` is granted,
+-- so reads worked and the page looked healthy. Nothing in the app surfaced the
+-- write failure until an inline edit was tried -- the toggle silently reverted.
+--
+-- SAFETY. This grants the ABILITY to attempt a write; the policies still decide
+-- whether any row is affected, and they restrict update and insert to
+-- app_user_role() = 'exec'. So an employee gains nothing: their attempt now reaches
+-- the policy and is refused there, affecting zero rows instead of erroring. Delete
+-- is deliberately NOT granted -- deactivating is the intended way to remove access,
+-- and it keeps the audit trail.
+
+grant select, insert, update on app_user_profile to authenticated;
+
+-- Belt and braces for the sequence-free case: app_user_profile's primary key is
+-- user_id (a uuid from auth.users), so there is no sequence to grant. Stated
+-- explicitly because a reader who knows the usual Supabase pattern will look for it.

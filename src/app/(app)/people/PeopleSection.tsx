@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { LivePerson } from "@/lib/queries/people-live";
+import type { OrgChartData } from "@/lib/queries/org-chart-live";
 import { PeopleDirectory } from "./PeopleDirectory";
 import { OrgChartView } from "./OrgChartView";
 
@@ -15,12 +16,18 @@ import { OrgChartView } from "./OrgChartView";
  */
 export function PeopleSection({
   people,
+  chart,
+  canEditPeople,
   archivedCount,
   unlinkedCount,
   mailboxCount,
   initialQuery = "",
 }: {
   people: LivePerson[];
+  /** The reporting tree, recorded in the Hub because TrackingTime has none. */
+  chart: OrgChartData;
+  /** Whether this viewer holds people:write and may record structure. */
+  canEditPeople: boolean;
   archivedCount: number;
   unlinkedCount: number;
   mailboxCount: number;
@@ -76,7 +83,7 @@ export function PeopleSection({
           initialQuery={initialQuery}
         />
       ) : (
-        <OrgChartView people={people} />
+        <OrgChartView chart={chart} canEdit={canEditPeople} />
       )}
     </>
   );

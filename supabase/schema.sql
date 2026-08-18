@@ -2345,6 +2345,40 @@ group by s.id, s.name, s.is_travel, s.is_paid_travel, s.is_internal;
 grant select on time.service_summary to authenticated;
 
 
+-- The organisation chart: identity and reporting structure, company-wide.
+--
+-- WHY THIS IS SEPARATE FROM time.member. That table's read policy is
+-- can_view_member(id), which is right for TIME data -- an employee has no business
+-- reading a colleague's logged hours. But an org chart needs the whole company:
+-- read through the table as a real employee, the chart reported "0 OF 1 PLACED"
+-- and drew a hierarchy containing only herself. Correct per the policy, and
+-- useless.
+--
+-- Same reasoning as public.org_chart_nodes before it, and deliberately NOT
+-- security_invoker for the same reason: everyone must see the reporting line.
+--
+-- WHAT IT OMITS IS THE SECURITY BOUNDARY. No user_id (the identifier that decides
+-- whose hours someone sees -- has_account answers the only question the UI asks of
+-- it), no weekly_hours, and nothing from member_rate or member_utilisation, which
+-- keep their own scoping. The widest this leaks is who works here, what they do,
+-- and who they report to. Guarded by npm run check:time-org-chart-view.
+create or replace view time.org_chart as
+select
+  m.id                              as member_id,
+  m.display_name,
+  m.email,
+  m.role                            as account_role,
+  m.job_title,
+  m.team,
+  m.supervisor_member_id,
+  m.supervisor_source,
+  m.is_archived,
+  (m.user_id is not null)           as has_account
+from time.member m;
+
+grant select on time.org_chart to authenticated;
+
+
 -- Per-member utilisation over a rolling window.
 --
 -- Deliberately NOT joined to member_rate: this view answers "how busy is this

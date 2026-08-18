@@ -1,8 +1,9 @@
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { requirePermission } from "@/utils/supabase/require-profile";
+import { requirePermission, userHasPermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getLivePeople } from "@/lib/queries/people-live";
+import { getOrgChart } from "@/lib/queries/org-chart-live";
 import { PeopleSection } from "./PeopleSection";
 import PageTransition from "@/components/animations/PageTransition";
 
@@ -29,7 +30,16 @@ export default async function PeoplePage({
   // Both tabs render from this ONE roster. They used to read different sources,
   // so the org chart's eight mockup names shipped in the RSC payload on every
   // visit — including while the real directory was on screen.
-  const directory = await getLivePeople(supabase);
+  // The org chart reads the same table, plus the reporting lines recorded in the
+  // Hub -- TrackingTime carries none, so there is nothing to import. Fetched in
+  // parallel because neither depends on the other.
+  const [directory, chart, canEditPeople] = await Promise.all([
+    getLivePeople(supabase),
+    getOrgChart(supabase),
+    // Whether to show the editor at all. The server actions re-check this on every
+    // write, so hiding the buttons is presentation, not the security boundary.
+    userHasPermission(PERMISSIONS.PEOPLE_WRITE),
+  ]);
 
   // The Overview's utilisation rows deep-link here as /people?q=<name>, so a
   // reader who spots an outlier lands on that person instead of on a list they
@@ -42,6 +52,8 @@ export default async function PeoplePage({
         <SyncBar />
         <PeopleSection
           people={directory.people}
+          chart={chart}
+          canEditPeople={canEditPeople}
           archivedCount={directory.archivedCount}
           unlinkedCount={directory.unlinkedCount}
           mailboxCount={directory.mailboxCount}

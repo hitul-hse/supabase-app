@@ -69,17 +69,20 @@ const clientFor = (rows) => ({
   }),
 });
 
+// Shaped like a row of time.org_chart, which is what the builder reads. Not
+// time.member: the table's policy scopes rows to whoever may see that person's
+// TIME, which gave a real employee a hierarchy of one person.
 const member = (id, name, over = {}) => ({
-  id,
+  member_id: id,
   display_name: name,
   email: `${name.toLowerCase().replace(/\s+/g, ".")}@hs-experts.com`,
-  role: "CO_WORKER",
+  account_role: "CO_WORKER",
   job_title: null,
   team: null,
   supervisor_member_id: null,
   supervisor_source: null,
   is_archived: false,
-  user_id: null,
+  has_account: false,
   ...over,
 });
 

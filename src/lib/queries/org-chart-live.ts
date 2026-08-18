@@ -9,6 +9,14 @@
  * structure is recorded in the Hub (see the add_member_hierarchy_and_team
  * migration) and read here.
  *
+ * WHY IT READS time.org_chart AND NOT time.member. The table's read policy is
+ * can_view_member(id) -- correct for time data, since an employee has no business
+ * reading a colleague's hours. But the chart needs the whole company: rendered as a
+ * real employee against the table, it reported "0 OF 1 PLACED" and drew a hierarchy
+ * of one person. Found by viewing the deployed page as two different people, not by
+ * reading the policy. The view is deliberately company-wide and projects identity
+ * and structure only -- no hours, no rates, and not user_id.
+ *
  * THREE THINGS THIS DELIBERATELY DOES NOT DO.
  *
  * It does not invent a root. If nobody has a supervisor, the result is a flat list
@@ -90,9 +98,9 @@ export type OrgChartData = {
  */
 export async function getOrgChart(supabase: SupabaseTyped): Promise<OrgChartData> {
   const { data, error } = await timeSchema(supabase)
-    .from("member")
+    .from("org_chart")
     .select(
-      "id, display_name, email, role, job_title, team, supervisor_member_id, supervisor_source, is_archived, user_id",
+      "member_id, display_name, email, account_role, job_title, team, supervisor_member_id, supervisor_source, is_archived, has_account",
     )
     .order("display_name");
 
@@ -101,9 +109,9 @@ export async function getOrgChart(supabase: SupabaseTyped): Promise<OrgChartData
   }
 
   type Row = {
-    id: number; display_name: string | null; email: string | null; role: string | null;
+    member_id: number; display_name: string | null; email: string | null; account_role: string | null;
     job_title: string | null; team: string | null; supervisor_member_id: number | null;
-    supervisor_source: string | null; is_archived: boolean | null; user_id: string | null;
+    supervisor_source: string | null; is_archived: boolean | null; has_account: boolean | null;
   };
 
   // Archived members and shared inboxes are excluded: an org chart is a picture of
@@ -112,16 +120,16 @@ export async function getOrgChart(supabase: SupabaseTyped): Promise<OrgChartData
   const members: OrgMember[] = (data as Row[])
     .filter((r) => !r.is_archived && !isSharedMailbox(r.email))
     .map((r) => ({
-      memberId: Number(r.id),
-      name: r.display_name ?? `Member ${r.id}`,
+      memberId: Number(r.member_id),
+      name: r.display_name ?? `Member ${r.member_id}`,
       email: r.email,
-      accountRole: r.role,
+      accountRole: r.account_role,
       jobTitle: r.job_title,
       team: r.team,
       supervisorMemberId: r.supervisor_member_id === null ? null : Number(r.supervisor_member_id),
       supervisorSource: r.supervisor_source,
       isArchived: Boolean(r.is_archived),
-      hasAccount: r.user_id !== null,
+      hasAccount: Boolean(r.has_account),
     }));
 
   const byId = new Map(members.map((m) => [m.memberId, m]));

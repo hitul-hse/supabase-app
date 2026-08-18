@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import type { ProfileView } from "@/lib/queries/profile";
 import { ALLOWED_AVATAR_TYPES, MAX_AVATAR_BYTES, type ProfileActionState } from "./constants";
-import { updateDisplayName, uploadAvatar } from "./actions";
+import { updateDisplayName, uploadAvatar, removeAvatar } from "./actions";
 
 const IDLE: ProfileActionState = { status: "idle" };
 
@@ -17,6 +17,13 @@ export function IdentityCard({
 }) {
   const [nameState, nameAction, namePending] = useActionState(updateDisplayName, IDLE);
   const [photoState, photoAction, photoPending] = useActionState(uploadAvatar, IDLE);
+  // removeAvatar takes no arguments -- it acts on the caller's own session,
+  // same as the other three actions read their user from getUser() rather
+  // than from any submitted field. useActionState always calls the action
+  // with (state, formData); removeAvatar simply ignores both, which
+  // TypeScript accepts because a function requiring fewer parameters is
+  // assignable wherever one requiring more is expected.
+  const [removeState, removeAction, removePending] = useActionState(removeAvatar, IDLE);
   const [preview, setPreview] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -67,46 +74,72 @@ export function IdentityCard({
     setPreview(URL.createObjectURL(file));
   }
 
-  const message = localError ?? photoState.message ?? nameState.message;
-  const isError = !!localError || photoState.status === "error" || nameState.status === "error";
+  const message = localError ?? photoState.message ?? nameState.message ?? removeState.message;
+  const isError =
+    !!localError ||
+    photoState.status === "error" ||
+    nameState.status === "error" ||
+    removeState.status === "error";
 
   return (
     <section className="border border-[var(--border)] bg-[var(--surface)] p-5">
       <h2 className="mb-4 text-[13px] font-semibold text-[var(--text-primary)]">Identity</h2>
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <form action={photoAction} className="flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="group relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-            aria-label="Change your photo"
-          >
-            <Avatar name={profile.effectiveName} src={preview ?? signedAvatarUrl} size={88} />
-            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/55 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-              Change
-            </span>
-          </button>
-
-          <input
-            ref={fileRef}
-            type="file"
-            name="avatar"
-            accept={ALLOWED_AVATAR_TYPES.join(",")}
-            onChange={onPick}
-            className="hidden"
-          />
-
-          {preview && (
+        <div className="flex flex-col items-center gap-2">
+          <form action={photoAction} className="flex flex-col items-center gap-2">
             <button
-              type="submit"
-              disabled={photoPending}
-              className="text-[11px] text-[var(--accent)] disabled:opacity-50"
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="group relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              aria-label="Change your photo"
             >
-              {photoPending ? "Uploading…" : "Save photo"}
+              <Avatar name={profile.effectiveName} src={preview ?? signedAvatarUrl} size={88} />
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/55 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                Change
+              </span>
             </button>
+
+            <input
+              ref={fileRef}
+              type="file"
+              name="avatar"
+              accept={ALLOWED_AVATAR_TYPES.join(",")}
+              onChange={onPick}
+              className="hidden"
+            />
+
+            {preview && (
+              <button
+                type="submit"
+                disabled={photoPending}
+                className="text-[11px] text-[var(--accent)] disabled:opacity-50"
+              >
+                {photoPending ? "Uploading…" : "Save photo"}
+              </button>
+            )}
+          </form>
+
+          {/*
+            Only when there is a photo to remove -- a person who has never
+            set one, or who is mid-pick of a new file (a fresh preview,
+            not yet saved), has nothing this control should act on. A
+            separate <form> because removeAvatar is its own Server Action
+            and a <form> can only carry one `action`; nesting it inside
+            photoAction's form would be invalid HTML besides.
+          */}
+          {signedAvatarUrl && !preview && (
+            <form action={removeAction}>
+              <button
+                type="submit"
+                disabled={removePending}
+                className="border border-[var(--border-strong)] px-3 py-1.5 text-[11px] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
+              >
+                {removePending ? "Removing…" : "Remove photo"}
+              </button>
+            </form>
           )}
-        </form>
+        </div>
 
         <form action={nameAction} className="flex flex-1 flex-col gap-2">
           <label

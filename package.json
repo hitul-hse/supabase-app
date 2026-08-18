@@ -106,7 +106,8 @@
     "check:password-strength": "node --experimental-strip-types scripts/check-password-strength.mjs",
     "check:avatar": "node --experimental-strip-types scripts/check-avatar-monogram.mjs",
     "check:profile-effective-name": "node --experimental-strip-types scripts/check-profile-effective-name.mjs",
-    "check:profile-actions": "node scripts/check-profile-actions.mjs"
+    "check:profile-actions": "node scripts/check-profile-actions.mjs",
+    "check:profile-action-auth": "node scripts/check-profile-action-auth.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

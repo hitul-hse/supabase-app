@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
-import { getCurrentProfile } from "@/lib/queries/auth";
+import { getProfileView } from "@/lib/queries/profile";
+import { Avatar } from "./Avatar";
 import { SidebarNav } from "./SidebarNav";
 import { LogoutButton } from "./LogoutButton";
 import { TourReplayButton } from "./TourReplayButton";
@@ -11,7 +12,14 @@ async function getUserInfo() {
   const envConfigured =
     !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!envConfigured) {
-    return { status: "not configured" as const, email: null, roleKey: null, roleDisplayName: null };
+    return {
+      status: "not configured" as const,
+      email: null,
+      roleKey: null,
+      roleDisplayName: null,
+      displayName: null,
+      signedAvatarUrl: null,
+    };
   }
 
   try {
@@ -21,16 +29,49 @@ async function getUserInfo() {
       error,
     } = await supabase.auth.getUser();
 
-    const profile = user ? await getCurrentProfile(supabase, user.id, user.email ?? null) : null;
+    // getProfileView (not getCurrentProfile) -- it's the superset this
+    // component now needs: roleKey/roleDisplayName as before, plus
+    // effectiveName and avatarUrl for the chip. One query instead of two.
+    const profile = user ? await getProfileView(supabase, user.id, user.email ?? null) : null;
+
+    // The bucket is private, so the stored key isn't itself fetchable --
+    // same signing call page.tsx makes. This DOES mean every server render
+    // of the sidebar (i.e. every navigation) mints a fresh signed URL over
+    // the network when the user has a photo. Considered and accepted rather
+    // than cached: (a) it only fires for accounts with a photo -- most rows
+    // have none, so most renders skip it entirely; (b) this component
+    // already pays one Supabase query per render (the profile join) that
+    // this is additive to, not a new order of cost; (c) a cached signed URL
+    // would need its own invalidation wired to the avatar actions'
+    // revalidatePath("/", "layout") to avoid ever showing a stale/expired
+    // link after a photo change -- extra machinery not justified for a
+    // 49-person internal portal. One hour of validity is longer than a
+    // single page view needs regardless.
+    let signedAvatarUrl: string | null = null;
+    if (profile?.avatarUrl) {
+      const { data } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(profile.avatarUrl, 3600);
+      signedAvatarUrl = data?.signedUrl ?? null;
+    }
 
     return {
       status: error ? ("error" as const) : ("connected" as const),
       email: user?.email ?? null,
       roleKey: profile?.roleKey ?? null,
       roleDisplayName: profile?.roleDisplayName ?? null,
+      displayName: profile?.effectiveName ?? null,
+      signedAvatarUrl,
     };
   } catch {
-    return { status: "error" as const, email: null, roleKey: null, roleDisplayName: null };
+    return {
+      status: "error" as const,
+      email: null,
+      roleKey: null,
+      roleDisplayName: null,
+      displayName: null,
+      signedAvatarUrl: null,
+    };
   }
 }
 
@@ -46,25 +87,18 @@ async function getUserInfo() {
 export async function Sidebar({
   showCollapseControl = false,
 }: { showCollapseControl?: boolean } = {}) {
-  const { status, email, roleKey, roleDisplayName } = await getUserInfo();
+  const { status, email, roleKey, roleDisplayName, displayName, signedAvatarUrl } =
+    await getUserInfo();
   const dotColor =
     status === "connected" ? "var(--good)" : status === "error" ? "var(--critical)" : "var(--warning)";
   const statusLabel =
     status === "connected" ? "Supabase Live" : status === "error" ? "Supabase Error" : "Not Configured";
 
-  /*
-    Initials, not a photograph we do not have. The previous placeholder was a
-    diagonal-stripe swatch, which is identical for every user and therefore
-    carries no information -- in the rail, where the email is clipped away, it
-    would be the ONLY identity cue and would say nothing at all.
-  */
-  const initials = (email ?? "")
-    .split("@")[0]
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("") || "—";
+  // What the chip/tooltip label with. Avatar derives initials/colour from
+  // this name, not from the raw email, so a real display name (or the HR
+  // fallback -- effectiveName already resolves that) always wins when there
+  // is one; email is the last resort for an account with no profile row yet.
+  const identityLabel = displayName ?? email ?? "—";
 
   return (
     <aside
@@ -138,31 +172,55 @@ export async function Sidebar({
       {/* User profile & Supabase status footer */}
       <div className="mt-auto flex flex-col gap-2.5 border-t border-[var(--border)] px-4 pt-3 group-data-[collapsed=true]/sidebar:items-center group-data-[collapsed=true]/sidebar:px-2">
         <div className="group/who relative flex w-full items-center gap-2.5 group-data-[collapsed=true]/sidebar:w-auto group-data-[collapsed=true]/sidebar:justify-center">
-          <span
-            aria-hidden
-            className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[var(--accent-wash)] font-mono text-[10px] font-semibold tracking-[0.02em] text-[var(--accent)] ring-1 ring-inset ring-[var(--border-strong)]"
-          >
-            {initials}
-          </span>
-          <div className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
-            <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
-              {email ?? "Not signed in"}
-            </span>
-            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
-              {roleDisplayName ? roleDisplayName.toUpperCase() : email ? "PENDING ACCESS" : "—"}
-            </span>
-          </div>
+          {email ? (
+            /*
+              The chip IS the /profile navigation entry (see task-8-brief's
+              merge note -- SidebarNav/nav-icons stay untouched, this is the
+              entry point instead). Avatar renders the real photo when
+              signedAvatarUrl resolved, else the monogram fallback -- both
+              paths share the same component Task 3/8 use everywhere else.
+            */
+            <Link
+              href="/profile"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-sm)] py-0.5 pr-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] group-data-[collapsed=true]/sidebar:flex-none"
+            >
+              <Avatar name={identityLabel} src={signedAvatarUrl} size={28} />
+              <div className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
+                <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
+                  {identityLabel}
+                </span>
+                <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
+                  {roleDisplayName ? roleDisplayName.toUpperCase() : "PENDING ACCESS"}
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <>
+              <span
+                aria-hidden
+                className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[var(--accent-wash)] font-mono text-[10px] font-semibold tracking-[0.02em] text-[var(--accent)] ring-1 ring-inset ring-[var(--border-strong)]"
+              >
+                —
+              </span>
+              <div className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
+                <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
+                  Not signed in
+                </span>
+              </div>
+            </>
+          )}
 
           {/*
-            In the rail the initials are the only identity cue, and initials
-            alone are ambiguous across a 49-person company -- so the tooltip
-            carries the full address and role.
+            In the rail the avatar is the only identity cue, and a monogram
+            alone is ambiguous across a 49-person company -- so the tooltip
+            carries the full name and role. Matches how LogoutButton solves
+            the same rail-tooltip problem below.
           */}
           <span
             aria-hidden
             className="pointer-events-none absolute bottom-0 left-[calc(100%+8px)] z-50 hidden whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover/who:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
           >
-            {email ?? "Not signed in"}
+            {email ? identityLabel : "Not signed in"}
             {roleDisplayName ? (
               <span className="ml-1.5 font-mono text-[10px] text-[var(--text-faint)]">
                 {roleDisplayName.toUpperCase()}

@@ -534,10 +534,45 @@ begin
   end if;
 
   -- Entries: read what you are allowed to see.
+  --
+  -- WHY THIS IS WRITTEN AS THREE OR'D BRANCHES rather than the one call to
+  -- time.can_view_member(member_id) it replaces, which read far better:
+  --
+  -- MEASURED on the live project (scripts/check-rls-hoisting.mjs), fetching the
+  -- same 4,194 entries the TrackingTime dashboard reads:
+  --
+  --     as service_role, RLS bypassed      311ms
+  --     as a real exec, RLS applied      2,870ms
+  --
+  -- 2.5s of policy evaluation, and it SCALED with rows scanned (~55ms for a month,
+  -- ~170ms per 1000 rows) which is the signature of a per-row predicate. The cause
+  -- is that can_view_member takes a per-ROW argument: it is STABLE, but a stable
+  -- function whose input varies per row must be called per row -- 4,194 times, each
+  -- invoking app_user_role(), which itself reads app_user_profile.
+  --
+  -- The first two branches below do not depend on the row at all. Wrapping each in
+  -- a scalar subquery lets the planner evaluate it ONCE per statement as an
+  -- InitPlan (this is Supabase's documented RLS performance pattern), and because
+  -- `or` short-circuits, an exec never reaches the per-row branch at all.
+  --
+  -- SEMANTICS ARE UNCHANGED, and that is checkable rather than asserted:
+  -- can_view_member is literally `app_user_role() = 'exec' OR target = current_member_id()
+  -- OR exists(department check)`. Hoisting the first two disjuncts out of the
+  -- function and leaving the third to the function computes the same boolean --
+  -- `A or B or f(row)` where f = `A or B or C`. The third branch still goes through
+  -- can_view_member, so the department rule has exactly one implementation.
+  --
+  -- The RLS gates (npm run test:time-rls, test:rls, test:rls-control) cover the
+  -- access outcomes and must pass unchanged; this is a performance rewrite and any
+  -- behaviour difference is a bug, not a trade-off.
   if not exists (select 1 from pg_policies where schemaname='time' and tablename='entry'
                  and policyname='scoped read of entry') then
     create policy "scoped read of entry" on time.entry
-      for select to authenticated using (time.can_view_member(member_id));
+      for select to authenticated using (
+        (select app_user_role()) = 'exec'
+        or member_id = (select time.current_member_id())
+        or time.can_view_member(member_id)
+      );
   end if;
 
   -- Write only your OWN time. member_id is pinned to the caller in WITH CHECK,
@@ -621,8 +656,10 @@ grant select on time.week_summary to authenticated;
 --      time.project_economics(), a security definer function gated on a
 --      permission, which returns zero rows rather than a partial total.
 --
---   2. CALENDAR TIME IS REPORTED, NEVER SILENTLY MIXED IN. 34% of live events
---      are GHOST calendar placeholders with no customer and no project. Folding
+--   2. CALENDAR TIME IS REPORTED, NEVER SILENTLY MIXED IN. 46% of live events
+--      (40% of logged hours) are GHOST calendar placeholders, most with no
+--      customer and no project -- measured, and higher than the 34% previously
+--      recorded here. Folding
 --      them into a utilisation or billable figure would make that figure
 --      meaningless, so every view carries calendar_seconds as its own column
 --      and the deliberate-work total excludes it.
@@ -749,6 +786,21 @@ grant select on time.service_summary to authenticated;
 -- person", and adding cost would drag the whole thing behind the exec gate for
 -- no benefit. Utilisation uses tracked_seconds (calendar excluded), because a
 -- day of synced meetings is not a day of billable capacity.
+--
+-- BOUNDED AT TODAY, and that is not an edge case. TrackingTime stores PLANNED
+-- entries months ahead -- 19 of 53 weeks in live data are future-dated. Without
+-- the bound this view reported planned work as logged: People showed 8.263h
+-- against the Overview's bounded 7.592h, 671h (9%) apart one click apart, with
+-- one person reading 1.154h against 694h actually worked and a "last active"
+-- date of 2026-12-31. It corrupts utilisation as well as totals, since unworked
+-- time inflates both tracked_seconds and weeks_active.
+--
+-- The bound belongs in the JOIN, not a WHERE clause. This is a LEFT JOIN, and in
+-- WHERE the predicate would drop every member with no qualifying entry --
+-- measured: the roster collapses from 49 to 18, hiding everyone who has not
+-- logged time. In the join condition those members are kept with zeroed sums.
+--
+-- Guarded by npm run check:people-overview-agree.
 create or replace view time.member_utilisation
 with (security_invoker = true) as
 select
@@ -765,7 +817,10 @@ select
   count(distinct date_trunc('week', e.started_at))              as weeks_active,
   max(e.started_at)                                             as last_activity_at
 from time.member m
-left join time.entry e on e.member_id = m.id and e.duration_seconds is not null
+left join time.entry e
+  on e.member_id = m.id
+ and e.duration_seconds is not null
+ and e.started_at::date <= current_date
 group by m.id, m.display_name, m.hub_person_id, m.is_archived, m.weekly_hours;
 
 grant select on time.member_utilisation to authenticated;
@@ -802,7 +857,7 @@ language sql stable security definer set search_path = time, public
 as $$
   select
     p.id,
-    p.name,
+    coalesce(p.name, '(no project)'),
     c.name,
     coalesce(sum(e.duration_seconds), 0)::bigint,
     coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0)::bigint,
@@ -832,7 +887,16 @@ as $$
                   else 0 end), 0), 0) * 100, 1)
     end
   from time.entry e
-  join time.project p on p.id = e.project_id
+  -- LEFT, not INNER. 2,205 of 5,218 live entries carry no project_id, and an
+  -- inner join dropped every one of them from the only panel that reports cost
+  -- -- so economics and the totals strip disagreed about the same period (866.9h
+  -- against 649h for July) with nothing on screen to explain the difference.
+  -- Unattributed time still costs money: a member rate times hours worked is
+  -- spend the business incurred whether or not anyone filed it against a
+  -- project, and hiding it flatters every margin on the page. It surfaces as a
+  -- single "(no project)" row with a null project_id, which the UI renders
+  -- unlinked because there is no record to open.
+  left join time.project p on p.id = e.project_id
   left join time.customer c on c.id = p.customer_id
   left join time.member_rate r
          on r.member_id = e.member_id
@@ -867,6 +931,38 @@ on conflict (name) do nothing;
 
 
 -- ---------------------------------------------------------------------------
+-- The forward references promised in section 2. project_sections and
+-- project_tasks each carry an optional time_project_id, but they are declared
+-- ~1,300 lines above time.project, so the constraints could not be inline: a
+-- fresh run of this file would have died on a table that did not exist yet.
+--
+-- ON DELETE CASCADE matches the Hub-side parent: deleting a project takes its
+-- board with it rather than leaving orphaned columns and tasks pointing at
+-- nothing. Guarded with a DO block so re-running the file is safe -- Postgres
+-- has no "add constraint if not exists".
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'project_sections_time_project_fk'
+  ) then
+    alter table public.project_sections
+      add constraint project_sections_time_project_fk
+      foreign key (time_project_id) references time.project(id) on delete cascade;
+  end if;
+  if not exists (
+    select 1 from pg_constraint where conname = 'project_tasks_time_project_fk'
+  ) then
+    alter table public.project_tasks
+      add constraint project_tasks_time_project_fk
+      foreign key (time_project_id) references time.project(id) on delete cascade;
+  end if;
+end $$;
+
+create index if not exists project_sections_time_project_idx
+  on public.project_sections (time_project_id, position);
+create index if not exists project_tasks_time_project_idx
+  on public.project_tasks (time_project_id, sort_order);
+
+
 -- 9. Module schema grants for service_role
 -- ---------------------------------------------------------------------------
 -- Deliberately last: `grant all on all tables in schema` resolves the table

@@ -285,7 +285,25 @@ alter table project_timeline enable row level security;
  */
 create table if not exists project_sections (
   id bigint generated always as identity primary key,
-  project_id text not null references projects(id) on delete cascade,
+  -- EXACTLY ONE PARENT, and which one says where the board lives.
+  --
+  -- project_id is the Hub's own projects table (text ids, "prj-1"). It is the
+  -- original parent and is left in place: those rows may be real records, and
+  -- retyping the column would have meant destroying them to find out.
+  --
+  -- time_project_id points at time.project instead -- the 334 real projects
+  -- imported from TrackingTime, which is where /projects and /projects/[id]
+  -- actually read from. Without this column the task board could only ever
+  -- attach to the five-row Hub table, so the whole feature was unreachable
+  -- from the project pages people use.
+  --
+  -- The FK for time_project_id is added at the end of section 8: time.project
+  -- does not exist yet at this point in the file, and a fresh run of this
+  -- schema must not fail on a forward reference.
+  project_id text references projects(id) on delete cascade,
+  time_project_id bigint,
+  constraint project_sections_one_parent
+    check ((project_id is null) <> (time_project_id is null)),
   name text not null,
   position int not null default 0,
   wip_limit int check (wip_limit is null or wip_limit > 0),
@@ -312,7 +330,13 @@ grant execute on function section_project_id(bigint) to authenticated;
 
 create table if not exists project_tasks (
   id bigint generated always as identity primary key,
-  project_id text not null references projects(id) on delete cascade,
+  -- See project_sections above: exactly one parent, Hub project or
+  -- TrackingTime project. The FK for time_project_id is added at the end of
+  -- section 8, where time.project exists.
+  project_id text references projects(id) on delete cascade,
+  time_project_id bigint,
+  constraint project_tasks_one_parent
+    check ((project_id is null) <> (time_project_id is null)),
   -- on delete set null: removing a column must not destroy the work sitting
   -- in it. The tasks resurface unfiled rather than disappearing.
   section_id bigint references project_sections(id) on delete set null,
@@ -609,6 +633,63 @@ language sql stable security definer set search_path = public
 as $$
   select project_id from project_tasks where id = target_task_id;
 $$;
+
+-- The bigint halves of the two lookups above, for tasks and sections whose
+-- parent is a TrackingTime project rather than a Hub one. Separate functions
+-- rather than one polymorphic call because the parent columns are different
+-- types and the consistency checks below must compare like with like.
+create or replace function task_time_project_id(target_task_id bigint)
+returns bigint
+language sql stable security definer set search_path = public
+as $$
+  select time_project_id from project_tasks where id = target_task_id;
+$$;
+
+create or replace function section_time_project_id(target_section_id bigint)
+returns bigint
+language sql stable security definer set search_path = public
+as $$
+  select time_project_id from project_sections where id = target_section_id;
+$$;
+
+-- ONE visibility rule covering both kinds of parent.
+--
+-- For a Hub project it defers to can_view_project(), unchanged: exec always,
+-- dept_head within their department, the owner, or anyone assigned.
+--
+-- For a TrackingTime project it resolves to 'is this a real project', because
+-- time.project's own read policy is: to authenticated using (true). Every
+-- signed-in user may already read all 334 of them, so a task attached to one
+-- cannot be more secret than the project it names. Writing is a different
+-- question, gated separately below on projects:write.
+create or replace function can_view_task_parent(p_hub_id text, p_time_id bigint)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select case
+    when p_hub_id is not null then can_view_project(p_hub_id)
+    -- No lookup in time.project, for two reasons. It is redundant: the FK on
+    -- time_project_id already guarantees the row exists, so a non-null value
+    -- IS a real project by construction. And it is unreachable from here --
+    -- this function is declared ~1,000 lines before section 8 creates that
+    -- table, and a `language sql` body is validated at CREATE time, so the
+    -- reference made a fresh run of this file fail outright.
+    --
+    -- Dropping it also removes a per-row subquery from every policy that
+    -- calls this, which is the same cost pattern the entry-policy hoisting
+    -- was done to avoid.
+    else p_time_id is not null
+  end;
+$$;
+
+revoke execute on function
+  task_time_project_id(bigint), section_time_project_id(bigint),
+  can_view_task_parent(text, bigint)
+  from public, anon;
+grant execute on function
+  task_time_project_id(bigint), section_time_project_id(bigint),
+  can_view_task_parent(text, bigint)
+  to authenticated;
 
 revoke execute on function
   app_user_role(), app_user_department(), app_user_person_id(),
@@ -940,23 +1021,28 @@ create policy "role-scoped read on project_timeline"
   on project_timeline for select to authenticated using (can_view_project(project_id));
 
 create policy "role-scoped read on project_tasks"
-  on project_tasks for select to authenticated using (can_view_project(project_id));
+  on project_tasks for select to authenticated using (can_view_task_parent(project_id, time_project_id));
 
 -- Sections are scoped exactly like the project they belong to: if you can see
 -- the project you can see and shape its columns.
 create policy "role-scoped read on project_sections"
-  on project_sections for select to authenticated using (can_view_project(project_id));
+  on project_sections for select to authenticated using (can_view_task_parent(project_id, time_project_id));
 
 create policy "role-scoped insert on project_sections"
-  on project_sections for insert to authenticated with check (can_view_project(project_id));
+  on project_sections for insert to authenticated
+  with check (can_view_task_parent(project_id, time_project_id)
+    and (time_project_id is null or app_user_has_permission('projects:write')));
 
 create policy "role-scoped update on project_sections"
   on project_sections for update to authenticated
-  using (can_view_project(project_id))
-  with check (can_view_project(project_id));
+  using (can_view_task_parent(project_id, time_project_id))
+  with check (can_view_task_parent(project_id, time_project_id)
+    and (time_project_id is null or app_user_has_permission('projects:write')));
 
 create policy "role-scoped delete on project_sections"
-  on project_sections for delete to authenticated using (can_view_project(project_id));
+  on project_sections for delete to authenticated
+  using (can_view_task_parent(project_id, time_project_id)
+    and (time_project_id is null or app_user_has_permission('projects:write')));
 
 -- Write access to project_tasks (Phase 2: Task &amp; Project Management).
 -- Scoped identically to who can already VIEW the project -- exec always,
@@ -976,29 +1062,34 @@ create policy "role-scoped delete on project_sections"
 create policy "role-scoped insert on project_tasks"
   on project_tasks for insert to authenticated
   with check (
-    can_view_project(project_id)
-    and (parent_task_id is null or project_id = task_project_id(parent_task_id))
-    -- Same class of rule as the parent check above: a task filed into a
-    -- section belonging to another project would appear in that project's
-    -- board column.
-    and (section_id is null or project_id = section_project_id(section_id))
+    can_view_task_parent(project_id, time_project_id)
+    and (time_project_id is null or app_user_has_permission('projects:write'))
+    and (parent_task_id is null or (
+      project_id is not distinct from task_project_id(parent_task_id)
+      and time_project_id is not distinct from task_time_project_id(parent_task_id)))
+    and (section_id is null or (
+      project_id is not distinct from section_project_id(section_id)
+      and time_project_id is not distinct from section_time_project_id(section_id)))
   );
 
 create policy "role-scoped update on project_tasks"
   on project_tasks for update to authenticated
-  using (can_view_project(project_id))
+  using (can_view_task_parent(project_id, time_project_id))
   with check (
-    can_view_project(project_id)
-    and (parent_task_id is null or project_id = task_project_id(parent_task_id))
-    -- Same class of rule as the parent check above: a task filed into a
-    -- section belonging to another project would appear in that project's
-    -- board column.
-    and (section_id is null or project_id = section_project_id(section_id))
+    can_view_task_parent(project_id, time_project_id)
+    and (time_project_id is null or app_user_has_permission('projects:write'))
+    and (parent_task_id is null or (
+      project_id is not distinct from task_project_id(parent_task_id)
+      and time_project_id is not distinct from task_time_project_id(parent_task_id)))
+    and (section_id is null or (
+      project_id is not distinct from section_project_id(section_id)
+      and time_project_id is not distinct from section_time_project_id(section_id)))
   );
 
 create policy "role-scoped delete on project_tasks"
   on project_tasks for delete to authenticated
-  using (can_view_project(project_id));
+  using (can_view_task_parent(project_id, time_project_id)
+    and (time_project_id is null or app_user_has_permission('projects:write')));
 
 -- Task comments (Asana-equivalent: collaboration on a task). Scoped through
 -- the parent task's project visibility, same can_view_project() reused
@@ -1022,7 +1113,7 @@ create policy "role-scoped read on task_comments"
   on task_comments for select to authenticated
   using (exists (
     select 1 from project_tasks pt
-    where pt.id = task_id and can_view_project(pt.project_id)
+    where pt.id = task_id and can_view_task_parent(pt.project_id, pt.time_project_id)
   ));
 
 create policy "role-scoped insert on task_comments"
@@ -1031,7 +1122,7 @@ create policy "role-scoped insert on task_comments"
     author_id = auth.uid()
     and exists (
       select 1 from project_tasks pt
-      where pt.id = task_id and can_view_project(pt.project_id)
+      where pt.id = task_id and can_view_task_parent(pt.project_id, pt.time_project_id)
     )
   );
 
@@ -2078,7 +2169,7 @@ grant select on time.week_summary to authenticated;
 --      permission, which returns zero rows rather than a partial total.
 --
 --   2. CALENDAR TIME IS REPORTED, NEVER SILENTLY MIXED IN. 46% of live events
---      (42% of logged hours) are GHOST calendar placeholders, most with no
+--      (40% of logged hours) are GHOST calendar placeholders, most with no
 --      customer and no project -- measured, and higher than the 34% previously
 --      recorded here. Folding
 --      them into a utilisation or billable figure would make that figure
@@ -2207,6 +2298,21 @@ grant select on time.service_summary to authenticated;
 -- person", and adding cost would drag the whole thing behind the exec gate for
 -- no benefit. Utilisation uses tracked_seconds (calendar excluded), because a
 -- day of synced meetings is not a day of billable capacity.
+--
+-- BOUNDED AT TODAY, and that is not an edge case. TrackingTime stores PLANNED
+-- entries months ahead -- 19 of 53 weeks in live data are future-dated. Without
+-- the bound this view reported planned work as logged: People showed 8.263h
+-- against the Overview's bounded 7.592h, 671h (9%) apart one click apart, with
+-- one person reading 1.154h against 694h actually worked and a "last active"
+-- date of 2026-12-31. It corrupts utilisation as well as totals, since unworked
+-- time inflates both tracked_seconds and weeks_active.
+--
+-- The bound belongs in the JOIN, not a WHERE clause. This is a LEFT JOIN, and in
+-- WHERE the predicate would drop every member with no qualifying entry --
+-- measured: the roster collapses from 49 to 18, hiding everyone who has not
+-- logged time. In the join condition those members are kept with zeroed sums.
+--
+-- Guarded by npm run check:people-overview-agree.
 create or replace view time.member_utilisation
 with (security_invoker = true) as
 select
@@ -2223,7 +2329,10 @@ select
   count(distinct date_trunc('week', e.started_at))              as weeks_active,
   max(e.started_at)                                             as last_activity_at
 from time.member m
-left join time.entry e on e.member_id = m.id and e.duration_seconds is not null
+left join time.entry e
+  on e.member_id = m.id
+ and e.duration_seconds is not null
+ and e.started_at::date <= current_date
 group by m.id, m.display_name, m.hub_person_id, m.is_archived, m.weekly_hours;
 
 grant select on time.member_utilisation to authenticated;
@@ -2290,7 +2399,7 @@ as $$
                   else 0 end), 0), 0) * 100, 1)
     end
   from time.entry e
-  -- LEFT, not INNER. 1,691 of 4,194 live entries carry no project_id, and an
+  -- LEFT, not INNER. 2,205 of 5,218 live entries carry no project_id, and an
   -- inner join dropped every one of them from the only panel that reports cost
   -- -- so economics and the totals strip disagreed about the same period (866.9h
   -- against 649h for July) with nothing on screen to explain the difference.
@@ -2334,6 +2443,38 @@ on conflict (name) do nothing;
 
 
 -- ---------------------------------------------------------------------------
+-- The forward references promised in section 2. project_sections and
+-- project_tasks each carry an optional time_project_id, but they are declared
+-- ~1,300 lines above time.project, so the constraints could not be inline: a
+-- fresh run of this file would have died on a table that did not exist yet.
+--
+-- ON DELETE CASCADE matches the Hub-side parent: deleting a project takes its
+-- board with it rather than leaving orphaned columns and tasks pointing at
+-- nothing. Guarded with a DO block so re-running the file is safe -- Postgres
+-- has no "add constraint if not exists".
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'project_sections_time_project_fk'
+  ) then
+    alter table public.project_sections
+      add constraint project_sections_time_project_fk
+      foreign key (time_project_id) references time.project(id) on delete cascade;
+  end if;
+  if not exists (
+    select 1 from pg_constraint where conname = 'project_tasks_time_project_fk'
+  ) then
+    alter table public.project_tasks
+      add constraint project_tasks_time_project_fk
+      foreign key (time_project_id) references time.project(id) on delete cascade;
+  end if;
+end $$;
+
+create index if not exists project_sections_time_project_idx
+  on public.project_sections (time_project_id, position);
+create index if not exists project_tasks_time_project_idx
+  on public.project_tasks (time_project_id, sort_order);
+
+
 -- 9. Module schema grants for service_role
 -- ---------------------------------------------------------------------------
 -- Deliberately last: `grant all on all tables in schema` resolves the table

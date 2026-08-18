@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { inviteUser } from "./actions";
 import type { AppRoleRow } from "./page";
+import { TEAMS } from "@/lib/teams";
 import { Button } from "@/components/ui/Button";
 import { IconCheck, IconCross } from "@/components/nav-icons";
 
@@ -73,18 +74,23 @@ export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
 
         <div>
           <label htmlFor="department" className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
-            Department (for Dept Head scoping)
+            Team
           </label>
           <select
             id="department"
+            /* The form field and the column are still called department: renaming a
+               column that appears in RLS policies is a migration with real risk and
+               no benefit a user would notice. Only the label changes. */
             name="department"
             disabled={isPending}
             className="w-full border border-[var(--border)] bg-[var(--page)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50"
           >
             <option value="">None</option>
-            <option value="SAFETY">Safety</option>
-            <option value="ENG">Engineering</option>
-            <option value="LAB">Lab &amp; measurement</option>
+            {/* From lib/teams, so this form and the users table cannot drift apart
+                about what a valid team is -- they previously did. */}
+            {TEAMS.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
           </select>
         </div>
       </div>

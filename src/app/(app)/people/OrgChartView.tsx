@@ -24,6 +24,7 @@
 import { useActionState, useState } from "react";
 import type { OrgChartData, OrgNode, OrgMember } from "@/lib/queries/org-chart-live";
 import { setSupervisor, setMemberDetails } from "./org-actions";
+import { teamLabel, teamOptionsFor } from "@/lib/teams";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -67,7 +68,7 @@ function NodeRow({
         )}
         {node.team && (
           <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.06em] text-[var(--text-muted)]">
-            {node.team}
+            {teamLabel(node.team)}
           </span>
         )}
         {node.totalReports > 0 && (
@@ -267,7 +268,7 @@ export function OrgChartView({
                 )}
                 {m.team && (
                   <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9.5px] text-[var(--text-muted)]">
-                    {m.team}
+                    {teamLabel(m.team)}
                   </span>
                 )}
                 {canEdit && (
@@ -341,22 +342,22 @@ export function OrgChartView({
               <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-muted)]">
                 TEAM
               </span>
-              <input
+              {/* A select, not a text input with suggestions. The business has
+                  named its four teams, so "Ops" or "operations" typed by hand
+                  would be a team of one that reads as a typo to everyone else.
+                  teamOptionsFor keeps any legacy value visible rather than
+                  silently replacing it on the next save. */}
+              <select
                 name="team"
                 defaultValue={editing.team ?? ""}
-                list="org-teams"
-                placeholder="e.g. Safety"
                 disabled={detPending}
-                className="border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12.5px] text-[var(--text-primary)] disabled:opacity-50"
-              />
-              {/* Existing names offered as suggestions, not enforced: teams are a
-                  free label until the names settle, and a dropdown of nothing
-                  would block the first person who tries to record one. */}
-              <datalist id="org-teams">
-                {teams.map((t) => (
-                  <option key={t} value={t} />
+                className="min-w-[160px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12.5px] text-[var(--text-primary)] disabled:opacity-50"
+              >
+                <option value="">— None —</option>
+                {teamOptionsFor(editing.team).map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
-              </datalist>
+              </select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-muted)]">

@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { setUserActive, changeUserRole, changeUserDepartment } from "./actions";
+import { teamLabel, teamOptionsFor } from "@/lib/teams";
 import type { AppRoleRow } from "./page";
 
 interface Props {
@@ -50,10 +51,21 @@ export function UserRow({
     });
   }
 
-  function handleDeptBlur() {
+  /**
+   * Save the team as soon as one is picked.
+   *
+   * Not onBlur, which is what the free-text version did. On a select, choosing an
+   * option and then clicking away are two separate actions, and someone who picks
+   * "Tech" and navigates on would reasonably believe it saved. On change there is
+   * exactly one gesture and one outcome.
+   */
+  function handleTeamChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const next = e.target.value;
+    const previous = localDept;
+    setLocalDept(next);
     startTransition(async () => {
-      const res = await changeUserDepartment(userId, localDept);
-      if (res.error) { setLocalDept(department ?? ""); setError(res.error); }
+      const res = await changeUserDepartment(userId, next);
+      if (res.error) { setLocalDept(previous); setError(res.error); }
     });
   }
 
@@ -79,18 +91,25 @@ export function UserRow({
   );
 
   const deptInput = canEdit ? (
-    <input
-      type="text"
+    <select
       value={localDept}
-      onChange={e => setLocalDept(e.target.value)}
-      onBlur={handleDeptBlur}
-      placeholder="—"
+      onChange={handleTeamChange}
       disabled={isPending}
-      aria-label={`Department for ${email}`}
-      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11.5px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed"
-    />
+      aria-label={`Team for ${email}`}
+      // No focus:outline-none, same reasoning as the role select above: this is a
+      // control someone operates by keyboard and the focus ring must stay visible.
+      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11.5px] text-[var(--text-primary)] transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed"
+    >
+      <option value="">— None —</option>
+      {/* teamOptionsFor appends a legacy value when one is stored, so a person on
+          the old ENG/SAFETY labels renders as themselves rather than silently
+          showing the first option and overwriting on the next save. */}
+      {teamOptionsFor(localDept).map((t) => (
+        <option key={t.value} value={t.value}>{t.label}</option>
+      ))}
+    </select>
   ) : (
-    <span className="text-[var(--text-secondary)]">{department ?? "—"}</span>
+    <span className="text-[var(--text-secondary)]">{teamLabel(department)}</span>
   );
 
   const statusToggle = canEdit ? (
@@ -146,7 +165,7 @@ export function UserRow({
             {roleSelect}
           </div>
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">DEPARTMENT</span>
+            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">TEAM</span>
             {deptInput}
           </div>
         </div>

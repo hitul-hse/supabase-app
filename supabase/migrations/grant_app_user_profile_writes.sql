@@ -33,12 +33,19 @@
 -- SAFETY. This grants the ABILITY to attempt a write; the policies still decide
 -- whether any row is affected, and they restrict update and insert to
 -- app_user_role() = 'exec'. So an employee gains nothing: their attempt now reaches
--- the policy and is refused there, affecting zero rows instead of erroring. Delete
--- is deliberately NOT granted -- deactivating is the intended way to remove access,
--- and it keeps the audit trail.
+-- the policy and is refused there, affecting zero rows instead of erroring.
+--
+-- Verified against live with `npm run check:profile-grants`: an exec's own session
+-- writes the row, and an employee's attempt to escalate the same row to 'exec'
+-- returns no error and changes nothing.
 
-grant select, insert, update on app_user_profile to authenticated;
+grant select, insert, update, delete on app_user_profile to authenticated;
 
--- Belt and braces for the sequence-free case: app_user_profile's primary key is
--- user_id (a uuid from auth.users), so there is no sequence to grant. Stated
--- explicitly because a reader who knows the usual Supabase pattern will look for it.
+-- Delete is included because schema.sql already carries an "exec can delete
+-- profiles" policy, so withholding the grant would leave a policy that could never
+-- fire. The app itself never deletes -- the console deactivates instead, which
+-- keeps the audit trail -- and the policy confines deletion to execs.
+--
+-- There is no sequence to grant: the primary key is user_id, a uuid from
+-- auth.users. Stated explicitly because a reader who knows the usual Supabase
+-- pattern will look for a `grant usage on sequence` line here.

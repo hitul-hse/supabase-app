@@ -95,7 +95,8 @@
     "prove:oauth-linking": "node scripts/prove-oauth-invite-linking.mjs",
     "check:oauth-success-path-live": "node scripts/check-oauth-success-path-live.mjs",
     "check:google-client-manageable": "node scripts/check-google-client-manageable.mjs",
-    "check:stranger-access": "node scripts/check-stranger-cannot-read.mjs"
+    "check:stranger-access": "node scripts/check-stranger-cannot-read.mjs",
+    "check:redirect-allowlist": "node scripts/check-redirect-allowlist.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

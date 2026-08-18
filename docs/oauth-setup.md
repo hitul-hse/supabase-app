@@ -3,6 +3,11 @@
 Status, measured against the live project on 18 Aug 2026 with
 `npm run diagnose:oauth`:
 
+> **Just want to fix it?** Follow
+> [`ENABLE-SSO-STEPS.md`](./ENABLE-SSO-STEPS.md) — a linear click-by-click
+> walkthrough of both consoles. This file is the reference: what was measured,
+> how, and what the access model does once they work.
+
 | provider | Supabase | provider side | works? |
 | --- | --- | --- | --- |
 | **Google** | enabled | **refuses: only `localhost:3000` is a registered redirect URI** | no |
@@ -104,17 +109,20 @@ Nothing is configured yet. This needs an Azure app registration first.
 The app already requests `email openid profile` for Azure, because Azure
 returns no name or email without it.
 
-## 3. Confirm the app's own callback is allowlisted
+## 3. The app's own callback allowlist — already correct
 
 Supabase silently replaces a redirect target that is not on its allowlist with
 the bare Site URL, which drops the PKCE code and lands the user apparently
-logged out. Under **Authentication → URL Configuration → Redirect URLs**, both
-of these should be present:
+logged out. That makes it worth knowing about, but **nothing needs changing
+here**: `npm run check:redirect-allowlist` confirms these are honoured
 
 ```
 https://hseportal.hs-experts.com/auth/callback
 http://localhost:3000/auth/callback
 ```
+
+and that a bogus target is substituted, which is the negative control proving
+the check reads a real allowlist decision rather than the request echoed back.
 
 ---
 
@@ -172,6 +180,7 @@ occur: the second account holds no role and reads zero rows.
 
 ```
 npm run diagnose:oauth            # which providers are enabled, and what each one answers
+npm run check:redirect-allowlist   # Supabase honours our callbacks; a bogus target is refused
 npm run check:oauth-diagnosis      # the login page explains failures instead of dead-ending
 npm run check:invite-oauth-model   # what happens to invited vs uninvited accounts
 npm run prove:oauth-linking        # same-email linking, on a disposable account

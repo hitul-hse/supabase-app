@@ -78,7 +78,12 @@ for (const provider of ["google", "azure"]) {
       // A redirect back to our OWN site with an error is the disguised failure:
       // it looks like success to a status check.
       const isProvider = /google|microsoftonline|live\.com|okta/i.test(host);
-      console.log(`  ${label.padEnd(18)} ${res.status} -> ${host} ${isProvider ? "  (provider consent screen: WORKING)" : "  <== NOT a provider host"}`);
+      // Deliberately NOT called "working". Reaching the provider's host only means
+      // Supabase built a URL and handed it over; the provider can still refuse it
+      // on arrival, which is exactly what happens here for Google. Calling this
+      // WORKING is what made an earlier reading of this script miss a live fault.
+      // Section 5 follows the chain and returns the provider's actual verdict.
+      console.log(`  ${label.padEnd(18)} ${res.status} -> ${host} ${isProvider ? "  (handed off to the provider -- see section 5 for whether it ACCEPTS us)" : "  <== NOT a provider host"}`);
       if (!isProvider) {
         const err = new URL(loc).searchParams.get("error_description") ?? new URL(loc).searchParams.get("error");
         if (err) console.log(`      error carried back: ${err}`);
@@ -139,8 +144,118 @@ console.log("  /access-pending, so they authenticate but can read nothing -- RLS
 console.log("  every table regardless. Verified separately by check:oauth-access-model.");
 console.log(`  disable_signup on this project: ${settings?.disable_signup === true ? "TRUE (new auth users are blocked outright)" : "false (new auth users CAN be created, then held at /access-pending)"}`);
 
+// ── 5. WHICH redirect URIs does the Google client actually accept? ────────
+// Section 2 can only report *that* Google refuses our URI. That leaves the more
+// useful question open: is the client misconfigured for us specifically, or was
+// it never wired for Supabase at all? The distinction changes the instruction —
+// "add one URI" versus "this client belongs to some other, local-only setup".
+//
+// It is answerable without credentials. Google refuses an unregistered URI with a
+// redirect to its own /signin/oauth/error carrying `redirect_uri_mismatch`, and
+// accepts a registered one by reaching the account chooser. So the two outcomes
+// are distinguishable from the redirect target alone.
+//
+// This also supplies the POSITIVE CONTROL the rest of this script lacks. Every
+// other Google probe here can only observe failure, which cannot tell "the URI is
+// unregistered" apart from "we are being refused for some unrelated reason". If
+// one candidate is ACCEPTED by the same probe that rejects the others, the method
+// is demonstrated sound and the mismatch verdict is trustworthy.
+console.log("\n=== 5. which redirect URIs does the Google OAuth client accept? ===");
+// Hoisted so the final summary can report Google's own verdict, not just
+// Supabase's. Google being "enabled" was the misleading half of this diagnosis.
+let googleUriRegistered = null;
+const clientId = await (async () => {
+  // Read from the live authorize redirect rather than hardcoding, so this keeps
+  // telling the truth if the client is ever swapped.
+  try {
+    const res = await fetch(`${URL_BASE}/auth/v1/authorize?provider=google`, { redirect: "manual" });
+    const loc = res.headers.get("location");
+    return loc ? new URL(loc).searchParams.get("client_id") : null;
+  } catch { return null; }
+})();
+
+if (!clientId) {
+  console.log("  could not read a Google client_id from the authorize redirect; skipping.");
+} else {
+  console.log(`  client: ${clientId}`);
+
+  /** ACCEPTED / MISMATCH / other, for one candidate redirect URI. */
+  const probe = async (redirectUri) => {
+    let location =
+      "https://accounts.google.com/o/oauth2/v2/auth" +
+      `?client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      "&response_type=code&scope=email%20profile&state=probe";
+
+    for (let hop = 0; hop < 6; hop++) {
+      const res = await fetch(location, {
+        redirect: "manual",
+        // A default fetch UA gets a JS-only shell from Google on some paths.
+        headers: { "user-agent": "Mozilla/5.0 (compatible; HSEHub/1.0)" },
+      });
+      const next = res.headers.get("location");
+      if (!next) {
+        const body = await res.text();
+        if (/redirect_uri_mismatch/i.test(body)) return "MISMATCH (not registered)";
+        // The account chooser / identifier page is what a registered URI reaches.
+        if (/signin\/identifier|Sign in/i.test(body)) return "ACCEPTED (registered)";
+        return `terminal HTTP ${res.status}, inconclusive`;
+      }
+      const asUrl = new URL(next, location);
+      if (/redirect_uri_mismatch/i.test(asUrl.href)) return "MISMATCH (not registered)";
+      location = asUrl.href;
+    }
+    return "inconclusive (too many hops)";
+  };
+
+  const supabaseCallback = `${URL_BASE.replace(/\/$/, "")}/auth/v1/callback`;
+  const candidates = [
+    supabaseCallback,
+    `${SITE}/auth/callback`,
+    "http://localhost:3000/auth/callback",
+  ];
+
+  const results = [];
+  for (const uri of candidates) {
+    let verdict;
+    try { verdict = await probe(uri); } catch (e) { verdict = `probe failed: ${e.message}`; }
+    results.push([uri, verdict]);
+    console.log(`  ${uri.padEnd(58)} ${verdict}`);
+  }
+
+  const accepted = results.filter(([, v]) => v.startsWith("ACCEPTED")).map(([u]) => u);
+  const supabaseVerdict = results.find(([u]) => u === supabaseCallback)?.[1] ?? "";
+  if (supabaseVerdict.startsWith("ACCEPTED")) googleUriRegistered = true;
+  else if (supabaseVerdict.startsWith("MISMATCH") && accepted.length > 0) googleUriRegistered = false;
+
+  if (accepted.length === 0) {
+    console.log("\n  No candidate was accepted, so this probe has no positive control here:");
+    console.log("  treat the mismatch verdicts as unconfirmed and check the client by hand.");
+  } else if (supabaseVerdict.startsWith("MISMATCH")) {
+    console.log(`\n  The same probe ACCEPTS ${accepted.join(", ")} while refusing the Supabase`);
+    console.log("  callback, which is the positive control: the method works, and the refusal");
+    console.log("  is specifically that our URI is absent from this client's allowlist.");
+    if (accepted.every((u) => /^http:\/\/localhost/.test(u))) {
+      console.log("  Note that ONLY a localhost URI is registered. This client was set up for");
+      console.log("  local development and was never pointed at Supabase, so adding the");
+      console.log("  callback below is the whole of the Google-side work.");
+    }
+  } else if (supabaseVerdict.startsWith("ACCEPTED")) {
+    console.log("\n  The Supabase callback IS registered. If Google sign-in still fails, the");
+    console.log("  cause is downstream: consent screen still in Testing, or the client secret.");
+  }
+}
+
 console.log("\n=== summary of what to fix ===");
 const ext = settings?.external ?? {};
 if (!ext.google) console.log("  * Google is NOT enabled -> enable it in Supabase Auth > Providers, with a Google OAuth client id/secret.");
+else if (googleUriRegistered === false) {
+  console.log("  * Google IS enabled in Supabase but GOOGLE ITSELF REFUSES the callback.");
+  console.log(`    Google Cloud > APIs & Services > Credentials > client ${clientId ?? "(unknown)"}`);
+  console.log(`    > Authorised redirect URIs > add exactly: ${URL_BASE.replace(/\/$/, "")}/auth/v1/callback`);
+  console.log("    Console-only; there is no API for this (see check:google-client-manageable).");
+}
 if (!ext.azure) console.log("  * Microsoft (azure) is NOT enabled -> enable it with an Azure app registration client id/secret.");
-if (ext.google && ext.azure) console.log("  * Both providers are enabled; if sign-in still errors the cause is downstream (redirect allowlist or provider-side config).");
+if (ext.google && ext.azure && googleUriRegistered !== false) {
+  console.log("  * Both providers are enabled and nothing provider-side was detected as broken.");
+}

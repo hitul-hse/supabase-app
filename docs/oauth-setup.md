@@ -5,7 +5,7 @@ Status, measured against the live project on 18 Aug 2026 with
 
 | provider | Supabase | provider side | works? |
 | --- | --- | --- | --- |
-| **Google** | enabled | **rejects: `redirect_uri_mismatch`** | no |
+| **Google** | enabled | **refuses: only `localhost:3000` is a registered redirect URI** | no |
 | **Microsoft** | **not enabled** | not configured | no |
 
 Both are fixed outside this repository — one in Google Cloud, one in the
@@ -40,6 +40,18 @@ checked rather than assumed (`npm run check:google-client-manageable`):
 Google is enabled in Supabase and the client ID is configured. It fails because
 the redirect URI Supabase sends is not on the client's allowlist.
 
+**The client was never wired for Supabase at all.** `diagnose:oauth` section 5
+asks Google directly which redirect URIs this client accepts, and the answer is
+only one: `http://localhost:3000/auth/callback`. So this is a client someone set
+up for local development; neither the Supabase callback nor the production
+domain has ever been registered on it.
+
+That probe carries its own positive control, which is why the verdict is
+trustworthy rather than just an absence of success: the *same* check that refuses
+the two production URIs **accepts** the localhost one. A blanket refusal (a
+suspended client, a network fault, a changed error format) could not produce that
+split.
+
 1. Google Cloud console → **APIs & Services → Credentials**
 2. Open the OAuth 2.0 Client ID whose ID starts `729675374290-ob9itec0be6…`
 3. Under **Authorised redirect URIs**, add exactly:
@@ -59,8 +71,12 @@ the redirect URI Supabase sends is not on the client's allowlist.
    npm run diagnose:oauth
    ```
 
-   Google should report `302 -> accounts.google.com  (provider consent screen:
-   WORKING)` and `npm run check:oauth-diagnosis` should report `ok: true`.
+   Section 5 should flip that URI from `MISMATCH (not registered)` to
+   `ACCEPTED (registered)`, the summary should stop naming Google, and `npm run
+   check:oauth-diagnosis` should report `ok: true`.
+
+   Section 2 is not the check to read here. It reports only that Supabase handed
+   the browser to Google, which was already true while sign-in was broken.
 
 Also check the **OAuth consent screen**. If it is still in *Testing*, only
 listed test users can sign in and everyone else gets `access_blocked`. Either

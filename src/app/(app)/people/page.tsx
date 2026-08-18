@@ -13,7 +13,12 @@ import PageTransition from "@/components/animations/PageTransition";
  * seeded `public.people` mockup it used to render — eight invented rows for a
  * company of 49. See queries/people-live.ts for the full account.
  */
-export default async function PeoplePage() {
+export default async function PeoplePage({
+  searchParams,
+}: {
+  // Async in this Next version — awaiting is required, not optional.
+  searchParams: Promise<{ q?: string }>;
+}) {
   // Previously a bare requireProfile with no permission check at all, so
   // people:read_own — the key the directory exists to gate — decided nothing.
   // All four roles hold it, so this removes access from nobody; it makes the
@@ -26,6 +31,11 @@ export default async function PeoplePage() {
   // visit — including while the real directory was on screen.
   const directory = await getLivePeople(supabase);
 
+  // The Overview's utilisation rows deep-link here as /people?q=<name>, so a
+  // reader who spots an outlier lands on that person instead of on a list they
+  // then have to search by hand.
+  const { q } = await searchParams;
+
   return (
     <PageTransition>
       <div className="flex flex-col">
@@ -35,6 +45,7 @@ export default async function PeoplePage() {
           archivedCount={directory.archivedCount}
           unlinkedCount={directory.unlinkedCount}
           mailboxCount={directory.mailboxCount}
+          initialQuery={typeof q === "string" ? q : ""}
         />
       </div>
     </PageTransition>

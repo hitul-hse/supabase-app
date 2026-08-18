@@ -17,7 +17,24 @@
   --text-primary: #f2f3f4;
   --text-secondary: #bcc1c4;
   --text-muted: #a7aeb3;
-  --text-faint: #8f979d;
+  /*
+   * 4.70:1 on --surface, up from #8f979d's 3.69:1.
+   *
+   * The old value passed against --page (4.49) and failed against --surface,
+   * which is where it is actually used: every KPI caption, every table column
+   * header, every "n/a" sits on a card. Measured, not eyeballed.
+   */
+  --text-faint: #a3abb1;
+
+  /*
+   * Divider inside cards and tables.
+   *
+   * Nine files hardcoded #3a414c for this — a colour in no token and in no
+   * design doc, visibly different from --border (#414954) right beside it.
+   * Naming it makes the two-tier system deliberate: --border outlines a
+   * surface, --divider separates rows within one.
+   */
+  --divider: #3d444f;
 
   --accent: #91c2b7;
   --accent-hover: #a8d0c6;
@@ -26,10 +43,20 @@
 
   --chart-hue: #3aa88e;
 
-  --good: #3aa88e;
-  --good-wash: rgba(58, 168, 142, 0.14);
-  --critical: #e0603f;
-  --critical-wash: rgba(224, 96, 63, 0.14);
+  /*
+   * Status colours carry meaning ("this project is over budget"), so they are
+   * held to the 4.5:1 body-text floor on BOTH --page and --surface. The
+   * previous values were tuned against --page only and failed on cards:
+   * --good was 3.74:1 and --critical 3.08:1 on --surface.
+   *
+   * --chart-hue keeps the deeper green: it fills bars and areas, where the
+   * relevant floor is 3:1 for large blocks, and the darker tone reads better
+   * as a fill than as text.
+   */
+  --good: #4cc3a6;
+  --good-wash: rgba(76, 195, 166, 0.14);
+  --critical: #f0917a;
+  --critical-wash: rgba(240, 145, 122, 0.14);
   --warning: #d9a13b;
   --warning-wash: rgba(217, 161, 59, 0.14);
 

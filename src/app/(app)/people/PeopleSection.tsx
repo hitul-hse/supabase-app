@@ -18,35 +18,45 @@ export function PeopleSection({
   archivedCount,
   unlinkedCount,
   mailboxCount,
+  initialQuery = "",
 }: {
   people: LivePerson[];
   archivedCount: number;
   unlinkedCount: number;
   mailboxCount: number;
+  /** Seeded from ?q= so the Overview can deep-link straight to one colleague. */
+  initialQuery?: string;
 }) {
   const [view, setView] = useState<"directory" | "orgchart">("directory");
+
+  const tabClass = (active: boolean, extra = "") =>
+    `${extra} px-3 py-1 text-[11px] font-medium transition-colors duration-150 ` +
+    (active
+      ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+      : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]");
 
   return (
     <>
       <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 sm:px-6">
-        <div className="flex border border-[var(--border-strong)]">
+        {/*
+          Real tab semantics. These were two plain buttons whose only signal was
+          a background colour, so a screen-reader user was told "Directory,
+          button" with no indication that one of the two was already showing.
+        */}
+        <div role="tablist" aria-label="People view" className="flex border border-[var(--border-strong)]">
           <button
+            role="tab"
+            aria-selected={view === "directory"}
             onClick={() => setView("directory")}
-            className={`px-3 py-1 text-[11px] font-medium ${
-              view === "directory"
-                ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-            }`}
+            className={tabClass(view === "directory")}
           >
             Directory
           </button>
           <button
+            role="tab"
+            aria-selected={view === "orgchart"}
             onClick={() => setView("orgchart")}
-            className={`border-l border-[var(--border-strong)] px-3 py-1 text-[11px] font-medium ${
-              view === "orgchart"
-                ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-            }`}
+            className={tabClass(view === "orgchart", "border-l border-[var(--border-strong)]")}
           >
             Org chart
           </button>
@@ -63,6 +73,7 @@ export function PeopleSection({
           archivedCount={archivedCount}
           unlinkedCount={unlinkedCount}
           mailboxCount={mailboxCount}
+          initialQuery={initialQuery}
         />
       ) : (
         <OrgChartView people={people} />

@@ -105,7 +105,9 @@
     "check:no-mockup-people": "node scripts/check-no-mockup-people.mjs",
     "test:no-mockup-people": "node scripts/check-no-mockup-people.mjs",
     "check:design-system": "node scripts/check-design-system.mjs",
-    "test:design-system": "node scripts/check-design-system.mjs"
+    "test:design-system": "node scripts/check-design-system.mjs",
+    "provision:members": "node scripts/provision-members.mjs",
+    "check:provisioned-access": "node scripts/check-provisioned-access.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

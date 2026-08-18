@@ -218,29 +218,63 @@ try {
     );
 
     /**
-     * The whole point of the change: clicking a broken provider must produce a
-     * readable message ON THIS PAGE, not a navigation to the provider's error
-     * screen. This is the assertion that would have caught the original bug.
+     * Clicking Google must never leave the user stranded. What "not stranded"
+     * means depends on whether Google currently accepts us, and both cases need
+     * asserting -- dropping either one would leave this check passing vacuously.
+     *
+     *  - REFUSED (the original bug): the failure must be explained ON THIS PAGE.
+     *    Navigating to the provider's error screen is the dead end this whole
+     *    change exists to remove.
+     *  - ACCEPTED (the state since the console fix): the click must actually hand
+     *    off to accounts.google.com. Staying put with an error would mean the
+     *    pre-flight diagnostic had become the thing blocking a working sign-in,
+     *    which is exactly the failure mode `provider-status` fails open to avoid.
+     *
+     * Which branch applies is taken from the probe's own verdict above rather
+     * than hardcoded, so this check keeps testing the right thing before and
+     * after the Google console change.
      */
+    const googleHealthy = google.json?.ok === true;
     const before = page.url();
     await page.getByRole("button", { name: /Continue with Google/i }).click();
-    // Give the pre-flight checks time to run and render.
-    const notice = page.locator("text=/isn't switched on|not finished being set up|not working yet/i");
-    const explained = await notice
-      .first()
-      .waitFor({ state: "visible", timeout: 25_000 })
-      .then(() => true)
-      .catch(() => false);
-    const stayed = page.url().startsWith(before.split("?")[0]);
+
+    if (googleHealthy) {
+      const handedOff = await page
+        .waitForURL(/accounts\.google\.com/, { timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false);
+      check(
+        "a WORKING provider actually hands off, rather than being blocked by our own pre-flight check",
+        handedOff,
+        handedOff
+          ? `reached ${new URL(page.url()).hostname}`
+          : `still at ${page.url()} -- a diagnostic must never stop a sign-in that would have worked`,
+      );
+      // And it must be the real consent screen, not Google's error page.
+      check(
+        "the handoff lands on Google's sign-in, not its error page",
+        !/\/signin\/oauth\/error/.test(page.url()),
+        page.url().slice(0, 120),
+      );
+    } else {
+      // Give the pre-flight checks time to run and render.
+      const notice = page.locator("text=/isn't switched on|not finished being set up|not working yet/i");
+      const explained = await notice
+        .first()
+        .waitFor({ state: "visible", timeout: 25_000 })
+        .then(() => true)
+        .catch(() => false);
+      const stayed = page.url().startsWith(before.split("?")[0]);
+      check(
+        "clicking a broken provider explains itself IN PLACE instead of navigating away",
+        explained && stayed,
+        explained
+          ? `stayed on ${new URL(page.url()).pathname} and showed: "${(await notice.first().innerText()).slice(0, 120)}"`
+          : `no explanation appeared; browser is now at ${page.url()} -- if that is accounts.google.com the user has hit the dead end this change exists to remove`,
+      );
+    }
     check(
-      "clicking a broken provider explains itself IN PLACE instead of navigating away",
-      explained && stayed,
-      explained
-        ? `stayed on ${new URL(page.url()).pathname} and showed: "${(await notice.first().innerText()).slice(0, 120)}"`
-        : `no explanation appeared; browser is now at ${page.url()} -- if that is accounts.google.com the user has hit the dead end this change exists to remove`,
-    );
-    check(
-      "no uncaught client error while handling the failure",
+      "no uncaught client error while handling the provider",
       consoleErrors.length === 0,
       consoleErrors.slice(0, 2).join(" | ") || "none",
     );
@@ -253,7 +287,7 @@ try {
 
 console.log(
   failed
-    ? "\nOAUTH DIAGNOSIS: a broken provider would still be a dead end\n"
-    : "\nOAUTH DIAGNOSIS: every provider failure is reported with an actionable fix\n",
+    ? "\nOAUTH DIAGNOSIS: a provider is mishandled -- either a failure dead-ends, or a working one is blocked\n"
+    : "\nOAUTH DIAGNOSIS: working providers hand off, broken ones explain themselves in place\n",
 );
 process.exit(failed ? 1 : 0);

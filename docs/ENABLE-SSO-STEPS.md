@@ -2,19 +2,28 @@
 
 (and Microsoft later, if you want it)
 
-**You only need Part A right now.** Google is ~2 minutes and one field.
+## ✅ Part A is DONE — Google sign-in works
 
-Microsoft is **parked**: its button has been removed from the login page, because
-enabling it needs an Azure app registration nobody has created yet and a sign-in
-button that cannot succeed for anybody is worse than no button. Part B is kept
-below for whenever you want it, and turning it back on is one environment
-variable — no code to rewrite.
+The redirect URI was registered in the Google Cloud console on 18 Aug 2026.
+Verified against production: `diagnose:oauth` section 5 reports the Supabase
+callback as `ACCEPTED (registered)`, and clicking **Continue with Google** now
+reaches Google's real sign-in screen rather than its error page.
 
-So today the login page offers **Continue with Google** and **email + password**.
-Nothing else changes for your colleagues.
+Nothing further is needed. Part A is kept below as a record of what was changed
+and how to re-check it.
 
-Nothing in Part A needs a code change or a deploy. The app is already finished and
-waiting; the fault is one missing entry in someone else's console.
+**One thing to tell colleagues:** use your **work** address. A personal
+`@gmail.com` is a different identity to Google, so it becomes a new user with no
+profile and stops at `/access-pending`.
+
+Microsoft is **parked**: its button is hidden, because enabling it needs an Azure
+app registration nobody has created yet and a sign-in button that cannot succeed
+for anybody is worse than no button. Part B below is complete whenever you want
+it, and turning it back on is one environment variable.
+
+So the login page today offers **Continue with Google** and **email + password**.
+
+---
 
 **Before you start**, know the two values you will paste. Everything below is one
 of these:
@@ -31,15 +40,16 @@ of these:
 
 ---
 
-# Part A — Google (the only thing you need to do)
+# Part A — Google (done 18 Aug 2026; kept as a record)
 
-Google is already enabled in Supabase and its client ID and secret are already
-configured. One thing is missing: the OAuth client does not have our callback in
-its list of allowed redirect URIs, so Google refuses the handoff.
-
-Measured on 18 Aug 2026, the only URI registered on that client is
+**What was wrong:** Google was enabled in Supabase with its client ID and secret
+configured, but the OAuth client did not have our callback among its allowed
+redirect URIs, so Google refused the handoff. The only URI on that client was
 `http://localhost:3000/auth/callback` — someone set it up for local development
 and it was never pointed at Supabase.
+
+**What fixed it:** adding the Supabase callback in step A2 below. Both URIs now
+read `ACCEPTED (registered)`.
 
 ### A1. Open the credential
 
@@ -76,50 +86,51 @@ and it was never pointed at Supabase.
    and it does no harm.
 9. Click **SAVE** at the bottom.
 
-### A3. Check the consent screen (only if step A4 still fails)
+### A3. The consent screen
 
-Skip this now; come back only if needed. Under **APIs & Services → OAuth consent
-screen**, if **Publishing status** is *Testing*, only listed test users can sign
-in and everyone else gets `access_blocked`. Either click **PUBLISH APP**, or add
-each colleague under **Test users**.
+Not needed — Google accepted the request, which it would not do if the consent
+screen were blocking us. Recorded in case it ever changes: under **APIs &
+Services → OAuth consent screen**, if **Publishing status** is *Testing*, only
+listed test users can sign in and everyone else gets `access_blocked`. Either
+click **PUBLISH APP**, or add each colleague under **Test users**.
 
-### A4. Verify it worked
-
-Google takes anywhere from a few seconds to ~5 minutes to propagate. Then, in
-`C:\Supabase`:
+### A4. Re-checking it later
 
 ```
 npm run diagnose:oauth
 ```
 
-Look at **section 5**. Success is this line changing from
-`MISMATCH (not registered)` to:
+Section 5 currently reports, and should keep reporting:
 
 ```
 https://wdbedblvyrfqwypngghs.supabase.co/auth/v1/callback  ACCEPTED (registered)
+http://localhost:3000/auth/callback                        ACCEPTED (registered)
 ```
 
-and the **summary at the bottom** no longer mentioning Google.
+`https://hseportal.hs-experts.com/auth/callback` reads `MISMATCH`, and that is
+correct — Google never sees the app's own callback, only Supabase's.
 
-If it still says MISMATCH, wait two minutes and re-run before changing anything —
-propagation delay is by far the likeliest cause. After that, suspect a typo:
-delete the URI you added and re-paste it.
+If either ACCEPTED line ever flips to MISMATCH, wait two minutes and re-run before
+changing anything. **Propagation is genuinely slow and non-monotonic:** right after
+this fix, localhost briefly read MISMATCH before settling back to ACCEPTED. After
+that, suspect a typo: delete the URI and re-paste it.
 
-> Do **not** judge this by section 2. It says `302 -> accounts.google.com` both
+> Do **not** judge this by section 2. It said `302 -> accounts.google.com` both
 > before and after the fix, because reaching Google's host only means Supabase
 > handed the browser over — Google can still refuse on arrival. Reading that line
 > as success is what hid this fault in the first place.
 
-Then try it for real: open <https://hseportal.hs-experts.com> in a private
-window and click **Continue with Google**.
+For a fuller check, `npm run check:oauth-diagnosis` drives a real browser and now
+asserts the handoff actually reaches Google's sign-in screen rather than its error
+page.
 
 ---
 
 # Part B — Microsoft (parked; skip unless you want it)
 
-**Not needed for Part A.** The button is currently hidden, so there is nothing
-broken on the login page while this sits undone. Come back when you actually want
-Microsoft sign-in; ~10 minutes.
+**Not needed.** Google sign-in works and the Microsoft button is hidden, so there
+is nothing broken on the login page while this sits undone. Come back when you
+actually want Microsoft sign-in; ~10 minutes.
 
 Nothing exists yet, so this has three halves: create the app registration in
 Azure, paste its credentials into Supabase, then un-hide the button. Keep the
@@ -243,7 +254,7 @@ Both already verified against the live project, so skip them:
 
 ---
 
-# Once Google works: who can actually get in
+# Now that Google works: who can actually get in
 
 Enabling a public identity provider does **not** widen access. Verified against
 the live database, not inferred from the code.
@@ -284,7 +295,7 @@ npm run diagnose:oauth
 
 | what it reports | what it means | fix |
 | --- | --- | --- |
-| section 5: `MISMATCH (not registered)` | Google has not got our callback | Part A, or wait for propagation |
+| section 5: Supabase callback `MISMATCH` | the URI was removed or mistyped | re-add it, A2; wait 2 min for propagation |
 | `azure    disabled` / `PROVIDER NOT ENABLED` | expected — Microsoft is parked | nothing, or Part B |
 | `invalid_client` | client ID or secret is wrong, or the secret expired | re-paste; for Azure re-issue via B2 |
 | `access_blocked` | consent screen still in *Testing* | Part A3 |

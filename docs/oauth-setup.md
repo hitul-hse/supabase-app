@@ -1,20 +1,24 @@
 # Google and Microsoft sign-in
 
+**Google sign-in works.** The redirect URI was registered in the Google Cloud
+console on 18 Aug 2026, and `npm run diagnose:oauth` section 5 now reports the
+Supabase callback as `ACCEPTED (registered)`. Verified end to end: clicking the
+button reaches Google's real sign-in screen (not its error page), an invited user
+lands in the app, and a stranger is held at `/access-pending`
+(`check:oauth-diagnosis`, `check:oauth-success-path-live`).
+
 Status, measured against the live project on 18 Aug 2026 with
 `npm run diagnose:oauth`:
 
-> **Just want to fix it?** Follow
-> [`ENABLE-SSO-STEPS.md`](./ENABLE-SSO-STEPS.md) — a linear click-by-click
-> walkthrough of both consoles. This file is the reference: what was measured,
-> how, and what the access model does once they work.
+> **Setting up Microsoft?** Follow
+> [`ENABLE-SSO-STEPS.md`](./ENABLE-SSO-STEPS.md) Part B — a linear click-by-click
+> walkthrough. This file is the reference: what was measured, how, and what the
+> access model does.
 
 | provider | Supabase | provider side | offered on the login page? |
 | --- | --- | --- | --- |
-| **Google** | enabled | **refuses: only `localhost:3000` is a registered redirect URI** | yes — one console field from working |
+| **Google** | enabled | **accepts our callback** | **yes — working** |
 | **Microsoft** | **not enabled** | not configured | **no — button hidden by flag** |
-
-Google is one field in the Google Cloud console away from working, so its button
-stays visible and explains itself.
 
 Microsoft is **parked**. It needs an Azure app registration that does not exist,
 so it could not succeed for anybody, and the button is hidden behind
@@ -23,22 +27,19 @@ temporarily-broken but real provider is worth showing and explaining, whereas a
 control that cannot work for anyone is better absent. Turning it back on is Part B
 of the steps guide — no code changes, one environment variable and a redeploy.
 
-No code change is needed for the Google fix.
+The login page explains any future provider failure in place, naming the exact
+fix, and email + password always works. It never sends anyone to a provider error
+page they cannot get back from.
 
-Until then the login page says so in place, naming the exact fix, and email +
-password still works. It no longer sends anyone to a provider error page they
-cannot get back from.
+**The whole flow is verified.** `npm run check:oauth-success-path-live` drives the
+real app with real sessions and confirms: a user with an active profile lands in
+the app, a user without one is held at `/access-pending` and can reach no data, a
+same-site `next` deep link survives the round trip, and absolute /
+protocol-relative / backslash URLs are all rejected rather than becoming an open
+redirect.
 
-**The rest of the flow is already verified**, so the console change below is the
-only thing between you and a working Google sign-in. `npm run
-check:oauth-success-path-live` drives the real app with real sessions and
-confirms: a user with an active profile lands in the app, a user without one is
-held at `/access-pending` and can reach no data, a same-site `next` deep link
-survives the round trip, and absolute / protocol-relative / backslash URLs are
-all rejected rather than becoming an open redirect.
-
-**Why I could not do the Google half for you.** Two independent reasons, both
-checked rather than assumed (`npm run check:google-client-manageable`):
+**Why the Google half needed a human.** Two independent reasons, both checked
+rather than assumed (`npm run check:google-client-manageable`):
 
 1. `gcloud` is installed and authenticated as `hitul@hs-experts.com`, but its
    token has expired and refreshing it needs an interactive `gcloud auth login`.
@@ -49,22 +50,33 @@ checked rather than assumed (`npm run check:google-client-manageable`):
 
 ---
 
-## 1. Google: register the callback URI
+## 1. Google: register the callback URI — DONE
 
-Google is enabled in Supabase and the client ID is configured. It fails because
-the redirect URI Supabase sends is not on the client's allowlist.
+Both URIs the app needs are now registered on the client, confirmed by
+`diagnose:oauth` section 5:
 
-**The client was never wired for Supabase at all.** `diagnose:oauth` section 5
-asks Google directly which redirect URIs this client accepts, and the answer is
-only one: `http://localhost:3000/auth/callback`. So this is a client someone set
-up for local development; neither the Supabase callback nor the production
-domain has ever been registered on it.
+```
+https://wdbedblvyrfqwypngghs.supabase.co/auth/v1/callback   ACCEPTED
+http://localhost:3000/auth/callback                          ACCEPTED
+```
 
-That probe carries its own positive control, which is why the verdict is
-trustworthy rather than just an absence of success: the *same* check that refuses
-the two production URIs **accepts** the localhost one. A blanket refusal (a
-suspended client, a network fault, a changed error format) could not produce that
-split.
+**What the fault had been.** The client had only `http://localhost:3000/auth/callback`
+on it — someone set it up for local development and it was never pointed at
+Supabase. Section 5 asks Google directly, per URI, and that probe carries its own
+positive control: the *same* check that refused the Supabase callback accepted the
+localhost one, so the verdict was a genuine "this URI is absent" rather than a
+blanket refusal from a suspended client or a changed error format.
+
+Two things worth knowing if this is ever revisited:
+
+- **Propagation is not instant.** Immediately after the change, localhost briefly
+  read as `MISMATCH` before settling back to `ACCEPTED`. Re-run before concluding
+  anything is broken.
+- `https://hseportal.hs-experts.com/auth/callback` is *not* registered, and does
+  not need to be. Google only ever sees the Supabase callback; the app's own
+  callback is Supabase's business, and that allowlist is separate (see section 3).
+
+The original steps, for reference:
 
 1. Google Cloud console → **APIs & Services → Credentials**
 2. Open the OAuth 2.0 Client ID whose ID starts `729675374290-ob9itec0be6…`

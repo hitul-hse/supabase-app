@@ -270,4 +270,12 @@ if (!APPLY && plan.length) {
 // Exit non-zero only on a real failure. "Nothing to link" is a healthy state,
 // and so is a test account without a member -- neither should fail a deploy
 // step that calls this.
-process.exit(APPLY && linked < plan.length ? 1 : 0);
+//
+// SET exitCode, DO NOT CALL process.exit(). On Windows, process.exit() with the
+// Supabase client's keep-alive sockets still open aborts the process with
+// `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), src\win\async.c` --
+// AFTER all the work has succeeded and the summary has printed. The sync
+// orchestrator reads that abort as a failed link step and reports "SYNC
+// PARTIAL" on a run that actually completed perfectly. Setting exitCode lets
+// Node close its handles and exit with the code we asked for.
+process.exitCode = APPLY && linked < plan.length ? 1 : 0;

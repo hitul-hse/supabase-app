@@ -97,6 +97,56 @@ check(
   /no previous successful run/.test(SYNC),
 );
 
+// ── 2b. Deletions are reconciled, and fenced ───────────────────────────────
+// An upsert-only import can add and correct but never forget: an entry deleted
+// in TrackingTime survived here for ever, inflating every total that touched
+// it, with the sync still reporting success. Measured live, two deleted
+// calendar events put us 0.2h above the vendor.
+//
+// Deleting is the only destructive thing the importer does, so each fence gets
+// its own check — a silent regression in any one of them destroys real hours.
+const LINKER = read("scripts/link-time-members.mjs");
+check(
+  "the importer removes entries TrackingTime no longer reports",
+  /\.from\("entry"\)\s*\n?\s*\.delete\(\)/.test(IMPORT),
+  "without this our totals only ever drift upward, and always look plausible",
+);
+check(
+  "deletion is scoped to the window that was actually fetched",
+  /\.gte\("started_at", `\$\{fromDate\}/.test(IMPORT) && /windowEnd/.test(IMPORT),
+  "absence outside the window proves nothing -- a --days 7 run would wipe the history",
+);
+check(
+  "deletion only touches rows the importer owns",
+  /\.in\("source_system", \["trackingtime", "calendar"\]\)/.test(IMPORT),
+  "entries typed into the app carry 'timer'/'manual' and have no vendor counterpart",
+);
+check(
+  "an empty vendor response never deletes anything",
+  /events\.length > 0/.test(IMPORT),
+  "an outage or auth failure would otherwise become permanent data loss",
+);
+check(
+  "a mass deletion is refused rather than applied unattended",
+  /share > 0\.2/.test(IMPORT) && /too many to delete unattended/.test(IMPORT),
+  "losing a fifth of the window in one run is a symptom, not housekeeping",
+);
+check(
+  "a dry run never deletes",
+  /if \(!DRY_RUN && events\.length > 0\)/.test(IMPORT),
+);
+check(
+  "the member linker uses process.exitCode, not process.exit",
+  /process\.exitCode\s*=/.test(LINKER) && !/^process\.exit\(/m.test(LINKER),
+  "process.exit() with the Supabase client open aborts on Windows AFTER the work " +
+    "succeeded, and the orchestrator reports SYNC PARTIAL on a run that completed",
+);
+check(
+  "the scheduled workflow verifies vendor parity after importing",
+  /check-vendor-parity/.test(read(".github/workflows/sync-trackingtime.yml")),
+  "a sync that succeeds says nothing about whether our totals MATCH the vendor's",
+);
+
 // ── 3. Freshness reads the last SUCCESS, not the last run ──────────────────
 // A cron job failing every night, with an old green row still on record, is
 // exactly the state this must not render as healthy.

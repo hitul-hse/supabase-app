@@ -1,15 +1,50 @@
+import { cookies } from "next/headers";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileSidebarDrawer } from "@/components/MobileSidebar";
 import OnboardingTour from "@/components/OnboardingTour";
+import { SidebarCollapseProvider } from "@/components/SidebarCollapseContext";
+// NOT from SidebarCollapseContext: that module is "use client", so a server
+// component importing this constant receives a client-reference proxy instead
+// of the string. See sidebar-collapse-shared.ts.
+import { SIDEBAR_COOKIE } from "@/components/sidebar-collapse-shared";
+import { DesktopSidebarShell } from "@/components/DesktopSidebarShell";
+import { SidebarToggle } from "@/components/SidebarToggle";
 import { TimerBarSlot } from "./TimerBarSlot";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  /*
+    Read the collapse preference on the SERVER so the first paint already has
+    the right width. Doing this client-side would render 220px, hydrate, then
+    snap shut -- a visible layout jump on every page load for anyone who keeps
+    the sidebar hidden.
+
+    `cookies()` is async in Next 16 and opts this layout into dynamic
+    rendering. That costs nothing here: <Sidebar/> already calls
+    supabase.auth.getUser() on every request, so this subtree was never
+    static to begin with.
+  */
+  const cookieStore = await cookies();
+  const collapsed = cookieStore.get(SIDEBAR_COOKIE)?.value === "1";
+
   return (
+    <SidebarCollapseProvider initialCollapsed={collapsed}>
     <div className="flex min-h-screen">
-      {/* Desktop sidebar — hidden on mobile */}
-      <div className="hidden lg:flex lg:flex-none">
-        <Sidebar />
-      </div>
+      {/* Desktop sidebar — collapsible; hidden entirely on mobile */}
+      <DesktopSidebarShell>
+        {/*
+          Only THIS instance gets the collapse control. The drawer copy below
+          renders the same component, and two buttons sharing one aria-label
+          would give screen reader users an ambiguous target.
+        */}
+        <Sidebar showCollapseControl />
+      </DesktopSidebarShell>
+
+      {/*
+        The way back in. Lives outside the collapsing shell on purpose -- a
+        control nested inside the panel it hides would disappear along with
+        it, leaving no pointer affordance to reopen.
+      */}
+      <SidebarToggle variant="rail" />
 
       {/* Mobile: drawer wrapping the same Sidebar content */}
       <MobileSidebarDrawer>
@@ -37,5 +72,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* First-time onboarding tour — renders only once, client-side */}
       <OnboardingTour />
     </div>
+    </SidebarCollapseProvider>
   );
 }

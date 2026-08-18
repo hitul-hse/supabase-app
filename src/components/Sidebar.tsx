@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/queries/auth";
 import { SidebarNav } from "./SidebarNav";
 import { LogoutButton } from "./LogoutButton";
 import { TourReplayButton } from "./TourReplayButton";
+import { SidebarToggle } from "./SidebarToggle";
 
 async function getUserInfo() {
   const envConfigured =
@@ -33,7 +34,18 @@ async function getUserInfo() {
   }
 }
 
-export async function Sidebar() {
+/**
+ * @param showCollapseControl
+ *   Whether to render the hide-sidebar button. Defaults to false because this
+ *   component is mounted TWICE -- once in the desktop shell and once inside the
+ *   mobile drawer -- and two buttons carrying the same test id and aria-label
+ *   is an ambiguous accessible name for screen reader users, plus a strict-mode
+ *   violation for any automation. Only the desktop instance opts in; the drawer
+ *   already has its own close affordance.
+ */
+export async function Sidebar({
+  showCollapseControl = false,
+}: { showCollapseControl?: boolean } = {}) {
   const { status, email, roleKey, roleDisplayName } = await getUserInfo();
   const dotColor =
     status === "connected" ? "var(--good)" : status === "error" ? "var(--critical)" : "var(--warning)";
@@ -41,28 +53,35 @@ export async function Sidebar() {
     status === "connected" ? "Supabase Live" : status === "error" ? "Supabase Error" : "Not Configured";
 
   return (
-    <aside className="flex w-[220px] flex-none flex-col gap-4 border-r border-[var(--border)] bg-[var(--sidebar)] py-4">
-      {/* Brand Header */}
-      <Link href="/" className="flex items-center gap-2.5 px-4">
-        <div className="relative h-[26px] w-[26px] flex-none overflow-hidden rounded-[var(--radius-sm)]">
-          <Image
-            src="/hse-logo.png"
-            alt="HSE Logo"
-            width={26}
-            height={26}
-            className="h-full w-full object-contain"
-            priority
-          />
-        </div>
-        <div className="flex flex-col leading-[1.15]">
-          <span className="font-sans text-[12.5px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
-            HSE HUB
-          </span>
-          <span className="font-mono text-[8px] tracking-[0.14em] text-[var(--text-faint)]">
-            HEALTH &amp; SAFETY EXPERTS
-          </span>
-        </div>
-      </Link>
+    <aside className="flex h-full w-[220px] flex-none flex-col gap-4 border-r border-[var(--border)] bg-[var(--sidebar)] py-4">
+      {/* Brand header, with the collapse control opposite it */}
+      <div className="flex items-center gap-2 px-4">
+        <Link href="/" className="flex min-w-0 flex-1 items-center gap-2.5">
+          <div className="relative h-[26px] w-[26px] flex-none overflow-hidden rounded-[var(--radius-sm)]">
+            <Image
+              src="/hse-logo.png"
+              alt="HSE Logo"
+              width={26}
+              height={26}
+              className="h-full w-full object-contain"
+              priority
+            />
+          </div>
+          <div className="flex min-w-0 flex-col leading-[1.15]">
+            <span className="font-sans text-[12.5px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
+              HSE HUB
+            </span>
+            <span className="truncate font-mono text-[8px] tracking-[0.14em] text-[var(--text-faint)]">
+              HEALTH &amp; SAFETY EXPERTS
+            </span>
+          </div>
+        </Link>
+        {/*
+          Sits beside the brand link, not inside it -- nesting a button in an
+          anchor is invalid HTML and the click would navigate as well as toggle.
+        */}
+        {showCollapseControl && <SidebarToggle variant="inside" />}
+      </div>
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto">

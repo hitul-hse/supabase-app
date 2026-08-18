@@ -37,6 +37,10 @@
   --radius: 6px;
   --radius-lg: 8px;
 
+  /*
+   * Expanded desktop sidebar width. Mirrored as SIDEBAR_WIDTH in
+   * DesktopSidebarShell.tsx, which animates the real geometry -- change both.
+   */
   --sidebar-width: 220px;
 }
 

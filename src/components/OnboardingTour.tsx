@@ -7,6 +7,7 @@
  */
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { useSidebarCollapse } from "./SidebarCollapseContext";
 
 /* ─────────────────────────── tour steps ────────────────────────────── */
 const STEPS = [
@@ -83,6 +84,26 @@ export default function OnboardingTour() {
   const [step,    setStep]    = useState(0);
   const [rect,    setRect]    = useState<Rect | null>(null);
   const [visible, setVisible] = useState(false);
+  const { setForcedOpen } = useSidebarCollapse();
+
+  /*
+    Hold the sidebar open for the duration of the tour.
+
+    Five of the eight steps spotlight a sidebar nav link via its `data-tour`
+    attribute. With the sidebar collapsed those elements are inside an
+    `inert`, zero-width container, so `getTargetRect` returns a 0x0 box (or
+    null) and the tour would walk through five steps narrating navigation the
+    user cannot see -- no spotlight, no error, just a dark screen and a card.
+
+    This does NOT overwrite the stored preference: the provider layers
+    `forcedOpen` on top, so a collapsed sidebar springs back shut when the
+    tour finishes.
+  */
+  useEffect(() => {
+    if (!visible) return;
+    setForcedOpen(true);
+    return () => setForcedOpen(false);
+  }, [visible, setForcedOpen]);
 
   // Show tour only on first login
   useEffect(() => {
@@ -112,9 +133,17 @@ export default function OnboardingTour() {
     };
 
     update();
-    // Re-measure on resize
+    /*
+      Re-measure after the sidebar's 220ms open animation as well as on resize.
+      The first measurement can land while the panel is still sliding out, which
+      would pin the spotlight to a half-open position and leave it there.
+    */
+    const settle = setTimeout(update, 260);
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    return () => {
+      clearTimeout(settle);
+      window.removeEventListener("resize", update);
+    };
   }, [step, visible]);
 
   const next = useCallback(() => {

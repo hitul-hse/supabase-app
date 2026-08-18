@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
+import { IconCheck, IconCross } from "@/components/nav-icons";
 
 /** A real connectivity check, not a decorative status line — mirrors the
  * dot+label convention SyncBar uses for sync_sources inside the app. */
@@ -129,27 +130,34 @@ export function AuthHeading({ eyebrow, title }: { eyebrow: string; title: string
 }
 
 export function AuthNotice({ tone, children }: { tone: "error" | "success"; children: React.ReactNode }) {
+  const Glyph = tone === "error" ? IconCross : IconCheck;
   return (
     <div
+      // role="alert" so a failed sign-in is announced rather than silently
+      // appearing above a form the user is about to retry blind.
+      role="alert"
       className="mb-4 flex items-start gap-3 border border-[var(--border)] p-3 text-sm"
       style={{ background: tone === "error" ? "var(--critical-wash)" : "var(--good-wash)" }}
     >
-      <span
-        aria-hidden
-        className={`mt-0.5 ${tone === "error" ? "text-[var(--critical)]" : "text-[var(--good)]"}`}
-      >
-        {tone === "error" ? "✕" : "✓"}
-      </span>
+      <Glyph
+        className={`mt-0.5 h-4 w-4 flex-none ${
+          tone === "error" ? "text-[var(--critical)]" : "text-[var(--good)]"
+        }`}
+      />
       <p className="text-[var(--text-primary)]">{children}</p>
     </div>
   );
 }
 
+// No `outline-none`: this class is shared by every auth field, so removing the
+// ring here would have made the entire sign-in flow unnavigable by keyboard —
+// the one flow where a user cannot fall back to a mouse-driven workaround
+// because they have not got into the app yet.
 export const authInputClass =
-  "w-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50";
+  "w-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60";
 
 export const authButtonClass =
-  "w-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-50";
+  "w-full rounded-[var(--radius-sm)] bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)] active:translate-y-px disabled:cursor-not-allowed disabled:bg-[var(--surface-2)] disabled:text-[var(--text-faint)] disabled:active:translate-y-0";
 
 export const authLabelClass =
   "mb-1.5 block text-sm font-medium text-[var(--text-primary)]";

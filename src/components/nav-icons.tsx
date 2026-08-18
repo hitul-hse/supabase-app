@@ -166,6 +166,65 @@ export function IconPanelExpand({ className }: IconProps) {
   );
 }
 
+/**
+ * Status and action glyphs.
+ *
+ * These replace the Unicode characters the app was using for the same jobs — ✓
+ * ✕ ⚠ → ↺ • — which are not an icon system: they inherit the text font rather
+ * than the stroke family, so they sit at a different weight beside every real
+ * icon, and the arrows in particular render at wildly different widths per
+ * platform. Drawn to the same 16x16 / 1.5-stroke rules as the nav set.
+ */
+
+/** Success / satisfied requirement. */
+export function IconCheck({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M3.25 8.5 6.25 11.5 12.75 5" />
+    </Svg>
+  );
+}
+
+/** Failure, or dismiss/cancel an item. */
+export function IconCross({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4 4l8 8M12 4l-8 8" />
+    </Svg>
+  );
+}
+
+/** Caution — a state the user should read before acting. */
+export function IconWarning({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M8 2.25 14.25 13.5H1.75L8 2.25Z" />
+      <path d="M8 6.5v3" />
+      <path d="M8 11.6v.15" />
+    </Svg>
+  );
+}
+
+/** Forward navigation, in a link or breadcrumb. */
+export function IconArrowRight({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M2.75 8h10.5" />
+      <path d="M9.5 4.25 13.25 8 9.5 11.75" />
+    </Svg>
+  );
+}
+
+/** Replay / restart — used by the onboarding tour. */
+export function IconReplay({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M13.25 8a5.25 5.25 0 1 1-1.6-3.77" />
+      <path d="M13.4 2.5v2.9h-2.9" />
+    </Svg>
+  );
+}
+
 /** Registry keyed by nav href, so SidebarNav stays declarative. */
 export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,

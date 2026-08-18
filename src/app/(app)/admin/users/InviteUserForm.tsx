@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { inviteUser } from "./actions";
 import type { AppRoleRow } from "./page";
+import { Button } from "@/components/ui/Button";
+import { IconCheck, IconCross } from "@/components/nav-icons";
 
 export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
   const [state, formAction, isPending] = useActionState(inviteUser, { status: "idle" });
@@ -87,34 +89,28 @@ export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="self-start bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-50"
-      >
-        {isPending ? "Inviting…" : "Send invite"}
-      </button>
+      <Button type="submit" variant="primary" busy={isPending} className="self-start">
+        Send invite
+      </Button>
 
       {state.status === "success" && (
         <div
+          role="status"
           className="flex items-start gap-3 border border-[var(--border)] p-3 text-sm"
           style={{ background: "var(--good-wash)" }}
         >
-          <span aria-hidden className="mt-0.5 text-base text-[var(--good)]">
-            ✓
-          </span>
+          <IconCheck className="mt-0.5 h-4 w-4 flex-none text-[var(--good)]" />
           <p className="text-[var(--text-primary)]">{state.message}</p>
         </div>
       )}
 
       {state.status === "error" && (
         <div
+          role="alert"
           className="flex items-start gap-3 border border-[var(--border)] p-3 text-sm"
           style={{ background: "var(--critical-wash)" }}
         >
-          <span aria-hidden className="mt-0.5 text-base text-[var(--critical)]">
-            ✕
-          </span>
+          <IconCross className="mt-0.5 h-4 w-4 flex-none text-[var(--critical)]" />
           <p className="text-[var(--text-primary)]">{state.message}</p>
         </div>
       )}

@@ -66,26 +66,34 @@ const check = (name, ok, detail = "") => {
  * fixed and then regresses also fails, because it is no longer on the list.
  * The debt shrinks or holds; it cannot silently grow.
  */
-const KNOWN_FOCUS_DEBT = ["src/app/(app)/admin/users/UserRow.tsx"];
+/**
+ * The focus-ring debt is CLEARED. `UserRow.tsx` carried the last two
+ * `focus:outline-none` declarations — on the role select and the department
+ * input, i.e. the two controls that change someone's permissions. Nothing is
+ * pinned here any more, so the list staying empty is the assertion.
+ */
+const KNOWN_FOCUS_DEBT = [];
 
+/**
+ * What remains is entirely files another agent has uncommitted edits in right
+ * now (the project task board, the timesheet grid, the dashboard filters), plus
+ * one dead file. Editing those would clobber in-flight work.
+ *
+ * `DashboardPanels.tsx` is DEAD CODE — 584 lines, zero importers, superseded by
+ * ReportPanels.tsx. It is pinned rather than fixed because polishing an
+ * unreachable file is wasted work, and rather than deleted because it sits in a
+ * directory another agent is actively refactoring.
+ */
 const KNOWN_EMOJI_DEBT = [
-  "src/app/(app)/admin/users/InviteUserForm.tsx",
-  "src/app/(app)/admin/users/page.tsx",
-  "src/app/(app)/leave/MyLeavePanel.tsx",
   "src/app/(app)/projects/TaskBoardView.tsx",
   "src/app/(app)/projects/TaskRow.tsx",
-  "src/app/(app)/team-lead/TeamLeadBoard.tsx",
   "src/app/(app)/time/dashboard/DashboardPanels.tsx",
   "src/app/(app)/time/dashboard/ReportFilters.tsx",
   "src/app/(app)/timesheets/TimesheetGrid.tsx",
-  "src/components/AuthShell.tsx",
 ];
 
 const KNOWN_DIVIDER_DEBT = [
-  "src/app/(app)/admin/users/UserRow.tsx",
-  "src/app/(app)/leave/MyLeavePanel.tsx",
   "src/app/(app)/projects/TaskRow.tsx",
-  "src/app/(app)/team-lead/TeamLeadBoard.tsx",
   "src/app/(app)/timesheets/TimesheetGrid.tsx",
 ];
 
@@ -259,9 +267,68 @@ for (const f of [
   "src/app/(app)/page.tsx",
   "src/app/(app)/people/PeopleDirectory.tsx",
   "src/components/OnboardingTour.tsx",
+  "src/app/(app)/admin/users/UserRow.tsx",
+  "src/app/(app)/leave/MyLeavePanel.tsx",
+  "src/app/(app)/team-lead/TeamLeadBoard.tsx",
 ]) {
   check(`${f} uses no hex literal for the divider`, !/#3a414c/i.test(stripComments(read(f))));
 }
+
+// ---------------------------------------------------------------------------
+// 4b. The status/action icon set replaced the Unicode glyphs
+// ---------------------------------------------------------------------------
+const icons = readStripped("src/components/nav-icons.tsx");
+for (const name of ["IconCheck", "IconCross", "IconWarning", "IconArrowRight", "IconReplay"]) {
+  check(`${name} exists in the icon set`, new RegExp(`export function ${name}\\b`).test(icons));
+}
+
+/**
+ * The auth field class must not disable the focus outline.
+ *
+ * Called out separately from the ratchet because this single string is shared by
+ * every input on every unauthenticated page. Losing the ring here makes the
+ * whole sign-in flow unnavigable by keyboard — and unlike anywhere else in the
+ * app, the user cannot work around it, because they have not got in yet.
+ */
+const authShell = readStripped("src/components/AuthShell.tsx");
+const authInput = authShell.match(/authInputClass\s*=\s*\n?\s*"([^"]*)"/);
+check("authInputClass exists", authInput !== null);
+if (authInput) {
+  check("auth inputs keep the focus ring", !/outline-none/.test(authInput[1]), authInput[1].slice(0, 60));
+}
+
+/**
+ * A Server Action result must be announced, not just recoloured.
+ *
+ * Every one of these renders a message that appears without any focus change —
+ * a screen-reader user gets no notification at all unless the container carries
+ * a live-region role. The failure cases matter most: a rejected invite or a
+ * refused permission change is precisely what a user must not be left to
+ * discover by re-reading the page.
+ */
+for (const [f, expected] of [
+  // Count, not presence: each of these renders BOTH a success and a failure
+  // branch, and asserting "has a live region somewhere" would pass with the
+  // error branch silently unannounced — which is the branch that matters.
+  ["src/app/(app)/admin/users/InviteUserForm.tsx", 2],
+  ["src/app/(app)/admin/users/UserRow.tsx", 2],
+  ["src/app/(app)/leave/MyLeavePanel.tsx", 2],
+  ["src/components/AuthShell.tsx", 1],
+]) {
+  const found = (stripComments(read(f)).match(/role="(alert|status)"/g) ?? []).length;
+  check(`${f} announces every action result`, found >= expected, `${found} live region(s), need ${expected}`);
+}
+
+// The admin toggle says ACTIVE / INACTIVE in the same word to a screen reader
+// unless the state is in the semantics, so aria-pressed is load-bearing here.
+const userRow = readStripped("src/app/(app)/admin/users/UserRow.tsx");
+check("admin status toggle carries aria-pressed", /aria-pressed=\{localActive\}/.test(userRow));
+// title= is unreachable by keyboard and on touch, so a failed permission change
+// must render its reason inline rather than hide it in a tooltip.
+check("admin row shows the error text, not a title tooltip", !/title=\{error\}/.test(userRow));
+// Both branches must render the message itself. The desktop row previously
+// showed the literal word "Error" and hid the reason in a title= tooltip.
+check("admin row renders the error message itself", (userRow.match(/\{error\}/g) ?? []).length >= 2);
 
 // ---------------------------------------------------------------------------
 // 5. R3 — contrast, computed from the committed token values
@@ -366,5 +433,32 @@ check(
 );
 
 // ---------------------------------------------------------------------------
+// 8. The leave form — asserted on source because the live page cannot reach it
+// ---------------------------------------------------------------------------
+/**
+ * Every one of the six active `app_user_profile` rows has `person_id = NULL`,
+ * so /leave renders "No person record is linked to your account" for everybody
+ * and the request form never mounts. The browser proof therefore cannot
+ * exercise these, and asserting the empty branch instead would be proving the
+ * wrong thing. Source assertions it is, until somebody is linked.
+ */
+const leave = readStripped("src/app/(app)/leave/MyLeavePanel.tsx");
+
+check("leave form uses the shared TextInput", /<TextInput/.test(leave));
+check("leave form uses the shared Button", /<Button/.test(leave));
+// A bare <input type="date"> announces as "date" and nothing else, so every
+// field carries an explicit name — there are four in a row here.
+check(
+  "every leave field is individually named",
+  (leave.match(/label="[^"]+"/g) ?? []).length >= 4,
+  `${(leave.match(/label="[^"]+"/g) ?? []).length} labelled field(s)`,
+);
+// Cancel is icon-only and repeats per row, so a static label would announce
+// the same words on every request in the list.
+check(
+  "cancel button names the request it cancels",
+  /aria-label=\{`Cancel leave request for \$\{r\.start_date\}`\}/.test(leave),
+);
+
 console.log(failed ? "\nDESIGN SYSTEM: FAIL" : "\nDESIGN SYSTEM: OK");
 process.exitCode = failed ? 1 : 0;

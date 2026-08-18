@@ -1,5 +1,6 @@
-import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
+import { ButtonLink } from "@/components/ui/Button";
+import { IconWarning, IconArrowRight } from "@/components/nav-icons";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { requirePermission, userHasPermission } from "@/utils/supabase/require-profile";
@@ -46,22 +47,21 @@ export default async function AdminUsersPage() {
         title="Users &amp; Roles"
         meta={`${activeCount} ACTIVE · ${profiles.length} TOTAL`}
         actions={
-          <Link
-            href="/admin/roles"
-            className="rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
-          >
-            Role Permissions →
-          </Link>
+          <ButtonLink href="/admin/roles">
+            Role Permissions
+            <IconArrowRight className="h-3.5 w-3.5" />
+          </ButtonLink>
         }
       />
 
       <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
         {adminUnavailable && (
           <div
+            role="alert"
             className="flex items-start gap-3 border border-[var(--border)] p-3 text-sm"
             style={{ background: "var(--warning-wash)" }}
           >
-            <span aria-hidden className="mt-0.5 text-base">⚠</span>
+            <IconWarning className="mt-0.5 h-4 w-4 flex-none text-[var(--warning)]" />
             <p className="text-[var(--text-primary)]">
               {adminUnavailable} Emails below are blank and invites will fail until it&apos;s set.
             </p>

@@ -86,6 +86,33 @@ export function SearchInput({
   );
 }
 
+/**
+ * A plain form input, uncontrolled by default so it works inside a Server
+ * Action `<form action={...}>` without lifting every keystroke into state.
+ *
+ * Exists because the audit found the same `border border-[var(--border)]
+ * bg-[var(--page)] px-2.5 py-1.5 text-[12px] outline-none focus:border-...`
+ * string copied across the leave form, the invite form and the timesheet grid —
+ * each with a slightly different font size, and each carrying its own
+ * `outline-none` that quietly removed the focus ring.
+ */
+export function TextInput({
+  label,
+  className = "",
+  ...rest
+}: {
+  /** Visually-hidden accessible name. Required: a bare date input announces only "date". */
+  label: string;
+} & ComponentProps<"input">) {
+  return (
+    <input
+      {...rest}
+      aria-label={label}
+      className={`${CONTROL_BASE} px-2.5 py-1.5 disabled:opacity-60 ${className}`}
+    />
+  );
+}
+
 export function Select({
   label,
   className = "",

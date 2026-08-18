@@ -25,6 +25,8 @@ import { PageHeader } from "@/components/PageHeader";
 import type { ApprovalDecisionRow } from "@/lib/queries/types";
 import type { TeamLeadBoardData, BoardCell } from "@/lib/queries/team-lead-live";
 import { approveDecision, approveAllPending } from "./actions";
+import { Button } from "@/components/ui/Button";
+import { IconCheck } from "@/components/nav-icons";
 
 /** Hours to one decimal, or an em dash when the person logged nothing. */
 function cellText(cell: BoardCell): string {
@@ -81,13 +83,14 @@ export function TeamLeadBoard({
             <span className="hidden font-mono text-[11px] text-[var(--text-muted)] border border-[var(--border)] px-3 py-1.5 sm:inline">
               {range}
             </span>
-            <button
+            <Button
+              variant="primary"
               onClick={handleApproveAll}
               disabled={approvedAll || decisions.length === 0}
-              className="rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-1.5 text-[11.5px] font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] disabled:opacity-50"
             >
-              {approvedAll ? "All Approved ✓" : "Approve all clean"}
-            </button>
+              {approvedAll && <IconCheck className="h-3.5 w-3.5" />}
+              {approvedAll ? "All approved" : "Approve all clean"}
+            </Button>
           </>
         }
       />
@@ -193,7 +196,7 @@ export function TeamLeadBoard({
                   {rows.map((member) => (
                     <tr
                       key={member.memberId}
-                      className="border-b border-[#3a414c] text-[12.5px] hover:bg-[var(--surface-hover)]"
+                      className="border-b border-[var(--divider)] text-[12.5px] hover:bg-[var(--surface-hover)]"
                     >
                       <td className="sticky left-0 bg-[var(--surface)] px-4 py-2 hover:bg-[var(--surface-hover)]">
                         <div className="flex items-center gap-2">

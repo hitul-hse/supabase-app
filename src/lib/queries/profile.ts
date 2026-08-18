@@ -23,6 +23,28 @@ export type ProfileView = {
 };
 
 /**
+ * Chosen display name, else the HR name, else a neutral fallback.
+ *
+ * Uses truthiness (after trimming), not `??`: `??` only falls through on
+ * `null`/`undefined`, so a blank or whitespace-only display name would
+ * render as an empty header instead of falling back. Today the app can't
+ * actually produce that value — Task 1's check constraint requires
+ * `display_name` to be null or 1-60 trimmed characters, and Task 5's
+ * `updateDisplayName` writes `null` rather than `''` for empty input — but
+ * this function shouldn't depend on a constraint two layers away for its
+ * own correctness. If that constraint is ever relaxed, or a row arrives
+ * from a backfill or a direct SQL fix, the header should still say
+ * something sensible instead of rendering blank.
+ */
+export function effectiveNameOf(displayName: string | null, personName: string | null): string {
+  const trimmedDisplay = displayName?.trim();
+  if (trimmedDisplay) return trimmedDisplay;
+  const trimmedPerson = personName?.trim();
+  if (trimmedPerson) return trimmedPerson;
+  return "Team member";
+}
+
+/**
  * Everything /profile renders, in one round trip.
  *
  * The HR half comes from people and is read-only everywhere in this feature:
@@ -55,7 +77,7 @@ export async function getProfileView(
     userId: data.user_id,
     email,
     displayName: data.display_name,
-    effectiveName: data.display_name ?? person?.name ?? "Team member",
+    effectiveName: effectiveNameOf(data.display_name, person?.name ?? null),
     avatarUrl: data.avatar_url,
     roleKey: data.app_role.role_key,
     roleDisplayName: data.app_role.display_name,

@@ -104,7 +104,8 @@
     "check:people-overview-agree": "node scripts/check-people-overview-agree.mjs",
     "check:profile-rls": "node scripts/check-profile-rls.mjs",
     "check:password-strength": "node --experimental-strip-types scripts/check-password-strength.mjs",
-    "check:avatar": "node --experimental-strip-types scripts/check-avatar-monogram.mjs"
+    "check:avatar": "node --experimental-strip-types scripts/check-avatar-monogram.mjs",
+    "check:profile-effective-name": "node --experimental-strip-types scripts/check-profile-effective-name.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

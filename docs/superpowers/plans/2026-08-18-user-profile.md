@@ -14,7 +14,7 @@
 
 - **Never write to `public.people`.** It is destined for Factorial/TrackingTime sync. All user-editable data goes on `public.app_user_profile`.
 - **Design tokens are the ones in `src/app/globals.css`**, not the ones in `DESIGN.md`. `DESIGN.md` documents `--bg-0`/`--teal`, which do not exist. Use: `--surface`, `--surface-2`, `--border`, `--border-strong`, `--text-primary`, `--text-secondary`, `--text-muted`, `--text-faint`, `--accent`, `--critical`, `--warning`, `--good`, `--radius`.
-- **Every Server Action re-checks identity server-side.** From `AGENTS.md`: *"Server Actions are public HTTP endpoints. Re-check the caller's identity and role inside the action. A page-level gate does not protect an action."* No action accepts a target user id — always `auth.uid()`.
+- **Every Server Action re-checks identity server-side.** A Server Action is a public HTTP endpoint: it is reachable without loading the page, so a page-level gate does not protect it. Re-check the caller's identity and role inside the action. No action accepts a target user id — always `auth.uid()`. (This repo's `AGENTS.md` contains only Next.js boilerplate and no security guidance; the rule is enforced here by convention and by `scripts/check-server-action-auth.mjs`, added in commit `8474cc4`.)
 - **Client-side validation is never the only validation.** Every size/MIME/length limit enforced in the browser is re-enforced in the action.
 - **Migration files** live in `supabase/migrations/` with plain unversioned names (repo convention — they are not in the Supabase ledger).
 - **Commit after every task.** Branch is `feat/user-profile`; do not push.

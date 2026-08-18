@@ -76,7 +76,9 @@ Preferences are three columns rather than a JSON blob, because each has a fixed 
 - `changePassword`
 - `updatePreferences`
 
-Every one re-checks the caller's identity server-side. `AGENTS.md` states the rule this follows: *"Server Actions are public HTTP endpoints. Re-check the caller's identity and role inside the action. A page-level gate does not protect an action."* Each action writes only to the row whose `user_id` equals `auth.uid()`; none accepts a target user id as a parameter.
+Every one re-checks the caller's identity server-side. A Server Action is a public HTTP endpoint, reachable without ever loading the page, so a page-level gate does not protect it. Each action writes only to the row whose `user_id` equals `auth.uid()`; none accepts a target user id as a parameter.
+
+This rule is not written down anywhere in the repo — `AGENTS.md` holds nine lines of Next.js boilerplate and no security guidance. It is enforced by convention and by `scripts/check-server-action-auth.mjs` (commit `8474cc4`), which drives the time-tracking actions over HTTP with varying server-side identities. Worth promoting into `AGENTS.md` so it survives the people who currently remember it.
 
 ### Avatar upload
 

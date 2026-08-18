@@ -32,6 +32,21 @@ async function getUserInfo() {
     // getProfileView (not getCurrentProfile) -- it's the superset this
     // component now needs: roleKey/roleDisplayName as before, plus
     // effectiveName and avatarUrl for the chip. One query instead of two.
+    //
+    // That superset is wider than the chip actually renders, and every page
+    // pays for it now: getProfileView's select also pulls
+    // pref_landing_page/pref_locale/pref_sidebar_collapsed and joins
+    // people(name, employee_number, contract_hours, holiday_left,
+    // total_holiday, certificate_status, since) -- none of which the sidebar
+    // uses. Accepted rather than routing around it, because the alternative
+    // is a THIRD near-duplicate profile query (getCurrentProfile already
+    // exists for "just the identity fields"; getProfileView exists for
+    // "everything /profile renders"): one more narrow variant would mean
+    // three overlapping queries to keep in sync instead of two, which is a
+    // worse drift risk than one extra join on a single row this component
+    // was already querying per render. The added cost itself is one extra
+    // join against a row scoped to a single user_id (indexed, cheap) --
+    // not a new query, and not proportional to org size.
     const profile = user ? await getProfileView(supabase, user.id, user.email ?? null) : null;
 
     // The bucket is private, so the stored key isn't itself fetchable --

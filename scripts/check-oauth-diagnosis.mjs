@@ -75,7 +75,8 @@ for (let i = 0; i < 120; i++) {
 }
 if (!up) {
   console.log("FAIL: server never started -- run `npm run build` first");
-  console.log(log.slice(-1200));
+  console.log(`  exit code: ${app.exitCode}`);
+  console.log(log.slice(-2500) || "(no output captured)");
   cleanup();
   process.exit(1);
 }

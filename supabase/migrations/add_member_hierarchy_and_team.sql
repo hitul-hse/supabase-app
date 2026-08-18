@@ -70,18 +70,59 @@ do $$ begin
   end if;
 end $$;
 
--- A link must say where it came from, and a source must describe a link. Either
--- both or neither, so a row can never claim provenance for a relationship that
--- does not exist.
+-- Every reporting line must say where it came from.
+--
+-- ONE DIRECTION ONLY, and that is a correction rather than an oversight. The first
+-- version of this migration required both-or-neither:
+--
+--     check ((supervisor_member_id is null) = (supervisor_source is null))
+--
+-- which made it IMPOSSIBLE TO DELETE A MANAGER. Testing the migration against a
+-- real Postgres engine (npm run check:member-hierarchy-migration) surfaced it:
+-- ON DELETE SET NULL clears supervisor_member_id on each report, Postgres then
+-- re-checks CHECK constraints on that referential update, the surviving
+-- 'manual' in supervisor_source no longer had a partner, and the whole DELETE
+-- aborted with 23514. So removing a leaver would have failed with a constraint
+-- error naming a column nobody had touched.
+--
+-- The invariant worth keeping is "a link has provenance", not "provenance implies
+-- a link". A source left behind by a deleted manager is inert: the chart follows
+-- the id, and the id is null. The trigger below tidies it anyway.
 do $$ begin
-  if not exists (
+  if exists (
     select 1 from pg_constraint where conname = 'member_supervisor_source_paired'
   ) then
+    alter table time.member drop constraint member_supervisor_source_paired;
+  end if;
+  if not exists (
+    select 1 from pg_constraint where conname = 'member_supervisor_has_source'
+  ) then
     alter table time.member
-      add constraint member_supervisor_source_paired
-      check ((supervisor_member_id is null) = (supervisor_source is null));
+      add constraint member_supervisor_has_source
+      check (supervisor_member_id is null or supervisor_source is not null);
   end if;
 end $$;
+
+-- Clear the provenance when the link goes, so a stale 'manual' cannot outlive the
+-- relationship it described. AFTER UPDATE rather than BEFORE DELETE: the FK's
+-- SET NULL is itself an update on the reporting row, and this reacts to it.
+create or replace function time.clear_orphaned_supervisor_source()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.supervisor_member_id is null and new.supervisor_source is not null then
+    new.supervisor_source := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists member_clear_supervisor_source on time.member;
+create trigger member_clear_supervisor_source
+  before insert or update on time.member
+  for each row
+  execute function time.clear_orphaned_supervisor_source();
 
 create index if not exists member_supervisor_idx on time.member (supervisor_member_id);
 create index if not exists member_team_idx on time.member (team);

@@ -309,8 +309,61 @@ create table if not exists time.member (
   -- Per-weekday contracted hours, observed on every vendor user
   -- (mon..fri: 8, sat/sun: 0). The honest denominator for utilisation.
   weekly_hours   numeric(5,2) not null default 40,
-  created_at     timestamptz not null default now()
+  created_at     timestamptz not null default now(),
+
+  -- HIERARCHY AND TEAM: recorded here because TrackingTime cannot supply them.
+  --
+  -- Its API does expose supervisor / is_supervisor / user_group_id, but asked
+  -- against the live account all three are empty for every one of the 49 users,
+  -- so there is nothing to import. These columns let a human record the real
+  -- structure, and are nullable so an unrecorded relationship reads as unknown
+  -- instead of defaulting to something plausible -- which is exactly how the
+  -- mockup's invented org chart looked authoritative.
+  --
+  -- supervisor_source records provenance so a future import from the vendor can
+  -- refresh imported links without overwriting a person's judgement.
+  --
+  -- job_title is distinct from role: role is TrackingTime's ACCESS LEVEL (ADMIN,
+  -- CO_WORKER) and says nothing about what someone does.
+  supervisor_member_id bigint references time.member(id) on delete set null,
+  supervisor_source text check (supervisor_source in ('manual', 'trackingtime')),
+  team text,
+  job_title text,
+
+  constraint member_supervisor_not_self
+    check (supervisor_member_id is null or supervisor_member_id <> id),
+  -- One direction only. Requiring both-or-neither made deleting a manager
+  -- impossible: ON DELETE SET NULL clears the id, Postgres re-checks the
+  -- constraint on that update, and the orphaned source aborted the DELETE with
+  -- 23514. Found by running the migration against a real engine, not by review.
+  -- The trigger below clears the orphan instead.
+  constraint member_supervisor_has_source
+    check (supervisor_member_id is null or supervisor_source is not null)
 );
+-- Clear provenance when a reporting line goes, so a stale 'manual' cannot outlive
+-- the relationship it described. BEFORE INSERT OR UPDATE: the FK's SET NULL is
+-- itself an update on the reporting row, and this reacts to it.
+create or replace function time.clear_orphaned_supervisor_source()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.supervisor_member_id is null and new.supervisor_source is not null then
+    new.supervisor_source := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists member_clear_supervisor_source on time.member;
+create trigger member_clear_supervisor_source
+  before insert or update on time.member
+  for each row
+  execute function time.clear_orphaned_supervisor_source();
+
+create index if not exists member_supervisor_idx on time.member (supervisor_member_id);
+create index if not exists member_team_idx on time.member (team);
+
 
 create unique index if not exists time_member_email_idx on time.member (lower(email))
   where email is not null;

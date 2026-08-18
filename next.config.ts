@@ -39,6 +39,14 @@ const nextConfig: NextConfig = {
   // the build output lean in production.
   reactStrictMode: true,
 
+  // Lets next/image render the signed avatar URL from the private `avatars`
+  // storage bucket (see src/app/(app)/profile/page.tsx).
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/sign/**" },
+    ],
+  },
+
   // NOTE: do NOT add an `env: { NEXT_PUBLIC_SITE_URL: ... }` block here.
   // A previous version did, and its `A ?? B ? C : D` expression parsed as
   // `(A ?? B) ? C : D` — so whenever NEXT_PUBLIC_SITE_URL *was* set it got

@@ -84,11 +84,40 @@ jobs:
             node scripts/sync-trackingtime.mjs --full
           elif [ -n "${{ inputs.days }}" ]; then
             node scripts/sync-trackingtime.mjs --days "${{ inputs.days }}"
+          elif [ "$(date -u +%u)" = "1" ]; then
+            # MONDAYS: re-pull the whole current year, not just the recent window.
+            #
+            # WHY, and it is not belt-and-braces. A rolling window only ever moves
+            # FORWARD, so anything it misses is missed permanently: a January entry
+            # corrected in July, or work dated months ahead that was outside the
+            # window when it was booked. That is exactly how this account came to be
+            # short 1,971 hours over 1,008 events for 2026 while every sync reported
+            # success -- see the note in scripts/import-trackingtime.mjs.
+            #
+            # A weekly year-to-date pass is idempotent (every row upserts on
+            # source_id, so it cannot duplicate an hour) and costs one extra run a
+            # week against a rate-limited vendor. Cheap insurance against a class of
+            # error whose only symptom is a total that looks plausible.
+            node scripts/sync-trackingtime.mjs --year
           else
             # --since-last, not a fixed window: if the schedule missed a week,
             # this pulls a week. A fixed --days 14 would silently lose the rest.
             node scripts/sync-trackingtime.mjs --since-last
           fi
+
+      - name: Verify we still agree with TrackingTime
+        # The sync succeeding says nothing about whether our totals MATCH the
+        # vendor's -- that was the whole shape of the 1,971-hour gap. This compares
+        # row for row and hour for hour, and fails the run when they diverge, so a
+        # future window or endpoint change surfaces here rather than in someone
+        # reconciling a report by hand.
+        if: success()
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TRACKINGTIME_AUTH: ${{ secrets.TRACKINGTIME_AUTH }}
+          TRACKINGTIME_ACCOUNT_ID: ${{ secrets.TRACKINGTIME_ACCOUNT_ID }}
+        run: node scripts/check-vendor-parity.mjs
 
       - name: Report freshness
         # Runs even when the sync failed -- that is exactly when someone wants to

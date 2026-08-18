@@ -35,14 +35,11 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { getProjectList, type ProjectSort } from "@/lib/queries/projects-live";
 import { getSyncFreshness } from "@/lib/queries/time-dashboard";
 import { FreshnessBanner } from "../time/dashboard/ReportPanels";
-import { ProjectTable, ProjectTotalsStrip } from "./ProjectPanels";
+import { ProjectTotalsStrip } from "./ProjectPanels";
+import { ProjectsLedger, type LedgerSort } from "./ProjectsLedger";
 
-const SORTS: { key: ProjectSort; label: string }[] = [
-  { key: "burn", label: "Budget burn" },
-  { key: "hours", label: "Most hours" },
-  { key: "recent", label: "Recent activity" },
-  { key: "name", label: "Name" },
-];
+/** `?sort=` values the ledger accepts as its initial state. */
+const SORT_KEYS: LedgerSort[] = ["burn", "hours", "recent", "name", "budget", "people"];
 
 function one(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
@@ -59,8 +56,8 @@ export default async function ProjectsPage({
   const params = await searchParams;
 
   const rawSort = one(params.sort);
-  const sort: ProjectSort = SORTS.some((s) => s.key === rawSort)
-    ? (rawSort as ProjectSort)
+  const initialSort: LedgerSort = SORT_KEYS.includes(rawSort as LedgerSort)
+    ? (rawSort as LedgerSort)
     : "burn";
 
   // Archived projects are hidden by default but never dropped from the query —
@@ -94,12 +91,13 @@ export default async function ProjectsPage({
 
   const supabase = await createClient();
   const [{ rows: allRows, truncated }, freshness] = await Promise.all([
-    getProjectList(supabase, sort),
+    // The server sort is now only a stable starting order — the ledger re-sorts
+    // in the browser, where all 334 rows already are.
+    getProjectList(supabase, (SORT_KEYS.includes(initialSort) ? initialSort : "burn") as ProjectSort),
     getSyncFreshness(supabase),
   ]);
 
   const rows = showArchived ? allRows : allRows.filter((p) => !p.isArchived);
-  const archivedCount = allRows.length - allRows.filter((p) => !p.isArchived).length;
 
   // Totals describe what is ON SCREEN, not the whole table. A strip that says
   // "6,254 h" above a list filtered to 40 projects invites the reader to add up
@@ -108,18 +106,6 @@ export default async function ProjectsPage({
   const billableHours = rows.reduce((s, p) => s + p.billableHours, 0);
   const overBudget = rows.filter((p) => p.isOver).length;
   const noBudget = rows.filter((p) => p.burnPercent === null).length;
-
-  const qs = (over: Record<string, string | null>) => {
-    const sp = new URLSearchParams();
-    const merged: Record<string, string | null> = {
-      sort: sort === "burn" ? null : sort,
-      archived: showArchived ? "1" : null,
-      ...over,
-    };
-    for (const [k, v] of Object.entries(merged)) if (v !== null) sp.set(k, v);
-    const s = sp.toString();
-    return s ? `/projects?${s}` : "/projects";
-  };
 
   return (
     <PageTransition>
@@ -136,34 +122,13 @@ export default async function ProjectsPage({
               second explains the first. */}
           <FreshnessBanner freshness={freshness} />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--text-faint)]">
-              Sort
-            </span>
-            {SORTS.map((s) => (
-              <Link
-                key={s.key}
-                href={qs({ sort: s.key === "burn" ? null : s.key })}
-                aria-current={sort === s.key ? "true" : undefined}
-                className={`border px-2.5 py-1 text-[11px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-                  sort === s.key
-                    ? "border-[var(--accent)] bg-[var(--surface-2)] text-[var(--text-primary)]"
-                    : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]"
-                }`}
-              >
-                {s.label}
-              </Link>
-            ))}
-
-            {archivedCount > 0 && (
-              <Link
-                href={qs({ archived: showArchived ? null : "1" })}
-                className="ml-auto text-[11px] text-[var(--text-secondary)] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-              >
-                {showArchived ? "Hide" : "Show"} {archivedCount} archived
-              </Link>
-            )}
-          </div>
+          {/*
+            The old "Show N archived" link is gone: time.project has ZERO
+            archived rows on live data, so archivedCount was always 0 and the
+            control never rendered. The `?archived=1` param still works and the
+            query still returns them, so nothing is lost if the vendor starts
+            sending them — but a permanently invisible control is not a feature.
+          */}
 
           {truncated && (
             <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
@@ -186,7 +151,7 @@ export default async function ProjectsPage({
                 overBudget={overBudget}
                 noBudget={noBudget}
               />
-              <ProjectTable rows={rows} />
+              <ProjectsLedger rows={rows} initialSort={initialSort} />
             </>
           )}
         </div>

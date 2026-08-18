@@ -10,8 +10,7 @@
  * 83 of 334 live projects have `estimated_hours = 0`, and painting them as
  * healthy would be a confident false claim about a quarter of the portfolio.
  */
-import Link from "next/link";
-import type { BurnPoint, ProjectContributor, ProjectListRow, ProjectTaskRow } from "@/lib/queries/projects-live";
+import type { BurnPoint, ProjectContributor, ProjectTaskRow } from "@/lib/queries/projects-live";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
@@ -86,113 +85,14 @@ export function ProjectTotalsStrip({
   );
 }
 
-export function ProjectTable({ rows }: { rows: ProjectListRow[] }) {
-  return (
-    <div className="border border-[var(--border)] bg-[var(--surface)]">
-      {/* Mobile cards */}
-      <div className="flex flex-col divide-y divide-[var(--border)] sm:hidden">
-        {rows.map((p) => (
-          <Link
-            key={p.id}
-            href={`/projects/${p.id}`}
-            className="flex flex-col gap-2 p-4 hover:bg-[var(--surface-hover)]"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[13px] font-medium text-[var(--text-primary)]">{p.name}</span>
-              <span
-                className="shrink-0 font-mono text-[11px] font-semibold"
-                style={{ color: burnColor(p.burnPercent) }}
-              >
-                {p.burnPercent === null ? "—" : `${p.burnPercent}%`}
-              </span>
-            </div>
-            <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-              {p.customerName ?? "No customer"}
-              {p.isArchived ? " · ARCHIVED" : ""}
-            </span>
-            <div className="h-1.5 w-full bg-[var(--border)]">
-              <div
-                className="h-full"
-                style={{
-                  width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
-                  background: burnColor(p.burnPercent),
-                }}
-              />
-            </div>
-            <div className="flex gap-4 font-mono text-[10.5px] text-[var(--text-secondary)]">
-              <span>{h(p.actualHours)} H LOGGED</span>
-              <span>
-                {p.estimatedHours && p.estimatedHours > 0 ? `${h(p.estimatedHours)} H BUDGET` : "NO BUDGET"}
-              </span>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Desktop table */}
-      <div className="hidden overflow-x-auto sm:block">
-        <div className="grid min-w-[860px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-          <span className="col-span-4">PROJECT</span>
-          <span className="col-span-2">CUSTOMER</span>
-          <span className="col-span-1 text-right">BUDGET H</span>
-          <span className="col-span-1 text-right">LOGGED H</span>
-          <span className="col-span-2">CONSUMED</span>
-          <span className="col-span-1 text-right">PEOPLE</span>
-          <span className="col-span-1 text-right">LAST</span>
-        </div>
-
-        {rows.map((p) => (
-          <div
-            key={p.id}
-            className="grid min-w-[860px] grid-cols-12 items-center gap-3 border-b border-[var(--border)] px-4 py-2.5 text-[12.5px] hover:bg-[var(--surface-hover)]"
-          >
-            <Link
-              href={`/projects/${p.id}`}
-              className="col-span-4 truncate font-medium text-[var(--text-primary)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-            >
-              {p.name}
-              {p.isArchived && (
-                <span className="ml-2 font-mono text-[9.5px] text-[var(--text-faint)]">ARCHIVED</span>
-              )}
-            </Link>
-            <span className="col-span-2 truncate text-[var(--text-secondary)]">
-              {p.customerName ?? "—"}
-            </span>
-            <span className="col-span-1 text-right font-mono text-[var(--text-secondary)]">
-              {p.estimatedHours && p.estimatedHours > 0 ? h(p.estimatedHours) : "—"}
-            </span>
-            <span className="col-span-1 text-right font-mono text-[var(--text-primary)]">
-              {h(p.actualHours)}
-            </span>
-            <div className="col-span-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 bg-[var(--border)]">
-                <div
-                  className="h-full"
-                  style={{
-                    width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
-                    background: burnColor(p.burnPercent),
-                  }}
-                />
-              </div>
-              <span
-                className="w-12 text-right font-mono text-[11px] font-medium"
-                style={{ color: burnColor(p.burnPercent) }}
-              >
-                {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
-              </span>
-            </div>
-            <span className="col-span-1 text-right font-mono text-[11.5px] text-[var(--text-secondary)]">
-              {p.memberCount || "—"}
-            </span>
-            <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-faint)]">
-              {p.lastActivity ?? "never"}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+/*
+ * `ProjectTable` used to live here: a server-rendered list of ALL 334 projects
+ * with no search, no paging and no status filter. It was replaced by
+ * ProjectsLedger.tsx, a client component that pages to 50 rows and filters —
+ * see that file's header for the measurements that forced the change. It is
+ * deleted rather than left in place because an unrendered 100-line table is
+ * exactly the kind of dead code that later gets "fixed" instead of removed.
+ */
 
 /* ---------------------------------------------------------------- detail */
 

@@ -95,10 +95,29 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
     }),
   );
 
-  const panels = require(
-    await compile("src/app/(app)/projects/ProjectPanels.tsx", "ProjectPanels.cjs", {
+  const panelsFile = await compile("src/app/(app)/projects/ProjectPanels.tsx", "ProjectPanels.cjs", {
+    "@/lib/queries/projects-live": posix(stub),
+    "next/link": posix(linkStub),
+  });
+  const panels = require(panelsFile);
+
+  // The ledger is a client component. `renderToStaticMarkup` runs it as a plain
+  // function, so useState returns its INITIAL value — which is exactly what
+  // this gate wants to assert: what the reader sees before touching anything.
+  const ledger = require(
+    await compile("src/app/(app)/projects/ProjectsLedger.tsx", "ProjectsLedger.cjs", {
       "@/lib/queries/projects-live": posix(stub),
       "next/link": posix(linkStub),
+      "./ProjectPanels": posix(panelsFile),
+      "@/components/EmptyState": posix(
+        await compile("src/components/EmptyState.tsx", "EmptyState.cjs", { "next/link": posix(linkStub) }),
+      ),
+      "@/components/ui/Button": posix(
+        await compile("src/components/ui/Button.tsx", "Button.cjs", { "next/link": posix(linkStub) }),
+      ),
+      "@/components/ui/Field": posix(
+        await compile("src/components/ui/Field.tsx", "Field.cjs", { "next/link": posix(linkStub) }),
+      ),
     }),
   );
 
@@ -221,16 +240,21 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
 
   console.log("\nWhat a person actually sees:\n");
 
-  const tableHtml = render(panels.ProjectTable, { rows: live.sortProjects(rows, "burn") });
+  const tableHtml = render(ledger.ProjectsLedger, { rows: live.sortProjects(rows, "burn") });
 
   // Exactly two rows are unbudgeted, and each must say "n/a". A genuine 0% (the
   // Untouched project, which HAS a 50h budget) is correct and must survive —
   // asserting "no 0% anywhere" would have demanded the wrong behaviour.
+  //
+  // Doubled because the ledger renders BOTH layouts into the markup — a mobile
+  // card list and a desktop grid, one hidden by CSS at any viewport. Counting
+  // raw occurrences without accounting for that reads as a bug in the page when
+  // it is really a bug in the assertion.
   const naCount = (tableHtml.match(/n\/a/g) ?? []).length;
   check(
     "a project without a budget renders 'n/a', not '0%'",
-    naCount === 2,
-    `${naCount} unbudgeted rows marked n/a`,
+    naCount === 4,
+    `${naCount} occurrences across the mobile and desktop layouts (2 rows × 2)`,
   );
   check(
     "a genuine 0% burn is still shown as 0%, not hidden as n/a",
@@ -248,6 +272,219 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   check(
     "an over-budget row is drawn in the critical colour",
     tableHtml.includes("var(--critical)"),
+  );
+
+  /* ────────────────────── density: the reason for the rebuild ───────────── */
+
+  console.log("\nReaching a project without scrolling for it:\n");
+
+  // 334 rows at ~41px was ~13,700px — roughly fifteen full screens. The three
+  // fixes are asserted separately because only one of them (paging) does the
+  // heavy lifting, and a future change could silently drop it while leaving
+  // the other two in place.
+
+  check(
+    "REGRESSION 4: the list is searchable",
+    /type="search"/.test(tableHtml),
+    "no search input rendered",
+  );
+
+  check(
+    "the search box is reachable by screen reader, not a bare box",
+    /aria-label="Search projects/.test(tableHtml),
+  );
+
+  // Every facet chip must carry a COUNT. A chip that does not say how many rows
+  // it would bring in cannot be judged before clicking, which is the whole
+  // reason to have one rather than a plain filter dropdown.
+  for (const [facet, label] of [
+    ["over", "OVER BUDGET"],
+    ["risk", "AT RISK"],
+    ["nobudget", "NO BUDGET"],
+    ["idle", "NO ACTIVITY"],
+  ]) {
+    check(`the '${label}' filter is offered`, tableHtml.includes(label), facet);
+  }
+
+  check(
+    "filter chips announce their pressed state",
+    (tableHtml.match(/aria-pressed="false"/g) ?? []).length >= 4,
+    "chips must be real buttons with aria-pressed, not styled divs",
+  );
+
+  // The pure predicates, exercised directly. These are what the chips call, and
+  // the boundaries are the part that silently misclassifies a project.
+  const F = (burnPercent, actualHours = 1) => ({ burnPercent, actualHours });
+  check(
+    "'over budget' means strictly over 100%, not 100% itself",
+    ledger.matchesFacet(F(100.1), "over") && !ledger.matchesFacet(F(100), "over"),
+  );
+  check(
+    "'at risk' spans 85% to 100% inclusive",
+    ledger.matchesFacet(F(85), "risk") &&
+      ledger.matchesFacet(F(100), "risk") &&
+      !ledger.matchesFacet(F(84.9), "risk"),
+  );
+  check(
+    "'no budget' catches null burn, never a real 0%",
+    ledger.matchesFacet(F(null), "nobudget") && !ledger.matchesFacet(F(0), "nobudget"),
+  );
+  check(
+    "'over budget' and 'at risk' can never both match one project",
+    [0, 84.9, 85, 100, 100.1, 140].every(
+      (p) => !(ledger.matchesFacet(F(p), "over") && ledger.matchesFacet(F(p), "risk")),
+    ),
+  );
+
+  /* ─────────────────────── REGRESSION 5: paging is real ─────────────────── */
+
+  // The measurement that forced this work. With 120 projects the first render
+  // must NOT contain all of them, or the page is back to fifteen screens.
+  const many = Array.from({ length: 120 }, (_, i) => ({
+    id: 1000 + i,
+    name: `Bulk project ${String(i).padStart(3, "0")}`,
+    customerName: "ACME",
+    code: null,
+    estimatedHours: 10,
+    actualHours: i,
+    billableHours: 0,
+    entryCount: 1,
+    memberCount: 1,
+    lastActivity: "2026-01-01",
+    burnPercent: i,
+    remainingHours: 0,
+    isOver: false,
+    isBillable: true,
+    isArchived: false,
+    serviceName: null,
+    customerId: 1,
+  }));
+
+  const manyHtml = render(ledger.ProjectsLedger, { rows: many });
+  // UNIQUE ids, not raw href occurrences: each row appears twice in the markup
+  // (mobile card + desktop grid), so a naive count doubles every number here.
+  const linkCount = new Set(
+    [...manyHtml.matchAll(/href="\/projects\/(1\d\d\d)"/g)].map((m) => m[1]),
+  ).size;
+
+  check(
+    "REGRESSION 5: 120 projects do not all render at once",
+    linkCount < 120,
+    `${linkCount} distinct projects in the first paint`,
+  );
+  check(
+    "the first page is a useful size, not a token handful",
+    linkCount >= 40 && linkCount <= 60,
+    `${linkCount} rows`,
+  );
+  check(
+    "the reader is told how many rows are hidden",
+    /SHOWING \d+ OF 120/.test(manyHtml),
+    "no 'showing N of M' summary",
+  );
+  check(
+    "there is a way to see the rest",
+    manyHtml.includes("Show 50 more") && manyHtml.includes("Show all"),
+  );
+  check(
+    "a short list gets no pager at all",
+    !tableHtml.includes("SHOWING"),
+    "5 rows must not render a pager",
+  );
+
+  /* ─────────────────── REGRESSION 6: the row got shorter ────────────────── */
+
+  // py-1 rather than py-2.5. Asserted on the shipped source rather than the
+  // rendered HTML because Tailwind classes are the only place the value lives.
+  const ledgerSrc = readFileSync("src/app/(app)/projects/ProjectsLedger.tsx", "utf8");
+  const rowClass = /grid min-w-\[900px\] grid-cols-12 items-center[^"]*/.exec(ledgerSrc)?.[0] ?? "";
+  check(
+    "REGRESSION 6: the desktop row keeps its compact vertical padding",
+    /\bpy-1\b/.test(rowClass) && !/\bpy-2\.5\b/.test(rowClass),
+    rowClass.slice(0, 90),
+  );
+  check(
+    "the project name keeps its readable size despite the tighter row",
+    /text-\[12\.5px\]/.test(rowClass),
+    "the one column people actually read must not shrink",
+  );
+  check(
+    "the header row sticks so columns stay identifiable down a long list",
+    /sticky top-0/.test(ledgerSrc),
+  );
+
+  // REGRESSION 9. `position: sticky` resolves against the nearest SCROLL
+  // CONTAINER, and any `overflow` other than `visible` creates one. The desktop
+  // wrapper used to carry `overflow-x-auto`, which silently defeated the sticky
+  // header while leaving the class in place — measured in a browser: the header
+  // sat at top 324px and moved to -276px after scrolling 600px, i.e. it scrolled
+  // away exactly like a static element. Source review cannot see this.
+  const desktopWrapper = /className="hidden[^"]*sm:block"/.exec(ledgerSrc)?.[0] ?? "";
+  check(
+    "REGRESSION 9: the desktop wrapper creates no scroll container",
+    desktopWrapper !== "" && !/overflow-/.test(desktopWrapper),
+    `${desktopWrapper} — an overflow value here silently kills the sticky header`,
+  );
+
+  /* ───────────────── REGRESSION 7: result count is announced ─────────────── */
+
+  check(
+    "REGRESSION 7: the filtered result count is announced politely",
+    /aria-live="polite"/.test(tableHtml) && /role="status"/.test(tableHtml),
+    "a sighted user sees the table shrink; a screen-reader user must be told",
+  );
+
+  /* ────────── REGRESSION 8: the CLIENT sort pins nulls in both directions ── */
+
+  // Sorting moved from the server (`live.sortProjects`, asserted above) into the
+  // ledger, so the null-pinning rule now has TWO implementations. This exercises
+  // the client one directly: without it, a mutation that coerces null to 0 in
+  // `sortRows` passes every other check in this file.
+  const sortable = [
+    { name: "Overrun", burnPercent: 140, actualHours: 70, estimatedHours: 50, lastActivity: "2026-08-01", memberCount: 2 },
+    { name: "Healthy", burnPercent: 20, actualHours: 10, estimatedHours: 50, lastActivity: "2026-07-01", memberCount: 1 },
+    { name: "NoBudgetA", burnPercent: null, actualHours: 12, estimatedHours: 0, lastActivity: "2026-06-01", memberCount: 1 },
+    { name: "NoBudgetB", burnPercent: null, actualHours: 3, estimatedHours: null, lastActivity: null, memberCount: 0 },
+  ];
+
+  const descNames = ledger.sortRows(sortable, "burn", "desc").map((r) => r.name);
+  const ascNames = ledger.sortRows(sortable, "burn", "asc").map((r) => r.name);
+
+  check(
+    "the client burn sort leads with the overrun",
+    descNames[0] === "Overrun",
+    descNames.join(" > "),
+  );
+  check(
+    "REGRESSION 8: reversing the client sort does NOT promote unbudgeted rows",
+    ascNames[0] === "Healthy" &&
+      ascNames.slice(-2).every((n) => n.startsWith("NoBudget")),
+    ascNames.join(" > "),
+  );
+  check(
+    "unbudgeted rows stay last in the descending direction too",
+    descNames.slice(-2).every((n) => n.startsWith("NoBudget")),
+    descNames.join(" > "),
+  );
+  check(
+    "a measured zero is NOT treated as missing data",
+    ledger.sortRows(
+      [
+        { name: "Zero", burnPercent: 0, actualHours: 0, estimatedHours: 10, lastActivity: null, memberCount: 0 },
+        { name: "Null", burnPercent: null, actualHours: 0, estimatedHours: 0, lastActivity: null, memberCount: 0 },
+      ],
+      "burn",
+      "asc",
+    )[0].name === "Zero",
+    "0% burned is a fact; no budget is the absence of one",
+  );
+  check(
+    "the client sort does not mutate the array it was given",
+    (() => {
+      const before = sortable.map((r) => r.name).join(",");
+      ledger.sortRows(sortable, "hours", "desc");
+      return sortable.map((r) => r.name).join(",") === before;
+    })(),
   );
 
   const stripHtml = render(panels.ProjectTotalsStrip, {

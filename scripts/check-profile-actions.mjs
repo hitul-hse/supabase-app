@@ -113,5 +113,37 @@ check(
   "MIME allow-list enforced server-side in uploadAvatar (as a rejection, not merely present)",
 );
 
+// changePassword: a Server Action is a public HTTP endpoint reachable without
+// the page's own gate, so identity is re-checked here exactly like the other
+// three actions, and the current password must be verified against Supabase
+// (signInWithPassword) before the new one is ever written (updateUser).
+const changePasswordBody = functionBody("changePassword");
+check(changePasswordBody !== null, "changePassword is present as an exported function");
+
+{
+  const body = changePasswordBody ?? "";
+
+  check(/getUser\(\)/.test(body), "changePassword re-checks identity via getUser()");
+  check(/if\s*\(\s*!user\s*\)/.test(body), "changePassword refuses to proceed when there is no user");
+
+  check(/signInWithPassword/.test(body), "password change verifies the CURRENT password first");
+  check(/auth\.updateUser\(\s*\{\s*password/.test(body), "password change calls updateUser");
+
+  const verifyIdx = body.indexOf("signInWithPassword");
+  const updateIdx = body.indexOf("updateUser");
+  check(
+    verifyIdx !== -1 && updateIdx !== -1 && verifyIdx < updateIdx,
+    "verification happens before the update, not after",
+  );
+
+  // Matches the sanitisation pattern in the other three actions: a Supabase
+  // error is logged server-side and a short human message goes to the
+  // client, never the raw error text (which can carry auth-internal detail).
+  check(
+    !/message:\s*\w*[Ee]rror\.message/.test(body),
+    "changePassword does not return raw Supabase error text to the client",
+  );
+}
+
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

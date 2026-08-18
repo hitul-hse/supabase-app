@@ -5,6 +5,7 @@ import { requireProfile } from "@/utils/supabase/require-profile";
 import { getProfileView } from "@/lib/queries/profile";
 import { EmploymentCard } from "./EmploymentCard";
 import { IdentityCard } from "./IdentityCard";
+import { SecurityCard } from "./SecurityCard";
 import PageTransition from "@/components/animations/PageTransition";
 
 export const metadata = { title: "Your profile — HSE Hub" };
@@ -45,6 +46,7 @@ export default async function ProfilePage() {
         <div className="flex flex-col gap-5 p-4 sm:p-6">
           <IdentityCard profile={profile} signedAvatarUrl={signedAvatarUrl} />
           <EmploymentCard profile={profile} />
+          <SecurityCard />
         </div>
       </div>
     </PageTransition>

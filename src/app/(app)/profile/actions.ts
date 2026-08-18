@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { MIN_PASSWORD_LENGTH } from "@/lib/password-strength";
 import { MAX_AVATAR_BYTES, ALLOWED_AVATAR_TYPES, type ProfileActionState } from "./constants";
 
 const MAX_DISPLAY_NAME = 60;
@@ -136,4 +137,64 @@ export async function removeAvatar(): Promise<ProfileActionState> {
   revalidatePath("/profile");
   revalidatePath("/", "layout");
   return { status: "success", message: "Photo removed." };
+}
+
+export async function changePassword(
+  _prev: ProfileActionState,
+  formData: FormData,
+): Promise<ProfileActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { status: "error", message: "Not authenticated." };
+
+  const email = user.email;
+  if (!email) {
+    // Should not happen for a password-auth user, but this endpoint is
+    // reachable without the browser, so it is checked rather than assumed.
+    console.error("[profile] changePassword: authenticated user has no email on record");
+    return { status: "error", message: "Not authenticated." };
+  }
+
+  const current = String(formData.get("current_password") ?? "");
+  const next = String(formData.get("new_password") ?? "");
+  const confirm = String(formData.get("confirm_password") ?? "");
+
+  // Re-checked here on purpose. The browser enforces length/match for UX,
+  // but this endpoint is reachable without the browser.
+  if (next.length < MIN_PASSWORD_LENGTH) {
+    return { status: "error", message: `Use at least ${MIN_PASSWORD_LENGTH} characters.` };
+  }
+  if (next !== confirm) {
+    return { status: "error", message: "Those two passwords don't match." };
+  }
+  if (next === current) {
+    return { status: "error", message: "That is already your password." };
+  }
+
+  // Supabase will change the password on a valid session alone. Requiring the
+  // current one is what stops an unlocked laptop being a full account
+  // takeover rather than a nuisance. This call issues fresh auth cookies for
+  // the same user on success, which is expected -- updateUser below runs
+  // against that same (now-refreshed) session.
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email,
+    password: current,
+  });
+  if (verifyError) {
+    // Never echo Supabase's auth error text -- it can hint at whether the
+    // account/email exists, and password material must never round-trip
+    // through a log or a response either way.
+    console.error("[profile] changePassword: current password verification failed");
+    return { status: "error", message: "That current password is not right." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: next });
+  if (error) {
+    console.error("[profile] changePassword: updateUser failed:", error);
+    return { status: "error", message: "Couldn't change your password. Try again." };
+  }
+
+  return { status: "success", message: "Password changed." };
 }

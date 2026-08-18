@@ -101,7 +101,8 @@
     "check:redirect-allowlist": "node scripts/check-redirect-allowlist.mjs",
     "check:live-overview-deployed": "node scripts/check-live-overview-deployed.mjs",
     "check:people-live-source": "node scripts/check-people-live-source.mjs",
-    "check:people-overview-agree": "node scripts/check-people-overview-agree.mjs"
+    "check:people-overview-agree": "node scripts/check-people-overview-agree.mjs",
+    "check:profile-rls": "node scripts/check-profile-rls.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

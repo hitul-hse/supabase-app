@@ -1,8 +1,3 @@
-/**
- * Auto-generated database types from Supabase schema.
- * Reflects the current state of netflix_users, files, the HSE Hub tables,
- * the RBAC tables (app_role, app_user_profile), and aggregate views.
- */
 export type Json =
   | string
   | number
@@ -79,36 +74,6 @@ export type Database = {
         }
         Relationships: []
       }
-      platform_decision: {
-        Row: {
-          decided_at: string
-          decided_by: string
-          id: number
-          kind: string
-          note: string | null
-          outcome: string
-          subject_ref: string
-        }
-        Insert: {
-          decided_at?: string
-          decided_by: string
-          id?: number
-          kind: string
-          note?: string | null
-          outcome: string
-          subject_ref: string
-        }
-        Update: {
-          decided_at?: string
-          decided_by?: string
-          id?: number
-          kind?: string
-          note?: string | null
-          outcome?: string
-          subject_ref?: string
-        }
-        Relationships: []
-      }
       app_role: {
         Row: {
           display_name: string
@@ -162,26 +127,41 @@ export type Database = {
       }
       app_user_profile: {
         Row: {
+          avatar_url: string | null
           created_at: string
           department: string | null
+          display_name: string | null
           is_active: boolean
           person_id: string | null
+          pref_landing_page: string
+          pref_locale: string
+          pref_sidebar_collapsed: boolean
           role_key: string
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           department?: string | null
+          display_name?: string | null
           is_active?: boolean
           person_id?: string | null
+          pref_landing_page?: string
+          pref_locale?: string
+          pref_sidebar_collapsed?: boolean
           role_key: string
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           department?: string | null
+          display_name?: string | null
           is_active?: boolean
           person_id?: string | null
+          pref_landing_page?: string
+          pref_locale?: string
+          pref_sidebar_collapsed?: boolean
           role_key?: string
           user_id?: string
         }
@@ -190,8 +170,36 @@ export type Database = {
             foreignKeyName: "app_user_profile_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "app_user_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "app_user_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "app_user_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "app_user_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
           },
           {
             foreignKeyName: "app_user_profile_role_key_fkey"
@@ -298,6 +306,81 @@ export type Database = {
         }
         Relationships: []
       }
+      leave_requests: {
+        Row: {
+          days: number
+          decided_at: string | null
+          decided_by: string | null
+          end_date: string
+          id: number
+          person_id: string
+          reason: string | null
+          requested_at: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          days: number
+          decided_at?: string | null
+          decided_by?: string | null
+          end_date: string
+          id?: never
+          person_id: string
+          reason?: string | null
+          requested_at?: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          days?: number
+          decided_at?: string | null
+          decided_by?: string | null
+          end_date?: string
+          id?: never
+          person_id?: string
+          reason?: string | null
+          requested_at?: string
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
+          },
+        ]
+      }
       netflix_users: {
         Row: {
           age: number | null
@@ -334,80 +417,120 @@ export type Database = {
       people: {
         Row: {
           billable_rate_eur: number | null
-          cost_rate_eur: number | null
-          billable_share: number
-          capacity_status: string
+          billable_share: number | null
+          capacity_status: string | null
           certificate_status: string | null
           certificate_text: string | null
-          contract_hours: number
-          department: string
-          employee_number: string
-          holiday_left: number
+          contract_hours: number | null
+          cost_rate_eur: number | null
+          department: string | null
+          employee_number: string | null
+          factorial_employee_id: string | null
+          holiday_left: number | null
           id: string
-          logged_this_month: number
+          is_active: boolean
+          logged_this_month: number | null
           manager_id: string | null
           name: string
-          open_tasks: number
-          overdue_tasks: number
-          role: string
-          since: string
+          open_tasks: number | null
+          overdue_tasks: number | null
+          role: string | null
+          since: string | null
+          source: string
           timesheet_status: string | null
-          total_holiday: number
-          total_monthly_hours: number
+          total_holiday: number | null
+          total_monthly_hours: number | null
+          trackingtime_user_id: string | null
         }
         Insert: {
           billable_rate_eur?: number | null
-          cost_rate_eur?: number | null
-          billable_share: number
-          capacity_status: string
+          billable_share?: number | null
+          capacity_status?: string | null
           certificate_status?: string | null
           certificate_text?: string | null
-          contract_hours: number
-          department: string
-          employee_number: string
-          holiday_left: number
+          contract_hours?: number | null
+          cost_rate_eur?: number | null
+          department?: string | null
+          employee_number?: string | null
+          factorial_employee_id?: string | null
+          holiday_left?: number | null
           id: string
-          logged_this_month: number
+          is_active?: boolean
+          logged_this_month?: number | null
           manager_id?: string | null
           name: string
-          open_tasks: number
-          overdue_tasks: number
-          role: string
-          since: string
+          open_tasks?: number | null
+          overdue_tasks?: number | null
+          role?: string | null
+          since?: string | null
+          source?: string
           timesheet_status?: string | null
-          total_holiday: number
-          total_monthly_hours: number
+          total_holiday?: number | null
+          total_monthly_hours?: number | null
+          trackingtime_user_id?: string | null
         }
         Update: {
           billable_rate_eur?: number | null
-          cost_rate_eur?: number | null
-          billable_share?: number
-          capacity_status?: string
+          billable_share?: number | null
+          capacity_status?: string | null
           certificate_status?: string | null
           certificate_text?: string | null
-          contract_hours?: number
-          department?: string
-          employee_number?: string
-          holiday_left?: number
+          contract_hours?: number | null
+          cost_rate_eur?: number | null
+          department?: string | null
+          employee_number?: string | null
+          factorial_employee_id?: string | null
+          holiday_left?: number | null
           id?: string
-          logged_this_month?: number
+          is_active?: boolean
+          logged_this_month?: number | null
           manager_id?: string | null
           name?: string
-          open_tasks?: number
-          overdue_tasks?: number
-          role?: string
-          since?: string
+          open_tasks?: number | null
+          overdue_tasks?: number | null
+          role?: string | null
+          since?: string | null
+          source?: string
           timesheet_status?: string | null
-          total_holiday?: number
-          total_monthly_hours?: number
+          total_holiday?: number | null
+          total_monthly_hours?: number | null
+          trackingtime_user_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "people_manager_id_fkey"
             columns: ["manager_id"]
             isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
           },
         ]
       }
@@ -447,8 +570,43 @@ export type Database = {
             foreignKeyName: "person_assignments_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "person_assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "person_assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "person_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_status"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "person_assignments_project_id_fkey"
@@ -489,10 +647,68 @@ export type Database = {
             foreignKeyName: "person_qualifications_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "person_qualifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "person_qualifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_qualifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "person_qualifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
+          },
         ]
+      }
+      platform_decision: {
+        Row: {
+          decided_at: string
+          decided_by: string
+          id: number
+          kind: string
+          note: string | null
+          outcome: string
+          subject_ref: string
+        }
+        Insert: {
+          decided_at?: string
+          decided_by: string
+          id?: number
+          kind: string
+          note?: string | null
+          outcome: string
+          subject_ref: string
+        }
+        Update: {
+          decided_at?: string
+          decided_by?: string
+          id?: number
+          kind?: string
+          note?: string | null
+          outcome?: string
+          subject_ref?: string
+        }
+        Relationships: []
       }
       project_sections: {
         Row: {
@@ -527,6 +743,13 @@ export type Database = {
             foreignKeyName: "project_sections_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_budget_status"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_sections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -535,7 +758,6 @@ export type Database = {
       project_tasks: {
         Row: {
           created_by: string | null
-          section_id: number | null
           due_on: string | null
           estimate_hours: number
           id: number
@@ -544,14 +766,14 @@ export type Database = {
           owner: string
           parent_task_id: number | null
           project_id: string | null
-          time_project_id: number | null
+          section_id: number | null
           sort_order: number
           status: string
+          time_project_id: number | null
           updated_at: string
         }
         Insert: {
           created_by?: string | null
-          section_id?: number | null
           due_on?: string | null
           estimate_hours: number
           id?: never
@@ -560,14 +782,14 @@ export type Database = {
           owner: string
           parent_task_id?: number | null
           project_id?: string | null
-          time_project_id?: number | null
+          section_id?: number | null
           sort_order: number
           status: string
+          time_project_id?: number | null
           updated_at?: string
         }
         Update: {
           created_by?: string | null
-          section_id?: number | null
           due_on?: string | null
           estimate_hours?: number
           id?: never
@@ -576,9 +798,10 @@ export type Database = {
           owner?: string
           parent_task_id?: number | null
           project_id?: string | null
-          time_project_id?: number | null
+          section_id?: number | null
           sort_order?: number
           status?: string
+          time_project_id?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -593,7 +816,21 @@ export type Database = {
             foreignKeyName: "project_tasks_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_budget_status"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "project_sections"
             referencedColumns: ["id"]
           },
         ]
@@ -631,6 +868,13 @@ export type Database = {
             foreignKeyName: "project_timeline_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_budget_status"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_timeline_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -639,16 +883,16 @@ export type Database = {
       projects: {
         Row: {
           billable_hours: number
+          billable_rate_eur: number | null
+          budget_alert_percent: number
+          budget_fee_eur: number | null
+          budget_hours: number | null
           change_requests: string | null
           code: string
           consumed_percent: number
           contract_hours: number
           contract_type: string | null
           contract_value_eur: number | null
-          budget_hours: number | null
-          budget_fee_eur: number | null
-          budget_alert_percent: number
-          billable_rate_eur: number | null
           customer: string
           department: string | null
           due: string
@@ -665,16 +909,16 @@ export type Database = {
         }
         Insert: {
           billable_hours: number
+          billable_rate_eur?: number | null
+          budget_alert_percent?: number
+          budget_fee_eur?: number | null
+          budget_hours?: number | null
           change_requests?: string | null
           code: string
           consumed_percent: number
           contract_hours: number
           contract_type?: string | null
           contract_value_eur?: number | null
-          budget_hours?: number | null
-          budget_fee_eur?: number | null
-          budget_alert_percent?: number
-          billable_rate_eur?: number | null
           customer: string
           department?: string | null
           due: string
@@ -691,16 +935,16 @@ export type Database = {
         }
         Update: {
           billable_hours?: number
+          billable_rate_eur?: number | null
+          budget_alert_percent?: number
+          budget_fee_eur?: number | null
+          budget_hours?: number | null
           change_requests?: string | null
           code?: string
           consumed_percent?: number
           contract_hours?: number
           contract_type?: string | null
           contract_value_eur?: number | null
-          budget_hours?: number | null
-          budget_fee_eur?: number | null
-          budget_alert_percent?: number
-          billable_rate_eur?: number | null
           customer?: string
           department?: string | null
           due?: string
@@ -720,8 +964,36 @@ export type Database = {
             foreignKeyName: "projects_owner_person_id_fkey"
             columns: ["owner_person_id"]
             isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "projects_owner_person_id_fkey"
+            columns: ["owner_person_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "projects_owner_person_id_fkey"
+            columns: ["owner_person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_owner_person_id_fkey"
+            columns: ["owner_person_id"]
+            isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_owner_person_id_fkey"
+            columns: ["owner_person_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
           },
         ]
       }
@@ -809,17 +1081,17 @@ export type Database = {
         Row: {
           customer: string | null
           day_of_week: number
-          project_id: string | null
-          rejection_note: string | null
-          started_at: string | null
-          stopped_at: string | null
           entry_group: number
           hours: number
           id: number
           is_billable: boolean
           person_id: string
+          project_id: string | null
           project_name: string
+          rejection_note: string | null
+          started_at: string | null
           status: string
+          stopped_at: string | null
           submitted_at: string | null
           task_name: string
           warning: string | null
@@ -828,17 +1100,17 @@ export type Database = {
         Insert: {
           customer?: string | null
           day_of_week: number
-          project_id?: string | null
-          rejection_note?: string | null
-          started_at?: string | null
-          stopped_at?: string | null
           entry_group: number
           hours: number
           id?: never
           is_billable: boolean
           person_id: string
+          project_id?: string | null
           project_name: string
+          rejection_note?: string | null
+          started_at?: string | null
           status?: string
+          stopped_at?: string | null
           submitted_at?: string | null
           task_name: string
           warning?: string | null
@@ -847,17 +1119,17 @@ export type Database = {
         Update: {
           customer?: string | null
           day_of_week?: number
-          project_id?: string | null
-          rejection_note?: string | null
-          started_at?: string | null
-          stopped_at?: string | null
           entry_group?: number
           hours?: number
           id?: never
           is_billable?: boolean
           person_id?: string
+          project_id?: string | null
           project_name?: string
+          rejection_note?: string | null
+          started_at?: string | null
           status?: string
+          stopped_at?: string | null
           submitted_at?: string | null
           task_name?: string
           warning?: string | null
@@ -868,54 +1140,49 @@ export type Database = {
             foreignKeyName: "timesheet_entries_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
-            referencedRelation: "people"
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      leave_requests: {
-        Row: {
-          days: number
-          decided_at: string | null
-          decided_by: string | null
-          end_date: string
-          id: number
-          person_id: string
-          reason: string | null
-          requested_at: string
-          start_date: string
-          status: string
-        }
-        Insert: {
-          days: number
-          decided_at?: string | null
-          decided_by?: string | null
-          end_date: string
-          id?: never
-          person_id: string
-          reason?: string | null
-          requested_at?: string
-          start_date: string
-          status?: string
-        }
-        Update: {
-          days?: number
-          decided_at?: string | null
-          decided_by?: string | null
-          end_date?: string
-          id?: never
-          person_id?: string
-          reason?: string | null
-          requested_at?: string
-          start_date?: string
-          status?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "leave_requests_person_id_fkey"
+            foreignKeyName: "timesheet_entries_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_status"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -947,8 +1214,36 @@ export type Database = {
             foreignKeyName: "weekly_bookings_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "weekly_bookings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "weekly_bookings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_bookings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_bookings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
           },
         ]
       }
@@ -957,8 +1252,8 @@ export type Database = {
           absence_label: string | null
           absence_minutes: number | null
           billable_seconds: number
-          empty_tasks_seconds: number
           employee_name: string
+          empty_tasks_seconds: number
           expected_minutes: number
           factorial_employee_id: string
           id: number
@@ -977,8 +1272,8 @@ export type Database = {
           absence_label?: string | null
           absence_minutes?: number | null
           billable_seconds: number
-          empty_tasks_seconds: number
           employee_name: string
+          empty_tasks_seconds: number
           expected_minutes: number
           factorial_employee_id: string
           id?: never
@@ -997,8 +1292,8 @@ export type Database = {
           absence_label?: string | null
           absence_minutes?: number | null
           billable_seconds?: number
-          empty_tasks_seconds?: number
           employee_name?: string
+          empty_tasks_seconds?: number
           expected_minutes?: number
           factorial_employee_id?: string
           id?: never
@@ -1018,8 +1313,36 @@ export type Database = {
             foreignKeyName: "weekly_employee_summary_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "weekly_employee_summary_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "weekly_employee_summary_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_employee_summary_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_employee_summary_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
           },
         ]
       }
@@ -1052,50 +1375,6 @@ export type Database = {
       }
     }
     Views: {
-      org_chart_nodes: {
-        Row: {
-          department: string | null
-          id: string | null
-          manager_id: string | null
-          name: string | null
-          role: string | null
-        }
-        Relationships: []
-      }
-      user_display_names: {
-        Row: {
-          display_name: string | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
-      project_budget_status: {
-        Row: {
-          billable_hours_logged: number | null
-          budget_alert_percent: number | null
-          budget_fee_eur: number | null
-          budget_hours: number | null
-          cost_eur: number | null
-          hours_consumed_percent: number | null
-          hours_logged: number | null
-          is_over_budget: boolean | null
-          is_past_alert_threshold: boolean | null
-          margin_eur: number | null
-          name: string | null
-          project_id: string | null
-          revenue_eur: number | null
-        }
-        Relationships: []
-      }
-      leave_balances: {
-        Row: {
-          days_taken: number | null
-          holiday_left: number | null
-          person_id: string | null
-          total_holiday: number | null
-        }
-        Relationships: []
-      }
       billable_value_by_person: {
         Row: {
           billable_hours_logged: number | null
@@ -1105,35 +1384,12 @@ export type Database = {
         }
         Relationships: []
       }
-      person_week_metrics: {
+      leave_balances: {
         Row: {
-          absence_hours: number | null
-          absence_label: string | null
-          billable_hours: number | null
-          billable_share_percent: number | null
-          capacity_status: string | null
-          department: string | null
-          expected_hours: number | null
-          factorial_employee_id: string | null
-          name: string | null
-          non_billable_hours: number | null
-          period_end: string | null
-          period_start: string | null
+          days_taken: number | null
+          holiday_left: number | null
           person_id: string | null
-          review_entry_count: number | null
-          synced_at: string | null
-          worked_day_count: number | null
-          worked_hours: number | null
-        }
-        Relationships: []
-      }
-      weekly_billable_trend: {
-        Row: {
-          billable_hours: number | null
-          employee_count: number | null
-          non_billable_hours: number | null
-          period_end: string | null
-          period_start: string | null
+          total_holiday: number | null
         }
         Relationships: []
       }
@@ -1168,13 +1424,144 @@ export type Database = {
         }
         Relationships: []
       }
+      org_chart_nodes: {
+        Row: {
+          department: string | null
+          id: string | null
+          manager_id: string | null
+          name: string | null
+          role: string | null
+        }
+        Insert: {
+          department?: string | null
+          id?: string | null
+          manager_id?: string | null
+          name?: string | null
+          role?: string | null
+        }
+        Update: {
+          department?: string | null
+          id?: string | null
+          manager_id?: string | null
+          name?: string | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "billable_value_by_person"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "leave_balances"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "person_week_metrics"
+            referencedColumns: ["person_id"]
+          },
+        ]
+      }
+      person_week_metrics: {
+        Row: {
+          absence_hours: number | null
+          absence_label: string | null
+          billable_hours: number | null
+          billable_share_percent: number | null
+          capacity_status: string | null
+          department: string | null
+          expected_hours: number | null
+          factorial_employee_id: string | null
+          name: string | null
+          non_billable_hours: number | null
+          period_end: string | null
+          period_start: string | null
+          person_id: string | null
+          review_entry_count: number | null
+          synced_at: string | null
+          worked_day_count: number | null
+          worked_hours: number | null
+        }
+        Relationships: []
+      }
+      project_budget_status: {
+        Row: {
+          billable_hours_logged: number | null
+          budget_alert_percent: number | null
+          budget_fee_eur: number | null
+          budget_hours: number | null
+          cost_eur: number | null
+          hours_consumed_percent: number | null
+          hours_logged: number | null
+          is_over_budget: boolean | null
+          is_past_alert_threshold: boolean | null
+          margin_eur: number | null
+          name: string | null
+          project_id: string | null
+          revenue_eur: number | null
+        }
+        Relationships: []
+      }
+      user_display_names: {
+        Row: {
+          display_name: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      weekly_billable_trend: {
+        Row: {
+          billable_hours: number | null
+          employee_count: number | null
+          non_billable_hours: number | null
+          period_end: string | null
+          period_start: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       app_user_department: { Args: never; Returns: string }
       app_user_has_permission: { Args: { p_key: string }; Returns: boolean }
       app_user_modules: {
         Args: never
-        Returns: Database["public"]["Tables"]["app_module"]["Row"][]
+        Returns: {
+          accent: string
+          display_name: string
+          href: string | null
+          is_live: boolean
+          module_key: string
+          sort_order: number
+          tagline: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "app_module"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       app_user_person_id: { Args: never; Returns: string }
       app_user_role: { Args: never; Returns: string }
@@ -1182,6 +1569,23 @@ export type Database = {
       can_view_project: {
         Args: { target_project_id: string }
         Returns: boolean
+      }
+      can_view_task_parent: {
+        Args: { p_hub_id: string; p_time_id: number }
+        Returns: boolean
+      }
+      section_project_id: {
+        Args: { target_section_id: number }
+        Returns: string
+      }
+      section_time_project_id: {
+        Args: { target_section_id: number }
+        Returns: number
+      }
+      task_project_id: { Args: { target_task_id: number }; Returns: string }
+      task_time_project_id: {
+        Args: { target_task_id: number }
+        Returns: number
       }
     }
     Enums: {
@@ -1309,3 +1713,9 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

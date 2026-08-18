@@ -126,7 +126,12 @@ export type MemberUtilisationRow = {
 };
 
 export type ProjectEconomicsRow = {
-  projectId: number;
+  /**
+   * Null on the "(no project)" row. 40% of live entries carry no project_id and
+   * their cost is still real, so they are aggregated into one unattributed row
+   * rather than dropped — there is no record behind it to link to.
+   */
+  projectId: number | null;
   projectName: string;
   customerName: string | null;
   totalSeconds: number;
@@ -161,15 +166,35 @@ export type OrgTotals = {
  * because a chart reads left-to-right in time. Ordering ascending and taking
  * the first N would return the OLDEST weeks — the exact bug already fixed once
  * in getExecutiveOverview (see scripts/check-trend-window.mjs).
+ *
+ * FUTURE WEEKS ARE EXCLUDED, AND THAT IS NOT AN EDGE CASE
+ * ------------------------------------------------------
+ * TrackingTime holds PLANNED entries dated months ahead, and `org_week` reports
+ * them like any other week. Live, 19 of 53 weeks are in the future. Without the
+ * upper bound, "the last 12 weeks" resolved to twelve weeks of one person's
+ * forward plan: the landing page read 267h and "1 active person" for a company
+ * that had logged 2,919h across 12 people in the twelve weeks that had actually
+ * happened. Nothing errored — the chart drew, the percentages were internally
+ * consistent, and every figure was wrong by an order of magnitude.
+ *
+ * The bound is `lte(today)` on the week's MONDAY, so the current part-week is
+ * included (people expect to see the week they are in) while genuinely future
+ * weeks are not.
  */
 export async function getOrgWeeks(
   supabase: SupabaseTyped,
   limit = 12,
 ): Promise<OrgWeekRow[]> {
   try {
+    // UTC, matching how week_start is stored. A local-midnight boundary would
+    // shift the cutoff by a day either side of midnight depending on the
+    // server's timezone.
+    const today = new Date().toISOString().slice(0, 10);
+
     const { data, error } = await timeSchema(supabase)
       .from("org_week")
       .select("*")
+      .lte("week_start", today)
       .order("week_start", { ascending: false })
       .limit(limit);
 
@@ -464,7 +489,9 @@ export async function getProjectEconomics(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = (data as any[]).map((r) => ({
-      projectId: num(r.project_id),
+      // numOrNull, not num: num(null) is 0, which would render a link to
+      // /projects/0 — a page that does not exist.
+      projectId: numOrNull(r.project_id),
       projectName: r.project_name ?? "Untitled",
       customerName: r.customer_name ?? null,
       totalSeconds: num(r.total_seconds),

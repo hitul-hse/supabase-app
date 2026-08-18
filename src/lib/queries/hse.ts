@@ -1,10 +1,5 @@
 import type {
   SupabaseTyped,
-  SyncSourceRow,
-  ExecutiveMetricRow,
-  WeeklyTrendRow,
-  TeamUtilisationRow,
-  ProjectRow,
   ProjectDetail,
   ProjectTaskRow,
   PersonProfile,
@@ -14,160 +9,37 @@ import type {
   PendingTimesheetWeek,
   OrgChartNode,
   TaskComment,
+  TaskWithSubtasks,
+  ProjectSectionRow,
   LeaveRequestRow,
   LeaveBalanceRow,
   LeaveRequestWithPerson,
   BillableValueRow,
   RunningTimer,
   ProjectBudgetStatusRow,
-  BillableTrend,
-  WeeklyBillableTrendRow,
 } from "./types";
-import { getOrgWeeks, type OrgWeekRow } from "./time-dashboard";
 
-/** Sync status strip shown at the top of every HSE Hub page. */
-export async function getSyncSources(supabase: SupabaseTyped): Promise<SyncSourceRow[]> {
-  const { data } = await supabase.from("sync_sources").select("*").order("sort_order");
-  return data ?? [];
-}
-
-/** Metric cards, weekly billable/non-billable trend, and team utilisation for the Overview page. */
-export async function getExecutiveOverview(supabase: SupabaseTyped): Promise<{
-  metrics: ExecutiveMetricRow[];
-  billableTrend: BillableTrend;
-  teamUtilisations: TeamUtilisationRow[];
-  projects: ProjectRow[];
-}> {
-  const [
-    { data: metrics },
-    { data: syncedTrend },
-    trackingTimeWeeks,
-    { data: seededTrend },
-    { data: teamUtilisations },
-    { data: projects },
-  ] = await Promise.all([
-    supabase.from("executive_metrics").select("*").order("sort_order"),
-    // Real Factorial figures, once that sync has run at least once.
-    //
-    // Ordered DESCENDING on purpose: `limit` applies after the sort, so
-    // ascending order would hand back the OLDEST weeks in the view and the
-    // chart would silently never show the current week. buildBillableTrend()
-    // reverses these back to oldest-first for the left-to-right axis.
-    supabase
-      .from("weekly_billable_trend")
-      .select("*")
-      .order("period_start", { ascending: false })
-      .limit(WEEKS_ON_TREND_CHART),
-    // Real TrackingTime figures. Already oldest-first and hours-converted.
-    getOrgWeeks(supabase, WEEKS_ON_TREND_CHART),
-    supabase.from("weekly_trends").select("*").order("sort_order"),
-    supabase.from("team_utilisations").select("*").order("sort_order"),
-    supabase.from("projects").select("*").order("id"),
-  ]);
-
-  return {
-    metrics: metrics ?? [],
-    billableTrend: buildBillableTrend(
-      syncedTrend ?? [],
-      trackingTimeWeeks,
-      seededTrend ?? [],
-    ),
-    teamUtilisations: teamUtilisations ?? [],
-    projects: projects ?? [],
-  };
-}
-
-const WEEKS_ON_TREND_CHART = 12;
-
-/**
- * Prefer real data, fall back to the seeded rows, and say which it is.
+/*
+ * REMOVED: getSyncSources() and getExecutiveOverview().
  *
- * THREE sources are tried in order, and the order matters. Factorial's
- * weekly_billable_trend comes first because it is the richer per-employee
- * pipeline; `time.org_week` (TrackingTime) comes second; the 12 seeded demo
- * rows come last.
+ * Both existed only to serve the seeded demo tables that backed the original
+ * frontend mockup, and both have been replaced by reads over real imported
+ * TrackingTime:
  *
- * The TrackingTime tier is not an optimisation, it is a correctness fix. The
- * Factorial pipeline has never run -- weekly_employee_summary, the base table
- * behind weekly_billable_trend, holds 0 rows -- so the first tier returned
- * nothing and the home page fell straight through to the demo rows. It was
- * drawing 12 weeks of INVENTED hours to every signed-in user while 27 weeks of
- * imported TrackingTime sat one schema away, unread.
+ *   getSyncSources      -> getSyncFreshness()  (queries/time-dashboard.ts)
+ *   getExecutiveOverview -> getLiveOverview()  (queries/overview-live.ts)
  *
- * The fallback still exists so the page renders before any sync has run, but
- * the caller is told which tier it got so it can label the chart. Silently
- * swapping invented figures in where real ones are expected is the failure
- * mode worth avoiding on a page people read to make decisions.
+ * getExecutiveOverview read `executive_metrics` (five hand-written STRINGS like
+ * "73.4%" and "612"), `weekly_trends` (12 invented weeks), `team_utilisations`
+ * (five fictional teams) and `projects` (five sample rows). Its
+ * buildBillableTrend() helper tried real sources first and fell back to those
+ * invented weeks -- and because the Factorial pipeline has never run, the
+ * fallback is what every signed-in user actually saw for months.
  *
- * `synced` arrives NEWEST-first (see getExecutiveOverview -- descending order
- * is what makes `limit` return the most recent weeks) and is reversed here so
- * the chart's x-axis still reads oldest-to-newest. `tracked` is already
- * oldest-first, because getOrgWeeks reverses it for exactly the same reason.
+ * The fallback is gone deliberately, not overlooked. A chart with no data now
+ * says so; it does not substitute numbers that look like an answer. See
+ * scripts/check-no-mock-data.mjs, which fails if any of these come back.
  */
-function buildBillableTrend(
-  synced: WeeklyBillableTrendRow[],
-  tracked: OrgWeekRow[],
-  seeded: WeeklyTrendRow[],
-): BillableTrend {
-  if (synced.length > 0) {
-    return {
-      source: "synced",
-      points: [...synced].reverse().map((row) => ({
-        // Weeks are identified by their Monday, which is what the report
-        // period is keyed on upstream.
-        label: formatWeekLabel(row.period_start),
-        billableHours: Number(row.billable_hours ?? 0),
-        nonBillableHours: Number(row.non_billable_hours ?? 0),
-        isOpen: false,
-      })),
-    };
-  }
-
-  if (tracked.length > 0) {
-    return {
-      source: "synced",
-      points: tracked.map((row) => ({
-        label: formatWeekLabel(row.weekStart),
-        billableHours: row.billableHours,
-        // Everything logged that was not billable. Calendar placeholders are
-        // included on purpose: they are real logged time, and the Overview
-        // chart is "where did the week go", not "what can we invoice".
-        nonBillableHours:
-          Math.round((row.totalHours - row.billableHours) * 10) / 10,
-        isOpen: false,
-      })),
-    };
-  }
-
-  return {
-    source: "sample",
-    points: seeded.map((row) => ({
-      label: row.week,
-      // The seeded table stores hours directly.
-      billableHours: Number(row.billable_hours),
-      nonBillableHours: Number(row.non_billable_hours),
-      isOpen: row.is_open,
-    })),
-  };
-}
-
-/** "2026-08-03" -> "W32". ISO week, so it lines up with how the team refers to weeks. */
-function formatWeekLabel(periodStart: string | null): string {
-  if (!periodStart) return "—";
-  const date = new Date(`${periodStart}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  // ISO-8601: a week belongs to the year containing its Thursday, and week 1
-  // is the week containing 4 January. Compare this week's Thursday against
-  // that week's Thursday, so both sides are the same weekday and the gap is a
-  // whole number of weeks.
-  const thursday = thursdayOf(date);
-  const jan4 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
-  const firstThursday = thursdayOf(jan4);
-  const week =
-    1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000);
-  return `W${week}`;
-}
 
 /** The Thursday of the ISO week containing `date`. */
 function thursdayOf(date: Date): Date {
@@ -598,6 +470,7 @@ export async function getTimesheetEntries(
         customer: row.customer,
         warning: row.warning,
         status: row.status,
+        rejectionNote: row.rejection_note ?? null,
         hours: [0, 0, 0, 0, 0, 0, 0],
         dayRowIds: [null, null, null, null, null, null, null],
       });
@@ -608,4 +481,52 @@ export async function getTimesheetEntries(
   }
 
   return Array.from(byGroup.values());
+}
+
+/**
+ * The task board for a TrackingTime project.
+ *
+ * getProjectDetail() above answers the same question for a Hub project, but it
+ * cannot serve this one: it selects FROM public.projects and embeds the board
+ * through that table's foreign keys, and a time.project has no row there. The
+ * board tables are queried directly instead, filtered on the second parent.
+ *
+ * Comments are fetched through the existing getTaskComments(), which keys on
+ * task ids and so never needed to know which kind of project they belong to.
+ */
+export async function getTimeProjectBoard(
+  supabase: SupabaseTyped,
+  timeProjectId: number,
+): Promise<{
+  tasks: TaskWithSubtasks[];
+  sections: ProjectSectionRow[];
+  commentsByTask: Record<number, TaskComment[]>;
+}> {
+  const [{ data: tasks }, { data: sections }] = await Promise.all([
+    supabase
+      .from("project_tasks")
+      .select("*")
+      .eq("time_project_id", timeProjectId)
+      .order("sort_order"),
+    supabase
+      .from("project_sections")
+      .select("*")
+      .eq("time_project_id", timeProjectId)
+      .order("position"),
+  ]);
+
+  const rows = tasks ?? [];
+  const comments = await getTaskComments(
+    supabase,
+    rows.map((t) => t.id),
+  );
+
+  return {
+    tasks: nestTasks(rows),
+    sections: sections ?? [],
+    // A Map does not survive the server/client boundary as a Map, so it is
+    // handed down as a plain object -- the same shape TasksSection already
+    // expects.
+    commentsByTask: Object.fromEntries(comments),
+  };
 }

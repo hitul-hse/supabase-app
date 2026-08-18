@@ -80,6 +80,15 @@ export type TimesheetDayEntry = {
   customer: string | null;
   warning: string | null;
   status: string;
+  /**
+   * Why a lead sent this week back.
+   *
+   * Mandatory when rejecting (team-lead/actions.ts refuses an empty one) and it
+   * reached the database, but nothing ever read it: the employee saw the grid
+   * become editable again with no indication of what to change. The lead typed a
+   * required explanation into a void.
+   */
+  rejectionNote: string | null;
   hours: number[];
   /** DB row id per day-of-week (0=Mon..6=Sun), for targeted per-cell edits. */
   dayRowIds: (number | null)[];
@@ -100,6 +109,18 @@ export type OrgChartNode = {
   department: string | null;
   managerId: string | null;
 };
+
+/**
+ * Which project a board belongs to, carried through the task components.
+ *
+ * The board can hang off a Hub project (public.projects, text id) or a
+ * TrackingTime one (time.project, bigint). Rather than have each form guess,
+ * the field NAME travels with the value: whatever is posted lands in the column
+ * it names, and the server re-derives it rather than trusting the client.
+ */
+export type BoardParent =
+  | { field: "project_id"; id: string }
+  | { field: "time_project_id"; id: number };
 
 export type TaskComment = {
   id: number;

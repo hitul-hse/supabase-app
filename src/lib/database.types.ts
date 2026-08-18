@@ -500,7 +500,8 @@ export type Database = {
           id: number
           name: string
           position: number
-          project_id: string
+          project_id: string | null
+          time_project_id: number | null
           wip_limit: number | null
         }
         Insert: {
@@ -508,7 +509,8 @@ export type Database = {
           id?: never
           name: string
           position?: number
-          project_id: string
+          project_id?: string | null
+          time_project_id?: number | null
           wip_limit?: number | null
         }
         Update: {
@@ -516,7 +518,8 @@ export type Database = {
           id?: never
           name?: string
           position?: number
-          project_id?: string
+          project_id?: string | null
+          time_project_id?: number | null
           wip_limit?: number | null
         }
         Relationships: [
@@ -540,7 +543,8 @@ export type Database = {
           name: string
           owner: string
           parent_task_id: number | null
-          project_id: string
+          project_id: string | null
+          time_project_id: number | null
           sort_order: number
           status: string
           updated_at: string
@@ -555,7 +559,8 @@ export type Database = {
           name: string
           owner: string
           parent_task_id?: number | null
-          project_id: string
+          project_id?: string | null
+          time_project_id?: number | null
           sort_order: number
           status: string
           updated_at?: string
@@ -570,7 +575,8 @@ export type Database = {
           name?: string
           owner?: string
           parent_task_id?: number | null
-          project_id?: string
+          project_id?: string | null
+          time_project_id?: number | null
           sort_order?: number
           status?: string
           updated_at?: string

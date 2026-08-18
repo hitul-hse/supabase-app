@@ -182,6 +182,50 @@ export function OAuthButtons({
         // Probe failed for a reason unrelated to the provider; continue.
       }
 
+      /**
+       * The provider can be ENABLED here and still refuse the sign-in, and this is
+       * not hypothetical -- it is what this project does today. Measured against
+       * live: Supabase happily produces a Google authorize URL, and Google answers
+       * it with a 302 to accounts.google.com/signin/oauth/error carrying
+       * `redirect_uri_mismatch`, because the Supabase callback URI is not
+       * registered on the Google OAuth client.
+       *
+       * The probe above cannot see that: Supabase returns 302, not 400, so the old
+       * code handed the browser over and the user landed on Google's own error page
+       * with no route back to the working email form. "It gives me an error" with
+       * nothing actionable in it.
+       *
+       * So the destination is checked too. This is best-effort by nature -- the
+       * provider is cross-origin, so a browser fetch is opaque and cannot read the
+       * status. `redirect: "follow"` with an opaque response still tells us the
+       * request completed; what it cannot tell us is WHERE it landed. Rather than
+       * pretend otherwise, ask our own server, which can follow the chain and read
+       * the reason.
+       *
+       * If the check is inconclusive for any reason we navigate anyway: a
+       * diagnostic must never be the thing that stops a working sign-in.
+       */
+      try {
+        const verdict = await fetch(
+          `/auth/provider-status?provider=${encodeURIComponent(provider)}`,
+          { cache: "no-store" },
+        );
+        if (verdict.ok) {
+          const status: { ok?: boolean; reason?: string; hint?: string } = await verdict.json();
+          if (status.ok === false) {
+            onError(
+              status.hint
+                ? `${label} sign-in is not finished being set up: ${status.hint}`
+                : `${label} sign-in is not working yet (${status.reason ?? "provider refused the request"}). Use your email and password below.`,
+            );
+            setPending(null);
+            return;
+          }
+        }
+      } catch {
+        // Inconclusive -- fall through and let the user try.
+      }
+
       // Hand off to the provider. pending deliberately stays set: the button must
       // not be clickable during the redirect.
       window.location.assign(data.url);

@@ -11,6 +11,17 @@ const PUBLIC_ROUTES = new Set([
   "/auth/callback",
   "/auth/set-password",
   "/auth/forgot-password",
+  /**
+   * The OAuth provider health probe. It MUST be public: it is fetched from the
+   * login page by someone who by definition has no session, and bouncing it to
+   * /auth/login would return an HTML page where the button expects JSON --
+   * silently disabling the diagnostic exactly when it is needed.
+   *
+   * It exposes nothing sensitive: it performs read-only GETs against the auth
+   * provider and returns a verdict plus a fix hint, all derived from the authorize
+   * URL the browser was about to be sent to anyway.
+   */
+  "/auth/provider-status",
   // The public marketing page, plus its aliases. The aliases have no page of
   // their own — next.config.ts redirects them to /demo — but they must stay
   // listed here, because this proxy runs BEFORE the redirect and would

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
 import { IconCheck, IconCross } from "@/components/nav-icons";
+import { BrandMark } from "@/components/BrandMark";
 
 /** A real connectivity check, not a decorative status line — mirrors the
  * dot+label convention SyncBar uses for sync_sources inside the app. */
@@ -49,16 +49,13 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       <div className="relative hidden w-[42%] flex-none flex-col justify-between overflow-hidden bg-[var(--sidebar)] p-12 lg:flex">
         <div>
           <div className="flex items-center gap-3">
-            <div className="relative h-8 w-8 flex-none overflow-hidden rounded-[var(--radius-sm)]">
-              <Image
-                src="/hse-logo.png"
-                alt="HSE Logo"
-                width={32}
-                height={32}
-                className="h-full w-full object-contain"
-                priority
-              />
-            </div>
+            {/*
+              The one place the mark animates: signing in is a rare, first-time
+              moment and a real threshold into the app. Decorative — the wordmark
+              beside it already says HSE HUB, so a second announcement of "HSE
+              Logo" would be noise.
+            */}
+            <BrandMark size={32} animate className="flex-none" />
             <div className="flex flex-col leading-[1.15]">
               <span className="font-sans text-[15px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
                 HSE HUB
@@ -92,15 +89,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           {/* Compact brand mark, mobile only — the identity panel covers this
               at lg and above. */}
           <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div className="relative h-7 w-7 flex-none overflow-hidden rounded-[var(--radius-sm)]">
-              <Image
-                src="/hse-logo.png"
-                alt="HSE Logo"
-                width={28}
-                height={28}
-                className="h-full w-full object-contain"
-              />
-            </div>
+            <BrandMark size={28} animate className="flex-none" />
             <span className="font-sans text-[13px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
               HSE HUB
             </span>

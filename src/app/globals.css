@@ -41,6 +41,17 @@
   --accent-contrast: #1c2427;
   --accent-wash: rgba(145, 194, 183, 0.14);
 
+  /*
+   * Motion curve. The browser's built-in `ease-out` is too weak to read as
+   * deliberate, and inventing a cubic-bezier per animation is how a codebase
+   * ends up with six curves that nearly match. One named strong ease-out,
+   * used by anything that enters.
+   *
+   * Never `ease-in` on UI: it starts slow, which delays the exact moment the
+   * user is watching for.
+   */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
   --chart-hue: #3aa88e;
 
   /*
@@ -132,6 +143,57 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-faint);
+}
+
+/*
+ * BrandMark assemble.
+ *
+ * A CSS animation, not Framer: the motion is predetermined (four pieces, fixed
+ * start offsets, no interruption and no gesture), and CSS animations run off
+ * the main thread — so this still plays smoothly while the sign-in page is
+ * hydrating, which is exactly when it is on screen.
+ *
+ * `transform` and `opacity` only. Both skip layout and paint.
+ *
+ * Each piece supplies its own start offset in --piece-from, so one rule drives
+ * all four instead of four near-identical keyframe blocks.
+ *
+ * Starts at 0.55 opacity, not 0: the pieces should slide in as parts of a mark
+ * that is already there, rather than fade up from nothing.
+ */
+@keyframes brand-mark-assemble {
+  from {
+    transform: var(--piece-from);
+    opacity: 0.55;
+  }
+  to {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+}
+
+.brand-mark__piece {
+  /* 420ms per piece + 3 x 70ms stagger = 630ms for the whole mark. Longer than
+     a UI transition because this is a brand moment on a rare surface, not a
+     control responding to a click. */
+  animation: brand-mark-assemble 420ms var(--ease-out) both;
+}
+
+/*
+ * Reduced motion: keep the piece, drop the travel.
+ *
+ * The global rule below collapses every animation to 0.01ms, which for this
+ * animation would be correct but accidental — it lands on the `to` frame
+ * because the fill is `both`. Stating it here means the mark keeps a short
+ * opacity settle (comprehension survives) and loses only the movement, which is
+ * what "reduce motion" actually asks for.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark__piece {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /*

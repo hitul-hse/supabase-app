@@ -180,6 +180,46 @@ body {
 }
 
 /*
+ * Looping variant, for the large hero mark on the sign-in page only.
+ *
+ * WHY THE LOOP IS MOSTLY A HOLD
+ * The reference logomark reads as "on repeat", but measuring its 10.7s video
+ * frame by frame shows only ~0.64s of actual movement (t=1.19s to t=1.83s):
+ * 94% of the loop is the finished mark sitting still. A tight repeat — assemble,
+ * assemble, assemble — is a different and much worse thing: it never resolves,
+ * so the eye is pulled back every half second and the page never settles.
+ *
+ * So the cycle is 630ms of motion inside a 5.4s period, expressed as keyframe
+ * percentages: the mark assembles, then holds for ~4.8s — long enough to stop
+ * being a distraction, short enough that someone reading the sign-in form sees
+ * it play again.
+ *
+ * Percentages, not a second @keyframes with a delay: `animation-delay` applies
+ * once, not per iteration, so it cannot produce a gap BETWEEN repeats. The hold
+ * has to live inside the keyframes.
+ */
+@keyframes brand-mark-assemble-loop {
+  0% {
+    transform: var(--piece-from);
+    opacity: 0.55;
+  }
+  /* 420ms of 5400ms = 7.8% — the same per-piece duration as the one-shot. */
+  7.8% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  /* Hold the finished mark for the rest of the cycle. */
+  100% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+}
+
+.brand-mark__piece--loop {
+  animation: brand-mark-assemble-loop 5400ms var(--ease-out) infinite both;
+}
+
+/*
  * Reduced motion: keep the piece, drop the travel.
  *
  * The global rule below collapses every animation to 0.01ms, which for this
@@ -189,7 +229,8 @@ body {
  * what "reduce motion" actually asks for.
  */
 @media (prefers-reduced-motion: reduce) {
-  .brand-mark__piece {
+  .brand-mark__piece,
+  .brand-mark__piece--loop {
     animation: none;
     opacity: 1;
     transform: none;

@@ -47,32 +47,41 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-[var(--page)]">
       <div className="relative hidden w-[42%] flex-none flex-col justify-between overflow-hidden bg-[var(--sidebar)] p-12 lg:flex">
-        <div>
-          <div className="flex items-center gap-3">
-            {/*
-              The one place the mark animates: signing in is a rare, first-time
-              moment and a real threshold into the app. Decorative — the wordmark
-              beside it already says HSE HUB, so a second announcement of "HSE
-              Logo" would be noise.
-            */}
-            <BrandMark size={32} animate className="flex-none" />
-            <div className="flex flex-col leading-[1.15]">
-              <span className="font-sans text-[15px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
-                HSE HUB
-              </span>
-              <span className="font-mono text-[9px] tracking-[0.14em] text-[var(--text-faint)]">
-                HEALTH &amp; SAFETY EXPERTS
-              </span>
-            </div>
+        <div className="flex items-center gap-3">
+          {/* Small identity lockup, static: the animated mark is the hero
+              below, and two copies of the same motion in one panel would
+              compete with each other. */}
+          <BrandMark size={26} className="flex-none" />
+          <div className="flex flex-col leading-[1.15]">
+            <span className="font-sans text-[15px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
+              HSE HUB
+            </span>
+            <span className="font-mono text-[9px] tracking-[0.14em] text-[var(--text-faint)]">
+              HEALTH &amp; SAFETY EXPERTS
+            </span>
           </div>
+        </div>
 
-          <p className="mt-12 max-w-[280px] text-[15px] leading-relaxed text-[var(--text-secondary)]">
+        {/*
+          The hero mark. Large, optically centred in the panel, and looping.
+          Signing in is the one surface in this product with nothing to read and
+          no work to interrupt, which is the only place a perpetual animation is
+          defensible — see the `loop` prop's note.
+
+          Decorative: the lockup above already says HSE HUB, so announcing this
+          as well would be the same name twice to a screen reader.
+        */}
+        <div className="flex flex-1 items-center justify-center py-10">
+          <BrandMark size={220} animate loop className="flex-none" />
+        </div>
+
+        <div>
+          <p className="mb-8 max-w-[280px] text-[15px] leading-relaxed text-[var(--text-secondary)]">
             Projects, timesheets, people, and compliance — in one operational
             view.
           </p>
+          <ConnectionStatus />
         </div>
-
-        <ConnectionStatus />
 
         <div
           aria-hidden
@@ -86,10 +95,14 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          {/* Compact brand mark, mobile only — the identity panel covers this
-              at lg and above. */}
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <BrandMark size={28} animate className="flex-none" />
+          {/* Mobile only — the identity panel covers this at lg and above.
+              Stacked and larger rather than a 28px chip beside the wordmark:
+              below lg this is the ONLY mark on the page, so it carries the
+              brand moment the hero carries on desktop. Not looping, though —
+              on a phone the form is directly under it, so a perpetual
+              animation would sit right beside what the user is typing into. */}
+          <div className="mb-8 flex flex-col items-center gap-3 lg:hidden">
+            <BrandMark size={96} animate className="flex-none" />
             <span className="font-sans text-[13px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
               HSE HUB
             </span>

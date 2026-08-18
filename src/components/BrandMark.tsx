@@ -79,6 +79,16 @@ export type BrandMarkProps = {
    */
   animate?: boolean;
   /**
+   * Repeat the assemble on a slow cycle instead of playing once.
+   *
+   * Requires `animate`. Reserved for the large hero mark on the sign-in page:
+   * a loop is only acceptable on a surface where there is nothing to read and
+   * no work to interrupt. Never set this inside the app — a perpetual animation
+   * beside content people are reading is a permanent attention tax, and on a
+   * laptop it is also a permanent battery cost.
+   */
+  loop?: boolean;
+  /**
    * Accessible name. Omit (or pass "") for a decorative mark that sits beside a
    * visible "HSE HUB" wordmark, which is the usual case — announcing "HSE Logo"
    * next to text that already says HSE HUB is noise for a screen reader.
@@ -87,8 +97,15 @@ export type BrandMarkProps = {
   className?: string;
 };
 
-export function BrandMark({ size = 26, animate = false, title, className }: BrandMarkProps) {
+export function BrandMark({
+  size = 26,
+  animate = false,
+  loop = false,
+  title,
+  className,
+}: BrandMarkProps) {
   const labelled = Boolean(title);
+  const looping = animate && loop;
 
   return (
     <svg
@@ -98,6 +115,7 @@ export function BrandMark({ size = 26, animate = false, title, className }: Bran
       className={className}
       data-testid="brand-mark"
       data-animated={animate ? "true" : "false"}
+      data-loop={looping ? "true" : "false"}
       // The mark is wider than it is tall; without this it would stretch to fill
       // a square box.
       preserveAspectRatio="xMidYMid meet"
@@ -114,7 +132,9 @@ export function BrandMark({ size = 26, animate = false, title, className }: Bran
           // wherever it is used, and cannot drift from it.
           fill="var(--accent)"
           data-piece={piece.id}
-          className={animate ? "brand-mark__piece" : undefined}
+          className={
+            looping ? "brand-mark__piece--loop" : animate ? "brand-mark__piece" : undefined
+          }
           style={
             animate
               ? ({

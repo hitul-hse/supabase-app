@@ -259,6 +259,80 @@ check(
   "the one rare surface is where the brand moment belongs",
 );
 
+/* ── 2b. The loop is contained to the sign-in hero ───────────────────────── */
+
+// A looping animation is the one thing here that can never be waited out, so
+// where it is allowed matters more than any other assertion in this file.
+check(
+  "looping is opt-in, not the default",
+  /loop\s*=\s*false/.test(MARK_C),
+  "a default-on loop would put a perpetual animation on every mount",
+);
+check(
+  "loop requires animate (cannot loop a static mark)",
+  /const\s+looping\s*=\s*animate\s*&&\s*loop/.test(MARK_C),
+  "`loop` alone must not produce a class that animates",
+);
+
+// The hero is the only loop in the product. Anywhere inside the app, a
+// perpetual animation sits beside content people are reading all day.
+for (const [label, src] of [["sidebar", SIDEBAR_C], ["portal", PORTAL_C]]) {
+  check(`${label} mark does NOT loop`, !/<BrandMark[^>]*\bloop\b/.test(src), "loop escaped the auth shell");
+}
+
+const authMarks = [...AUTH_C.matchAll(/<BrandMark[^>]*\/>/g)].map((m) => m[0]);
+check("auth shell renders more than one mark", authMarks.length >= 2, `found ${authMarks.length}`);
+check(
+  "exactly one mark loops",
+  authMarks.filter((m) => /\bloop\b/.test(m)).length === 1,
+  authMarks.map((m) => (/\bloop\b/.test(m) ? "LOOP" : "once")).join(" "),
+);
+
+// The hero has to actually be a hero. A looping 32px chip is the worst of both:
+// perpetual motion with none of the presence that justifies it.
+const heroMark = authMarks.find((m) => /\bloop\b/.test(m));
+const heroSize = heroMark?.match(/size=\{(\d+)\}/);
+check(
+  "the looping mark is hero-sized (>= 140px)",
+  Boolean(heroSize) && Number(heroSize[1]) >= 140,
+  heroSize ? `${heroSize[1]}px` : "no size found",
+);
+
+// The loop must resolve and then hold. A tight repeat never lets the page
+// settle, which is a different (and much worse) thing than what was asked for.
+const loopKf = CSS_C.match(/@keyframes\s+brand-mark-assemble-loop\s*\{([\s\S]*?)\n\}/);
+check("loop keyframes exist", Boolean(loopKf));
+const loopRule = CSS_C.match(/\.brand-mark__piece--loop\s*\{([\s\S]*?)\n\}/);
+check("loop rule exists", Boolean(loopRule));
+if (loopRule && loopKf) {
+  const dur = loopRule[1].match(/animation:[^;]*?(\d+)ms/);
+  check(
+    "loop period is at least 3s",
+    Boolean(dur) && Number(dur[1]) >= 3000,
+    dur ? `${dur[1]}ms` : "no duration found",
+  );
+  check("loop actually repeats", /\binfinite\b/.test(loopRule[1]), "an `infinite` count is what makes it a loop");
+
+  // The settle keyframe must land early in the cycle, leaving the rest as hold.
+  // Measured off the reference: ~0.64s of motion in a 10.7s loop, i.e. 94% hold.
+  //
+  // Exclude 0 and 100: a naive /(\d+)%\s*\{/ matches the 0% keyframe first and
+  // reports "settles at 0%", which passes a <= 20 test while proving nothing.
+  const stops = [...loopKf[1].matchAll(/(\d+(?:\.\d+)?)%\s*\{/g)]
+    .map((m) => Number(m[1]))
+    .filter((n) => n > 0 && n < 100);
+  check(
+    "motion resolves in the first fifth of the cycle (the rest is hold)",
+    stops.length > 0 && Math.max(...stops) <= 20,
+    stops.length ? `settles at ${Math.max(...stops)}%` : "no intermediate keyframe — the mark never holds",
+  );
+  check(
+    "the loop ends where it settled (no reverse or drift)",
+    /100%\s*\{\s*transform:\s*translate\(0,\s*0\)/.test(loopKf[1]),
+    "a loop that animates back out reads as a glitch, not a brand moment",
+  );
+}
+
 // The raster asset must be gone from the app chrome, or the vector work is
 // decorative and half the mounts still ship a blurry PNG.
 for (const [label, src] of [["sidebar", SIDEBAR_C], ["portal", PORTAL_C], ["auth shell", AUTH_C]]) {
@@ -274,6 +348,14 @@ check(
   "reduced motion disables the mark's travel specifically",
   reducedBlocks.some((b) => /brand-mark__piece/.test(b) && /animation:\s*none/.test(b)),
   "relying on the global 0.01ms sweep is accidental, not intentional",
+);
+// The looping class is a SEPARATE selector, so the one-shot rule above does not
+// cover it. An unstoppable perpetual animation is the single worst outcome for
+// someone who asked their OS to reduce motion.
+check(
+  "reduced motion also stops the LOOP",
+  reducedBlocks.some((b) => /brand-mark__piece--loop/.test(b) && /animation:\s*none/.test(b)),
+  "the loop needs its own carve-out; the one-shot selector does not match it",
 );
 check(
   "reduced motion leaves the mark visible",

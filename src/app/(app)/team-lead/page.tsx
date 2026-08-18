@@ -1,16 +1,25 @@
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { requireProfile } from "@/utils/supabase/require-profile";
-import { getTeamLeadBoard, getPendingTimesheetApprovals } from "@/lib/queries/hse";
+import { requirePermission } from "@/utils/supabase/require-profile";
+import { PERMISSIONS } from "@/lib/permissions";
+import { getPendingTimesheetApprovals, getApprovalDecisions } from "@/lib/queries/hse";
+import { getLiveTeamLeadBoard } from "@/lib/queries/team-lead-live";
 import { TeamLeadBoard } from "./TeamLeadBoard";
 import { PendingTimesheetApprovals } from "./PendingTimesheetApprovals";
 import PageTransition from "@/components/animations/PageTransition";
 
 export default async function TeamLeadPage() {
-  await requireProfile("/team-lead", ["exec", "dept_head"]);
+  // NOTE this WIDENS access: workload:read is held by exec, dept_head AND
+  // project_manager, where the old ["exec", "dept_head"] list excluded the last.
+  // That is the intended reading of the permission — a project manager who holds
+  // "View Workload Board" should see it — and approving is a separate key
+  // (workload:approve) that project_manager does not hold, so the board is
+  // visible to them but not actionable.
+  await requirePermission("/team-lead", PERMISSIONS.WORKLOAD_READ);
   const supabase = await createClient();
-  const [{ bookings, decisions, weeks }, pendingTimesheets] = await Promise.all([
-    getTeamLeadBoard(supabase),
+  const [board, decisions, pendingTimesheets] = await Promise.all([
+    getLiveTeamLeadBoard(supabase),
+    getApprovalDecisions(supabase),
     getPendingTimesheetApprovals(supabase),
   ]);
 
@@ -18,7 +27,7 @@ export default async function TeamLeadPage() {
     <PageTransition>
       <div className="flex flex-col">
         <SyncBar />
-        <TeamLeadBoard bookings={bookings} initialDecisions={decisions} weeks={weeks} />
+        <TeamLeadBoard board={board} initialDecisions={decisions} />
         <div className="flex flex-col gap-4 px-4 pb-6 sm:px-6">
           <PendingTimesheetApprovals initialWeeks={pendingTimesheets} />
         </div>

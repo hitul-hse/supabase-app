@@ -2,24 +2,28 @@ import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { requireProfile } from "@/utils/supabase/require-profile";
+import { requirePermission, userHasPermission } from "@/utils/supabase/require-profile";
+import { PERMISSIONS } from "@/lib/permissions";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { listUserProfiles, getRoles } from "@/lib/queries/auth";
 import { InviteUserForm } from "./InviteUserForm";
 import { UserRow } from "./UserRow";
 
 export type AppRoleRow = { role_key: string; display_name: string; seniority: number };
-export type PersonOption = { id: string; name: string };
 
 export default async function AdminUsersPage() {
-  const profile = await requireProfile("/admin/users", ["exec", "dept_head"]);
-  const canEdit = profile.roleKey === "exec";
+  // Permission keys, not role strings. These two decisions were previously
+  // `["exec", "dept_head"]` and `roleKey === "exec"`, which meant the
+  // "Manage User Accounts" toggles in /admin/roles were shown, saved, and
+  // decided nothing — an administrator could grant this page to a project
+  // manager and watch the grant have no effect.
+  await requirePermission("/admin/users", PERMISSIONS.ADMIN_USERS_READ);
+  const canEdit = await userHasPermission(PERMISSIONS.ADMIN_USERS_WRITE);
   const supabase = await createClient();
 
-  const [profiles, roles, { data: people }] = await Promise.all([
+  const [profiles, roles] = await Promise.all([
     listUserProfiles(supabase),
     getRoles(supabase),
-    supabase.from("people").select("id, name").order("id"),
   ]);
 
   let emailByUserId = new Map<string, string>();
@@ -64,7 +68,7 @@ export default async function AdminUsersPage() {
           </div>
         )}
 
-        {canEdit && <InviteUserForm roles={roles} people={people ?? []} />}
+        {canEdit && <InviteUserForm roles={roles} />}
 
         <div className="border border-[var(--border)] bg-[var(--surface)]">
           {/* Table header */}

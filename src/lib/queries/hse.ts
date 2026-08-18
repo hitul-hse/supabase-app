@@ -4,7 +4,6 @@ import type {
   ProjectTaskRow,
   PersonProfile,
   ApprovalDecisionRow,
-  TeamLeadBooking,
   TimesheetDayEntry,
   PendingTimesheetWeek,
   OrgChartNode,
@@ -40,14 +39,6 @@ import type {
  * says so; it does not substitute numbers that look like an answer. See
  * scripts/check-no-mock-data.mjs, which fails if any of these come back.
  */
-
-/** The Thursday of the ISO week containing `date`. */
-function thursdayOf(date: Date): Date {
-  const result = new Date(date);
-  // (day + 6) % 7 maps Monday to 0 ... Sunday to 6.
-  result.setUTCDate(result.getUTCDate() + 3 - ((date.getUTCDay() + 6) % 7));
-  return result;
-}
 
 /**
  * Nests subtasks (project_tasks rows with parent_task_id set) under their
@@ -286,20 +277,6 @@ export async function getPeopleDirectory(supabase: SupabaseTyped): Promise<Perso
 }
 
 /**
- * Derive the current 4-week window dynamically from the ISO week of today.
- * Returns an array of 4 week labels like ["W32", "W33", "W34", "W35"].
- */
-function currentFourWeeks(): string[] {
-  const today = new Date();
-  const thursday = thursdayOf(today);
-  const jan4 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
-  const firstThursday = thursdayOf(jan4);
-  const currentWeek = 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000);
-  // Show current week and 3 preceding — the most useful window for a team lead
-  return [-3, -2, -1, 0].map((offset) => `W${currentWeek + offset}`);
-}
-
-/**
  * Submitted (not yet approved/rejected) timesheet weeks, grouped by person
  * and week. RLS (can_view_person) already scopes this to whoever the caller
  * is allowed to see -- dept_head gets their department, exec gets everyone --
@@ -334,55 +311,31 @@ export async function getPendingTimesheetApprovals(
   return Array.from(byKey.values()).sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 }
 
-/** Workload/booking board plus pending approvals, for the Team Lead page. */
-export async function getTeamLeadBoard(supabase: SupabaseTyped): Promise<{
-  bookings: TeamLeadBooking[];
-  decisions: ApprovalDecisionRow[];
-  weeks: string[];
-}> {
-  const weeks = currentFourWeeks();
-
-  const { data: rows } = await supabase
-    .from("weekly_bookings")
-    .select("*, people(id, name, timesheet_status, certificate_status, certificate_text)")
-    .in("week", weeks)
-    .order("id");
-
-  const byPerson = new Map<string, TeamLeadBooking>();
-
-  for (const row of rows ?? []) {
-    const person = row.people;
-    if (!person) continue;
-
-    if (!byPerson.has(person.id)) {
-      byPerson.set(person.id, {
-        name: person.name,
-        w31: { hours: null, status: "normal" },
-        w32: { hours: null, status: "normal" },
-        w33: { hours: null, status: "normal" },
-        w34: { hours: null, status: "normal" },
-        timesheetStatus: person.timesheet_status,
-        certificates: { status: person.certificate_status, text: person.certificate_text },
-      });
-    }
-
-    const entry = byPerson.get(person.id)!;
-    const week = { hours: row.hours, status: row.status };
-    // Map to the entry keys using the weeks array index
-    const idx = weeks.indexOf(row.week);
-    if (idx === 0) entry.w31 = week;
-    else if (idx === 1) entry.w32 = week;
-    else if (idx === 2) entry.w33 = week;
-    else if (idx === 3) entry.w34 = week;
-  }
-
-  const { data: decisions } = await supabase
+/**
+ * Items awaiting a lead's approval.
+ *
+ * All that survives of the old getTeamLeadBoard, which also read `weekly_bookings`
+ * joined to the mockup `people` table: twenty hand-written rows for five people
+ * who do not exist. The workload grid now comes from measured time in
+ * queries/team-lead-live.ts, and that function is gone rather than left exported,
+ * because a dead export returning seeded rows is how mockup data survives a
+ * rewire.
+ *
+ * approval_decisions is a real table the approve buttons write to, so this stays.
+ * Its current three rows still describe mockup people ("A. Brandt - 46 h in week
+ * 30") and are all already approved, so nothing seeded reaches the page: the
+ * query filters to pending.
+ */
+export async function getApprovalDecisions(
+  supabase: SupabaseTyped,
+): Promise<ApprovalDecisionRow[]> {
+  const { data } = await supabase
     .from("approval_decisions")
     .select("*")
     .eq("status", "pending")
     .order("sort_order");
 
-  return { bookings: Array.from(byPerson.values()), decisions: decisions ?? [], weeks };
+  return data ?? [];
 }
 
 /** Live counts for the Overview page header — replaces hardcoded "41 PEOPLE · 27 ACTIVE PROJECTS". */

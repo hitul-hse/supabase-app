@@ -2,15 +2,9 @@
 
 import { useActionState } from "react";
 import { inviteUser } from "./actions";
-import type { AppRoleRow, PersonOption } from "./page";
+import type { AppRoleRow } from "./page";
 
-export function InviteUserForm({
-  roles,
-  people,
-}: {
-  roles: AppRoleRow[];
-  people: PersonOption[];
-}) {
+export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
   const [state, formAction, isPending] = useActionState(inviteUser, { status: "idle" });
 
   return (
@@ -53,23 +47,26 @@ export function InviteUserForm({
           </select>
         </div>
 
-        <div>
-          <label htmlFor="person_id" className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
-            Linked person (optional)
-          </label>
-          <select
-            id="person_id"
-            name="person_id"
-            disabled={isPending}
-            className="w-full border border-[var(--border)] bg-[var(--page)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50"
-          >
-            <option value="">None</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+        {/*
+          * No "linked person" picker.
+          *
+          * It used to list the eight seeded mockup people, so an admin inviting a
+          * real colleague was asked which fictional character they were. The link
+          * that actually matters is to their TrackingTime member record, and that
+          * is derivable: every Hub account on a real work address already matches
+          * its member on email exactly. So the server does it, and the admin is
+          * told what will happen rather than asked to guess.
+          */}
+        <div className="sm:col-span-2">
+          <span className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
+            TrackingTime link
+          </span>
+          <p className="border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[12.5px] text-[var(--text-secondary)]">
+            Linked automatically by email address. If this person has a
+            TrackingTime account on the same address, their logged hours appear on
+            their own Time page immediately. If not, they can still sign in and
+            use the Hub — the link is made whenever the addresses match.
+          </p>
         </div>
 
         <div>

@@ -254,8 +254,45 @@ module.exports = { EmptyState: ({ title, description }) =>
   createElement("div", null, createElement("p", null, title), createElement("p", null, description)) };`,
   );
 
+  /**
+   * ButtonLink, stubbed as a plain anchor.
+   *
+   * Needed because the real module pulls in Tailwind class helpers, and without
+   * this the gate died with "Cannot find module '@/components/ui/Button'" --
+   * taking the whole test:db suite down at the end, after every assertion had
+   * already passed. An <a> keeps href and label assertable, which is all this
+   * check reads it for.
+   */
+  const buttonStub = join(dir, "button-stub.cjs");
+  writeFileSync(
+    buttonStub,
+    `const { createElement } = require("react");
+module.exports = {
+  ButtonLink: ({ href, children, ...rest }) => createElement("a", { href, ...rest }, children),
+  Button: ({ children, ...rest }) => createElement("button", rest, children),
+  buttonClass: () => "",
+};`,
+  );
+
+  const fieldStub = join(dir, "field-stub.cjs");
+  writeFileSync(
+    fieldStub,
+    `const { createElement } = require("react");
+module.exports = {
+  SearchInput: ({ value, onValueChange, placeholder, label }) =>
+    createElement("input", { type: "search", value, placeholder, "aria-label": label, onChange: (e) => onValueChange && onValueChange(e.target.value) }),
+  FilterChip: ({ active, onToggle, children, count }) =>
+    createElement("button", { "data-active": active ? "1" : "0", onClick: onToggle }, children, count === undefined ? null : \` \${count}\`),
+  SortHeader: ({ label, columnKey, activeKey, direction, onSort }) =>
+    createElement("th", { "data-column": columnKey, "data-active": columnKey === activeKey ? direction : undefined, onClick: () => onSort && onSort(columnKey) }, label),
+  Select: ({ children, ...rest }) => createElement("select", rest, children),
+};`,
+  );
+
   const view = require(
     await compile(VIEW, "people-view.cjs", {
+      "@/components/ui/Field": posix(fieldStub),
+      "@/components/ui/Button": posix(buttonStub),
       "@/components/PageHeader": posix(headerStub),
       "@/components/EmptyState": posix(emptyStub),
       "@/lib/queries/people-live": posix(join(dir, "people-live.cjs")),

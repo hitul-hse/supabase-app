@@ -32,18 +32,6 @@ export type PersonProfile = PersonRow & {
   person_qualifications: PersonQualificationRow[];
 };
 
-export type WeekBooking = { hours: number | null; status: string };
-
-export type TeamLeadBooking = {
-  name: string;
-  w31: WeekBooking;
-  w32: WeekBooking;
-  w33: WeekBooking;
-  w34: WeekBooking;
-  timesheetStatus: string | null;
-  certificates: { status: string | null; text: string | null };
-};
-
 /** Company-wide billable split per synced week, from the vendor pipeline. */
 export type WeeklyBillableTrendRow =
   Database["public"]["Views"]["weekly_billable_trend"]["Row"];

@@ -18,6 +18,10 @@ export function PreferencesCard({ profile }: { profile: ProfileView }) {
   return (
     <section className="border border-[var(--border)] bg-[var(--surface)] p-5">
       <h2 className="mb-4 text-[13px] font-semibold text-[var(--text-primary)]">Preferences</h2>
+      <p className="mb-4 text-[11.5px] text-[var(--text-faint)]">
+        These are saved to your profile now, but nothing in the app reads them yet — they will
+        take effect in a later release.
+      </p>
 
       <form action={action} className="flex max-w-sm flex-col gap-4">
         <div className="flex flex-col gap-1.5">

@@ -56,7 +56,7 @@ export async function getProfileView(
   userId: string,
   email: string | null,
 ): Promise<ProfileView | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("app_user_profile")
     .select(
       `user_id, display_name, avatar_url, department, person_id,
@@ -68,6 +68,18 @@ export async function getProfileView(
     .eq("user_id", userId)
     .eq("is_active", true)
     .maybeSingle();
+
+  // A real query failure (RLS surprise, connection error, bad column, etc.)
+  // is not the same thing as "this user has no active profile row" -- the
+  // latter is a legitimate null (see below), the former is a bug or an
+  // outage that deserves to be visible. Discarding `error` here previously
+  // meant both cases looked identical to the caller, and page.tsx rendered
+  // a blank page for either. Throwing lets (app)/error.tsx's route-level
+  // boundary show a real error state and a retry, instead of silence.
+  if (error) {
+    console.error("[profile] getProfileView query failed:", error);
+    throw new Error("Couldn't load your profile.");
+  }
 
   if (!data || !data.app_role) return null;
 

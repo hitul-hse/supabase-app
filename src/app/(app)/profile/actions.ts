@@ -38,10 +38,16 @@ export async function updateDisplayName(
   // this is null rather than "". A whitespace-only name would also violate
   // the display_name check constraint (char_length(btrim(...)) >= 1), so it
   // is treated the same as empty here rather than sent through to fail loudly.
-  const { error } = await supabase
+  //
+  // .select() is not decoration: RLS filters rows a statement may touch, so
+  // an UPDATE that matches no policy affects zero rows and PostgREST still
+  // returns error === null. Without reading back the affected rows, a silent
+  // no-op is indistinguishable from a real write.
+  const { data, error } = await supabase
     .from("app_user_profile")
     .update({ display_name: raw === "" ? null : raw })
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("user_id");
 
   if (error) {
     // The raw error can contain schema/constraint internals (e.g. a check
@@ -50,8 +56,13 @@ export async function updateDisplayName(
     console.error("[profile] updateDisplayName failed:", error);
     return { status: "error", message: "Couldn't save your name. Try again." };
   }
+  if (!data || data.length === 0) {
+    console.error("[profile] updateDisplayName no-op: 0 rows affected for user", user.id);
+    return { status: "error", message: "Couldn't save your name. Try again." };
+  }
 
   revalidatePath("/profile");
+  revalidatePath("/", "layout"); // the sidebar chip -- see Important 2, was missing here only
   return { status: "success", message: raw === "" ? "Using your HR name." : "Name updated." };
 }
 
@@ -96,12 +107,21 @@ export async function uploadAvatar(
     return { status: "error", message: "Couldn't upload your photo. Try again." };
   }
 
-  const { error: rowErr } = await supabase
+  const { data: rowData, error: rowErr } = await supabase
     .from("app_user_profile")
     .update({ avatar_url: key })
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("user_id");
   if (rowErr) {
     console.error("[profile] uploadAvatar row update failed:", rowErr);
+    return { status: "error", message: "Couldn't save your photo. Try again." };
+  }
+  if (!rowData || rowData.length === 0) {
+    // The object is already uploaded at this point (bucket policies are
+    // correct and unaffected by this bug) but the row was never updated to
+    // point at it -- this is exactly the "photo never appears, object
+    // orphaned" failure mode this check exists to catch.
+    console.error("[profile] uploadAvatar no-op: 0 rows affected for user", user.id);
     return { status: "error", message: "Couldn't save your photo. Try again." };
   }
 
@@ -127,17 +147,27 @@ export async function removeAvatar(): Promise<ProfileActionState> {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (existing?.avatar_url) {
-    await supabase.storage.from("avatars").remove([existing.avatar_url]);
-  }
-
-  const { error } = await supabase
+  // Clear the row BEFORE deleting the object, matching uploadAvatar's own
+  // ordering rule: a failure part-way must not leave a row pointing at
+  // something that no longer exists. The previous order deleted the object
+  // first, so a failed row update after a successful delete left avatar_url
+  // pointing at a dead key -- exactly the inversion this fixes.
+  const { data, error } = await supabase
     .from("app_user_profile")
     .update({ avatar_url: null })
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("user_id");
   if (error) {
     console.error("[profile] removeAvatar failed:", error);
     return { status: "error", message: "Couldn't remove your photo. Try again." };
+  }
+  if (!data || data.length === 0) {
+    console.error("[profile] removeAvatar no-op: 0 rows affected for user", user.id);
+    return { status: "error", message: "Couldn't remove your photo. Try again." };
+  }
+
+  if (existing?.avatar_url) {
+    await supabase.storage.from("avatars").remove([existing.avatar_url]);
   }
 
   revalidatePath("/profile");
@@ -234,17 +264,22 @@ export async function updatePreferences(
     return { status: "error", message: "Unsupported locale." };
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("app_user_profile")
     .update({
       pref_landing_page: landing,
       pref_locale: locale,
       pref_sidebar_collapsed: collapsed,
     })
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("user_id");
 
   if (error) {
     console.error("[profile] updatePreferences failed:", error);
+    return { status: "error", message: "Couldn't save your preferences. Try again." };
+  }
+  if (!data || data.length === 0) {
+    console.error("[profile] updatePreferences no-op: 0 rows affected for user", user.id);
     return { status: "error", message: "Couldn't save your preferences. Try again." };
   }
 

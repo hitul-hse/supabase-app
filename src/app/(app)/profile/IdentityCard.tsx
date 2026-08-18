@@ -39,9 +39,32 @@ export function IdentityCard({
   // component has reacted to, so the clear happens at most once per action
   // result, in the same render that observes the new result.
   const [handledPhotoState, setHandledPhotoState] = useState(photoState);
+
+  // Which of the three actions produced the most recently observed result.
+  // Without this, a fixed priority order (photo, then name, then remove)
+  // means an older result can shadow a newer one from a different action --
+  // e.g. upload a photo, then click "Remove photo", and the card kept
+  // showing "Photo updated." forever, in the success colour, even after a
+  // remove failure turned the true state to an error. Each state object is a
+  // fresh reference only when its action actually completes, so comparing by
+  // reference (same pattern as handledPhotoState above) tells us which one
+  // just changed, in the same render that observes it -- no effect needed.
+  const [lastResult, setLastResult] = useState<ProfileActionState | null>(null);
+  const [seenName, setSeenName] = useState(nameState);
+  const [seenRemove, setSeenRemove] = useState(removeState);
+
   if (photoState !== handledPhotoState) {
     setHandledPhotoState(photoState);
     if (photoState.status === "success") setPreview(null);
+    if (photoState.status !== "idle") setLastResult(photoState);
+  }
+  if (nameState !== seenName) {
+    setSeenName(nameState);
+    if (nameState.status !== "idle") setLastResult(nameState);
+  }
+  if (removeState !== seenRemove) {
+    setSeenRemove(removeState);
+    if (removeState.status !== "idle") setLastResult(removeState);
   }
 
   // Revoking the object URL and resetting the file input's value are real
@@ -74,12 +97,8 @@ export function IdentityCard({
     setPreview(URL.createObjectURL(file));
   }
 
-  const message = localError ?? photoState.message ?? nameState.message ?? removeState.message;
-  const isError =
-    !!localError ||
-    photoState.status === "error" ||
-    nameState.status === "error" ||
-    removeState.status === "error";
+  const message = localError ?? lastResult?.message;
+  const isError = !!localError || lastResult?.status === "error";
 
   return (
     <section className="border border-[var(--border)] bg-[var(--surface)] p-5">

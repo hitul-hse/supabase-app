@@ -6,9 +6,13 @@
  * "driving the Server Action over HTTP." A GET carries no Next-Action header
  * and never reaches Next's action dispatcher at all -- it exercises the PAGE
  * gate (requireProfile()/middleware redirecting a page load), not the ACTION
- * gate. That distinction is exactly the one AGENTS.md names: "Server Actions
- * are public HTTP endpoints... a page-level gate does not protect an
- * action." check-profile-actions.mjs already proves the actions' guards are
+ * gate. That distinction is the rule this whole file exists to enforce:
+ * a Server Action is a public HTTP endpoint, reachable without ever loading
+ * the page that renders its form, so a page-level gate does not protect it --
+ * each action must re-check the caller's identity itself. (This rule is not
+ * written down in AGENTS.md, which is nine lines of Next.js boilerplate with
+ * no security guidance; it is enforced only by convention and by gates like
+ * this one.) check-profile-actions.mjs already proves the actions' guards are
  * WRITTEN (source read); this file has to prove they FIRE, over the wire,
  * for the actual attack it is named for -- a caller who never loads /profile
  * at all and POSTs directly to the action endpoint.
@@ -111,9 +115,19 @@ check(
   page.headers.get("location") || "no location header",
 );
 
-const body = await fetch(`${base}/profile`).then((r) => r.text());
-check(!/Employee no\./.test(body), "signed-out body contains no employment fields");
-check(!/display_name/.test(body), "signed-out body contains no profile form");
+// Follow the redirect for real (unlike the manual-redirect checks above) and
+// assert where a normal browser actually lands. The previous version of this
+// check instead grepped that landing page's body for "Employee no." and
+// "display_name" -- strings that can never appear on the login page
+// regardless of whether the redirect above pointed anywhere sensible, so
+// that assertion could not fail. Checking the followed URL can: it fails if
+// the redirect target ever stops resolving to the real login page.
+const followed = await fetch(`${base}/profile`);
+check(
+  followed.url.includes("/auth/login"),
+  "following the redirect actually lands on the login page",
+  followed.url,
+);
 
 // ── Action-level checks: a direct POST carrying a real Next-Action id, ─────
 // ── with no session, must never reach the action body ──────────────────────

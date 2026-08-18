@@ -107,13 +107,48 @@ jobs:
       - name: Run schema, RLS and unit test gates
         run: npm run test:db
 
-  # ─── 5. Summary ────────────────────────────────────────────────────────────
+  # ─── 5. Profile gates ──────────────────────────────────────────────────────
+  # The six check:* gates the user-profile feature added. Before this job
+  # existed, none of them ran in CI at all -- .github/workflows/ci.yml only
+  # ever shelled out to test:db, and these six were never part of that list.
+  # Four are pure source-reading gates with no live dependency. The other
+  # two -- check:profile-rls (needs a Supabase URL/anon/service-role key) and
+  # check:profile-action-auth (needs a running server at PROFILE_GATE_URL) --
+  # are both written to SKIP cleanly and exit 0 when that dependency isn't
+  # present, which it deliberately is not here: no .env.local exists in this
+  # job and no server is started, so those two SKIP rather than fail, and the
+  # other four still run for real.
+  profile-gates:
+    name: Profile gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run profile gates
+        run: |
+          npm run check:profile-rls
+          npm run check:password-strength
+          npm run check:avatar
+          npm run check:profile-effective-name
+          npm run check:profile-actions
+          npm run check:profile-action-auth
+
+  # ─── 6. Summary ────────────────────────────────────────────────────────────
   # A single required status check that depends on all jobs. Branch protection
   # rules point at this instead of each individual job, so adding a new job
   # only requires updating this list.
   all-checks:
     name: All checks passed
-    needs: [lint, typecheck, build, db-tests]
+    needs: [lint, typecheck, build, db-tests, profile-gates]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -122,7 +157,8 @@ jobs:
           if [[ "${{ needs.lint.result }}" != "success" ||
                 "${{ needs.typecheck.result }}" != "success" ||
                 "${{ needs.build.result }}" != "success" ||
-                "${{ needs.db-tests.result }}" != "success" ]]; then
+                "${{ needs.db-tests.result }}" != "success" ||
+                "${{ needs.profile-gates.result }}" != "success" ]]; then
             echo "One or more required checks failed."
             exit 1
           fi

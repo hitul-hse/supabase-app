@@ -174,7 +174,26 @@ export function resolvePreset(key: PresetKey, now = new Date()): { from: string;
     case "last_month":
       return { from: iso(new Date(Date.UTC(y, m - 1, 1))), to: iso(new Date(Date.UTC(y, m, 0))) };
     case "this_year":
-      return { from: iso(new Date(Date.UTC(y, 0, 1))), to: iso(new Date(Date.UTC(y, 11, 31))) };
+      /**
+       * YEAR TO DATE, not the whole calendar year.
+       *
+       * This ran to 31 December, and that made the figure disagree with
+       * TrackingTime's own "This Year" report by 765 hours -- measured: ours
+       * 8,263.4h against the vendor's 7,498h for 2026. The cause is that this
+       * account books work in ADVANCE (planned assignments dated Sep-Dec), so a
+       * range ending in December counts hours nobody has worked yet.
+       *
+       * That is indefensible on a report someone reconciles against the vendor:
+       * "this year" in every other tool means the year so far, and a total that
+       * silently includes the future reads as an error in our data rather than as
+       * a definition. `scripts/explain-hours-definitions.mjs` matched the vendor's
+       * figure to "everything up to today" at 7,498.5h against their 7,498h.
+       *
+       * Future-dated work is still reachable -- "All time" extends into next year,
+       * and a custom range can end wherever you like. It is simply not folded into
+       * a year-to-date number by default.
+       */
+      return { from: iso(new Date(Date.UTC(y, 0, 1))), to: iso(today) };
     case "all":
     default:
       // Wide enough to contain any plausible record without being unbounded.

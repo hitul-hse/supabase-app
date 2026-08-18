@@ -63,6 +63,27 @@ const SINCE_LAST = has("--since-last");
 const explicitDays = args.indexOf("--days") >= 0 ? Number(args[args.indexOf("--days") + 1]) : null;
 
 /**
+ * `--year` backfills the whole current calendar year, which is what makes the
+ * dashboard's "This Year" preset trustworthy. `--from`/`--to` take ISO dates for
+ * anything else. Validated here rather than passed through, so a typo fails loudly
+ * instead of quietly importing the wrong range.
+ */
+const YEAR = has("--year");
+const argVal = (flag) => {
+  const i = args.indexOf(flag);
+  return i >= 0 ? args[i + 1] : null;
+};
+const isIsoDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const FROM_ARG = isIsoDate(argVal("--from")) ? argVal("--from") : null;
+const TO_ARG = isIsoDate(argVal("--to")) ? argVal("--to") : null;
+for (const flag of ["--from", "--to"]) {
+  if (argVal(flag) && !isIsoDate(argVal(flag))) {
+    console.error(`${flag} must be an ISO date (YYYY-MM-DD), got "${argVal(flag)}"`);
+    process.exit(1);
+  }
+}
+
+/**
  * Default window for a scheduled run. Two weeks, not two days: it has to
  * survive a weekend plus a bank holiday plus one failed run without leaving a
  * hole, and the cost of overlap is only vendor API calls, while the cost of a
@@ -133,9 +154,37 @@ function run(script, scriptArgs) {
 let days = explicitDays || DEFAULT_DAYS;
 let windowReason = explicitDays ? "--days" : `default ${DEFAULT_DAYS}d`;
 
-if (FULL) {
-  days = 180;
-  windowReason = "--full";
+/**
+ * Absolute window, when the caller needs a range rather than "the last N days".
+ *
+ * WHY THIS EXISTS: `--full` used to mean 180 days, which cannot cover a calendar
+ * year. Measured on 18 Aug 2026, a 180-day window reaches back only to 19 Feb, so
+ * the dashboard's "This Year" preset was reporting a year built from two-thirds of
+ * a year's data -- 1,205h missing in January and February alone, and 1,971h in
+ * total against TrackingTime's own figure for 2026.
+ *
+ * A rolling window is right for a scheduled incremental run and wrong for
+ * backfilling, and conflating the two is what produced a silently short dataset.
+ */
+let absoluteFrom = null;
+let absoluteTo = null;
+
+if (YEAR) {
+  const y = new Date().getUTCFullYear();
+  absoluteFrom = `${y}-01-01`;
+  absoluteTo = `${y}-12-31`;
+  windowReason = `--year (${y}-01-01 .. ${y}-12-31, so "This Year" is complete)`;
+} else if (FROM_ARG || TO_ARG) {
+  absoluteFrom = FROM_ARG ?? "2000-01-01";
+  absoluteTo = TO_ARG ?? new Date(Date.now() + 400 * 86400_000).toISOString().slice(0, 10);
+  windowReason = `--from/--to (${absoluteFrom} .. ${absoluteTo})`;
+} else if (FULL) {
+  // Everything, not 180 days. The importer's rate-history floor is 2000-01-01, so
+  // that is the honest meaning of "full", and the forward bound covers the planned
+  // work this account books months ahead.
+  absoluteFrom = "2000-01-01";
+  absoluteTo = new Date(Date.now() + 400 * 86400_000).toISOString().slice(0, 10);
+  windowReason = "--full (all history, plus future-dated entries)";
 } else if (SINCE_LAST) {
   const last = await daysSinceLastSuccess();
   if (last) {
@@ -143,20 +192,24 @@ if (FULL) {
     windowReason = `${last.days}d since last ok run (${last.lastAt.slice(0, 16).replace("T", " ")}, +${OVERLAP_DAYS}d overlap)`;
   } else {
     // No successful run on record. That is the first-ever sync, or every run so
-    // far has failed; either way a short window would be wrong.
-    days = 180;
-    windowReason = "no previous successful run — falling back to a full 180d pull";
+    // far has failed; either way a short window would be wrong -- and so would a
+    // 180-day one, which is what this used to fall back to.
+    absoluteFrom = "2000-01-01";
+    absoluteTo = new Date(Date.now() + 400 * 86400_000).toISOString().slice(0, 10);
+    windowReason = "no previous successful run — falling back to a full pull";
   }
 }
 
 console.log("TrackingTime sync");
-console.log(`window: ${days} days (${windowReason})`);
+console.log(`window: ${absoluteFrom ? `${absoluteFrom} .. ${absoluteTo}` : `${days} days`} (${windowReason})`);
 console.log(`mode:   ${DRY_RUN ? "DRY RUN — no writes" : "writing"}${NO_LINK ? ", link step skipped" : ""}`);
 console.log("");
 
 // --- 1. import --------------------------------------------------------------
 
-const importArgs = ["--days", String(days)];
+const importArgs = absoluteFrom
+  ? ["--from", absoluteFrom, "--to", absoluteTo]
+  : ["--days", String(days)];
 if (DRY_RUN) importArgs.push("--dry-run");
 
 const importCode = await run("scripts/import-trackingtime.mjs", importArgs);

@@ -44,6 +44,44 @@ const DRY_RUN = args.includes("--dry-run");
 const DAYS = Number(args[args.indexOf("--days") + 1]) || 180;
 
 /**
+ * Absolute window, overriding the rolling one.
+ *
+ * WHY THIS WAS NEEDED. The importer only ever asked for `today - DAYS .. today`,
+ * and measured against the vendor API that lost real hours two ways at once:
+ *
+ *   - HISTORY BEFORE THE WINDOW. On 18 Aug 2026 a 180-day window reaches back to
+ *     19 Feb, so January and most of February of the current year were never
+ *     requested. The dashboard's "This Year" preset asks for 1 Jan onwards, so it
+ *     was reporting a year from two-thirds of a year's data: 1,205h missing in
+ *     those two months alone.
+ *   - ANYTHING DATED AFTER TODAY. `to = today` excludes future-dated entries, and
+ *     this account genuinely has them (planned and pre-booked work through
+ *     December: 474h across Sep-Dec). A year-to-date report legitimately includes
+ *     them once the range covers them.
+ *
+ * Both are silent: the import succeeds, the totals are simply short. Against
+ * TrackingTime's own figure for 2026 the gap was 1,971h over 1,008 events.
+ *
+ * `--from`/`--to` take ISO dates. Anything not supplied falls back to the rolling
+ * window, so every existing caller behaves exactly as before.
+ */
+const argVal = (flag) => {
+  const i = args.indexOf(flag);
+  return i >= 0 ? args[i + 1] : null;
+};
+const isIsoDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const FROM_ARG = isIsoDate(argVal("--from")) ? argVal("--from") : null;
+const TO_ARG = isIsoDate(argVal("--to")) ? argVal("--to") : null;
+if (argVal("--from") && !FROM_ARG) {
+  console.error(`--from must be an ISO date (YYYY-MM-DD), got "${argVal("--from")}"`);
+  process.exit(1);
+}
+if (argVal("--to") && !TO_ARG) {
+  console.error(`--to must be an ISO date (YYYY-MM-DD), got "${argVal("--to")}"`);
+  process.exit(1);
+}
+
+/**
  * valid_from for a member's FIRST rate row. Deliberately far in the past: the
  * vendor exposes only a current rate with no history, and dating the first row
  * "today" leaves every imported entry uncosted, because project_economics joins
@@ -133,6 +171,81 @@ async function getAllPaged(pathFn, idKey = "id", maxPages = 40) {
     await sleep(PAUSE_MS);
   }
   return all;
+}
+
+/**
+ * Fetch /events/flat across an arbitrary range, one calendar MONTH at a time.
+ *
+ * WHY NOT ONE REQUEST, which is what this used to do. Measured against the live
+ * account: asking for a whole year in one call returns 5,218 events, and asking
+ * with `page_size=5000` returns exactly 5,000 -- a suspiciously round number that
+ * says there is a server-side cap. Summing twelve monthly requests for the same
+ * year also gives 5,218, so today the single call happens to fit. It would not for
+ * a two-year range, and the failure mode is silent: the import succeeds and the
+ * totals are simply short.
+ *
+ * Monthly slices keep every response an order of magnitude below the cap. The
+ * dedup by event ID matters because the vendor's `from`/`to` are inclusive, so an
+ * entry on a month boundary can legitimately appear in two slices, and upserting
+ * it twice with different derived rows would be worse than fetching it twice.
+ *
+ * `expectedTotal` compares the assembled result against a single whole-range call
+ * and warns when they disagree, so a future change to the vendor's cap surfaces as
+ * a message rather than as quietly missing hours.
+ */
+async function getEventsByMonth(S, fromDate, toDate) {
+  const q = (from, to) =>
+    `${S}/events/flat?filter=COMPANY&from=${from}&to=${to}&include_custom_fields=true`;
+
+  const start = new Date(`${fromDate}T00:00:00.000Z`);
+  const end = new Date(`${toDate}T00:00:00.000Z`);
+  const byId = new Map();
+  let slices = 0;
+
+  for (
+    let cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+    cursor <= end;
+    cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1))
+  ) {
+    // Clamp each slice to the requested range, so `--from 2026-03-10` does not
+    // silently widen to 1 March.
+    const monthStart = cursor < start ? start : cursor;
+    const monthEndRaw = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0));
+    const monthEnd = monthEndRaw > end ? end : monthEndRaw;
+    const iso = (d) => d.toISOString().slice(0, 10);
+
+    const rows = await get(q(iso(monthStart), iso(monthEnd)));
+    slices++;
+    for (const e of rows) {
+      const id = String(e.ID ?? e.id);
+      if (!byId.has(id)) byId.set(id, e);
+    }
+    await sleep(PAUSE_MS);
+  }
+
+  const assembled = [...byId.values()];
+
+  // Cross-check against the single-request answer. Cheap (one call) and it is the
+  // only thing that would notice the cap moving.
+  try {
+    const oneShot = await get(q(fromDate, toDate));
+    if (oneShot.length > assembled.length) {
+      console.warn(
+        `\nWARNING: a single whole-range request returned ${oneShot.length} events but ` +
+          `${slices} monthly slices assembled only ${assembled.length}. The slicing is LOSING rows; ` +
+          `investigate before trusting any total.\n`,
+      );
+    } else if (assembled.length > oneShot.length) {
+      console.log(
+        `  (monthly slicing recovered ${assembled.length - oneShot.length} events the ` +
+          `single request would have dropped -- the vendor caps one response)`,
+      );
+    }
+  } catch {
+    // The cross-check is diagnostic; losing it must not fail the import.
+  }
+
+  return assembled;
 }
 
 // --- database ---------------------------------------------------------------
@@ -259,13 +372,25 @@ async function main() {
   const tasks = await getAllPaged((p) => `${S}/tasks?page=${p}&page_size=100`);
   console.log(`  tasks: ${tasks.length}`);
 
-  const to = new Date();
-  const from = new Date(to.getTime() - DAYS * 86400_000);
   const fmt = (d) => d.toISOString().slice(0, 10);
-  const events = await get(
-    `${S}/events/flat?filter=COMPANY&from=${fmt(from)}&to=${fmt(to)}&include_custom_fields=true`,
-  );
-  console.log(`  events: ${events.length}\n`);
+  // The rolling `to` bound reaches FORWARD as well as back. This account holds
+  // genuinely future-dated entries (planned work booked months ahead), and
+  // `to = today` silently excluded every one of them -- 474h across Sep-Dec 2026
+  // when measured. A window that cannot see them makes any report covering the
+  // rest of the year short by exactly that much.
+  const FUTURE_DAYS = 400;
+  const fromDate = FROM_ARG ?? fmt(new Date(Date.now() - DAYS * 86400_000));
+  const toDate = TO_ARG ?? fmt(new Date(Date.now() + FUTURE_DAYS * 86400_000));
+
+  // Sliced by MONTH rather than requested in one call. Measured, the vendor caps a
+  // single /events/flat response at 5,000 rows (page_size=5000 returned exactly
+  // 5000 while the same range summed month-by-month gave 5,218). One request for a
+  // multi-year range would therefore truncate silently -- the same shape of bug as
+  // PostgREST's 1000-row ceiling. Monthly slices keep every response far below the
+  // cap, and the totals are compared against the single-shot result below so a
+  // future cap change cannot pass unnoticed.
+  const events = await getEventsByMonth(S, fromDate, toDate);
+  console.log(`  events: ${events.length} (${fromDate} .. ${toDate})\n`);
 
   // --- land raw ------------------------------------------------------------
   if (!DRY_RUN) {

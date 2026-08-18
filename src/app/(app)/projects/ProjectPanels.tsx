@@ -43,42 +43,69 @@ export function ProjectTotalsStrip({
   const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : null;
 
   const cells = [
-    { label: "PROJECTS", value: projectCount.toLocaleString("en-GB") },
-    { label: "TRACKED HOURS", value: `${h(totalHours)} h` },
+    { label: "PROJECTS", value: projectCount.toLocaleString("en-GB"), hint: "in this view" },
+    { label: "TRACKED HOURS", value: h(totalHours), unit: "h", hint: "logged to date" },
     {
       label: "BILLABLE",
-      value: billablePercent === null ? "—" : `${billablePercent}%`,
-      hint: `${h(billableHours)} h`,
+      value: billablePercent === null ? "—" : String(billablePercent),
+      unit: billablePercent === null ? undefined : "%",
+      hint: `${h(billableHours)} h billable`,
     },
     {
       label: "OVER BUDGET",
       value: overBudget.toLocaleString("en-GB"),
+      // Only paint it red when there is something to act on. A permanent red
+      // "0" trains the reader to stop seeing the colour, which costs us the
+      // one moment it needs to work.
       color: overBudget > 0 ? "var(--critical)" : undefined,
+      hint: overBudget > 0 ? "needs attention" : "all within budget",
     },
-    { label: "NO BUDGET SET", value: noBudget.toLocaleString("en-GB") },
+    {
+      label: "NO BUDGET SET",
+      value: noBudget.toLocaleString("en-GB"),
+      hint: "burn unknowable",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-3 lg:grid-cols-5">
-      {cells.map((c, i) => (
+    // Separate cards on a gap, rather than five cells fused inside one outlined
+    // box. The old strip shared every border, so the eye read it as a single
+    // table row and the five figures competed instead of reading as five
+    // independent facts. Gap does the grouping work that a shared border cannot.
+    <div
+      data-testid="project-totals"
+      className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5"
+    >
+      {cells.map((c) => (
         <div
           key={c.label}
-          className={`flex flex-col gap-1.5 p-3 sm:p-3.5 ${
-            i < cells.length - 1 ? "border-b border-[var(--border)] lg:border-b-0 lg:border-r" : ""
-          }`}
+          data-tile={c.label}
+          className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3.5 sm:p-4"
         >
           <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
             {c.label}
           </span>
-          <span
-            className="font-mono text-[20px] font-semibold tracking-[-0.02em] sm:text-[24px]"
-            style={{ color: c.color ?? "var(--text-primary)" }}
-          >
-            {c.value}
+          {/* Baseline-aligned so the unit sits ON the number's baseline rather
+              than centred against a 24px glyph, which reads as a typo. */}
+          <span className="flex items-baseline gap-1">
+            <span
+              className="font-mono text-[22px] font-semibold leading-none tracking-[-0.02em] sm:text-[26px]"
+              style={{ color: c.color ?? "var(--text-primary)" }}
+            >
+              {c.value}
+            </span>
+            {c.unit && (
+              <span className="font-mono text-[12px] leading-none text-[var(--text-muted)]">
+                {c.unit}
+              </span>
+            )}
           </span>
-          {c.hint && (
-            <span className="font-mono text-[10.5px] text-[var(--text-faint)]">{c.hint}</span>
-          )}
+          {/* Every tile carries a hint, so the five cards stay the same height
+              on a row. Without it the two that had one were taller and the row
+              looked broken. */}
+          <span className="font-mono text-[10.5px] leading-tight text-[var(--text-faint)]">
+            {c.hint}
+          </span>
         </div>
       ))}
     </div>

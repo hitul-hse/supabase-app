@@ -29,8 +29,8 @@ import { burnColor } from "./ProjectPanels";
  *
  * THE THREE FIXES, IN ORDER OF EFFECT
  * -----------------------------------
- * 1. **Page the list.** 50 rows initially with an explicit "show more". This is
- *    what takes 15 screens down to ~2, and it is reversible in one click.
+ * 1. **Page the list.** 30 rows initially with an explicit "show more". This is
+ *    what takes 15 screens down to ~1.3, and it is reversible in one click.
  * 2. **Filter by status.** Chips for over budget / at risk / no budget / no
  *    activity, each carrying its count, so "which projects are overrunning" is
  *    one click rather than a scan.
@@ -57,8 +57,15 @@ const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 })
 
 export type LedgerSort = "burn" | "hours" | "recent" | "name" | "budget" | "people";
 
-/** How many rows render before the reader has to ask for more. */
-const PAGE_SIZE = 50;
+/**
+ * How many rows render before the reader has to ask for more.
+ *
+ * 30 rather than 50: at ~28px a row, 50 rows is still most of two screens, and
+ * the point of paging is that the first paint is scannable without scrolling.
+ * Anyone who wants the long list is one click from it, and the sort order means
+ * the rows that matter are already at the top.
+ */
+const PAGE_SIZE = 30;
 
 /**
  * Sort, with unmeasured rows pinned last in BOTH directions.

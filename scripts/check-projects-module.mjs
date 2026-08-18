@@ -374,7 +374,7 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   );
   check(
     "the first page is a useful size, not a token handful",
-    linkCount >= 40 && linkCount <= 60,
+    linkCount >= 20 && linkCount <= 40,
     `${linkCount} rows`,
   );
   check(
@@ -384,7 +384,14 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   );
   check(
     "there is a way to see the rest",
-    manyHtml.includes("Show 50 more") && manyHtml.includes("Show all"),
+    manyHtml.includes("Show 30 more") && manyHtml.includes("Show all"),
+  );
+  // The first paint must fit roughly one screen at ~28px a row. 50 rows was
+  // still most of two, which defeats the point of paging at all.
+  check(
+    "the first page is about one screen, not two",
+    linkCount * 28 <= 900,
+    `${linkCount} rows x 28px = ${linkCount * 28}px`,
   );
   check(
     "a short list gets no pager at all",
@@ -497,6 +504,49 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   check(
     "a zero-hour selection shows '—' for billable share, never 'NaN%'",
     stripHtml.includes("—") && !stripHtml.includes("NaN"),
+  );
+
+  /* ─────────── REGRESSION 10: the totals read as cards, not a strip ───────── */
+
+  // The five figures are five independent facts. Fused inside one outlined box
+  // sharing every border, the eye reads them as a single table row and they
+  // compete. These assert the SEPARATION survives, not the exact pixel values.
+  const tileCount = (stripHtml.match(/data-tile=/g) ?? []).length;
+  check("all five totals render as discrete tiles", tileCount === 5, `${tileCount} tiles`);
+  check(
+    "the tiles sit on a gap rather than sharing one outline",
+    /data-testid="project-totals"[^>]*class="[^"]*\bgap-/.test(stripHtml),
+    "no gap- on the tile grid",
+  );
+  check(
+    "each tile carries its own border and surface",
+    (stripHtml.match(/data-tile=[^>]*border-\[var\(--border\)\]/g) ?? []).length === 5,
+  );
+  // Uneven card heights are what made the old row look broken: only two of five
+  // cells had a sub-label, so three were visibly shorter.
+  const hintCount = (stripHtml.match(/text-\[var\(--text-faint\)\]/g) ?? []).length;
+  check("every tile carries a hint line, so heights match", hintCount === 5, `${hintCount} hints`);
+  check(
+    "a zero over-budget count is not painted red",
+    !/data-tile="OVER BUDGET"[\s\S]{0,400}?var\(--critical\)/.test(stripHtml),
+    "0 over budget must stay neutral",
+  );
+
+  const alertHtml = render(panels.ProjectTotalsStrip, {
+    projectCount: 5,
+    totalHours: 100,
+    billableHours: 60,
+    overBudget: 3,
+    noBudget: 2,
+  });
+  check(
+    "a non-zero over-budget count IS painted red",
+    /data-tile="OVER BUDGET"[\s\S]{0,400}?var\(--critical\)/.test(alertHtml),
+  );
+  check(
+    "the unit is separated from the figure, not glued into it",
+    alertHtml.includes(">100</span>") && !alertHtml.includes(">100 h<"),
+    "tracked hours must render value and unit as separate spans",
   );
 
   // The budget line must stay on-canvas even at 300% burn, or the chart quietly

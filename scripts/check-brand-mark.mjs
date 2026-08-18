@@ -298,6 +298,27 @@ check(
   heroSize ? `${heroSize[1]}px` : "no size found",
 );
 
+// The hero mark and its line of copy must be ONE block, stacked and centred.
+// They previously sat in separate flex children — mark centred in the panel,
+// copy pinned to the bottom edge ~300px below — so neither read as related to
+// the other: the mark floated in empty space and the sentence looked like a
+// footnote. Asserted structurally because it is a composition claim, not a
+// pixel one: the same flex column must contain both.
+const heroBlock = AUTH_C.match(/<div className="flex flex-1 flex-col[^"]*">([\s\S]*?)\n {8}<\/div>/);
+check("the hero is a stacked column", Boolean(heroBlock), "hero mark is not in a flex-col container");
+if (heroBlock) {
+  check(
+    "the hero copy sits INSIDE the same block as the mark",
+    /<BrandMark/.test(heroBlock[1]) && /<p /.test(heroBlock[1]),
+    "mark and copy in separate containers read as unrelated",
+  );
+  check(
+    "the hero block is centred on both axes",
+    /items-center/.test(heroBlock[0]) && /justify-center/.test(heroBlock[0]),
+    heroBlock[0].slice(0, 80),
+  );
+}
+
 // The loop must resolve and then hold. A tight repeat never lets the page
 // settle, which is a different (and much worse) thing than what was asked for.
 const loopKf = CSS_C.match(/@keyframes\s+brand-mark-assemble-loop\s*\{([\s\S]*?)\n\}/);
@@ -313,18 +334,22 @@ if (loopRule && loopKf) {
   );
   check("loop actually repeats", /\binfinite\b/.test(loopRule[1]), "an `infinite` count is what makes it a loop");
 
-  // The settle keyframe must land early in the cycle, leaving the rest as hold.
+  // The ASSEMBLE must resolve early in the cycle, leaving the rest as hold.
   // Measured off the reference: ~0.64s of motion in a 10.7s loop, i.e. 94% hold.
   //
-  // Exclude 0 and 100: a naive /(\d+)%\s*\{/ matches the 0% keyframe first and
-  // reports "settles at 0%", which passes a <= 20 test while proving nothing.
-  const stops = [...loopKf[1].matchAll(/(\d+(?:\.\d+)?)%\s*\{/g)]
-    .map((m) => Number(m[1]))
-    .filter((n) => n > 0 && n < 100);
+  // "Resolves" means the first stop that reaches rest — NOT the last stop in the
+  // block. Later stops legitimately exist for the idle breath, so taking
+  // max(stops) would fail on correct code. And excluding 0/100 matters because a
+  // naive /(\d+)%\s*\{/ matches 0% first and reports "settles at 0%", which
+  // passes a <= 20 test while proving nothing at all.
+  const stopBlocks = [...loopKf[1].matchAll(/(\d+(?:\.\d+)?)%\s*\{([^}]*)\}/g)]
+    .map((m) => ({ at: Number(m[1]), body: m[2] }))
+    .filter((s) => s.at > 0 && s.at < 100);
+  const settle = stopBlocks.find((s) => /transform:\s*translate\(0,\s*0\)/.test(s.body));
   check(
-    "motion resolves in the first fifth of the cycle (the rest is hold)",
-    stops.length > 0 && Math.max(...stops) <= 20,
-    stops.length ? `settles at ${Math.max(...stops)}%` : "no intermediate keyframe — the mark never holds",
+    "the assemble resolves in the first fifth of the cycle (the rest is hold)",
+    Boolean(settle) && settle.at <= 20,
+    settle ? `settles at ${settle.at}%` : "no keyframe reaches rest — the mark never settles",
   );
   check(
     "the loop ends where it settled (no reverse or drift)",
@@ -392,7 +417,12 @@ check("piece rule exists", Boolean(pieceRule));
 if (pieceRule) {
   const body = pieceRule[1];
   const dur = body.match(/animation:[^;]*?(\d+)ms/);
-  check("per-piece duration is 150-500ms", Boolean(dur) && Number(dur[1]) >= 150 && Number(dur[1]) <= 500,
+  // Upper bound raised from 500ms to 900ms deliberately. At hero size (220px)
+  // each piece travels ~10x the distance the 32px chip did, and the same
+  // duration over a longer distance reads as a snap rather than a movement.
+  // 900ms remains a hard ceiling: past ~1s an entrance stops feeling like
+  // motion and starts feeling like a wait, even on a brand surface.
+  check("per-piece duration is 150-900ms", Boolean(dur) && Number(dur[1]) >= 150 && Number(dur[1]) <= 900,
     dur ? `${dur[1]}ms` : "no duration found");
   check(
     "uses the shared ease-out token",
@@ -422,14 +452,111 @@ check(
   froms.length > 0 && froms.every((f) => /translate[XY]?\(-?\d/.test(f) && !/\(0%?\)/.test(f)),
   froms.join(" "),
 );
-check(
-  "stagger is within the 30-80ms band",
-  (() => {
-    const m = MARK_C.match(/STAGGER_MS\s*=\s*(\d+)/);
-    return Boolean(m) && Number(m[1]) >= 30 && Number(m[1]) <= 80;
-  })(),
-  MARK_C.match(/STAGGER_MS\s*=\s*(\d+)/)?.[1] ?? "not found",
+// The stagger has to be a real fraction of the per-piece duration: too small
+// and the four arrivals blur into one lump, too large and the mark assembles in
+// visibly separate acts. 10-30% of the duration is the readable band.
+const perPiece = Number(
+  CSS_C.match(/animation:\s*brand-mark-assemble\s+(\d+)ms/)?.[1] ?? 0,
 );
+const stagger = Number(MARK_C.match(/STAGGER_MS\s*=\s*(\d+)/)?.[1] ?? 0);
+check(
+  "stagger is a readable fraction of the piece duration (10-30%)",
+  perPiece > 0 && stagger > 0 && stagger / perPiece >= 0.1 && stagger / perPiece <= 0.3,
+  `${stagger}ms of ${perPiece}ms = ${perPiece ? Math.round((stagger / perPiece) * 100) : "?"}%`,
+);
+
+/* ── 5b. The motion is multi-phase, not a single slide ────────────────────── */
+
+// A bare from/to never decelerates INTO anything, so it reads as a div moving
+// rather than an object arriving. Every piece must overshoot past rest and ease
+// back — and in its OWN axis, or the mark visibly comes apart mid-flight.
+const overs = [...MARK_C.matchAll(/over:\s*"([^"]+)"/g)].map((m) => m[1]);
+check("every piece declares an overshoot", overs.length === 4, `found ${overs.length}`);
+check(
+  "each overshoot is in the same axis as its start offset",
+  froms.length === 4 &&
+    overs.length === 4 &&
+    froms.every((f, i) => {
+      const axis = (s) => (/translateY/.test(s) ? "Y" : /translateX/.test(s) ? "X" : "?");
+      return axis(f) === axis(overs[i]);
+    }),
+  froms.map((f, i) => `${f}->${overs[i] ?? "?"}`).join(" "),
+);
+// Sign must FLIP: entering from -46% and overshooting to -2% is not an
+// overshoot, it is stopping short.
+check(
+  "each overshoot passes rest (sign flips)",
+  froms.length === 4 &&
+    overs.length === 4 &&
+    froms.every((f, i) => {
+      const num = (s) => Number(s.match(/\(\s*(-?[\d.]+)/)?.[1] ?? 0);
+      return num(f) * num(overs[i]) < 0;
+    }),
+  froms.map((f, i) => `${f}->${overs[i] ?? "?"}`).join(" "),
+);
+// A logo should feel weighted, not springy. Anything past ~8% of the travel
+// starts reading as a cartoon bounce.
+check(
+  "overshoot stays small (<= 8% — weighted, not bouncy)",
+  overs.length === 4 && overs.every((o) => Math.abs(Number(o.match(/\(\s*(-?[\d.]+)/)?.[1] ?? 99)) <= 8),
+  overs.join(" "),
+);
+// The second half of a two-stage move needs its own curve; reusing the entry
+// ease-out makes the correction land abruptly.
+check(
+  "the settle back from overshoot uses its own curve",
+  /--ease-settle:/.test(CSS_C) && /animation-timing-function:\s*var\(--ease-settle\)/.test(CSS_C),
+  "reusing --ease-out for the return makes the settle land abruptly",
+);
+// Declaring `over:` in the component is not enough — BOTH keyframe blocks have
+// to actually consume it. Without this, deleting the one-shot's overshoot stop
+// left every other check passing (the loop still referenced --piece-over and the
+// component still declared the values) while the one-shot silently reverted to a
+// plain slide. A real gate hole, found by injection.
+for (const [label, kf] of [
+  ["one-shot", CSS_C.match(/@keyframes\s+brand-mark-assemble\s*\{([\s\S]*?)\n\}/)],
+  ["loop", CSS_C.match(/@keyframes\s+brand-mark-assemble-loop\s*\{([\s\S]*?)\n\}/)],
+]) {
+  check(
+    `${label} keyframes actually use the overshoot`,
+    Boolean(kf) && /var\(--piece-over\)/.test(kf[1]),
+    "a declared overshoot no keyframe reads is a plain slide",
+  );
+}
+// The breath is what keeps the mark alive through the hold instead of frozen.
+// It must be ONE shared value: staggering it pulls the mark apart at exactly
+// the moment it should read as one finished object.
+check(
+  "the loop breathes during the hold",
+  /--piece-breathe/.test(CSS_C) && /BREATHE\s*=/.test(MARK_C),
+  "without this the mark is frozen for most of the cycle",
+);
+check(
+  "the breath is shared by all four pieces, not staggered",
+  (MARK_C.match(/BREATHE\s*=\s*"[^"]+"/g) || []).length === 1 &&
+    !/breathe:\s*"/.test(MARK_C),
+  "a per-piece breath separates the pieces during the hold",
+);
+// The mark must be STILL between arriving and breathing. Without a second stop
+// at rest the breath interpolates straight out of the settle keyframe, so the
+// assemble never resolves into anything that reads as finished — measured live,
+// the piece was already 3.1px off rest at t=1500ms of a 7.2s cycle.
+{
+  const kf = CSS_C.match(/@keyframes\s+brand-mark-assemble-loop\s*\{([\s\S]*?)\n\}/);
+  const restStops = kf
+    ? [...kf[1].matchAll(/(\d+(?:\.\d+)?)%\s*\{([^}]*)\}/g)]
+        .filter((m) => /transform:\s*translate\(0,\s*0\)/.test(m[2]))
+        .map((m) => Number(m[1]))
+        .filter((n) => n > 0 && n < 100)
+    : [];
+  check(
+    "the mark actually HOLDS still after settling, before it breathes",
+    restStops.length >= 2 && Math.max(...restStops) - Math.min(...restStops) >= 10,
+    restStops.length
+      ? `rest stops at ${restStops.join("%, ")}%`
+      : "no rest stops — the breath starts the instant the mark lands",
+  );
+}
 
 /* ── 6. Accessibility ────────────────────────────────────────────────────── */
 

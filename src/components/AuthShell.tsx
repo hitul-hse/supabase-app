@@ -63,25 +63,39 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/*
-          The hero mark. Large, optically centred in the panel, and looping.
+          THE HERO BLOCK: mark centred in the panel with its line of copy
+          directly underneath, as one composed unit.
+
+          The copy used to sit pinned to the panel's bottom edge, ~300px below
+          the mark, so the two never read as related — the mark floated in empty
+          space and the sentence looked like a footnote. Grouping them means the
+          eye lands on the mark and falls straight into the words.
+
           Signing in is the one surface in this product with nothing to read and
           no work to interrupt, which is the only place a perpetual animation is
           defensible — see the `loop` prop's note.
 
-          Decorative: the lockup above already says HSE HUB, so announcing this
-          as well would be the same name twice to a screen reader.
+          The mark is decorative: the lockup above already says HSE HUB, so
+          announcing it again would be the same name twice to a screen reader.
         */}
-        <div className="flex flex-1 items-center justify-center py-10">
+        <div className="flex flex-1 flex-col items-center justify-center gap-10 py-10">
           <BrandMark size={220} animate loop className="flex-none" />
+          <div className="flex flex-col items-center gap-4 text-center">
+            <p className="max-w-[340px] text-[17px] leading-relaxed text-[var(--text-secondary)]">
+              Projects, timesheets, people, and compliance — in one operational
+              view.
+            </p>
+            {/* Hairline under the copy, matched to the mark's own accent: it
+                closes the block so the group reads as composed rather than as
+                two things that happen to be near each other. */}
+            <span
+              aria-hidden
+              className="h-px w-16 bg-[var(--accent)] opacity-50"
+            />
+          </div>
         </div>
 
-        <div>
-          <p className="mb-8 max-w-[280px] text-[15px] leading-relaxed text-[var(--text-secondary)]">
-            Projects, timesheets, people, and compliance — in one operational
-            view.
-          </p>
-          <ConnectionStatus />
-        </div>
+        <ConnectionStatus />
 
         <div
           aria-hidden

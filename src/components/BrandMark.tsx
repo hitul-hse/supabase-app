@@ -40,6 +40,8 @@ const PIECES = [
     d: "M0 0H367V75H75V104H0Z",
     /** Enters from above: it is the topmost piece, so it falls into place. */
     from: "translateY(-46%)",
+    /** Overshoots past rest in the same axis, then eases back. */
+    over: "translateY(2.6%)",
   },
   {
     id: "mid-left",
@@ -47,6 +49,7 @@ const PIECES = [
     d: "M0 134H146V207H0Z",
     /** Enters from the left edge it sits against. */
     from: "translateX(-64%)",
+    over: "translateX(3.2%)",
   },
   {
     id: "mid-right",
@@ -54,6 +57,7 @@ const PIECES = [
     d: "M221 134H367V207H221Z",
     /** Mirrors mid-left, from the right. */
     from: "translateX(64%)",
+    over: "translateX(-3.2%)",
   },
   {
     id: "bottom",
@@ -61,14 +65,25 @@ const PIECES = [
     d: "M293 237H367V341H0V267H293Z",
     /** Enters from below, mirroring the top piece. */
     from: "translateY(46%)",
+    over: "translateY(-2.6%)",
   },
 ] as const;
 
 /**
- * Per-piece stagger. The eye should read four arrivals, not one lump: 70ms is
- * inside the 30-80ms band that reads as a sequence without feeling queued.
+ * Per-piece stagger. The eye should read four arrivals, not one lump. 110ms —
+ * up from 70ms — because each piece now takes 720ms rather than 420ms, so the
+ * old gap left the four arrivals overlapping into a single blur.
  */
-const STAGGER_MS = 70;
+const STAGGER_MS = 110;
+
+/**
+ * The idle breath, shared by all four pieces during the loop's hold.
+ *
+ * ONE value, not per-piece: a staggered breath would separate the pieces while
+ * the mark is meant to read as one finished object. 1.2% of a 341-unit viewBox
+ * is ~4 user units — visible as life, too small to read as a second animation.
+ */
+const BREATHE = "translateY(-1.2%)";
 
 export type BrandMarkProps = {
   /** Rendered size in px (square). */
@@ -138,10 +153,12 @@ export function BrandMark({
           style={
             animate
               ? ({
-                  // Custom property rather than a hardcoded keyframe per piece:
-                  // one @keyframes rule drives all four, each reading its own
-                  // start transform.
+                  // Custom properties rather than a hardcoded keyframe per
+                  // piece: one @keyframes rule drives all four, each reading
+                  // its own start / overshoot transform.
                   "--piece-from": piece.from,
+                  "--piece-over": piece.over,
+                  "--piece-breathe": BREATHE,
                   animationDelay: `${i * STAGGER_MS}ms`,
                 } as CSSProperties)
               : undefined

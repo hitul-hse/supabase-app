@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { MIN_PASSWORD_LENGTH } from "@/lib/password-strength";
-import { MAX_AVATAR_BYTES, ALLOWED_AVATAR_TYPES, type ProfileActionState } from "./constants";
+import {
+  MAX_AVATAR_BYTES,
+  ALLOWED_AVATAR_TYPES,
+  LANDING_PAGES,
+  LOCALES,
+  type ProfileActionState,
+} from "./constants";
 
 const MAX_DISPLAY_NAME = 60;
 
@@ -197,4 +203,52 @@ export async function changePassword(
   }
 
   return { status: "success", message: "Password changed." };
+}
+
+export async function updatePreferences(
+  _prev: ProfileActionState,
+  formData: FormData,
+): Promise<ProfileActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { status: "error", message: "Not authenticated." };
+
+  const landing = String(formData.get("pref_landing_page") ?? "");
+  const locale = String(formData.get("pref_locale") ?? "");
+  // An unchecked checkbox submits no field at all, so formData.get() returns
+  // null rather than "off". Only a present value of "on" means checked --
+  // anything else (null included) must resolve to false, or a user could
+  // never turn this preference back off once it was on.
+  const collapsed = formData.get("pref_sidebar_collapsed") === "on";
+
+  // Re-validated here even though the <select> only offers these values --
+  // this is a public HTTP endpoint reachable without the browser, and a
+  // value that passes here but fails the database check constraint would
+  // otherwise surface as a raw Postgres error to the user.
+  if (!LANDING_PAGES.some((p) => p.value === landing)) {
+    return { status: "error", message: "That is not a page you can land on." };
+  }
+  if (!LOCALES.some((l) => l.value === locale)) {
+    return { status: "error", message: "Unsupported locale." };
+  }
+
+  const { error } = await supabase
+    .from("app_user_profile")
+    .update({
+      pref_landing_page: landing,
+      pref_locale: locale,
+      pref_sidebar_collapsed: collapsed,
+    })
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("[profile] updatePreferences failed:", error);
+    return { status: "error", message: "Couldn't save your preferences. Try again." };
+  }
+
+  revalidatePath("/profile");
+  revalidatePath("/", "layout");
+  return { status: "success", message: "Preferences saved." };
 }

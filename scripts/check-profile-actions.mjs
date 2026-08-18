@@ -74,7 +74,7 @@ check(/MAX_AVATAR_BYTES/.test(constants), "MAX_AVATAR_BYTES is defined in consta
 check(/ALLOWED_AVATAR_TYPES/.test(constants), "ALLOWED_AVATAR_TYPES is defined in constants.ts");
 check(/MAX_DISPLAY_NAME\s*=\s*60/.test(src), "MAX_DISPLAY_NAME is defined and set to 60");
 
-const ACTIONS = ["updateDisplayName", "uploadAvatar", "removeAvatar"];
+const ACTIONS = ["updateDisplayName", "uploadAvatar", "removeAvatar", "updatePreferences"];
 const bodies = Object.fromEntries(ACTIONS.map((name) => [name, functionBody(name)]));
 
 for (const name of ACTIONS) {
@@ -91,8 +91,8 @@ for (const name of ACTIONS) {
 }
 
 check(
-  (src.match(/getUser\(\)/g) ?? []).length >= 3,
-  "getUser() is called independently in all three actions (>= 3 occurrences)",
+  (src.match(/getUser\(\)/g) ?? []).length >= 4,
+  "getUser() is called independently in all four actions (>= 4 occurrences)",
 );
 
 check(
@@ -142,6 +142,51 @@ check(changePasswordBody !== null, "changePassword is present as an exported fun
   check(
     !/message:\s*\w*[Ee]rror\.message/.test(body),
     "changePassword does not return raw Supabase error text to the client",
+  );
+}
+
+// updatePreferences: LANDING_PAGES and LOCALES must live in constants.ts, not
+// actions.ts -- a module carrying "use server" may only export async
+// functions, and a client component (PreferencesCard) needs to import these
+// plain arrays to render its <select> options. This also asserts they are NOT
+// merely re-declared in actions.ts, which would let the two copies drift from
+// the live check constraints independently.
+check(/LANDING_PAGES\s*=\s*\[/.test(constants), "LANDING_PAGES is defined in constants.ts");
+check(/LOCALES\s*=\s*\[/.test(constants), "LOCALES is defined in constants.ts");
+check(
+  !/export const LANDING_PAGES/.test(src) && !/export const LOCALES/.test(src),
+  "LANDING_PAGES/LOCALES are not re-declared in actions.ts (single source of truth)",
+);
+
+{
+  const body = bodies.updatePreferences ?? "";
+
+  // Enumerated-value validation: the two lists imported from constants.ts
+  // must actually gate the write, not just be imported. A value that passes
+  // here but fails the live check constraint would otherwise surface to the
+  // user as a raw Postgres error instead of a readable message.
+  check(
+    /LANDING_PAGES\.some\(/.test(body) || /LANDING_PAGES\.includes\(/.test(body),
+    "updatePreferences validates pref_landing_page against LANDING_PAGES server-side",
+  );
+  check(
+    /LOCALES\.some\(/.test(body) || /LOCALES\.includes\(/.test(body),
+    "updatePreferences validates pref_locale against LOCALES server-side",
+  );
+
+  // An unchecked HTML checkbox submits no field at all, so
+  // formData.get("pref_sidebar_collapsed") is null, not "off". The only
+  // correct read is an equality check against the checked-state sentinel
+  // ("on"), which is false for both null and "off" -- anything looser (e.g.
+  // testing !== "off") would leave the preference stuck on forever.
+  check(
+    /pref_sidebar_collapsed"\)\s*===\s*"on"/.test(body),
+    "pref_sidebar_collapsed is read as === \"on\", so a missing (unchecked) field resolves to false",
+  );
+
+  check(
+    !/message:\s*\w*[Ee]rror\.message/.test(body),
+    "updatePreferences does not return raw Supabase error text to the client",
   );
 }
 

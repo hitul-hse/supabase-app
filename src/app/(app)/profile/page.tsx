@@ -5,6 +5,7 @@ import { requireProfile } from "@/utils/supabase/require-profile";
 import { getProfileView } from "@/lib/queries/profile";
 import { EmploymentCard } from "./EmploymentCard";
 import { IdentityCard } from "./IdentityCard";
+import { PreferencesCard } from "./PreferencesCard";
 import { SecurityCard } from "./SecurityCard";
 import PageTransition from "@/components/animations/PageTransition";
 
@@ -47,6 +48,7 @@ export default async function ProfilePage() {
           <IdentityCard profile={profile} signedAvatarUrl={signedAvatarUrl} />
           <EmploymentCard profile={profile} />
           <SecurityCard />
+          <PreferencesCard profile={profile} />
         </div>
       </div>
     </PageTransition>

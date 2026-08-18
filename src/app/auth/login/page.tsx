@@ -91,10 +91,12 @@ function LoginForm() {
 
       {(error || linkError) && <AuthNotice tone="error">{error ?? linkError}</AuthNotice>}
 
-      {/* Single sign-on first: most staff already carry a Google or Microsoft
-          session, so the password form below is the fallback rather than the
-          default path. Errors surface through the same notice as password
-          failures, so there is only one place to look. */}
+      {/* Single sign-on first: most staff already carry a Google session, so the
+          password form below is the fallback rather than the default path.
+          Whether Microsoft appears here too is decided inside OAuthButtons by a
+          flag, so this page deliberately does not name the providers. Errors
+          surface through the same notice as password failures, so there is only
+          one place to look. */}
       <OAuthButtons
         redirectTo={redirectTo}
         disabled={loading}
@@ -158,10 +160,9 @@ function LoginForm() {
 
       <div className="mt-6 border-t border-[var(--border)] pt-6">
         <p className="text-sm text-[var(--text-secondary)]">
-          Access is granted by an administrator. Signing in with Google or
-          Microsoft identifies you, but you&apos;ll need a role assigned before you
-          can see any data — contact your administrator if you land on
-          &ldquo;Access pending&rdquo;.
+          Access is granted by an administrator. Signing in above identifies you,
+          but you&apos;ll need a role assigned before you can see any data —
+          contact your administrator if you land on &ldquo;Access pending&rdquo;.
         </p>
       </div>
     </>

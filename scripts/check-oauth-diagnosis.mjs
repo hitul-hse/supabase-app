@@ -190,12 +190,31 @@ try {
       `${emailInputs} email and ${passwordInputs} password input(s) rendered -- an OAuth failure must never be the only way in`,
     );
 
+    /**
+     * Google must stay VISIBLE even though it currently fails.
+     *
+     * This is the distinction worth holding onto. Google is fully configured and
+     * refused only by one missing entry in the Google console, so hiding it would
+     * leave a colleague wondering whether it ever existed -- explaining it in
+     * place is better. Microsoft is a different case: no Azure app registration
+     * exists, so it cannot succeed for anyone, and it is deliberately not offered
+     * (NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN). An unusable control is worse than an
+     * absent one; a temporarily-broken but real one is not.
+     *
+     * So the assertion is about Google specifically, not about button count.
+     */
     const googleBtn = await page.getByRole("button", { name: /Continue with Google/i }).count();
     const msBtn = await page.getByRole("button", { name: /Continue with Microsoft/i }).count();
+    const microsoftExpected = process.env.NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN === "true";
     check(
-      "both OAuth buttons are still rendered rather than hidden",
-      googleBtn > 0 && msBtn > 0,
-      `google=${googleBtn} microsoft=${msBtn} -- hiding a broken button leaves a colleague wondering whether it ever existed; explaining it in place is better`,
+      "the failing-but-configured Google button is still rendered, not hidden",
+      googleBtn > 0,
+      `google=${googleBtn} -- hiding it would leave a colleague wondering whether it ever existed; explaining it in place is better`,
+    );
+    check(
+      "Microsoft is offered only when it could actually work",
+      microsoftExpected ? msBtn > 0 : msBtn === 0,
+      `microsoft=${msBtn}, flag=${microsoftExpected} -- Azure has no app registration yet, so offering it would be a guaranteed dead end`,
     );
 
     /**

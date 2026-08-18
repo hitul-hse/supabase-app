@@ -1,11 +1,20 @@
-# Turn on Google and Microsoft sign-in: step by step
+# Enable Google sign-in: step by step
 
-Two tasks, independent of each other. **Google is ~2 minutes and one field.**
-Microsoft is ~10 minutes because a new Azure app registration has to be created
-first. Do Google first for the quicker win.
+(and Microsoft later, if you want it)
 
-Nothing in this guide needs a code change or a deploy. The app is already
-finished and waiting; both faults are configuration in someone else's console.
+**You only need Part A right now.** Google is ~2 minutes and one field.
+
+Microsoft is **parked**: its button has been removed from the login page, because
+enabling it needs an Azure app registration nobody has created yet and a sign-in
+button that cannot succeed for anybody is worse than no button. Part B is kept
+below for whenever you want it, and turning it back on is one environment
+variable — no code to rewrite.
+
+So today the login page offers **Continue with Google** and **email + password**.
+Nothing else changes for your colleagues.
+
+Nothing in Part A needs a code change or a deploy. The app is already finished and
+waiting; the fault is one missing entry in someone else's console.
 
 **Before you start**, know the two values you will paste. Everything below is one
 of these:
@@ -22,7 +31,7 @@ of these:
 
 ---
 
-# Part A — Google (do this first)
+# Part A — Google (the only thing you need to do)
 
 Google is already enabled in Supabase and its client ID and secret are already
 configured. One thing is missing: the OAuth client does not have our callback in
@@ -106,11 +115,16 @@ window and click **Continue with Google**.
 
 ---
 
-# Part B — Microsoft
+# Part B — Microsoft (parked; skip unless you want it)
 
-Nothing exists yet, so this has two halves: create the app registration in Azure,
-then paste its credentials into Supabase. Keep both tabs open — you will copy two
-values from the first into the second, and one of them is shown only once.
+**Not needed for Part A.** The button is currently hidden, so there is nothing
+broken on the login page while this sits undone. Come back when you actually want
+Microsoft sign-in; ~10 minutes.
+
+Nothing exists yet, so this has three halves: create the app registration in
+Azure, paste its credentials into Supabase, then un-hide the button. Keep the
+Azure and Supabase tabs open — you will copy values from the first into the
+second, and one of them is shown only once.
 
 ### B1. Create the app registration
 
@@ -172,7 +186,25 @@ On the **Overview** page that opens:
 
 17. Click **Save**.
 
-### B4. Verify it worked
+### B4. Un-hide the button
+
+The button is hidden by a build-time flag, so Azure and Supabase alone will not
+make it reappear.
+
+18. In Vercel → project **supabase-app** → **Settings → Environment Variables**,
+    add for **Production**:
+
+    ```
+    NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN = true
+    ```
+
+19. **Redeploy.** `NEXT_PUBLIC_*` values are baked into the JavaScript bundle at
+    build time, so a redeploy is required — restarting or just saving the variable
+    changes nothing.
+
+    For local development, add the same line to `.env.local` and restart.
+
+### B5. Verify it worked
 
 ```
 npm run diagnose:oauth
@@ -182,7 +214,17 @@ Section 1 should now read `azure    ENABLED`, and section 2 should show
 `Microsoft (azure)  302 -> login.microsoftonline.com` instead of
 `400 <== PROVIDER NOT ENABLED`.
 
-Then click **Continue with Microsoft** on the live site in a private window.
+Then confirm the button is back and correctly wired:
+
+```
+npm run check:sso-ui
+```
+
+With the flag set this asserts the button renders, uses `provider=azure` (not
+`microsoft`, a genuinely easy mistake), and requests the `email openid profile`
+scopes Azure needs — without them the user arrives with no name or email.
+
+Finally, click **Continue with Microsoft** on the live site in a private window.
 
 ---
 
@@ -195,12 +237,13 @@ Both already verified against the live project, so skip them:
   bogus target is rejected. This is worth knowing about because a wrong entry
   here fails in the most confusing possible way — the user appears to sign in and
   then lands logged out, with no error anywhere.
-- **Any code or deploy.** The login page, the callback route, the invite gate and
-  the RLS policies are all done and live.
+- **Any code or deploy for Part A.** The login page, the callback route, the
+  invite gate and the RLS policies are all done and live. (Part B is the one
+  exception: un-hiding the Microsoft button needs a redeploy, step B4.)
 
 ---
 
-# After both work: who can actually get in
+# Once Google works: who can actually get in
 
 Enabling a public identity provider does **not** widen access. Verified against
 the live database, not inferred from the code.
@@ -242,14 +285,19 @@ npm run diagnose:oauth
 | what it reports | what it means | fix |
 | --- | --- | --- |
 | section 5: `MISMATCH (not registered)` | Google has not got our callback | Part A, or wait for propagation |
-| `PROVIDER NOT ENABLED` | the toggle is off in Supabase | Part B3 |
+| `azure    disabled` / `PROVIDER NOT ENABLED` | expected — Microsoft is parked | nothing, or Part B |
 | `invalid_client` | client ID or secret is wrong, or the secret expired | re-paste; for Azure re-issue via B2 |
 | `access_blocked` | consent screen still in *Testing* | Part A3 |
 | `org_internal` | client restricted to one organisation | expected on a single-tenant setup |
 | signs in, then appears logged out | redirect allowlist | `npm run check:redirect-allowlist` |
 | reaches `/access-pending` | working correctly — that address has no profile | invite that exact address |
+| Microsoft button missing | intended, it is flagged off | Part B4 if you want it back |
+
+Note that `diagnose:oauth` still reports on Azure even though the button is
+hidden, because it asks the Supabase project rather than the login page. Seeing
+`azure    disabled` there is the expected state today, not a fault.
 
 Whatever the state, **email and password sign-in keeps working**, so nobody is
-locked out while this is being sorted. If a provider is misconfigured, the login
-page now says so in place and names the fix instead of dumping the user on a
-provider error page with no way back.
+locked out while this is being sorted. If Google is misconfigured, the login page
+says so in place and names the fix instead of dumping the user on a provider error
+page with no way back.

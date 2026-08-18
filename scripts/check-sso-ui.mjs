@@ -119,8 +119,26 @@ async function capture(buttonText, loginPath = "/auth/login") {
 const first = await capture("Continue with Google");
 const t = first.bodyText;
 
+/**
+ * Is Microsoft supposed to be on offer? Mirrors the component's own flag.
+ *
+ * The assertions below flip rather than disappear. A check that simply stopped
+ * running when the button was hidden would let "Microsoft silently vanished from
+ * a build that meant to offer it" pass unnoticed, which is the regression most
+ * worth catching here.
+ */
+const microsoftExpected = process.env.NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN === "true";
+
 check("the Google button is rendered", t.includes("Continue with Google"));
-check("the Microsoft button is rendered", t.includes("Continue with Microsoft"));
+if (microsoftExpected) {
+  check("the Microsoft button is rendered", t.includes("Continue with Microsoft"));
+} else {
+  check(
+    "the Microsoft button is absent while Azure is unconfigured",
+    !t.includes("Continue with Microsoft"),
+    "NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN is not 'true', so offering a provider that cannot succeed would be a dead end",
+  );
+}
 check("the email/password form is still offered", t.includes("Password"));
 check("a divider separates SSO from email sign-in", t.includes("OR WITH EMAIL"));
 check(
@@ -164,17 +182,20 @@ if (first.url) {
 }
 
 // Microsoft is the `azure` provider in Supabase's vocabulary — an easy and
-// silent thing to get wrong.
-const ms = await capture("Continue with Microsoft");
-check("clicking Microsoft starts an authorize request", ms.url !== null, ms.url ?? "none seen");
-if (ms.url) {
-  const u = new URL(ms.url);
-  check("Microsoft uses provider=azure", u.searchParams.get("provider") === "azure", u.searchParams.get("provider") ?? "");
-  check(
-    "profile scopes are requested for Azure (it returns no name/email otherwise)",
-    (u.searchParams.get("scopes") ?? "").includes("email"),
-    u.searchParams.get("scopes") ?? "none",
-  );
+// silent thing to get wrong. Only reachable when the button is on offer; the
+// wiring is still covered by this check the moment the flag is turned on.
+if (microsoftExpected) {
+  const ms = await capture("Continue with Microsoft");
+  check("clicking Microsoft starts an authorize request", ms.url !== null, ms.url ?? "none seen");
+  if (ms.url) {
+    const u = new URL(ms.url);
+    check("Microsoft uses provider=azure", u.searchParams.get("provider") === "azure", u.searchParams.get("provider") ?? "");
+    check(
+      "profile scopes are requested for Azure (it returns no name/email otherwise)",
+      (u.searchParams.get("scopes") ?? "").includes("email"),
+      u.searchParams.get("scopes") ?? "none",
+    );
+  }
 }
 
 // ── The destination is carried, and cannot be hijacked ─────────────────────

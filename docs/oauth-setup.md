@@ -8,13 +8,22 @@ Status, measured against the live project on 18 Aug 2026 with
 > walkthrough of both consoles. This file is the reference: what was measured,
 > how, and what the access model does once they work.
 
-| provider | Supabase | provider side | works? |
+| provider | Supabase | provider side | offered on the login page? |
 | --- | --- | --- | --- |
-| **Google** | enabled | **refuses: only `localhost:3000` is a registered redirect URI** | no |
-| **Microsoft** | **not enabled** | not configured | no |
+| **Google** | enabled | **refuses: only `localhost:3000` is a registered redirect URI** | yes — one console field from working |
+| **Microsoft** | **not enabled** | not configured | **no — button hidden by flag** |
 
-Both are fixed outside this repository — one in Google Cloud, one in the
-Supabase dashboard. No code change is needed for either.
+Google is one field in the Google Cloud console away from working, so its button
+stays visible and explains itself.
+
+Microsoft is **parked**. It needs an Azure app registration that does not exist,
+so it could not succeed for anybody, and the button is hidden behind
+`NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN`. That distinction is deliberate: a
+temporarily-broken but real provider is worth showing and explaining, whereas a
+control that cannot work for anyone is better absent. Turning it back on is Part B
+of the steps guide — no code changes, one environment variable and a redeploy.
+
+No code change is needed for the Google fix.
 
 Until then the login page says so in place, naming the exact fix, and email +
 password still works. It no longer sends anyone to a provider error page they

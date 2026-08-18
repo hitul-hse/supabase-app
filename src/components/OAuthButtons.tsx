@@ -28,6 +28,33 @@ import { createClient } from "@/utils/supabase/client";
 /** The providers wired up here. Supabase calls Microsoft's provider "azure". */
 type OAuthProvider = "google" | "azure";
 
+/**
+ * Is Microsoft sign-in offered at all?
+ *
+ * WHY A FLAG RATHER THAN DELETING THE BUTTON. Microsoft is deferred, not
+ * rejected: enabling it needs an Azure app registration nobody has created yet
+ * (see docs/ENABLE-SSO-STEPS.md, Part B). Deleting the code would mean rebuilding
+ * the scopes, the provider-key mapping and the pending-state handling later, and
+ * those are exactly the details this file exists to get right.
+ *
+ * WHY IT DEFAULTS TO OFF. Until that registration exists, the button cannot
+ * succeed for anybody. The failure is now explained in place rather than dumping
+ * the user on raw JSON, which is a real improvement -- but the best version of an
+ * unusable control is not a well-explained one, it is its absence. Two sign-in
+ * options where one always fails invites every colleague to try the broken one
+ * first and quietly wonder whether the app is finished.
+ *
+ * Google is unaffected: it is offered unconditionally, because its remaining
+ * problem is one field in the Google Cloud console rather than a missing
+ * integration.
+ *
+ * TO TURN IT ON, once Part B of the guide is done, set
+ * NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN=true and redeploy. Read at module scope
+ * because Next inlines NEXT_PUBLIC_* at build time, so there is nothing to
+ * re-evaluate per render.
+ */
+const MICROSOFT_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN === "true";
+
 function GoogleMark() {
   // Google's brand guidelines require their own four-colour mark, not a tinted
   // or monochrome version, so this is the official path data rather than an icon
@@ -250,15 +277,17 @@ export function OAuthButtons({
         {pending === "google" ? "Redirecting to Google…" : "Continue with Google"}
       </button>
 
-      <button
-        type="button"
-        onClick={() => signIn("azure")}
-        disabled={disabled || pending !== null}
-        className={base}
-      >
-        <MicrosoftMark />
-        {pending === "azure" ? "Redirecting to Microsoft…" : "Continue with Microsoft"}
-      </button>
+      {MICROSOFT_ENABLED && (
+        <button
+          type="button"
+          onClick={() => signIn("azure")}
+          disabled={disabled || pending !== null}
+          className={base}
+        >
+          <MicrosoftMark />
+          {pending === "azure" ? "Redirecting to Microsoft…" : "Continue with Microsoft"}
+        </button>
+      )}
     </div>
   );
 }

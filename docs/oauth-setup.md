@@ -15,6 +15,24 @@ Until then the login page says so in place, naming the exact fix, and email +
 password still works. It no longer sends anyone to a provider error page they
 cannot get back from.
 
+**The rest of the flow is already verified**, so the console change below is the
+only thing between you and a working Google sign-in. `npm run
+check:oauth-success-path-live` drives the real app with real sessions and
+confirms: a user with an active profile lands in the app, a user without one is
+held at `/access-pending` and can reach no data, a same-site `next` deep link
+survives the round trip, and absolute / protocol-relative / backslash URLs are
+all rejected rather than becoming an open redirect.
+
+**Why I could not do the Google half for you.** Two independent reasons, both
+checked rather than assumed (`npm run check:google-client-manageable`):
+
+1. `gcloud` is installed and authenticated as `hitul@hs-experts.com`, but its
+   token has expired and refreshing it needs an interactive `gcloud auth login`.
+2. More fundamentally, Google exposes **no API** for editing an OAuth client's
+   authorised redirect URIs. `iam.googleapis.com` manages service accounts,
+   `oauth2.googleapis.com` only exchanges tokens, `apikeys` is a different
+   credential type. This setting is console-only.
+
 ---
 
 ## 1. Google: register the callback URI
@@ -142,6 +160,13 @@ npm run check:oauth-diagnosis      # the login page explains failures instead of
 npm run check:invite-oauth-model   # what happens to invited vs uninvited accounts
 npm run prove:oauth-linking        # same-email linking, on a disposable account
 npm run test:identity-linking      # the RLS consequences of a forked account
+```
+
+And once the console change is made:
+
+```
+npm run check:oauth-success-path-live   # an invited user lands in the app, a stranger does not
+npm run check:google-client-manageable  # why the Google half needs a human
 ```
 
 `diagnose:oauth` is the one to run first. It reads the provider's own response

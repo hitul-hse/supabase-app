@@ -61,6 +61,8 @@ const check = (name, ok, detail = "") => {
 };
 
 /** A Supabase-shaped stub that returns the rows given. */
+// The view is tried first and the table is the fallback, so a stub must answer
+// BOTH. Returning rows from the first call keeps these cases on the happy path.
 const clientFor = (rows) => ({
   schema: () => ({
     from: () => ({
@@ -211,6 +213,52 @@ const member = (id, name, over = {}) => ({
   };
   const out = await mod.getOrgChart(broken);
   check("a failed read returns an empty chart rather than throwing", out.totalPeople === 0 && out.roots.length === 0, JSON.stringify(out).slice(0, 80));
+  check("and reports itself as degraded", out.degraded === true, `degraded=${out.degraded}`);
+}
+
+// ── 10. The view missing falls back to the table ────────────────────────
+//
+// This is the case that actually broke production: the query was pointed at
+// time.org_chart and deployed before the view existed, so every viewer got an
+// empty chart indistinguishable from "nobody works here". The fallback keeps the
+// page working and flags itself, so a partial rollout degrades visibly.
+{
+  const tableRows = [
+    // Table column names, not the view's -- the fallback must reshape them.
+    { id: 1, display_name: "Alice", email: "alice@hs-experts.com", role: "ADMIN", job_title: "Boss", team: "Ops", supervisor_member_id: null, supervisor_source: null, is_archived: false, user_id: "u1" },
+    { id: 2, display_name: "Bob", email: "bob@hs-experts.com", role: "CO_WORKER", job_title: null, team: "Ops", supervisor_member_id: 1, supervisor_source: "manual", is_archived: false, user_id: null },
+  ];
+  const viewMissing = {
+    schema: () => ({
+      from: (relation) => ({
+        select: () => ({
+          order: () =>
+            relation === "org_chart"
+              ? Promise.resolve({ data: null, error: { message: "Could not find the table 'time.org_chart'" } })
+              : Promise.resolve({ data: tableRows, error: null }),
+        }),
+      }),
+    }),
+  };
+  const out = await mod.getOrgChart(viewMissing);
+  check("with the view missing, the chart still builds from the table", out.totalPeople === 2, `totalPeople=${out.totalPeople}`);
+  check("the fallback flags itself as degraded", out.degraded === true, `degraded=${out.degraded}`);
+  check("the tree is correct from fallback data", out.roots[0]?.name === "Alice" && out.roots[0]?.reports[0]?.name === "Bob", JSON.stringify(out.roots.map((r) => r.name)));
+  check(
+    "the fallback reshapes user_id into has_account",
+    out.roots[0]?.hasAccount === true && out.roots[0]?.reports[0]?.hasAccount === false,
+    `Alice=${out.roots[0]?.hasAccount} Bob=${out.roots[0]?.reports[0]?.hasAccount}`,
+  );
+  check("the fallback maps role to accountRole", out.roots[0]?.accountRole === "ADMIN", `accountRole=${out.roots[0]?.accountRole}`);
+}
+
+// ── 11. The healthy path is NOT flagged as degraded ────────────────────
+// Without this, the degraded flag could be stuck on and the warning would show
+// permanently -- crying wolf is its own failure.
+{
+  const rows = [member(1, "Alice"), member(2, "Bob", { supervisor_member_id: 1, supervisor_source: "manual" })];
+  const out = await mod.getOrgChart(clientFor(rows));
+  check("a healthy read is not flagged degraded", out.degraded === false, `degraded=${out.degraded}`);
 }
 
 rmSync(dir, { recursive: true, force: true });

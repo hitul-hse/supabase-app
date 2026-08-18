@@ -69,6 +69,13 @@ export type OrgNode = OrgMember & {
 };
 
 export type OrgChartData = {
+  /**
+   * True when the company-wide view was unavailable and this fell back to the
+   * RLS-scoped table. The chart is then only as complete as the viewer's own
+   * visibility, which the UI must say rather than presenting a partial tree as
+   * the whole organisation.
+   */
+  degraded: boolean;
   /** People with no supervisor, each the top of a tree. */
   roots: OrgNode[];
   /**
@@ -97,15 +104,53 @@ export type OrgChartData = {
  * failure mode than a reported cycle.
  */
 export async function getOrgChart(supabase: SupabaseTyped): Promise<OrgChartData> {
-  const { data, error } = await timeSchema(supabase)
+  // The company-wide view first. It is the correct source: time.member's own read
+  // policy scopes rows to whoever may see that person's TIME, which gives an
+  // employee a hierarchy containing only themselves.
+  let degraded = false;
+  let { data, error } = await timeSchema(supabase)
     .from("org_chart")
     .select(
       "member_id, display_name, email, account_role, job_title, team, supervisor_member_id, supervisor_source, is_archived, has_account",
     )
     .order("display_name");
 
-  if (error || !data) {
-    return { roots: [], unplaced: [], teams: [], cycles: [], totalPeople: 0, placedCount: 0 };
+  if (error) {
+    // The view may not exist yet -- code can deploy before a migration is applied,
+    // and that happened here. Fall back to the table so the page still works,
+    // flagged so the UI can say the picture is incomplete rather than presenting an
+    // RLS-scoped subset as the whole organisation.
+    const fallback = await timeSchema(supabase)
+      .from("member")
+      .select(
+        "id, display_name, email, role, job_title, team, supervisor_member_id, supervisor_source, is_archived, user_id",
+      )
+      .order("display_name");
+
+    if (fallback.error || !fallback.data) {
+      return { degraded: true, roots: [], unplaced: [], teams: [], cycles: [], totalPeople: 0, placedCount: 0 };
+    }
+
+    degraded = true;
+    // Reshape to the view's column names so everything below has one shape to read.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data = (fallback.data as any[]).map((r) => ({
+      member_id: r.id,
+      display_name: r.display_name,
+      email: r.email,
+      account_role: r.role,
+      job_title: r.job_title,
+      team: r.team,
+      supervisor_member_id: r.supervisor_member_id,
+      supervisor_source: r.supervisor_source,
+      is_archived: r.is_archived,
+      has_account: r.user_id !== null,
+    }));
+    error = null;
+  }
+
+  if (!data) {
+    return { degraded, roots: [], unplaced: [], teams: [], cycles: [], totalPeople: 0, placedCount: 0 };
   }
 
   type Row = {
@@ -233,6 +278,7 @@ export async function getOrgChart(supabase: SupabaseTyped): Promise<OrgChartData
   const teams = [...new Set(members.map((m) => m.team).filter((t): t is string => Boolean(t)))].sort();
 
   return {
+    degraded,
     roots: roots.filter((r) => !unplacedIds.has(r.memberId)),
     unplaced,
     teams,

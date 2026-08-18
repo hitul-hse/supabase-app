@@ -111,7 +111,7 @@ export function OrgChartView({
   const [supState, supAction, supPending] = useActionState(setSupervisor, { status: "idle" as const });
   const [detState, detAction, detPending] = useActionState(setMemberDetails, { status: "idle" as const });
 
-  const { roots, unplaced, teams, cycles, totalPeople, placedCount } = chart;
+  const { roots, unplaced, teams, cycles, totalPeople, placedCount, degraded } = chart;
 
   // Everyone, for the manager picker. Flattened from the tree plus the unplaced,
   // because a manager can legitimately be someone not yet placed themselves.
@@ -152,6 +152,31 @@ export function OrgChartView({
           {teams.length > 0 && ` · ${teams.length} TEAM${teams.length === 1 ? "" : "S"}`}
         </span>
       </div>
+
+      {/*
+        * Say so when the picture is incomplete.
+        *
+        * getOrgChart falls back to the RLS-scoped table when the company-wide view
+        * is unavailable, which happens if code deploys ahead of its migration --
+        * exactly what I did. Without this notice the page looked identical to a
+        * legitimately empty chart, so an employee seeing only herself had no way to
+        * tell that from "nobody has recorded anything yet".
+        */}
+      {degraded && (
+        <div
+          className="border border-[var(--border)] px-4 py-3"
+          style={{ background: "var(--warning-wash)" }}
+        >
+          <p className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+            Showing a partial chart
+          </p>
+          <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
+            The company-wide org chart view is unavailable, so this falls back to the
+            people you are permitted to see. It is not the whole organisation. An
+            administrator needs to apply the pending database migration.
+          </p>
+        </div>
+      )}
 
       {(supState.status !== "idle" || detState.status !== "idle") && (
         <p

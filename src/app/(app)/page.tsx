@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
+import { AreaTrend, Donut, Gauge, LegendDot } from "@/components/ui/Charts";
 import { Pill } from "@/components/ui/Segmented";
 import { TopBarChrome } from "@/components/TopBarChrome";
 import { IconWarning, IconArrowRight } from "@/components/nav-icons";
@@ -29,7 +30,51 @@ export default async function OverviewPage() {
   const { metrics, weeks, teams, projects, counts, unlinkedPeople } =
     await getLiveOverview(supabase);
 
-  const chartMax = Math.max(0, ...weeks.map((w) => w.totalHours));
+  // (chartMax is gone: it scaled the old bar strip, and the area chart owns its own scale.)
+
+  /*
+   * The hero series: billable share per week, as an area.
+   *
+   * Share rather than raw hours, deliberately. Raw weekly hours swing with headcount and
+   * holidays, and the question the exec actually asks of this card is "are we billing
+   * enough of what we work?" -- a ratio. The raw magnitudes stay one hover away in each
+   * point's readout, and the totals live in the KPI tiles directly above.
+   */
+  const trendPoints = weeks
+    .filter((w) => w.totalHours > 0)
+    .map((w) => {
+      const share = Math.round((w.billableHours / w.totalHours) * 100);
+      return {
+        key: w.weekStart,
+        label: formatWeekLabel(w.weekStart),
+        value: share,
+        readout: `${formatWeekLabel(w.weekStart)}: ${share}% billable · ${w.billableHours.toLocaleString("de-DE")}h of ${w.totalHours.toLocaleString("de-DE")}h`,
+      };
+    });
+
+  const totalHoursAll = weeks.reduce((s, w) => s + w.totalHours, 0);
+  const billableHoursAll = weeks.reduce((s, w) => s + w.billableHours, 0);
+  const billableShareAll =
+    totalHoursAll > 0 ? Math.round((billableHoursAll / totalHoursAll) * 100) : null;
+
+  /*
+   * Roster-wide utilisation for the gauge: tracked hours over the nominal capacity of the
+   * people who were actually active, averaged over the people with a defined ratio. The
+   * BASIS note under the utilisation list states the 40h caveat; the gauge shares it.
+   */
+  const utilised = teams.filter((t) => t.percent !== null);
+  const avgUtilisation =
+    utilised.length > 0
+      ? Math.round(utilised.reduce((s, t) => s + (t.percent ?? 0), 0) / utilised.length)
+      : null;
+  const gaugeColor =
+    avgUtilisation === null
+      ? "var(--text-muted)"
+      : avgUtilisation < 40
+        ? "var(--warning)"
+        : avgUtilisation > 105
+          ? "var(--critical)"
+          : "var(--accent)";
 
   const tickIndexes = Array.from(
     new Set(
@@ -123,93 +168,61 @@ export default async function OverviewPage() {
 
         <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
           {/*
-            Billable vs non-billable, per week, from time.org_week.
+            The hero figure: billable share per week, as a smooth area.
 
-            `tone="hero"` — the ONE tinted card on this page. It is the primary
-            chart, and without a material difference a grid of identically
-            surfaced cards reads as wallpaper with no entry point.
+            tone="hero" -- the ONE tinted card on this page. The previous version was a
+            bar strip FIXED at 140-160px inside a card its neighbour stretches to ~400px,
+            which left the bottom half of the tinted surface empty -- the "space at the
+            bottom of the graph" the user reported. The area chart fills the card's real
+            height instead, and the share headline sits where the reference puts it.
           */}
           <Card tone="hero" className="flex flex-col lg:col-span-7">
             <CardHeader
-              title="Billable vs non-billable hours"
+              title="Billable share"
               qualifier={`LAST ${OVERVIEW_WEEKS} WEEKS · TRACKINGTIME`}
               actions={
-                <div className="flex items-center gap-3 font-mono text-[10px] text-[var(--text-secondary)]">
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
-                    BILLABLE
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-[var(--text-faint)]" />
-                    NON-BILLABLE
-                  </span>
+                <div className="flex items-center gap-3">
+                  <LegendDot color="var(--accent)">BILLABLE %</LegendDot>
                 </div>
               }
             />
-            <div className="flex flex-col gap-3.5 px-4 pb-4">
 
-            <div className="flex h-[140px] items-end gap-1.5 pt-4 sm:h-[160px] sm:gap-2">
-              {chartMax === 0 ? (
-                <p className="self-center font-mono text-[11px] text-[var(--text-faint)]">
+            <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4">
+              {trendPoints.length === 0 ? (
+                <p className="self-center py-10 font-mono text-[11px] text-[var(--text-faint)]">
                   No hours imported yet — run the TrackingTime sync.
                 </p>
               ) : (
-                weeks.map((week) => {
-                  const nonBillable =
-                    Math.round((week.totalHours - week.billableHours) * 10) / 10;
-                  const billablePercent =
-                    week.totalHours === 0
-                      ? null
-                      : Math.round((week.billableHours / week.totalHours) * 100);
-                  const readout =
-                    billablePercent === null
-                      ? `${formatWeekLabel(week.weekStart)}: no hours`
-                      : `${formatWeekLabel(week.weekStart)}: ${billablePercent}% billable (${week.billableHours}h of ${week.totalHours}h)`;
-                  return (
-                    /*
-                     * A focusable group, not a bare div. The readout used to be
-                     * `hidden group-hover:block`, which put the only way to
-                     * read a week's actual numbers behind a mouse — a keyboard
-                     * or screen-reader user could see twelve bars and no
-                     * values at all. `tabIndex` + `group-focus-visible` gives
-                     * the same detail to Tab, and the `title` covers touch.
-                     */
-                    <div
-                      key={week.weekStart}
-                      tabIndex={0}
-                      role="img"
-                      aria-label={readout}
-                      title={readout}
-                      className="group relative flex h-full flex-1 cursor-default flex-col justify-end gap-0.5 rounded-[2px]"
-                    >
-                      <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] text-[var(--text-primary)] shadow-lg group-hover:block group-focus-visible:block">
-                        {readout}
-                      </div>
-                      {/*
-                        Only the TOP of each stack is rounded, via rounded-t on
-                        the upper segment. Rounding both segments would put a
-                        visible notch where they meet, which reads as a gap in
-                        the data rather than as a stacked bar.
-                      */}
-                      <div
-                        className="w-full rounded-t-[3px] bg-[var(--text-faint)] transition-all duration-150 group-hover:brightness-125 group-focus-visible:brightness-125"
-                        style={{ height: `${(nonBillable / chartMax) * 100}%` }}
-                      />
-                      <div
-                        className="w-full bg-[var(--accent)] transition-all duration-150 group-hover:brightness-110 group-focus-visible:brightness-110"
-                        style={{ height: `${(week.billableHours / chartMax) * 100}%` }}
-                      />
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                <>
+                  {/* The headline: the reference leads its chart with the current
+                      figure, big, with the aggregate beside it. */}
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="font-mono text-[30px] font-semibold leading-none tracking-tight text-[var(--text-primary)]">
+                      {trendPoints[trendPoints.length - 1].value}%
+                    </span>
+                    <span className="font-mono text-[10px] text-[var(--text-secondary)]">
+                      LATEST WEEK
+                      {billableShareAll !== null && ` · ${billableShareAll}% ACROSS THE PERIOD`}
+                    </span>
+                  </div>
 
-            <div className="flex justify-between border-t border-[var(--surface-accent-border)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
-              {axisTicks.map((label, index) => (
-                <span key={`${label}-${index}`}>{label}</span>
-              ))}
-            </div>
+                  {/* min-h keeps the figure honest on short viewports; flex-1 is what
+                      lets it use the card's height on tall ones. */}
+                  <div className="min-h-[180px] flex-1">
+                    <AreaTrend
+                      points={trendPoints}
+                      yDomain={[0, 100]}
+                      label={`Billable share per week over the last ${OVERVIEW_WEEKS} weeks, from ${trendPoints[0].label} to ${trendPoints[trendPoints.length - 1].label}`}
+                    />
+                  </div>
+
+                  <div className="flex justify-between border-t border-[var(--surface-accent-border)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
+                    {axisTicks.map((tick, index) => (
+                      <span key={`${tick}-${index}`}>{tick}</span>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </Card>
 
@@ -290,6 +303,94 @@ export default async function OverviewPage() {
                 Tracked hours against a nominal 40-hour week, across the weeks
                 each person was active. TrackingTime holds no contracted hours.
               </p>
+            </div>
+          </Card>
+        </div>
+
+        {/*
+          The proportion strip: a donut for the billable split and a gauge for
+          utilisation. Different questions get different shapes -- the user asked for
+          more than bars, and the reference uses exactly these: a ring for "how does
+          the whole divide", a semicircular gauge for "one bounded number with a
+          judgement". Both draw from figures already on this page, so they add a
+          reading, not a new source.
+        */}
+        <div className="grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="flex flex-col">
+            <CardHeader title="Billable split" qualifier={`LAST ${OVERVIEW_WEEKS} WEEKS`} />
+            <div className="flex flex-1 flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 pb-5">
+              {billableShareAll === null ? (
+                <p className="font-mono text-[11px] text-[var(--text-faint)]">No hours yet.</p>
+              ) : (
+                <>
+                  <Donut
+                    slices={[
+                      { label: "Billable", value: billableHoursAll, color: "var(--accent)" },
+                      {
+                        label: "Non-billable",
+                        value: Math.max(0, totalHoursAll - billableHoursAll),
+                        color: "var(--text-faint)",
+                      },
+                    ]}
+                    centre={`${billableShareAll}%`}
+                    centreLabel="billable"
+                    label={`Billable split over the last ${OVERVIEW_WEEKS} weeks: ${billableShareAll}% of ${Math.round(totalHoursAll).toLocaleString("de-DE")} hours billable`}
+                  />
+                  <div className="flex flex-col gap-2">
+                    <LegendDot color="var(--accent)">
+                      {Math.round(billableHoursAll).toLocaleString("de-DE")} H BILLABLE
+                    </LegendDot>
+                    <LegendDot color="var(--text-faint)">
+                      {Math.round(totalHoursAll - billableHoursAll).toLocaleString("de-DE")} H NON-BILLABLE
+                    </LegendDot>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+
+          <Card className="flex flex-col">
+            <CardHeader title="Utilisation" qualifier="ROSTER AVERAGE" />
+            <div className="flex flex-1 items-center justify-center px-4 pb-5">
+              {avgUtilisation === null ? (
+                <p className="font-mono text-[11px] text-[var(--text-faint)]">
+                  No basis to compute — nobody has tracked hours yet.
+                </p>
+              ) : (
+                <Gauge
+                  value={avgUtilisation}
+                  max={100}
+                  color={gaugeColor}
+                  centreLabel="of a 40h week"
+                  label={`Average utilisation across ${utilised.length} active people: ${avgUtilisation} percent of a nominal 40-hour week`}
+                />
+              )}
+            </div>
+          </Card>
+
+          <Card className="flex flex-col sm:col-span-2 lg:col-span-1">
+            <CardHeader title="This period" qualifier="TRACKINGTIME TOTALS" />
+            {/* The plain numbers beside the two figures, so the strip answers
+                magnitude as well as proportion without a trip back to the tiles. */}
+            <div className="flex flex-1 flex-col justify-center gap-3 px-4 pb-5">
+              <div className="flex items-baseline justify-between">
+                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">HOURS LOGGED</span>
+                <span className="font-mono text-[18px] font-semibold text-[var(--text-primary)]">
+                  {Math.round(totalHoursAll).toLocaleString("de-DE")}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">BILLABLE</span>
+                <span className="font-mono text-[18px] font-semibold text-[var(--accent)]">
+                  {Math.round(billableHoursAll).toLocaleString("de-DE")}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">ACTIVE PEOPLE</span>
+                <span className="font-mono text-[18px] font-semibold text-[var(--text-primary)]">
+                  {counts.activeMembers}
+                </span>
+              </div>
             </div>
           </Card>
         </div>

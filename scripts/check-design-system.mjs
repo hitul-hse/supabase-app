@@ -380,8 +380,24 @@ const overview = readStripped("src/app/(app)/page.tsx");
 // have a keyboard and assistive-tech equivalent.
 const hoverOnly = /group-hover:block/.test(overview) && !/group-focus-visible:block/.test(overview);
 check("chart readout is not hover-only", !hoverOnly);
-check("chart bars are focusable", /tabIndex=\{0\}/.test(overview));
-check("chart bars carry an accessible label", /aria-label=\{readout\}/.test(overview));
+/*
+ * The chart moved: the hero figure is the shared AreaTrend in ui/Charts.tsx, so the
+ * interaction layer to check lives THERE. The requirement is unchanged -- every point
+ * must be keyboard-reachable and carry its own accessible name -- and the old page-level
+ * grep would now pass vacuously (page.tsx has no chart markup left to get wrong) while a
+ * regression inside Charts.tsx went unseen.
+ */
+const chartsSrc = readStripped("src/components/ui/Charts.tsx");
+check(
+  "chart points are focusable (a real button per point)",
+  /<button[\s\S]{0,300}onFocus=\{\(\) => setActive\(i\)\}/.test(chartsSrc),
+);
+check("chart points carry an accessible label", /aria-label=\{p\.readout\}/.test(chartsSrc));
+check(
+  "the page actually renders the shared chart",
+  /<AreaTrend/.test(overview),
+  "the two checks above are about Charts.tsx, which only matters if the page uses it",
+);
 
 // ---------------------------------------------------------------------------
 // 7. /people interaction layer

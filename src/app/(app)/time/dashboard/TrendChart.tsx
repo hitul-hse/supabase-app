@@ -16,6 +16,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { TrendPoint } from "@/lib/queries/trackingtime-report";
+import { isoWeekNumber } from "@/lib/time-transform";
 
 function hrs(h: number): string {
   return `${h.toLocaleString("en-GB", { maximumFractionDigits: 1 })}h`;
@@ -27,7 +28,30 @@ function label(isoDay: string, bucket: string): string {
   if (bucket === "month") {
     return d.toLocaleDateString("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" });
   }
+  if (bucket === "week") {
+    // The calendar week, because that is the unit this business plans in --
+    // "CW 34" is what appears in the emails these hours get discussed in, while
+    // "17 Aug" has to be converted in the reader's head every time.
+    return `CW ${isoWeekNumber(d)}`;
+  }
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+}
+
+/**
+ * The same label, plus the date the week starts on.
+ *
+ * A bare week number is ambiguous the moment a range crosses a year -- CW 1
+ * appears twice in a 13-month selection and the two bars look identical. The
+ * axis has room for three short labels and uses the compact form; the hover
+ * readout and the screen-reader description have room for both, and those are
+ * the two places a reader is asking "which week exactly?".
+ */
+function labelWithDate(isoDay: string, bucket: string): string {
+  if (bucket !== "week") return label(isoDay, bucket);
+  const d = new Date(`${isoDay}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return isoDay;
+  const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  return `${label(isoDay, bucket)} · from ${day}`;
 }
 
 export function TrendChart({
@@ -78,7 +102,7 @@ export function TrendChart({
             cursor mid-hover. */}
         {hot ? (
           <span className="font-mono text-[10.5px] tabular-nums text-[var(--text-primary)]">
-            {label(hot.bucket, bucket)} ·{" "}
+            {labelWithDate(hot.bucket, bucket)} ·{" "}
             <span className="text-[var(--accent)]">{hrs(hot.billableHours)} billable</span> of{" "}
             {hrs(hot.totalHours)} · {hot.entryCount} {hot.entryCount === 1 ? "entry" : "entries"}
           </span>
@@ -87,66 +111,164 @@ export function TrendChart({
             {shown.length === points.length
               ? `${points.length} ${points.length === 1 ? "bucket" : "buckets"}`
               : `last ${shown.length} of ${points.length} buckets`}{" "}
-            · solid = billable · hover a bar{hrefFor ? " · click to filter to it" : ""}
+            · solid = billable · dashed = total · hover the line{hrefFor ? " · click to filter to it" : ""}
           </span>
         )}
       </header>
 
+      {/*
+        The figure. An AREA, not bars.
+
+        Bars were right for 90 daily buckets and wrong for 4 weekly ones: at four buckets
+        each bar became a quarter-screen slab and the card read as a rendering mistake --
+        which is how it was reported. A smooth area with a gradient reads correctly at any
+        bucket count, and it is the reference design's shape for exactly this figure.
+
+        The billable series is drawn as the solid line and fill; total hours are the
+        dashed line above it, so the gap between the two IS the non-billable share.
+        Everything interactive is unchanged: hover/focus feeds the header readout, and a
+        click filters the report to that bucket.
+      */}
       <div
-        className="flex items-end gap-[3px] overflow-x-auto px-4 py-4"
-        style={{ height: 168 }}
+        className="relative px-4 py-4"
+        style={{ height: 188 }}
         onMouseLeave={() => setActive(null)}
       >
-        {shown.map((p) => {
-          const h = (p.totalSeconds / max) * 100;
-          const billShare = p.totalSeconds > 0 ? (p.billableSeconds / p.totalSeconds) * 100 : 0;
-          const on = active === p.bucket;
-          const href = hrefFor?.[p.bucket] ?? null;
+        {(() => {
+          const W = 1000;
+          const H = 300;
+          const PAD_TOP = 14;
+          const PAD_BOTTOM = 4;
+          const x = (i: number) =>
+            shown.length === 1 ? W / 2 : (i / (shown.length - 1)) * W;
+          const y = (v: number) => PAD_TOP + (1 - v / max) * (H - PAD_TOP - PAD_BOTTOM);
 
-          const bar = (
-            <span
-              className="flex h-full w-full flex-col justify-end"
-              // A one-line accessible description per bar. A bar chart is
-              // otherwise silent to a screen reader.
-              aria-label={`${label(p.bucket, bucket)}: ${hrs(p.totalHours)} total, ${hrs(p.billableHours)} billable, ${p.entryCount} entries`}
-            >
-              <span
-                className="relative block w-full transition-[background-color,filter] duration-150"
-                style={{
-                  height: `${Math.max(h, 1.5)}%`,
-                  background: on ? "var(--border-strong)" : "var(--border)",
-                }}
-              >
-                <span
-                  className="absolute bottom-0 left-0 block w-full transition-[background-color] duration-150"
-                  style={{
-                    height: `${billShare}%`,
-                    background: on ? "var(--accent-hover)" : "var(--accent)",
-                  }}
-                />
-              </span>
-            </span>
-          );
-
-          const shared = {
-            onMouseEnter: () => setActive(p.bucket),
-            onFocus: () => setActive(p.bucket),
-            onBlur: () => setActive(null),
-            className:
-              "group flex min-w-[7px] flex-1 items-end focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
-            style: { height: "100%" },
+          const spline = (values: number[]) => {
+            const pts = values.map((v, i) => ({ px: x(i), py: y(v) }));
+            if (pts.length === 1) {
+              // A single bucket has no trend; draw a flat line through it so the
+              // figure still shows the level rather than nothing.
+              return `M 0 ${pts[0].py} L ${W} ${pts[0].py}`;
+            }
+            let d = `M ${pts[0].px} ${pts[0].py}`;
+            for (let i = 0; i < pts.length - 1; i += 1) {
+              const p0 = pts[i - 1] ?? pts[i];
+              const p1 = pts[i];
+              const p2 = pts[i + 1];
+              const p3 = pts[i + 2] ?? p2;
+              d += ` C ${p1.px + (p2.px - p0.px) / 6} ${p1.py + (p2.py - p0.py) / 6}, ${p2.px - (p3.px - p1.px) / 6} ${p2.py - (p3.py - p1.py) / 6}, ${p2.px} ${p2.py}`;
+            }
+            return d;
           };
 
-          return href ? (
-            <Link key={p.bucket} href={href} scroll={false} {...shared}>
-              {bar}
-            </Link>
-          ) : (
-            <button key={p.bucket} type="button" {...shared}>
-              {bar}
-            </button>
+          const billPath = spline(shown.map((p) => p.billableSeconds));
+          const totalPath = spline(shown.map((p) => p.totalSeconds));
+          const area = `${billPath} L ${W} ${H} L 0 ${H} Z`;
+          const activeIndex = active ? shown.findIndex((p) => p.bucket === active) : -1;
+
+          return (
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              preserveAspectRatio="none"
+              className="h-full w-full"
+              role="img"
+              aria-label={`${bucketLabel.toLowerCase()} trend, ${shown.length} buckets: billable and total hours over time`}
+            >
+              <defs>
+                <linearGradient id="tt-trend-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.26" />
+                  <stop offset="60%" stopColor="var(--accent)" stopOpacity="0.07" />
+                  <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+
+              {[0.25, 0.5, 0.75].map((f) => {
+                const gy = PAD_TOP + f * (H - PAD_TOP - PAD_BOTTOM);
+                return (
+                  <line
+                    key={f}
+                    x1={0}
+                    x2={W}
+                    y1={gy}
+                    y2={gy}
+                    stroke="var(--border)"
+                    strokeOpacity="0.5"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                );
+              })}
+
+              <path d={area} fill="url(#tt-trend-fill)" />
+              {/* Total: the quieter dashed line. It sits above billable by
+                  construction, and the gap between them is the non-billable share. */}
+              <path
+                d={totalPath}
+                fill="none"
+                stroke="var(--text-faint)"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                d={billPath}
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth="2"
+                vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+
+              {activeIndex >= 0 && (
+                <>
+                  <line
+                    x1={x(activeIndex)}
+                    x2={x(activeIndex)}
+                    y1={0}
+                    y2={H}
+                    stroke="var(--text-faint)"
+                    strokeOpacity="0.6"
+                    strokeDasharray="3 3"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <circle
+                    cx={x(activeIndex)}
+                    cy={y(shown[activeIndex].billableSeconds)}
+                    r="5"
+                    fill="var(--accent)"
+                    stroke="var(--surface)"
+                    strokeWidth="2"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </>
+              )}
+            </svg>
           );
-        })}
+        })()}
+
+        {/*
+          Hit targets over the figure: one per bucket, focusable, linking to the
+          filtered report exactly as the bars did. The chart stays one image to a
+          screen reader; the targets carry the per-bucket names.
+        */}
+        <div className="absolute inset-0 flex px-4 py-4">
+          {shown.map((p) => {
+            const on = active === p.bucket;
+            const href = hrefFor?.[p.bucket] ?? null;
+            const shared = {
+              onMouseEnter: () => setActive(p.bucket),
+              onFocus: () => setActive(p.bucket),
+              onBlur: () => setActive(null),
+              "aria-label": `${labelWithDate(p.bucket, bucket)}: ${hrs(p.totalHours)} total, ${hrs(p.billableHours)} billable, ${p.entryCount} entries`,
+              className: `h-full flex-1 ${on ? "" : ""}cursor-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`,
+            };
+            return href ? (
+              <Link key={p.bucket} href={href} scroll={false} {...shared} />
+            ) : (
+              <button key={p.bucket} type="button" {...shared} />
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-1.5 font-mono text-[9.5px] text-[var(--text-faint)]">

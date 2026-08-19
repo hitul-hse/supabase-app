@@ -863,12 +863,18 @@ try {
     `fill ${topBar?.fill}px of a ${topBar?.track}px track — scaled to 100% instead of to the largest row, every bar in a 60-row table is about 3% wide`,
   );
 
-  // Grouping by project over live data is 334 rows. Without a sticky bar, by the
-  // time you reach a row worth asking about, every control that could narrow the
-  // report is off-screen and the only way back is to scroll up and lose your
-  // place. Asserted by geometry rather than by the presence of a class, because
-  // `position: sticky` silently does nothing inside an ancestor with
-  // `overflow: hidden` -- which this page's shell does set on <main>.
+  // The filter bar must SCROLL AWAY, not stay parked over the page.
+  //
+  // It used to be sticky, and this gate asserted that. The user reported the
+  // consequence: the bar is tall -- two rows of pickers plus a summary line -- so
+  // on a laptop it held a large slice of the viewport on every scroll of a
+  // 334-row table. The filters are at the top of the page, so getting back to
+  // them is a wheel flick.
+  //
+  // Still asserted by GEOMETRY rather than by the absence of a class name: a
+  // `sticky` class does nothing inside an ancestor with `overflow: hidden`, and
+  // equally a bar could be pinned by something other than that class. Only the
+  // rectangle after a scroll settles it.
   const barBox = async () =>
     await page.evaluate(() => {
       const el = document.querySelector('[data-filter-bar="1"]');
@@ -878,21 +884,22 @@ try {
     });
 
   const before = await barBox();
-  check("the filter bar is findable for the sticky assertion", before !== null);
+  check("the filter bar is findable for the scroll assertion", before !== null);
   await page.evaluate(() => window.scrollTo(0, 1600));
   await page.waitForTimeout(400);
   const after = await barBox();
   check(
-    "the filter bar stays on screen after scrolling past it",
-    after !== null && after.bottom > 0 && after.top < 200,
-    `after scrolling 1600px the bar sits at top=${after?.top}, bottom=${after?.bottom} — a negative bottom means sticky is being defeated by an ancestor's overflow`,
+    "the filter bar scrolls away instead of occupying the viewport",
+    after !== null && after.bottom <= 0,
+    `after scrolling 1600px the bar sits at top=${after?.top}, bottom=${after?.bottom} — a bottom still greater than 0 means it is pinned to the viewport, which is what was reported as a bug`,
   );
 
-  // The sticky fix changed the SHARED app shell from overflow-x-hidden to
-  // overflow-x-clip, so this confirms the thing `hidden` was there for still
-  // holds: no page-level horizontal scrollbar, on the widest table this app has
-  // and at the narrowest viewport it supports. Without this the fix could trade
-  // a sticky bar for every page scrolling sideways on a phone.
+  // The SHARED app shell uses overflow-x-clip rather than overflow-x-hidden (a
+  // change originally made to let a sticky bar work at all). `clip` is kept
+  // because it does not create a scroll container, but that difference is exactly
+  // what could let a wide table push the page sideways, so this confirms the thing
+  // `hidden` was there for still holds: no page-level horizontal scrollbar, on
+  // the widest table this app has and at the narrowest viewport it supports.
   for (const width of [1440, 420]) {
     await page.setViewportSize({ width, height: 900 });
     await goto("preset=this_month&group=project&bucket=day");

@@ -388,32 +388,32 @@ export function ReportFilters({
 
   return (
     <div
-      // A stable hook for the gate, which asserts stickiness by GEOMETRY rather
-      // than by looking for a class name: `position: sticky` silently does
-      // nothing inside an ancestor that sets `overflow: hidden`, so the class
-      // being present proves nothing about the behaviour.
+      // A stable hook for the gate, which asserts this bar's scroll behaviour by
+      // GEOMETRY rather than by looking for a class name. That mattered when the
+      // bar was sticky (`position: sticky` silently does nothing inside an ancestor
+      // with `overflow: hidden`, so the class being present proved nothing) and it
+      // matters now in reverse: the gate proves the bar actually scrolls AWAY, so
+      // this cannot regress back to occupying the viewport.
       data-filter-bar="1"
       /**
-       * STICKY, because the tables below it are long. Grouping by project over
-       * live data is 334 rows: by the time you have scrolled to a row worth
-       * asking about, every control that could narrow the report is off-screen,
-       * and the only way back is to scroll to the top and lose your place. It
-       * stays reachable instead.
+       * NOT sticky, by request.
        *
-       * `z-20` sits above the sticky table headers (z-10) so the popovers, which
-       * open downward over the first rows, are not clipped by them.
+       * It was sticky, on the reasoning that grouping by project is 334 rows and a
+       * filter you have scrolled past is a filter you cannot reach. That reasoning
+       * was about the tables; it ignored what a permanently parked bar does to the
+       * rest of the page. This bar is tall -- two rows of pickers plus a summary
+       * line -- so it held a large slice of a laptop viewport hostage on every
+       * scroll, which is what the user reported.
+       *
+       * The filters sit at the top of the page, so scrolling back up is a wheel
+       * flick rather than a hunt. That is a smaller cost than losing the vertical
+       * space on every screen of a 334-row table.
+       *
+       * `z-20` is KEPT and still load-bearing: the pickers open downward over the
+       * table below, whose headers are sticky at z-10, and without it the popovers
+       * are clipped by them.
        */
-      //
-      // No `relative` alongside `sticky`: both set `position`, so Tailwind would
-      // emit two competing declarations. `position: sticky` already establishes a
-      // containing block, which is what the absolutely-placed indicator needs.
-      //
-      // `top-12` on mobile, `top-0` from lg: MobileSidebar renders a FIXED 48px
-      // (h-12) top bar below lg, so sticking to 0 would park the whole filter bar
-      // underneath it -- visible in a screenshot only as controls that vanish
-      // halfway through a scroll. The breakpoint matches the one that hides that
-      // bar.
-      className={`sticky top-12 z-20 flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[0_6px_16px_-12px_rgba(0,0,0,0.9)] transition-opacity lg:top-0 ${
+      className={`z-20 flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[0_6px_16px_-12px_rgba(0,0,0,0.9)] transition-opacity ${
         pending ? "opacity-70" : "opacity-100"
       }`}
     >
@@ -496,7 +496,7 @@ export function ReportFilters({
         <Toggle
           on={includeCalendar}
           onClick={() => push({ calendar: includeCalendar ? null : "1" })}
-          title="Calendar placeholders are 34% of imported events and almost never billable. Off by default so they cannot inflate a billable ratio."
+          title="Calendar placeholders are 46% of imported events and 40% of logged hours. Off by default so largely-undeliberate time cannot distort a billable ratio — but 37% of those hours ARE billable, so the total they hide is shown above."
         >
           <span className="border border-[var(--border)] px-2 py-1">
             {includeCalendar ? "✓ " : ""}Calendar time

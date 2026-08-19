@@ -71,6 +71,36 @@ export function PeopleDirectory({
 
   const activeFilterCount = (onlyLogged ? 1 : 0) + (onlyNoAccount ? 1 : 0) + (query ? 1 : 0);
 
+  /**
+   * Show ten, then let people ask for more.
+   *
+   * The list rendered all 19 active people at once, which meant the detail pane
+   * beside it -- the actual content of this page -- was pushed below a column you
+   * had to scroll through to reach anything. Reported as "I have to scroll a lot".
+   *
+   * A page size rather than a scroll container: the surrounding layout already
+   * scrolls, so a nested scrollbar gives two competing ones and a mouse wheel that
+   * does different things depending on where the pointer happens to be.
+   *
+   * SEARCHING RESETS THE PAGE. Without this, typing a name while expanded leaves
+   * the list showing "19 of 19" over three results, and collapsing later would hide
+   * a match. The reset is keyed on the filter state below.
+   */
+  const PAGE_SIZE = 10;
+  const [showAll, setShowAll] = useState(false);
+  const visiblePeople = showAll ? filteredPeople : filteredPeople.slice(0, PAGE_SIZE);
+  const hiddenCount = filteredPeople.length - visiblePeople.length;
+
+  // Derived-state reset, done by comparing the previous filter signature during
+  // render rather than in an effect: an effect would paint one frame of the wrong
+  // list first, and React's own docs call this out as the case for this pattern.
+  const filterSignature = `${query}|${onlyLogged}|${onlyNoAccount}`;
+  const [lastSignature, setLastSignature] = useState(filterSignature);
+  if (filterSignature !== lastSignature) {
+    setLastSignature(filterSignature);
+    setShowAll(false);
+  }
+
   // Resolve by id against the live prop rather than holding a snapshot in
   // state, and prefer a selection that is actually in the filtered list.
   const selectedPerson =
@@ -139,8 +169,11 @@ export function PeopleDirectory({
           <div className="flex flex-col gap-2.5 border-b border-[var(--border)] p-4">
             <div className="flex items-baseline justify-between">
               <span className="text-[14px] font-semibold text-[var(--text-primary)]">People</span>
+              {/* Shows what is on screen over the matching total, so a
+                  truncated list cannot be mistaken for the whole roster. */}
               <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-                {filteredPeople.length} OF {people.length}
+                {visiblePeople.length} OF {filteredPeople.length}
+                {filteredPeople.length !== people.length && ` (${people.length} TOTAL)`}
               </span>
             </div>
 
@@ -224,7 +257,7 @@ export function PeopleDirectory({
                 </button>
               </div>
             )}
-            {filteredPeople.map((person) => {
+            {visiblePeople.map((person) => {
               const isSelected = selectedPerson.memberId === person.memberId;
               return (
                 <button
@@ -269,6 +302,33 @@ export function PeopleDirectory({
                 </button>
               );
             })}
+
+            {/*
+              The way out of a truncated list, and the count that makes it
+              honest. Without a visible "n more" the shortened list would look
+              like the whole roster -- the same class of mistake as the mockup
+              chart that showed three tidy boxes while thirty people were
+              missing. Selecting somebody hidden is still possible without
+              expanding, because search filters the full list.
+            */}
+            {hiddenCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="p-3 text-left font-mono text-[10.5px] tracking-[0.06em] text-[var(--accent)] transition-colors hover:bg-[var(--surface)]"
+              >
+                SHOW {hiddenCount} MORE
+              </button>
+            )}
+            {showAll && filteredPeople.length > PAGE_SIZE && (
+              <button
+                type="button"
+                onClick={() => setShowAll(false)}
+                className="p-3 text-left font-mono text-[10.5px] tracking-[0.06em] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text-primary)]"
+              >
+                SHOW FEWER
+              </button>
+            )}
           </div>
         </div>
 

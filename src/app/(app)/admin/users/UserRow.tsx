@@ -51,6 +51,8 @@ export function UserRow({
    * state rather than rendered from the message so it can be selected on its own.
    */
   const [fallbackLink, setFallbackLink] = useState<string | null>(null);
+  /** Momentary confirmation that the copy landed, so the click has an outcome. */
+  const [copied, setCopied] = useState(false);
   /**
    * Two-step delete, in the row itself rather than a window.confirm().
    *
@@ -275,16 +277,53 @@ export function UserRow({
         </span>
       )}
       {fallbackLink && (
-        // A real input, not a bare <a>: this needs to be COPIED and pasted into a
-        // message to a colleague, and a link you can only click is the one thing that
-        // does not help. readOnly with select-on-focus makes one click enough.
-        <input
-          readOnly
-          value={fallbackLink}
-          onFocus={(e) => e.currentTarget.select()}
-          aria-label={`One-time sign-in link for ${email}`}
-          className="w-full max-w-[320px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[9.5px] text-[var(--text-secondary)]"
-        />
+        /*
+         * A copyable field, sized to be used rather than tucked away.
+         *
+         * This is not a rare error path: sending is rate-limited project-wide on
+         * Supabase's built-in SMTP, so handing over this link is the normal way a
+         * colleague gets in until custom SMTP is configured. It needs a label saying
+         * what it is, a field wide enough to see it, and one-click copying.
+         *
+         * An input rather than a bare <a>: the link has to be pasted into a message to
+         * a person, and a link you can only click is the one thing that does not help.
+         */
+        <span className="flex w-full flex-col gap-1 sm:items-end">
+          <span className="font-mono text-[9px] tracking-[0.06em] text-[var(--text-faint)]">
+            ONE-TIME SIGN-IN LINK — SEND THIS TO THEM
+          </span>
+          <span className="flex w-full items-center gap-1">
+            <input
+              readOnly
+              value={fallbackLink}
+              // Select the whole URL on focus, so click-then-Ctrl+C is enough and a
+              // partial selection cannot produce a broken link.
+              onFocus={(e) => e.currentTarget.select()}
+              onClick={(e) => e.currentTarget.select()}
+              aria-label={`One-time sign-in link for ${email}`}
+              className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)]"
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(fallbackLink);
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 2000);
+                } catch {
+                  // Clipboard access can be refused (insecure context, permissions).
+                  // The field beside this is still selectable, so say what to do rather
+                  // than failing silently.
+                  setCopied(false);
+                  setError("Could not reach the clipboard — select the link and copy it manually.");
+                }
+              }}
+              className="flex-none rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            >
+              {copied ? "COPIED" : "COPY"}
+            </button>
+          </span>
+        </span>
       )}
     </span>
   );

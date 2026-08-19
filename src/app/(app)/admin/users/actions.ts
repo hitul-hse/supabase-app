@@ -289,11 +289,17 @@ export async function changeUserDepartment(
  * "forgot password" flow uses, so the mail is one Supabase is configured to send and
  * the recipient lands on /auth/set-password exactly as a new invitee does.
  *
- * AND IT RETURNS THE LINK AS A FALLBACK. The mail limiter is real and shared with
- * every other mail the project sends, so a re-invite can legitimately be refused for
- * a minute. When that happens the admin is given the one-time link to pass on by
- * hand, rather than a dead end. The link is only shown to an admin who already holds
- * admin:users:write and could reset that account anyway.
+ * AND IT ALWAYS RETURNS THE LINK. Not as a rare fallback -- as the usual outcome.
+ * Measured on this project: three sends to three addresses never used before all
+ * returned 429 "email rate limit exceeded". That is the PROJECT-WIDE allowance on
+ * Supabase's built-in SMTP (a development courtesy sender), not the per-address
+ * cooldown, which words itself as "after 59 seconds". So until custom SMTP is
+ * configured in the Supabase dashboard, the honest behaviour is to hand the admin a
+ * one-time link to pass on, and to say so plainly rather than reporting a failure and
+ * inviting a pointless retry.
+ *
+ * Showing the link is safe: it goes only to an admin who holds admin:users:write and
+ * could reset that account outright anyway.
  *
  * ALREADY-ACTIVE ACCOUNTS ARE REFUSED. A password link arriving unrequested by
  * somebody who signs in daily looks exactly like a phishing attempt, and they can
@@ -372,8 +378,15 @@ export async function resendInvite(
     // Not a failure if there is a link to hand over: say plainly what happened and
     // what to do, rather than reporting success or leaving a dead end.
     if (fallbackLink) {
+      // Rate limiting is the EXPECTED case on this project, not an anomaly, so this
+      // reads as an instruction rather than an apology. Measured: three sends to three
+      // never-used addresses all returned "email rate limit exceeded", which is the
+      // project-wide allowance on Supabase's built-in SMTP, not a per-address cooldown.
+      const rateLimited = /rate limit|after \d+ seconds/i.test(sendError.message);
       return {
-        message: `Could not send the email (${sendError.message}). A one-time sign-in link for ${email} is below — send it to them directly, or try again in a minute.`,
+        message: rateLimited
+          ? `Email sending is rate-limited on this project, so copy the one-time link below and send it to ${email} yourself. It sets their password and signs them in. (Configuring custom SMTP in Supabase would let the Hub send these directly.)`
+          : `Could not send the email (${sendError.message}). Copy the one-time link below and send it to ${email} instead.`,
         link: fallbackLink,
       };
     }

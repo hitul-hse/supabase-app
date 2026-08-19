@@ -126,6 +126,8 @@
     "check:admin-user-writes": "node scripts/check-admin-user-writes.mjs",
     "check:profile-grants": "node scripts/check-profile-grants.mjs",
     "check:records-tabs": "node scripts/check-records-tabs.mjs",
+    "check:records-tabs-ui": "node scripts/check-records-tabs-ui.mjs",
+    "wait:deploy": "node scripts/wait-for-deploy.mjs",
     "test:records-tabs": "node scripts/check-records-tabs.mjs",
     "check:user-management": "node scripts/check-user-management.mjs",
     "test:user-management": "node scripts/check-user-management.mjs",

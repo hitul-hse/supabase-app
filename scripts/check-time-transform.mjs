@@ -23,6 +23,7 @@ import {
   secondsToHours,
   formatSeconds,
   isoWeekStart,
+  isoWeekNumber,
 } from "../src/lib/time-transform.ts";
 
 let failed = false;
@@ -225,5 +226,42 @@ console.log("\n--- ISO weeks start on Monday -----------------------------------
   check("a year boundary is handled", isoWeekStart(new Date("2027-01-01T12:00:00Z")) === "2026-12-28");
 }
 
+{
+  // The calendar week shown on the dashboard's trend bars. A German consultancy
+  // schedules in KW, so "CW 34" is the label people already use in email; a bar
+  // reading "17 Aug" has to be translated in the reader's head every time.
+  //
+  // ISO 8601, not "how many Mondays have passed": a week belongs to the year
+  // containing its THURSDAY. That rule is the whole difficulty, and every
+  // assertion below is a case where a naive count gets a different answer.
+  console.log("");
+  check("a mid-year Monday is its ISO week", isoWeekNumber(new Date("2026-08-17T00:00:00Z")) === 34,
+    String(isoWeekNumber(new Date("2026-08-17T00:00:00Z"))));
+  check("every day of that week reports the same number",
+    isoWeekNumber(new Date("2026-08-23T23:59:00Z")) === 34,
+    "Sunday is the last day of the ISO week, not the first of the next");
+
+  check("1 January can be week 1", isoWeekNumber(new Date("2026-01-01T00:00:00Z")) === 1);
+  check("the following Monday starts week 2", isoWeekNumber(new Date("2026-01-05T00:00:00Z")) === 2);
+
+  check(
+    "a December date can belong to WEEK 1 OF THE NEXT YEAR",
+    isoWeekNumber(new Date("2025-12-29T00:00:00Z")) === 1,
+    "29 Dec 2025 is a Monday whose Thursday is 1 Jan 2026 — counting weeks within the calendar year gives 53 here",
+  );
+
+  check(
+    "a 53-week year reports 53, not 1",
+    isoWeekNumber(new Date("2020-12-31T00:00:00Z")) === 53,
+    "2020 has 53 ISO weeks; a fixed 52 wraps this to 1 and hides a week of hours",
+  );
+}
+
 console.log(failed ? "\nTIME TRANSFORM: FAILURES ABOVE\n" : "\nTIME TRANSFORM: all checks passed\n");
-process.exit(failed ? 1 : 0);
+// process.exitCode, not process.exit(). Under --experimental-strip-types,
+// exiting explicitly can race the loader's own teardown and abort with
+// "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" — exit code 127 and
+// every check having passed, which reads as a failing suite for a reason that
+// is not in this file. The same substitution was already made in the sync
+// freshness reporter for the same class of bug.
+process.exitCode = failed ? 1 : 0;

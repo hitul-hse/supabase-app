@@ -212,3 +212,35 @@ export function isoWeekStart(date: Date): string {
   d.setUTCDate(d.getUTCDate() - (dow === 0 ? 6 : dow - 1));
   return d.toISOString().slice(0, 10);
 }
+
+/** The Thursday of the ISO week containing `date`, in UTC. */
+function thursdayOf(date: Date): Date {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  // (day + 6) % 7 maps Monday to 0 … Sunday to 6, so Sunday moves BACK to its
+  // own Thursday rather than forward into the next week.
+  d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7));
+  return d;
+}
+
+/**
+ * The ISO 8601 calendar week number — "KW"/"CW" as this business already
+ * schedules in.
+ *
+ * A week belongs to the year containing its THURSDAY, which is the whole
+ * difficulty and the reason this is not "how many Mondays have passed". Two
+ * consequences a naive count gets wrong:
+ *
+ *   - 29 Dec 2025 is a Monday whose Thursday is 1 Jan 2026, so it is week 1 of
+ *     2026, not week 53 of 2025.
+ *   - 2020 has 53 ISO weeks. Anything that assumes 52 wraps the last one to 1
+ *     and quietly folds a week of hours into the wrong bar.
+ *
+ * Anchoring on 4 January is the standard trick: it is the earliest date that is
+ * always in week 1, so the Thursday of its week is week 1's Thursday.
+ */
+export function isoWeekNumber(date: Date): number {
+  const thursday = thursdayOf(date);
+  const jan4 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
+  const firstThursday = thursdayOf(jan4);
+  return 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604_800_000);
+}

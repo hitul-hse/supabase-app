@@ -126,6 +126,7 @@
     "check:admin-user-writes": "node scripts/check-admin-user-writes.mjs",
     "check:profile-grants": "node scripts/check-profile-grants.mjs",
     "check:deploy-skew": "node scripts/check-deploy-skew.mjs",
+    "check:org-chart-edit": "node scripts/check-org-chart-edit.mjs",
     "test:deploy-skew": "node scripts/check-deploy-skew.mjs",
     "check:people-filters-ui": "node scripts/check-people-and-filters-ui.mjs",
     "test:profile-grants": "node scripts/check-profile-grants.mjs",

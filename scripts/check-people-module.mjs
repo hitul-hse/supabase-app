@@ -139,31 +139,48 @@ try {
   );
 
   /*
-   * R5: both tabs must render the SAME roster.
+   * R5: both tabs must come from the ONE real roster, and invent nothing.
    *
-   * The directory and the org chart used to read different sources. Because
-   * they are rendered from one Server Component payload, the org chart's eight
-   * mockup names were serialised into the page on EVERY visit — a live DOM probe
-   * found "Anna Brandt" sitting in the RSC script tag while the real directory
-   * was on screen. Source review passed; only reading the rendered page caught it.
+   * The directory and the org chart used to read different sources. Because they are
+   * rendered from one Server Component payload, the org chart's eight mockup names
+   * were serialised into the page on EVERY visit -- a live DOM probe found "Anna
+   * Brandt" in the RSC script tag while the real directory was on screen. Source
+   * review passed; only reading the rendered page caught it.
+   *
+   * These checks originally demanded the org tab show NO hierarchy, because at the
+   * time there was none to show. That is no longer the requirement: TrackingTime
+   * cannot supply one (its supervisor and user_group_id fields are empty for all 49
+   * users), so the Hub records it in time.member.supervisor_member_id with a
+   * company-wide time.org_chart view over it. What must still hold is the part that
+   * actually matters: one real roster, nothing fabricated.
    */
   const orgSrc = code("src/app/(app)/people/OrgChartView.tsx");
+  const orgQuerySrc = code("src/lib/queries/org-chart-live.ts");
+
   check(
-    "R5: the People page does not read the seeded org_chart_nodes table",
-    !/getOrgChart|org_chart_nodes|OrgChartNode/.test(pageSrc + sectionSrc + orgSrc),
-    "its 8 mockup names shipped in the RSC payload regardless of which tab was showing",
+    "R5: the seeded org_chart_nodes mockup table is not read by the People page",
+    !/org_chart_nodes|OrgChartNode\b/.test(pageSrc + sectionSrc + orgSrc + orgQuerySrc),
+    "its 8 invented names shipped in the RSC payload regardless of which tab was showing",
   );
   check(
-    "R5: the org view renders the same LivePerson roster as the directory",
-    /LivePerson/.test(orgSrc) && /people=\{people\}/.test(sectionSrc),
+    "R5: the org chart reads the real roster recorded in the Hub",
+    /org_chart|"member"/.test(orgQuerySrc) && /getOrgChart/.test(pageSrc),
+    "reporting lines live in the Hub precisely because TrackingTime holds none",
   );
   check(
-    "R5: the org view does not claim a reporting hierarchy TrackingTime lacks",
-    // \s+ not a space: the caveat is JSX prose and wraps across lines.
-    /records\s+no\s+reporting\s+lines/i.test(
-      readFileSync("src/app/(app)/people/OrgChartView.tsx", "utf8"),
-    ),
-    "there is no manager_id in time.member, so a tree would be invented",
+    "R5: both tabs are fed from the same page-level fetch",
+    /people=\{people\}/.test(sectionSrc) && /chart=\{chart\}/.test(sectionSrc),
+    "two independent fetches is how mockup names leaked into the payload of the other tab",
+  );
+  check(
+    "R5: an incomplete chart is shown as incomplete, not padded out",
+    /unplaced/i.test(orgSrc) && /PLACED/.test(orgSrc),
+    "unplaced people are listed and the placed-of-total count stated, so a half-recorded chart cannot read as finished",
+  );
+  check(
+    "R5: no root is invented when nobody has a supervisor",
+    /does not invent a root/i.test(readFileSync("src/lib/queries/org-chart-live.ts", "utf8")),
+    "guessing that the ADMIN with the most hours is the boss is the exact failure being undone",
   );
 
   // The &amp; bug: a template literal is not JSX text.

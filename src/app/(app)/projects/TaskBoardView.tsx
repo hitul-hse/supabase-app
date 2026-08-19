@@ -11,7 +11,7 @@
 
 import { useActionState } from "react";
 import { deleteTask, moveTaskToSection, createSection } from "./actions";
-import type { ProjectSectionRow, TaskWithSubtasks } from "@/lib/queries/types";
+import type { ProjectSectionRow, TaskWithSubtasks, BoardParent } from "@/lib/queries/types";
 import { EmptyState } from "@/components/EmptyState";
 
 /** Tasks with no section yet -- e.g. after their column was deleted. */
@@ -86,12 +86,12 @@ function TaskCard({
   );
 }
 
-function AddSectionForm({ projectId }: { projectId: string }) {
+function AddSectionForm({ parent }: { parent: BoardParent }) {
   const [state, formAction, isPending] = useActionState(createSection, { status: "idle" });
 
   return (
     <form action={formAction} className="flex w-[220px] flex-none flex-col gap-2">
-      <input type="hidden" name="project_id" value={projectId} />
+      <input type="hidden" name={parent.field} value={String(parent.id)} />
       <input
         name="name"
         type="text"
@@ -108,11 +108,11 @@ function AddSectionForm({ projectId }: { projectId: string }) {
 }
 
 export function TaskBoardView({
-  projectId,
+  parent,
   tasks,
   sections,
 }: {
-  projectId: string;
+  parent: BoardParent;
   tasks: TaskWithSubtasks[];
   sections: ProjectSectionRow[];
 }) {
@@ -134,7 +134,7 @@ export function TaskBoardView({
         <EmptyState
           title="No columns yet"
           description="Add a column to start shaping this project's workflow — intake, site visit, report drafted, whatever fits. Columns here are the same groups the list view uses."
-          action={<AddSectionForm projectId={projectId} />}
+          action={<AddSectionForm parent={parent} />}
         />
       </div>
     );
@@ -186,7 +186,7 @@ export function TaskBoardView({
           );
         })}
 
-        <AddSectionForm projectId={projectId} />
+        <AddSectionForm parent={parent} />
       </div>
     </div>
   );

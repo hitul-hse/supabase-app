@@ -4,16 +4,16 @@ import { useState } from "react";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskListView } from "./TaskListView";
 import { TaskBoardView } from "./TaskBoardView";
-import type { TaskComment, TaskWithSubtasks, ProjectSectionRow } from "@/lib/queries/types";
+import type { TaskComment, TaskWithSubtasks, ProjectSectionRow, BoardParent } from "@/lib/queries/types";
 
 export function TasksSection({
-  projectId,
+  parent,
   tasks,
   sections,
   commentsByTask,
   currentUserId,
 }: {
-  projectId: string;
+  parent: BoardParent;
   tasks: TaskWithSubtasks[];
   sections: ProjectSectionRow[];
   commentsByTask: Record<number, TaskComment[]>;
@@ -55,17 +55,17 @@ export function TasksSection({
         </div>
       </div>
 
-      <AddTaskForm projectId={projectId} />
+      <AddTaskForm parent={parent} />
 
       {view === "list" ? (
         <TaskListView
-          projectId={projectId}
+          parent={parent}
           tasks={tasks}
           commentsByTask={commentsByTask}
           currentUserId={currentUserId}
         />
       ) : (
-        <TaskBoardView projectId={projectId} tasks={tasks} sections={sections} />
+        <TaskBoardView parent={parent} tasks={tasks} sections={sections} />
       )}
     </div>
   );

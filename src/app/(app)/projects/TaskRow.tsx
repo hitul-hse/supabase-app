@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updateTaskStatus, deleteTask, addComment, deleteComment, addSubtask } from "./actions";
-import type { TaskComment, ProjectTaskRow } from "@/lib/queries/types";
+import type { TaskComment, ProjectTaskRow, BoardParent } from "@/lib/queries/types";
 
 const TASK_STATUSES = ["NOT STARTED", "IN PROGRESS", "OVER 33%", "DONE"] as const;
 
@@ -52,13 +52,13 @@ function SubtaskRow({ task }: { task: ProjectTaskRow }) {
 
 export function TaskRow({
   task,
-  projectId,
+  parent,
   subtasks,
   comments,
   currentUserId,
 }: {
   task: { id: number; name: string; estimate_hours: number; logged_hours: number; status: string; owner: string };
-  projectId: string;
+  parent: BoardParent;
   subtasks: ProjectTaskRow[];
   comments: TaskComment[];
   currentUserId: string | null;
@@ -138,7 +138,7 @@ export function TaskRow({
             <SubtaskRow key={s.id} task={s} />
           ))}
           <form action={addSubtask} className="mt-1 flex gap-2">
-            <input type="hidden" name="project_id" value={projectId} />
+            <input type="hidden" name={parent.field} value={String(parent.id)} />
             <input type="hidden" name="parent_task_id" value={task.id} />
             <input
               name="name"

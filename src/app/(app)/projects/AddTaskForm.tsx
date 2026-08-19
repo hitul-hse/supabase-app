@@ -2,13 +2,14 @@
 
 import { useActionState } from "react";
 import { createTask } from "./actions";
+import type { BoardParent } from "@/lib/queries/types";
 
-export function AddTaskForm({ projectId }: { projectId: string }) {
+export function AddTaskForm({ parent }: { parent: BoardParent }) {
   const [state, formAction, isPending] = useActionState(createTask, { status: "idle" });
 
   return (
     <form action={formAction} className="flex flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-2)] p-3">
-      <input type="hidden" name="project_id" value={projectId} />
+      <input type="hidden" name={parent.field} value={String(parent.id)} />
       <div className="flex flex-wrap items-center gap-2">
         <input
           name="name"

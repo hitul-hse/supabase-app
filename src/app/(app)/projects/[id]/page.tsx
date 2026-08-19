@@ -27,6 +27,8 @@ import { requireProfile, userHasPermission } from "@/utils/supabase/require-prof
 import { PERMISSIONS } from "@/lib/permissions";
 import { getProjectOverview } from "@/lib/queries/projects-live";
 import { BurnChart, ContributorTable, TaskTable, burnColor } from "../ProjectPanels";
+import { TasksSection } from "../TasksSection";
+import { getTimeProjectBoard } from "@/lib/queries/hse";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
@@ -35,7 +37,7 @@ export default async function ProjectDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireProfile("/projects");
+  const profile = await requireProfile("/projects");
 
   const { id: rawId } = await params;
   // Number("") is 0 and Number(" 12 ") is 12, so test the STRING shape rather
@@ -74,6 +76,14 @@ export default async function ProjectDetailPage({
   if (!overview) notFound();
 
   const { project, totals, burn, contributors, tasks, truncated } = overview;
+
+  // The editable board, which until now had no mount point anywhere in the app.
+  // It is a SEPARATE read from the overview above: that one aggregates
+  // time.entry (hours actually logged against this project), while this is the
+  // Hub's own planning layer -- tasks somebody typed, their sections, their
+  // comments. They answer different questions and neither derives from the other.
+  const board = await getTimeProjectBoard(supabase, id);
+  const canWrite = await userHasPermission(PERMISSIONS.PROJECTS_WRITE);
   const hasBudget = project.estimatedHours !== null && project.estimatedHours > 0;
 
   const stats = [
@@ -170,6 +180,20 @@ export default async function ProjectDetailPage({
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <ContributorTable rows={contributors} />
             <TaskTable rows={tasks} />
+          </div>
+
+          {/* Read-only for anyone without projects:write. The forms are the
+              only thing hidden -- the board itself stays visible, because
+              "you may not edit this" and "there is nothing here" are different
+              statements and rendering the second for the first is a lie. */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+            <TasksSection
+              parent={{ field: "time_project_id", id: project.id }}
+              tasks={board.tasks}
+              sections={board.sections}
+              commentsByTask={board.commentsByTask}
+              currentUserId={canWrite ? profile.userId : null}
+            />
           </div>
 
           {/* The bridge back to the filtered report. Everything here is

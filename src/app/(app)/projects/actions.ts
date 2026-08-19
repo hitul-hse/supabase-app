@@ -2,47 +2,116 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export type CreateTaskState = { status: "idle" | "success" | "error"; message?: string };
 
 const TASK_STATUSES = ["NOT STARTED", "IN PROGRESS", "OVER 33%", "DONE"] as const;
 
-async function insertTask(
-  formData: FormData,
-): Promise<{ error?: string; name?: string }> {
+const DENIED = "You do not have permission to change this project.";
+
+/**
+ * The single authorisation point for every mutation in this file.
+ *
+ * Five of the actions below previously had no check at all and leaned entirely
+ * on RLS. That reads as safe -- the policies are `to authenticated` and scope
+ * writes with can_view_project() -- but it gates WRITING on READ visibility, so
+ * anyone who could see a project could delete every task in it. projects:write
+ * existed and was asked for at no layer.
+ *
+ * Two deliberate choices:
+ *  - The permission is resolved by app_user_has_permission() in the DB, never
+ *    from a role string, so a grant made in /admin/roles takes effect without a
+ *    deploy. That is the contract permissions.ts states.
+ *  - It reuses the ONE client the caller already needs rather than calling
+ *    userHasPermission(), which builds a second client and re-reads cookies for
+ *    the same RPC. Same question, half the round trips.
+ *
+ * RLS remains underneath as defence in depth; this is the authorisation
+ * boundary, never the only one.
+ */
+async function requireProjectWriter() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { error: "Not authenticated." };
-  }
+  if (!user) return null;
 
-  const projectId = String(formData.get("project_id") || "").trim();
+  const { data: allowed } = await supabase.rpc("app_user_has_permission", {
+    p_key: PERMISSIONS.PROJECTS_WRITE,
+  });
+
+  if (!allowed) return null;
+
+  return { supabase, user };
+}
+
+/**
+ * Which project a form is talking about.
+ *
+ * A board hangs off EITHER a Hub project (public.projects, text id) or a
+ * TrackingTime one (time.project, bigint) -- the schema allows both and a CHECK
+ * enforces exactly one. The form says which by the field name it posts, so a
+ * caller cannot set both, and a request naming neither is rejected here rather
+ * than reaching a constraint violation the user would read as a raw Postgres
+ * error.
+ */
+type TaskParent =
+  | { column: "project_id"; value: string }
+  | { column: "time_project_id"; value: number };
+
+function readParent(formData: FormData): TaskParent | null {
+  const hub = String(formData.get("project_id") || "").trim();
+  const timeRaw = String(formData.get("time_project_id") || "").trim();
+
+  if (hub && timeRaw) return null;
+  if (hub) return { column: "project_id", value: hub };
+  if (timeRaw) {
+    const id = Number(timeRaw);
+    // Integer, not merely finite: Number("1.5") is finite and would reach the
+    // query as a comparison that matches nothing.
+    if (!Number.isInteger(id) || id <= 0) return null;
+    return { column: "time_project_id", value: id };
+  }
+  return null;
+}
+
+async function insertTask(
+  formData: FormData,
+): Promise<{ error?: string; name?: string }> {
+  const auth = await requireProjectWriter();
+  if (!auth) {
+    return { error: DENIED };
+  }
+  const { supabase, user } = auth;
+
+  const parent = readParent(formData);
   const name = String(formData.get("name") || "").trim();
   const owner = String(formData.get("owner") || "").trim();
   const estimateHours = Number(formData.get("estimate_hours") || 0);
   const parentTaskIdRaw = formData.get("parent_task_id");
   const parentTaskId = parentTaskIdRaw ? Number(parentTaskIdRaw) : null;
 
-  if (!projectId || !name) {
+  if (!parent) {
+    return { error: "That task is not attached to a project." };
+  }
+  if (!name) {
     return { error: "Task name is required." };
   }
 
-  // RLS (role-scoped insert on project_tasks) is what actually enforces who
-  // can add a task here -- this check just gives a readable error instead of
-  // a bare Postgres permission-denied.
   const { data: sortRow } = await supabase
     .from("project_tasks")
     .select("sort_order")
-    .eq("project_id", projectId)
+    .eq(parent.column, parent.value)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   const { error } = await supabase.from("project_tasks").insert({
-    project_id: projectId,
+    ...(parent.column === "project_id"
+      ? { project_id: parent.value }
+      : { time_project_id: parent.value }),
     name,
     owner,
     estimate_hours: Number.isFinite(estimateHours) ? estimateHours : 0,
@@ -77,7 +146,10 @@ export async function addSubtask(formData: FormData): Promise<void> {
 }
 
 export async function updateTaskStatus(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+  const auth = await requireProjectWriter();
+  if (!auth) return;
+  const { supabase } = auth;
+
   const taskId = Number(formData.get("task_id"));
   const status = String(formData.get("status") || "");
 
@@ -92,7 +164,10 @@ export async function updateTaskStatus(formData: FormData): Promise<void> {
 }
 
 export async function deleteTask(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+  const auth = await requireProjectWriter();
+  if (!auth) return;
+  const { supabase } = auth;
+
   const taskId = Number(formData.get("task_id"));
   if (!Number.isFinite(taskId)) return;
 
@@ -102,11 +177,9 @@ export async function deleteTask(formData: FormData): Promise<void> {
 }
 
 export async function addComment(formData: FormData): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  const auth = await requireProjectWriter();
+  if (!auth) return;
+  const { supabase, user } = auth;
 
   const taskId = Number(formData.get("task_id"));
   const body = String(formData.get("body") || "").trim();
@@ -118,7 +191,10 @@ export async function addComment(formData: FormData): Promise<void> {
 }
 
 export async function deleteComment(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+  const auth = await requireProjectWriter();
+  if (!auth) return;
+  const { supabase } = auth;
+
   const commentId = Number(formData.get("comment_id"));
   if (!Number.isFinite(commentId)) return;
 
@@ -133,7 +209,10 @@ export async function deleteComment(formData: FormData): Promise<void> {
  * client's column.
  */
 export async function moveTaskToSection(formData: FormData): Promise<void> {
-  const supabase = await createClient();
+  const auth = await requireProjectWriter();
+  if (!auth) return;
+  const { supabase } = auth;
+
   const taskId = Number(formData.get("task_id"));
   const raw = formData.get("section_id");
   const sectionId = raw === null || raw === "" ? null : Number(raw);
@@ -155,22 +234,32 @@ export async function createSection(
   _prev: SectionState,
   formData: FormData,
 ): Promise<SectionState> {
-  const supabase = await createClient();
-  const projectId = String(formData.get("project_id") || "").trim();
+  const auth = await requireProjectWriter();
+  if (!auth) return { status: "error", message: DENIED };
+  const { supabase } = auth;
+
+  const parent = readParent(formData);
   const name = String(formData.get("name") || "").trim();
-  if (!projectId || !name) return { status: "error", message: "Name the column first." };
+  if (!parent) return { status: "error", message: "That column is not attached to a project." };
+  if (!name) return { status: "error", message: "Name the column first." };
 
   const { data: last } = await supabase
     .from("project_sections")
     .select("position")
-    .eq("project_id", projectId)
+    .eq(parent.column, parent.value)
     .order("position", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   const { error } = await supabase
     .from("project_sections")
-    .insert({ project_id: projectId, name, position: (last?.position ?? -1) + 1 });
+    .insert({
+      ...(parent.column === "project_id"
+        ? { project_id: parent.value }
+        : { time_project_id: parent.value }),
+      name,
+      position: (last?.position ?? -1) + 1,
+    });
 
   if (error) return { status: "error", message: error.message };
 

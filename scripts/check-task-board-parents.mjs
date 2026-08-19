@@ -217,6 +217,41 @@ console.log("\nDeleting the project takes its board with it:\n");
   check("tasks cascade with the TrackingTime project", rows[0].n === 0, `${rows[0].n} left`);
 }
 
+
+console.log("");
+console.log("The wiring — this feature's original defect was being reachable from nowhere:");
+console.log("");
+{
+  const detail = readFileSync("src/app/(app)/projects/[id]/page.tsx", "utf8");
+  check("the project page mounts TasksSection", detail.includes("<TasksSection"));
+  check(
+    "it passes a time_project_id parent, not a Hub one",
+    detail.includes(`field: "time_project_id"`),
+  );
+  check("it reads the board", detail.includes("getTimeProjectBoard"));
+
+  // Every component below TasksSection, and the actions they post to. Each was
+  // orphaned before this change: written, working, and imported by nothing.
+  const src = [
+    "TasksSection", "AddTaskForm", "TaskListView", "TaskBoardView", "TaskRow",
+  ];
+  const all = src
+    .map((n) => readFileSync(`src/app/(app)/projects/${n}.tsx`, "utf8"))
+    .join(" ") + detail;
+  for (const n of src.slice(1)) {
+    check(`${n} is imported by something`, all.includes(`from "./${n}"`));
+  }
+
+  const actions = readFileSync("src/app/(app)/projects/actions.ts", "utf8");
+  check(
+    "the write path accepts either parent",
+    actions.includes("time_project_id") && actions.includes("readParent"),
+  );
+  check(
+    "negative control: a page without the mount WOULD be caught",
+    !"<div>nothing here</div>".includes("<TasksSection"),
+  );
+}
 console.log(
   failed
     ? "\nTASK BOARD PARENTS: the board cannot safely attach to a real project\n"

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { FilterChip, SearchInput, SortHeader, type SortDirection } from "@/components/ui/Field";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
+import { Pager, usePager } from "@/components/Pager";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
 // and the detail page end up disagreeing about whether a project is "at risk".
 import { burnColor } from "./ProjectPanels";
@@ -155,7 +156,6 @@ export function ProjectsLedger({
   const [facets, setFacets] = useState<Set<Facet>>(new Set());
   const [sortKey, setSortKey] = useState<LedgerSort>(initialSort);
   const [sortDir, setSortDir] = useState<SortDirection>(initialSort === "name" ? "asc" : "desc");
-  const [limit, setLimit] = useState(PAGE_SIZE);
 
   // Counts come from the FULL list, never the filtered one. A chip whose count
   // shrinks to match the current filter tells the reader nothing they cannot
@@ -188,7 +188,26 @@ export function ProjectsLedger({
     return sortRows(matched, sortKey, sortDir);
   }, [rows, q, facets, sortKey, sortDir]);
 
-  const visible = filtered.slice(0, limit);
+  /*
+   * Paged, not appended.
+   *
+   * The previous control added PAGE_SIZE rows per click, so the document grew each time and
+   * the reader had to scroll further to reach the button again -- with 334 live projects,
+   * up to about 13 screens. A page index keeps the ledger a constant height.
+   *
+   * The reset key is the filter and sort state: when the result set changes, page 7 of a
+   * list that just became 3 rows long would render empty and read as "no results".
+   */
+  // Scroll target for a page change: without it, paging from the bottom of one page
+  // leaves you at the bottom of the next, reading its last rows first.
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const pager = usePager(
+    filtered.length,
+    PAGE_SIZE,
+    `${q}|${[...facets].sort().join(",")}|${sortKey}|${sortDir}`,
+  );
+  const visible = filtered.slice(pager.start, pager.end);
   const activeFilters = facets.size + (q ? 1 : 0);
 
   const toggleFacet = (f: Facet) => {
@@ -201,7 +220,7 @@ export function ProjectsLedger({
     // Any change to the result set resets paging: leaving the limit at 200
     // after filtering down to 9 rows would show a "show more" control that
     // does nothing.
-    setLimit(PAGE_SIZE);
+
   };
 
   const handleSort = (key: string) => {
@@ -214,13 +233,13 @@ export function ProjectsLedger({
       // largest-first, which is what someone scanning for outliers wants.
       setSortDir(next === "name" ? "asc" : "desc");
     }
-    setLimit(PAGE_SIZE);
+
   };
 
   const clearAll = () => {
     setQuery("");
     setFacets(new Set());
-    setLimit(PAGE_SIZE);
+
   };
 
   return (
@@ -231,7 +250,7 @@ export function ProjectsLedger({
           value={query}
           onValueChange={(v) => {
             setQuery(v);
-            setLimit(PAGE_SIZE);
+
           }}
           label="Search projects by name, customer or code"
           placeholder="Search 334 projects…"
@@ -345,7 +364,7 @@ export function ProjectsLedger({
             viewport this page is designed for, 900px fits with room to spare,
             and the whole ledger is hidden below `sm` anyway.
           */}
-          <div className="hidden sm:block">
+          <div ref={tableRef} className="hidden sm:block">
             {/*
               Sticky so the column labels survive a long scroll. Without it the
               reader reaches row 40 and can no longer tell which number is the
@@ -463,22 +482,12 @@ export function ProjectsLedger({
             ))}
           </div>
 
-          {/* --------------------------------------------------------- paging */}
-          {filtered.length > visible.length && (
-            <div className="flex items-center justify-center gap-3 border-t border-[var(--border)] px-3 py-2.5">
-              <span className="font-mono text-[10.5px] text-[var(--text-faint)]">
-                SHOWING {visible.length} OF {filtered.length}
-              </span>
-              <Button variant="secondary" size="sm" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-                Show {Math.min(PAGE_SIZE, filtered.length - visible.length)} more
-              </Button>
-              {filtered.length - visible.length > PAGE_SIZE && (
-                <Button variant="ghost" size="sm" onClick={() => setLimit(filtered.length)}>
-                  Show all
-                </Button>
-              )}
-            </div>
-          )}
+          {/* ------------------------------------------------------------ paging */}
+          {/* Fixed-height paging. The old control appended 30 rows a click, which is what
+              made this page grow without bound; anyone who genuinely wants one long list
+              can still choose ALL. tableRef scrolls the first row back into view on a page
+              change, so paging does not leave you at the bottom of the next page. */}
+          <Pager state={pager} total={filtered.length} noun="projects" anchorRef={tableRef} />
         </div>
       )}
     </div>

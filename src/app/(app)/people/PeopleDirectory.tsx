@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { ButtonLink } from "@/components/ui/Button";
 import { FilterChip, SearchInput, SortHeader, type SortDirection } from "@/components/ui/Field";
 import { capacityLabel, type LivePerson } from "@/lib/queries/people-live";
+import { Pager, usePager } from "@/components/Pager";
 
 /**
  * The people directory, rendering the real TrackingTime roster.
@@ -72,34 +73,30 @@ export function PeopleDirectory({
   const activeFilterCount = (onlyLogged ? 1 : 0) + (onlyNoAccount ? 1 : 0) + (query ? 1 : 0);
 
   /**
-   * Show ten, then let people ask for more.
+   * Paged, not appended.
    *
-   * The list rendered all 19 active people at once, which meant the detail pane
-   * beside it -- the actual content of this page -- was pushed below a column you
-   * had to scroll through to reach anything. Reported as "I have to scroll a lot".
+   * The roster column rendered all 19 active people, which pushed the detail pane beside
+   * it -- the actual content of the page -- below a list you had to scroll through. The
+   * first fix here was a SHOW n MORE control, which is the shape the user then reported as
+   * a problem on Projects: clicking it grows the document, so the control moves away from
+   * you. This uses the shared fixed-height pager instead, so the column is the same height
+   * whichever page you are on.
    *
-   * A page size rather than a scroll container: the surrounding layout already
-   * scrolls, so a nested scrollbar gives two competing ones and a mouse wheel that
-   * does different things depending on where the pointer happens to be.
+   * Ten per page, because this column sits beside the detail pane rather than owning the
+   * width: more rows than that and the pane is pushed off screen again, which was the
+   * original complaint.
    *
-   * SEARCHING RESETS THE PAGE. Without this, typing a name while expanded leaves
-   * the list showing "19 of 19" over three results, and collapsing later would hide
-   * a match. The reset is keyed on the filter state below.
+   * The reset key is the filter state. Without it, searching while on page 2 could leave
+   * you looking at an empty column when the match is on page 1.
    */
   const PAGE_SIZE = 10;
-  const [showAll, setShowAll] = useState(false);
-  const visiblePeople = showAll ? filteredPeople : filteredPeople.slice(0, PAGE_SIZE);
-  const hiddenCount = filteredPeople.length - visiblePeople.length;
-
-  // Derived-state reset, done by comparing the previous filter signature during
-  // render rather than in an effect: an effect would paint one frame of the wrong
-  // list first, and React's own docs call this out as the case for this pattern.
-  const filterSignature = `${query}|${onlyLogged}|${onlyNoAccount}`;
-  const [lastSignature, setLastSignature] = useState(filterSignature);
-  if (filterSignature !== lastSignature) {
-    setLastSignature(filterSignature);
-    setShowAll(false);
-  }
+  const pager = usePager(
+    filteredPeople.length,
+    PAGE_SIZE,
+    `${query}|${onlyLogged}|${onlyNoAccount}`,
+  );
+  const visiblePeople = filteredPeople.slice(pager.start, pager.end);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Resolve by id against the live prop rather than holding a snapshot in
   // state, and prefer a selection that is actually in the filtered list.
@@ -233,7 +230,7 @@ export function PeopleDirectory({
             </div>
           </div>
 
-          <div className="flex flex-col divide-y divide-[var(--divider)] overflow-y-auto">
+          <div ref={listRef} className="flex flex-col divide-y divide-[var(--divider)] overflow-y-auto">
             {/*
               A filtered-to-empty roster is a different situation from an empty
               database, and needs a different exit: the way out is to relax the
@@ -303,33 +300,18 @@ export function PeopleDirectory({
               );
             })}
 
-            {/*
-              The way out of a truncated list, and the count that makes it
-              honest. Without a visible "n more" the shortened list would look
-              like the whole roster -- the same class of mistake as the mockup
-              chart that showed three tidy boxes while thirty people were
-              missing. Selecting somebody hidden is still possible without
-              expanding, because search filters the full list.
-            */}
-            {hiddenCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowAll(true)}
-                className="p-3 text-left font-mono text-[10.5px] tracking-[0.06em] text-[var(--accent)] transition-colors hover:bg-[var(--surface)]"
-              >
-                SHOW {hiddenCount} MORE
-              </button>
-            )}
-            {showAll && filteredPeople.length > PAGE_SIZE && (
-              <button
-                type="button"
-                onClick={() => setShowAll(false)}
-                className="p-3 text-left font-mono text-[10.5px] tracking-[0.06em] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text-primary)]"
-              >
-                SHOW FEWER
-              </button>
-            )}
           </div>
+
+          {/* Fixed-height paging, so the roster column never pushes the detail pane
+              off screen. 10 per page by default; ALL is still offered for anyone who
+              wants to use the browser's own find across the whole roster. */}
+          <Pager
+            state={pager}
+            total={filteredPeople.length}
+            noun="people"
+            anchorRef={listRef}
+            sizes={[10, 25, 50]}
+          />
         </div>
 
         {/* Right: selected person */}

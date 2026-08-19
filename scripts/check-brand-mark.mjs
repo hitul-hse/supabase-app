@@ -304,18 +304,53 @@ check(
 // the other: the mark floated in empty space and the sentence looked like a
 // footnote. Asserted structurally because it is a composition claim, not a
 // pixel one: the same flex column must contain both.
-const heroBlock = AUTH_C.match(/<div className="flex flex-1 flex-col[^"]*">([\s\S]*?)\n {8}<\/div>/);
-check("the hero is a stacked column", Boolean(heroBlock), "hero mark is not in a flex-col container");
-if (heroBlock) {
+//
+// Anchored on the LOOPING MARK rather than on a class string: keying the search
+// off `flex flex-1 flex-col` matched the form panel once the shell was
+// restructured, and cheerfully reported the hero as "centred on both axes"
+// while measuring a completely different element.
+const heroIdx = AUTH_C.search(/<BrandMark[^>]*\bloop\b/);
+check("the hero mark is present", heroIdx !== -1, "no looping mark found in the auth shell");
+if (heroIdx !== -1) {
+  // The container is the nearest opening <div ...> above the hero mark that is
+  // NOT a decorative/absolute layer. Skipping that filter made this resolve to
+  // the rings overlay — an absolutely-positioned sibling — and report the hero
+  // as "not a stacked column" while the real container was correct.
+  const before = AUTH_C.slice(0, heroIdx);
+  let openIdx = -1;
+  for (let i = before.length; i >= 0; ) {
+    const idx = before.lastIndexOf("<div ", i);
+    if (idx === -1) break;
+    const tag = AUTH_C.slice(idx, AUTH_C.indexOf(">", idx) + 1);
+    if (!/aria-hidden|\babsolute\b/.test(tag)) { openIdx = idx; break; }
+    i = idx - 1;
+  }
+  const openTag = openIdx === -1 ? "" : AUTH_C.slice(openIdx, AUTH_C.indexOf(">", openIdx) + 1);
+  // Everything from the container to the end of the identity panel: enough to
+  // see whether the copy travels with the mark.
+  const heroRegion = AUTH_C.slice(openIdx, heroIdx + 900);
+
   check(
-    "the hero copy sits INSIDE the same block as the mark",
-    /<BrandMark/.test(heroBlock[1]) && /<p /.test(heroBlock[1]),
-    "mark and copy in separate containers read as unrelated",
+    "the hero is a stacked column",
+    /flex-col/.test(openTag),
+    openTag.slice(0, 90),
   );
   check(
     "the hero block is centred on both axes",
-    /items-center/.test(heroBlock[0]) && /justify-center/.test(heroBlock[0]),
-    heroBlock[0].slice(0, 80),
+    /items-center/.test(openTag) && /justify-center/.test(openTag),
+    openTag.slice(0, 90),
+  );
+  check(
+    "the hero copy sits INSIDE the same block as the mark",
+    /<h2/.test(heroRegion) && /<p /.test(heroRegion),
+    "mark and copy in separate containers read as unrelated",
+  );
+  // The reference pairs its centred hero with a headline, not a lone sentence:
+  // a 220px mark over one line of small grey text has no anchor between them.
+  check(
+    "the hero has a headline, not only body copy",
+    /<h2[^>]*text-\[\d\dpx\]/.test(heroRegion),
+    "hero copy has no display-sized heading",
   );
 }
 
@@ -579,6 +614,82 @@ check(
   "preserves aspect ratio",
   /preserveAspectRatio="xMidYMid meet"/.test(MARK_C),
   "the mark is wider than tall; without this it stretches in a square box",
+);
+
+/* ── 7. The sign-in page on a phone ──────────────────────────────────────── */
+//
+// Every rule here was MEASURED on the live portal at real phone viewports
+// (390x844, 360x640, 320x568, and 390x420 for an open keyboard), not inferred.
+// This is the one screen nobody can skip and the one nobody can work around: a
+// user who cannot get through it has no route into the product at all.
+
+const LOGIN_PATH = "src/app/auth/login/page.tsx";
+const OAUTH_PATH = "src/components/OAuthButtons.tsx";
+const LOGIN_C = existsSync(join(root, LOGIN_PATH)) ? strip(read(LOGIN_PATH)) : "";
+const OAUTH_C = existsSync(join(root, OAUTH_PATH)) ? strip(read(OAUTH_PATH)) : "";
+
+// iOS Safari force-zooms the entire page when a focused input's font-size is
+// below 16px. Measured at 14px, which is why tapping the email field made the
+// page lurch and scale. No viewport meta tag disables this on modern iOS; 16px
+// is the only fix. `text-sm` (14px) is fine from sm upward, where there is no
+// such behaviour.
+const inputCls = AUTH_C.match(/authInputClass\s*=\s*\n?\s*"([^"]*)"/)?.[1] ?? "";
+check(
+  "auth inputs are >= 16px on phones (or iOS force-zooms the page)",
+  /\btext-base\b/.test(inputCls) && !/^(?!.*sm:).*\btext-sm\b/.test(inputCls),
+  inputCls ? `class: ...${inputCls.slice(-72)}` : "authInputClass not found",
+);
+check(
+  "auth inputs drop back to 14px at sm+ (16px is a mobile fix, not a design change)",
+  /\bsm:text-sm\b/.test(inputCls),
+  "16px everywhere would coarsen the desktop form for no reason",
+);
+
+// 44px minimum target: Apple's HIG and WCAG 2.5.8 agree. Measured heights were
+// inputs 37.3px, submit 36px, Google 37.3px, and "Forgot password?" just 18px.
+for (const [label, cls] of [
+  ["input", inputCls],
+  ["submit button", AUTH_C.match(/authButtonClass\s*=\s*\n?\s*"([^"]*)"/)?.[1] ?? ""],
+  ["OAuth button", OAUTH_C.match(/const base\s*=\s*\n?\s*"([^"]*)"/)?.[1] ?? ""],
+]) {
+  check(
+    `${label} meets the 44px touch target on phones`,
+    /\bmin-h-11\b/.test(cls),
+    cls ? "no min-h-11" : `${label} class not found`,
+  );
+}
+check(
+  'the "forgot password" link is a real tap target, not 18px of text',
+  /min-h-11/.test(LOGIN_C.match(/href="\/auth\/forgot-password"[\s\S]{0,220}/)?.[0] ?? ""),
+  "the control a locked-out user needs most was the smallest on the page",
+);
+
+// 100vh on mobile resolves to the viewport with the URL bar HIDDEN — the largest
+// it ever gets — so a 100vh page is permanently taller than the visible area and
+// shifts whenever the address bar collapses or returns. dvh tracks the real one.
+check(
+  "the auth shell sizes to the DYNAMIC viewport (dvh), not 100vh",
+  /min-h-dvh/.test(AUTH_C) && !/min-h-screen/.test(AUTH_C),
+  /min-h-screen/.test(AUTH_C) ? "still uses min-h-screen" : "no min-h-dvh found",
+);
+
+// min-h, never a fixed h: with a keyboard open the viewport can halve, and a
+// fixed height plus justify-center clips the top of the form beyond reach.
+// `\bh-dvh\b` matches inside `min-h-dvh`, because `-` is a word boundary — so a
+// naive version of this check failed on the very fix it is meant to protect.
+// Require a non-`min-` prefix.
+check(
+  "the shell can GROW past the viewport (so an open keyboard scrolls, not clips)",
+  !/(^|[\s"])h-(dvh|screen)\b/.test(AUTH_C),
+  "a fixed height plus centring puts the top of the form out of reach",
+);
+
+// The inset card is a desktop treatment. On a 390px screen a frame around the
+// form spends ~48px of the scarcest resource on the page.
+check(
+  "the inset card is desktop-only (full-bleed on phones)",
+  /lg:rounded-\[var\(--radius-panel\)\]/.test(AUTH_C) && /lg:p-6/.test(AUTH_C),
+  "an inset card on a phone wastes ~48px of width on decoration",
 );
 
 console.log(failed ? "\nFAILED" : "\nOK");

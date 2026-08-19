@@ -133,9 +133,14 @@ function LoginForm() {
             <label htmlFor="password" className="text-sm font-medium text-[var(--text-primary)]">
               Password
             </label>
+            {/* Measured at 18px tall / 12px text on a phone — by far the worst
+                tap target on the page, and the one a locked-out user needs
+                most. The negative margin lets the box grow to a 44px target
+                without pushing the label row apart, and 13px is the smallest
+                size that stays comfortably legible at arm's length. */}
             <Link
               href="/auth/forgot-password"
-              className="text-[12px] text-[var(--accent)] hover:underline"
+              className="-my-2 flex min-h-11 items-center py-2 text-[13px] text-[var(--accent)] hover:underline sm:min-h-0 sm:text-[12px]"
             >
               Forgot password?
             </Link>

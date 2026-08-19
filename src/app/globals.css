@@ -79,6 +79,12 @@
   --radius-sm: 4px;
   --radius: 6px;
   --radius-lg: 8px;
+  /*
+   * The inset auth card. Deliberately much larger than --radius-lg: this is a
+   * full-page surface floating on the page background, not a control, and 8px
+   * on a 900px card reads as a rendering artefact rather than a rounded panel.
+   */
+  --radius-panel: 20px;
 
   /*
    * Desktop sidebar geometry. Mirrored as SIDEBAR_WIDTH and

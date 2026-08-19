@@ -92,7 +92,7 @@ export default async function AdminRolesPage() {
                         {perm.displayName}
                       </span>
                       {perm.description && (
-                        <span className="block text-[10.5px] text-[var(--text-muted)]">
+                        <span className="block text-[10px] text-[var(--text-muted)]">
                           {perm.description}
                         </span>
                       )}

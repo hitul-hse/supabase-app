@@ -278,7 +278,7 @@ export function ProjectsLedger({
 
         <div className="flex items-center gap-3 sm:ml-auto">
           <span
-            className="font-mono text-[10.5px] tracking-[0.06em] text-[var(--text-muted)]"
+            className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-muted)]"
             // Announced when filtering changes the result count, so a
             // screen-reader user learns the table shrank without re-reading it.
             role="status"
@@ -318,7 +318,7 @@ export function ProjectsLedger({
                 className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-[var(--surface-hover)]"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{p.name}</span>
+                  <span className="text-[12px] font-medium text-[var(--text-primary)]">{p.name}</span>
                   <span
                     className="shrink-0 font-mono text-[11px] font-semibold"
                     style={{ color: burnColor(p.burnPercent) }}
@@ -437,7 +437,7 @@ export function ProjectsLedger({
                  * actually read to save 2px is a bad trade, and the measured p90
                  * project name is 44 characters.
                  */
-                className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1 text-[12.5px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
+                className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1 text-[12px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
               >
                 <Link
                   href={`/projects/${p.id}`}
@@ -449,10 +449,10 @@ export function ProjectsLedger({
                 <span className="col-span-2 truncate text-[var(--text-secondary)]" title={p.customerName ?? ""}>
                   {p.customerName ?? "—"}
                 </span>
-                <span className="col-span-1 text-right font-mono text-[11.5px] text-[var(--text-secondary)]">
+                <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
                   {p.estimatedHours && p.estimatedHours > 0 ? h(p.estimatedHours) : "—"}
                 </span>
-                <span className="col-span-1 text-right font-mono text-[11.5px] text-[var(--text-primary)]">
+                <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-primary)]">
                   {h(p.actualHours)}
                 </span>
                 <div className="col-span-2 flex items-center gap-2">
@@ -475,7 +475,7 @@ export function ProjectsLedger({
                 <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
                   {p.memberCount || "—"}
                 </span>
-                <span className="col-span-1 text-right font-mono text-[10.5px] text-[var(--text-faint)]">
+                <span className="col-span-1 text-right font-mono text-[10px] text-[var(--text-faint)]">
                   {p.lastActivity ?? "never"}
                 </span>
               </div>

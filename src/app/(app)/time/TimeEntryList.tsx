@@ -59,7 +59,7 @@ function EntryRow({ e, showMember }: { e: TimeEntryRow; showMember: boolean }) {
     <li className="flex flex-col gap-2 px-4 py-3 transition-colors hover:bg-[var(--surface-hover)] sm:flex-row sm:items-center sm:gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate text-[12.5px] text-[var(--text-primary)]">
+          <span className="truncate text-[12px] text-[var(--text-primary)]">
             {/* A calendar placeholder legitimately has no task name. "Untitled"
                 is honest; a blank cell reads as a rendering failure. */}
             {e.taskName ?? "Untitled entry"}
@@ -70,7 +70,7 @@ function EntryRow({ e, showMember }: { e: TimeEntryRow; showMember: boolean }) {
           {e.isCalendar && <Pill tone="calendar">calendar</Pill>}
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] text-[var(--text-muted)]">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-[var(--text-muted)]">
           {showMember && <span>{e.memberName}</span>}
           {/* Untagged time is structural, not a tagging failure: every entry
               with no customer and no project is a calendar placeholder
@@ -87,13 +87,13 @@ function EntryRow({ e, showMember }: { e: TimeEntryRow; showMember: boolean }) {
         </div>
 
         {e.notes && (
-          <p className="line-clamp-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
+          <p className="line-clamp-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
             {e.notes}
           </p>
         )}
       </div>
 
-      <div className="flex items-center gap-4 font-mono text-[11.5px] tabular-nums text-[var(--text-secondary)]">
+      <div className="flex items-center gap-4 font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
         <span>
           {clock(e.startedAt)}
           {" – "}
@@ -137,7 +137,7 @@ export function TimeEntryList({
               <span className="text-[12px] font-medium text-[var(--text-primary)]">
                 {formatDayHeading(day.date)}
               </span>
-              <span className="font-mono text-[11.5px] tabular-nums text-[var(--text-secondary)]">
+              <span className="font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
                 {onlyRunning ? "—" : formatSeconds(day.totalSeconds)}
               </span>
             </div>

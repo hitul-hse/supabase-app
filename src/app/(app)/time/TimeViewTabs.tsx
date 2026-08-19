@@ -97,7 +97,7 @@ export function TimeViewTabs({
           ←
         </Link>
 
-        <span className="min-w-[22ch] text-center font-mono text-[11.5px] tabular-nums text-[var(--text-secondary)]">
+        <span className="min-w-[22ch] text-center font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
           {formatDay(weekStart)} – {formatDay(weekEndDisplay)}
         </span>
 

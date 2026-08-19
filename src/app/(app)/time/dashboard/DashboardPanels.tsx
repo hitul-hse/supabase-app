@@ -68,7 +68,7 @@ function Panel({
           {title}
         </h2>
         {hint && (
-          <span className="text-right text-[10.5px] leading-tight text-[var(--text-faint)]">
+          <span className="text-right text-[10px] leading-tight text-[var(--text-faint)]">
             {hint}
           </span>
         )}
@@ -145,7 +145,7 @@ export function OrgTotalsStrip({ totals }: { totals: OrgTotals }) {
           key={t.label}
           className="flex flex-col gap-1 border-b border-r border-[var(--border)] px-4 py-3 last:border-r-0 lg:border-b-0"
         >
-          <span className="font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)]">
+          <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
             {t.label}
           </span>
           <span
@@ -255,7 +255,7 @@ export function ProjectTable({ rows }: { rows: ProjectSummaryRow[] }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-[12px]">
           <thead>
-            <tr className="border-b border-[var(--border)] text-left font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">
+            <tr className="border-b border-[var(--border)] text-left font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
               <th scope="col" className="px-4 py-2 font-medium">PROJECT</th>
               <th scope="col" className="px-3 py-2 font-medium">CUSTOMER</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">LOGGED</th>
@@ -353,7 +353,7 @@ export function CustomerTable({ rows }: { rows: CustomerSummaryRow[] }) {
               </span>
             </div>
             <Bar percent={(r.totalSeconds / peak) * 100} />
-            <div className="flex justify-between text-[10.5px] text-[var(--text-faint)]">
+            <div className="flex justify-between text-[10px] text-[var(--text-faint)]">
               <span>
                 {r.projectCount} {r.projectCount === 1 ? "project" : "projects"} ·{" "}
                 {r.entryCount} entries
@@ -389,7 +389,7 @@ export function ServiceBreakdown({ rows }: { rows: ServiceSummaryRow[] }) {
                 neither is client-facing delivery, and the distinction is the
                 point of having the service catalogue at all. */}
             <Bar percent={r.sharePercent} muted={r.isTravel || r.isInternal} />
-            <div className="flex justify-between text-[10.5px] text-[var(--text-faint)]">
+            <div className="flex justify-between text-[10px] text-[var(--text-faint)]">
               <span>{hrs(r.totalHours)}</span>
               <span>
                 {r.isTravel ? (r.isPaidTravel ? "travel · paid" : "travel · unpaid") : null}
@@ -416,7 +416,7 @@ export function MemberTable({ rows }: { rows: MemberUtilisationRow[] }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-[12px]">
           <thead>
-            <tr className="border-b border-[var(--border)] text-left font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">
+            <tr className="border-b border-[var(--border)] text-left font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
               <th scope="col" className="px-4 py-2 font-medium">PERSON</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">TRACKED</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">CALENDAR</th>
@@ -515,7 +515,7 @@ export function EconomicsTable({ rows }: { rows: ProjectEconomicsRow[] }) {
           },
         ].map((t) => (
           <div key={t.label} className="border-r border-[var(--border)] px-4 py-3 last:border-r-0">
-            <div className="font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)]">
+            <div className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
               {t.label}
             </div>
             <div
@@ -532,7 +532,7 @@ export function EconomicsTable({ rows }: { rows: ProjectEconomicsRow[] }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-[12px]">
           <thead>
-            <tr className="border-b border-[var(--border)] text-left font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">
+            <tr className="border-b border-[var(--border)] text-left font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
               <th scope="col" className="px-4 py-2 font-medium">PROJECT</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">REVENUE</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">COST</th>
@@ -549,7 +549,7 @@ export function EconomicsTable({ rows }: { rows: ProjectEconomicsRow[] }) {
                 <td className="max-w-[240px] px-4 py-2">
                   <div className="truncate text-[var(--text-primary)]">{r.projectName}</div>
                   {r.customerName && (
-                    <div className="truncate text-[10.5px] text-[var(--text-faint)]">
+                    <div className="truncate text-[10px] text-[var(--text-faint)]">
                       {r.customerName}
                     </div>
                   )}

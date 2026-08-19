@@ -26,13 +26,13 @@ export default function AppError({
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
       <div className="flex flex-col gap-1.5">
-        <span className="font-mono text-[10.5px] tracking-[0.12em] text-[var(--text-faint)]">
+        <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
           HSE HUB
         </span>
         <h1 className="text-[17px] font-semibold text-[var(--text-primary)]">
           This page couldn&apos;t load
         </h1>
-        <p className="max-w-[52ch] text-[12.5px] leading-relaxed text-[var(--text-muted)]">
+        <p className="max-w-[52ch] text-[12px] leading-relaxed text-[var(--text-muted)]">
           The data behind this screen failed to load. This is usually temporary — trying again
           often resolves it. If it keeps happening, the reference below helps trace the cause.
         </p>

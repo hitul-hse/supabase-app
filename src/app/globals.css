@@ -93,6 +93,61 @@
    */
   --sidebar-width: 220px;
   --sidebar-rail-width: 64px;
+
+  /*
+   * CARD SYSTEM
+   *
+   * Every panel in the app was a zero-radius box, and adjacent panels FUSED:
+   * the KPI strip was one grid whose cells shared hairlines, so five separate
+   * facts read as one table row and competed instead of being scannable. The
+   * reference dashboard separates them -- rounded, gapped, individually
+   * outlined -- which is what makes a dense page legible at a glance.
+   *
+   * --radius-card sits between --radius-lg (8px, controls) and --radius-panel
+   * (20px, the full-page auth card). A card is neither.
+   */
+  --radius-card: 12px;
+
+  /*
+   * The gap BETWEEN cards. Named rather than inlined because it has to agree
+   * with itself across a dozen grids; when one panel uses 12px and its
+   * neighbour 16px, the page looks misaligned and nobody can say why.
+   */
+  --card-gap: 12px;
+
+  /*
+   * Card elevation. An OFFSET and a soft blur, deliberately: a zero-offset
+   * halo is decoration, not depth -- light comes from somewhere. Kept very low
+   * contrast because this is a dark UI where a heavy shadow reads as grime
+   * rather than lift.
+   */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.18), 0 4px 12px -6px rgba(0, 0, 0, 0.32);
+  --shadow-raised: 0 2px 4px rgba(0, 0, 0, 0.22), 0 12px 28px -12px rgba(0, 0, 0, 0.44);
+
+  /*
+   * The tinted "hero" panel -- the one card per page carrying the primary
+   * chart. In the reference this panel is visibly warmer/greener than its
+   * siblings, which is what stops a grid of identical cards reading as
+   * wallpaper. Accent-derived, not a new hue.
+   *
+   * MEASURED, not eyeballed. The first value tried (#313d40) sat at 1.02
+   * contrast against --surface -- literally indistinguishable, so the "hero"
+   * card would have looked identical to its neighbours while carrying a token
+   * claiming otherwise. This value is 1.14 against --surface (a visible step)
+   * while every text token still clears 4.5:1 on it: worst case is --text-faint
+   * at 5.35.
+   */
+  --surface-accent: #283733;
+  --surface-accent-border: #3a4f48;
+
+  /*
+   * The top bar. Darker than --surface so the chrome recedes and the content
+   * cards are what the eye lands on.
+   *
+   * Replaces the hardcoded #0b0d0f that SyncBar shipped -- a colour in no
+   * token and in no design doc, and nearly black against a #2a3038 page.
+   */
+  --topbar: #23282f;
 }
 
 @theme inline {
@@ -336,6 +391,27 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/*
+ * Card elevation as real CSS classes, NOT Tailwind arbitrary values.
+ *
+ * `shadow-[var(--shadow-card)]` looks correct, compiles, ships, and renders
+ * NOTHING. Tailwind 4 did not emit a rule for it -- measured in the built
+ * stylesheet: the token `--shadow-card` is present, no
+ * `.shadow-\[var\(--shadow-card\)\]` rule exists, and `--tw-shadow` stays at
+ * its `0 0 #0000` default. So `getComputedStyle().boxShadow` returned
+ * "rgba(0, 0, 0, 0) 0px 0px 0px 0px" -- a fully transparent shadow on every
+ * card, and a browser check asserting "a shadow is set" passed on it.
+ *
+ * Plain classes are also what makes the shadow assertable: a gate can look for
+ * `.card-elev` and know what it resolves to.
+ */
+.card-elev {
+  box-shadow: var(--shadow-card);
+}
+.card-elev-raised {
+  box-shadow: var(--shadow-raised);
 }
 
 .viz-root {

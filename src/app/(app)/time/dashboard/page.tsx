@@ -476,7 +476,7 @@ export default async function TrackingTimeDashboardPage({
               <EntriesTable rows={entryRows} period={periodSlug} />
 
               {entries.length > ENTRY_ROW_LIMIT && (
-                <p className="text-[10.5px] text-[var(--text-faint)]">
+                <p className="text-[10px] text-[var(--text-faint)]">
                   The entry table lists the {ENTRY_ROW_LIMIT.toLocaleString("en-GB")} most recent of{" "}
                   {entries.length.toLocaleString("en-GB")} entries in range. Every total above
                   covers all {entries.length.toLocaleString("en-GB")}; narrow the period to list

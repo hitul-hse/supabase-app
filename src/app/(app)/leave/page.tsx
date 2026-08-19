@@ -51,12 +51,12 @@ export default async function LeavePage() {
               <span className="text-[13px] font-semibold text-[var(--text-primary)]">
                 Leave tracking isn&apos;t connected yet
               </span>
-              <p className="text-[12.5px] text-[var(--text-secondary)]">
+              <p className="text-[12px] text-[var(--text-secondary)]">
                 Holiday balances and requests need a source system, and none is
                 linked to the Hub yet — so there is nothing to show here for anyone.
                 TrackingTime records hours worked, not absence.
               </p>
-              <p className="font-mono text-[10.5px] text-[var(--text-faint)]">
+              <p className="font-mono text-[10px] text-[var(--text-faint)]">
                 NOTHING IS WRONG WITH YOUR ACCOUNT
               </p>
             </div>

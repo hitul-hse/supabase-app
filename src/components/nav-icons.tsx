@@ -225,6 +225,39 @@ export function IconReplay({ className }: IconProps) {
   );
 }
 
+/** Search — the top bar's find control. */
+export function IconSearch({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="7.25" cy="7.25" r="4.5" />
+      <path d="m10.75 10.75 2.5 2.5" />
+    </Svg>
+  );
+}
+
+/** Refresh — re-read the current view's data. */
+export function IconRefresh({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M13.25 8a5.25 5.25 0 1 1-1.6-3.77" />
+      <path d="M13.4 2.5v2.9h-2.9" />
+      <path d="M2.75 8a5.25 5.25 0 0 0 1.6 3.77" />
+    </Svg>
+  );
+}
+
+/** Open in full — the reference's diagonal "expand this panel" affordance. */
+export function IconExpand({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M9.5 2.75h3.75V6.5" />
+      <path d="M13.25 2.75 8.5 7.5" />
+      <path d="M6.5 13.25H2.75V9.5" />
+      <path d="M2.75 13.25 7.5 8.5" />
+    </Svg>
+  );
+}
+
 /** Registry keyed by nav href, so SidebarNav stays declarative. */
 export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,

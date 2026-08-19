@@ -62,7 +62,14 @@ const publicRoutes = [...publicRoutesBlock[1].matchAll(/"([^"]+)"/g)]
 // Strings that only ever appear in real rendered records, never in shared
 // chrome. The "HSE HUB" wordmark is deliberately NOT here: it is on the public
 // login page too, so it would false-alarm.
-const RECORD_DATA = /Needs your decision|EMPLOYEE NUMBER|Users &amp; Roles|Business overview/;
+//
+// "Utilisation by person" replaces the old "Business overview" alternative: the
+// Overview page's H1 was renamed to the plain noun "Overview", which appears in
+// the SIDEBAR of every page (including for a signed-out user on some routes) and
+// so is useless as a leak sentinel -- it would either false-alarm or, matched
+// against the H1 only, silently stop detecting a real leak. A card heading that
+// exists only on the authenticated Overview is the durable signal.
+const RECORD_DATA = /Needs your decision|EMPLOYEE NUMBER|Users &amp; Roles|Utilisation by person/;
 
 let failed = false;
 

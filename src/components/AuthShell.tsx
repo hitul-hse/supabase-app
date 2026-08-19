@@ -30,7 +30,7 @@ function ConnectionStatus() {
   const label = status === "ok" ? "CONNECTED" : status === "error" ? "UNREACHABLE" : "CHECKING";
 
   return (
-    <div className="flex items-center gap-2 font-mono text-[10.5px] text-[var(--text-faint)]">
+    <div className="flex items-center gap-2 font-mono text-[10px] text-[var(--text-faint)]">
       <span aria-hidden className="h-1.5 w-1.5 flex-none" style={{ background: color }} />
       SUPABASE · {label}
     </div>
@@ -65,7 +65,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           {/* Caption at the top edge, as in the reference: it sets context
               before the eye drops to the mark, and leaves the vertical centre
               free for the hero rather than competing with it. */}
-          <p className="relative z-10 max-w-[300px] font-mono text-[10.5px] leading-relaxed tracking-[0.12em] text-[var(--text-faint)]">
+          <p className="relative z-10 max-w-[300px] font-mono text-[10px] leading-relaxed tracking-[0.12em] text-[var(--text-faint)]">
             OPERATIONAL VIEW FOR HEALTH &amp; SAFETY EXPERTS
           </p>
 

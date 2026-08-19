@@ -10,7 +10,7 @@ const IDLE: ProfileActionState = { status: "idle" };
 const selectClass =
   "w-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]";
 const labelClass =
-  "font-mono text-[9.5px] uppercase tracking-[0.12em] text-[var(--text-faint)]";
+  "font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--text-faint)]";
 
 export function PreferencesCard({ profile }: { profile: ProfileView }) {
   const [state, action, pending] = useActionState(updatePreferences, IDLE);
@@ -18,7 +18,7 @@ export function PreferencesCard({ profile }: { profile: ProfileView }) {
   return (
     <section className="border border-[var(--border)] bg-[var(--surface)] p-5">
       <h2 className="mb-4 text-[13px] font-semibold text-[var(--text-primary)]">Preferences</h2>
-      <p className="mb-4 text-[11.5px] text-[var(--text-faint)]">
+      <p className="mb-4 text-[11px] text-[var(--text-faint)]">
         These are saved to your profile now, but nothing in the app reads them yet — they will
         take effect in a later release.
       </p>
@@ -60,7 +60,7 @@ export function PreferencesCard({ profile }: { profile: ProfileView }) {
           </select>
         </div>
 
-        <label className="flex items-center gap-2 text-[12.5px] text-[var(--text-secondary)]">
+        <label className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
           <input
             type="checkbox"
             name="pref_sidebar_collapsed"

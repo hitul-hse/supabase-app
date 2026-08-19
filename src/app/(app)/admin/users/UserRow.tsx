@@ -144,7 +144,7 @@ export function UserRow({
       aria-label={`Role for ${email}`}
       // No focus:outline-none. This control changes someone's permissions, so
       // it is the last place to make the keyboard focus position invisible.
-      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11.5px] text-[var(--text-primary)] transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed"
+      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11px] text-[var(--text-primary)] transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed"
     >
       {roles.map(r => (
         <option key={r.role_key} value={r.role_key}>{r.display_name}</option>
@@ -162,7 +162,7 @@ export function UserRow({
       aria-label={`Team for ${email}`}
       // No focus:outline-none, same reasoning as the role select above: this is a
       // control someone operates by keyboard and the focus ring must stay visible.
-      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11.5px] text-[var(--text-primary)] transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed"
+      className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[11px] text-[var(--text-primary)] transition-colors hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed"
     >
       <option value="">— None —</option>
       {/* teamOptionsFor appends a legacy value when one is stored, so a person on
@@ -220,7 +220,7 @@ export function UserRow({
           disabled={isPending}
           aria-label={`Re-send the invite to ${email}`}
           title="This account has never been used. Sends a fresh link to set a password."
-          className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
+          className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.06em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
         >
           RE-INVITE
         </button>
@@ -231,7 +231,7 @@ export function UserRow({
           onClick={() => { setConfirmingDelete(true); setError(null); setNotice(null); }}
           disabled={isPending}
           aria-label={`Remove ${email} from the Hub`}
-          className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--text-muted)] transition-colors hover:border-[var(--critical)] hover:text-[var(--critical)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
+          className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.06em] text-[var(--text-muted)] transition-colors hover:border-[var(--critical)] hover:text-[var(--critical)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
         >
           REMOVE
         </button>
@@ -242,7 +242,7 @@ export function UserRow({
         // usually worried about destroying work history, and that is exactly what is
         // NOT destroyed -- so saying it is what lets them decide.
         <span className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10.5px] text-[var(--text-secondary)]">
+          <span className="text-[10px] text-[var(--text-secondary)]">
             Delete sign-in? Their tracked hours are kept. Deactivating is reversible;
             this is not.
           </span>
@@ -250,14 +250,14 @@ export function UserRow({
             onClick={handleDelete}
             disabled={isPending}
             aria-label={`Confirm removing ${email}`}
-            className="rounded-[var(--radius-sm)] border border-[var(--critical)] px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--critical)] transition-colors hover:bg-[var(--warning-wash)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
+            className="rounded-[var(--radius-sm)] border border-[var(--critical)] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.06em] text-[var(--critical)] transition-colors hover:bg-[var(--warning-wash)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
           >
             {isPending ? "REMOVING…" : "CONFIRM"}
           </button>
           <button
             onClick={() => setConfirmingDelete(false)}
             disabled={isPending}
-            className="rounded-[var(--radius-sm)] px-2 py-0.5 font-mono text-[9.5px] tracking-[0.06em] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px]"
+            className="rounded-[var(--radius-sm)] px-2 py-0.5 font-mono text-[10px] tracking-[0.06em] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px]"
           >
             CANCEL
           </button>
@@ -311,7 +311,7 @@ export function UserRow({
               setError("Could not reach the clipboard — select the link and copy it manually.");
             }
           }}
-          className="flex-none rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          className="flex-none rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 font-mono text-[10px] font-semibold tracking-[0.06em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
           {copied ? "COPIED" : "COPY"}
         </button>
@@ -357,11 +357,11 @@ export function UserRow({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">ROLE</span>
+            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">ROLE</span>
             {roleSelect}
           </div>
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-faint)]">TEAM</span>
+            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">TEAM</span>
             {deptInput}
           </div>
         </div>
@@ -371,7 +371,7 @@ export function UserRow({
 
       {/* Desktop table row — shown from sm up */}
       <div
-        className={`hidden grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-4 py-2.5 text-[12.5px] transition-opacity sm:grid ${opacity}`}
+        className={`hidden grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-4 py-2.5 text-[12px] transition-opacity sm:grid ${opacity}`}
       >
         <span className="col-span-3 flex min-w-0 flex-col">
           <span className="truncate text-[var(--text-primary)]">{email || "—"}</span>

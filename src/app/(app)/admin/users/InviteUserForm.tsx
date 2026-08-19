@@ -64,7 +64,7 @@ export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
           <span className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
             TrackingTime link
           </span>
-          <p className="border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[12.5px] text-[var(--text-secondary)]">
+          <p className="border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[12px] text-[var(--text-secondary)]">
             Linked automatically by email address. If this person has a
             TrackingTime account on the same address, their logged hours appear on
             their own Time page immediately. If not, they can still sign in and

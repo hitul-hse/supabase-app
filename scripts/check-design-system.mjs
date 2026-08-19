@@ -460,5 +460,197 @@ check(
   /aria-label=\{`Cancel leave request for \$\{r\.start_date\}`\}/.test(leave),
 );
 
+// ---------------------------------------------------------------------------
+// 9. The card system
+// ---------------------------------------------------------------------------
+/**
+ * Every panel used to be a zero-radius box, and adjacent panels FUSED: the KPI
+ * strip was one grid whose five cells shared hairlines, so five independent
+ * facts about the business read as a single table row and none was scannable.
+ *
+ * The regressions these guard, each of which compiles and looks plausible:
+ *
+ *   C1. THE SHADOW THAT RENDERS NOTHING. `shadow-[var(--shadow-card)]` shipped
+ *       first, and Tailwind 4 emitted NO rule for it -- measured in the built
+ *       stylesheet: the token was defined, no matching class existed, and
+ *       --tw-shadow stayed at its `0 0 #0000` default. Every card had a fully
+ *       transparent shadow, and a browser check asserting "a shadow is set"
+ *       PASSED on "rgba(0, 0, 0, 0) 0px 0px 0px 0px". Hence real CSS classes.
+ *
+ *   C2. AN INDISTINGUISHABLE HERO. --surface-accent's first value (#313d40) sat
+ *       at 1.02 contrast against --surface: literally the same material, while
+ *       carrying a token that claimed otherwise.
+ *
+ *   C3. ACCENT ON ACCENT. The nav's active row became a filled --accent pill,
+ *       and the icon was still forced to --accent -- 1.0:1, invisible. Same trap
+ *       for the badge, whose default colour is also --accent.
+ *
+ *   C4. THE EYEBROW COMING BACK. "HSE HUB / ANALYSE" above "Business overview".
+ *       Banned outright by the craft floor, not merely discouraged.
+ *
+ *   C5. DUPLICATED CHROME. A mobile copy plus a `sm:` desktop copy of the top
+ *       bar would put two "Search" and two user-name targets in the DOM -- the
+ *       exact bug already fixed once on the sidebar collapse toggle.
+ */
+const css = read("src/app/globals.css");
+const card = readStripped("src/components/ui/Card.tsx");
+
+// C1 — the elevation must be a real emitted class, never a Tailwind arbitrary
+// value, and the token itself must carry a non-zero OFFSET (a zero-offset halo
+// is decoration, not depth).
+check(
+  "card elevation is a real CSS class, not shadow-[var(...)]",
+  /\.card-elev\s*\{[^}]*box-shadow:\s*var\(--shadow-card\)/.test(css) &&
+    !/shadow-\[var\(--shadow-card\)\]/.test(card),
+  "Tailwind 4 emits no rule for the arbitrary form; the shadow silently vanishes",
+);
+const shadowToken = /--shadow-card:\s*([^;]+);/.exec(css)?.[1] ?? "";
+const shadowOffsets = (shadowToken.match(/-?[\d.]+px/g) ?? []).map(parseFloat);
+check(
+  "--shadow-card has a non-zero offset and a blur",
+  shadowOffsets.length >= 3 && shadowOffsets.some((v) => v !== 0),
+  `offsets = [${shadowOffsets.join(", ")}]`,
+);
+
+// C2 — measure the hero tint against --surface, in real WCAG arithmetic. A
+// token asserting "different material" that measures 1.02 is worse than no
+// token, because the intent is recorded and the pixels disagree.
+const hexOf = (name) => (new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css) ?? [])[1];
+const relLum = (hex) => {
+  const c = hex.replace("#", "");
+  const v = [0, 2, 4]
+    .map((i) => parseInt(c.slice(i, i + 2), 16) / 255)
+    .map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)));
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+};
+const ratioOf = (a, b) => {
+  const l1 = relLum(a), l2 = relLum(b);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+};
+const surfaceAccent = hexOf("--surface-accent");
+const surface = hexOf("--surface");
+check(
+  "--surface-accent is VISIBLY different from --surface (>= 1.10)",
+  !!surfaceAccent && !!surface && ratioOf(surfaceAccent, surface) >= 1.1,
+  `${surfaceAccent} vs ${surface} = ${surfaceAccent && surface ? ratioOf(surfaceAccent, surface).toFixed(3) : "?"}`,
+);
+// And text must still be readable ON that tint -- the whole point of measuring
+// against the surface a colour is actually used on.
+for (const token of ["--text-faint", "--text-muted", "--critical", "--warning", "--good"]) {
+  const hex = hexOf(token);
+  check(
+    `${token} clears 4.5:1 on --surface-accent`,
+    !!hex && ratioOf(hex, surfaceAccent) >= 4.5,
+    `${hex} on ${surfaceAccent} = ${hex ? ratioOf(hex, surfaceAccent).toFixed(2) : "?"}:1`,
+  );
+}
+
+// C3 — the active nav pill is filled, and NOTHING on it stays --accent.
+const nav = readStripped("src/components/SidebarNav.tsx");
+check(
+  "active nav row is a filled accent pill",
+  /active\s*\?\s*"bg-\[var\(--accent\)\]/.test(nav),
+);
+check(
+  "active nav pill does NOT force its icon to --accent (accent on accent)",
+  !/active \? "text-\[var\(--accent\)\]" : "text-current"/.test(nav),
+  "an --accent icon on an --accent fill measures 1.0:1",
+);
+check(
+  "badge on an active pill switches off the accent fill",
+  /background:\s*active\s*\n?\s*\?\s*"var\(--accent-contrast\)"/.test(nav),
+);
+
+// C4 — the eyebrow is gone, and cannot come back through the shared header.
+const header = readStripped("src/components/PageHeader.tsx");
+check(
+  "PageHeader never renders the `category` eyebrow",
+  !/\{category\s*&&/.test(header) && !/\{category\}/.test(header),
+  "accepted for compatibility, but must not reach the DOM",
+);
+check(
+  "Overview page does not pass an eyebrow",
+  !/category=/.test(readStripped("src/app/(app)/page.tsx")),
+);
+
+// C5 — chrome renders once. Two CSS-hidden copies is an ambiguous accessible
+// name, not a responsive layout.
+check(
+  "top bar chrome is rendered exactly once in PageHeader",
+  (header.match(/\{chrome\}/g) ?? []).length === 1,
+  `${(header.match(/\{chrome\}/g) ?? []).length} render site(s)`,
+);
+// The reference shows a notification bell. There is no notification system, so
+// a bell would be permanent chrome asserting something untrue -- the same class
+// of defect as the old SyncBar claiming a pipeline that never ran was "ok".
+const chrome = readStripped("src/components/TopBarChrome.tsx");
+check(
+  "top bar ships no fake notification bell",
+  !/bell|notification/i.test(chrome.replace(/aria-label="[^"]*"/g, "")),
+);
+check(
+  "top bar search points at a capability that exists",
+  /\/people\?focus=1/.test(chrome),
+);
+
+// The card primitive must not become a nested-card factory: the craft floor bans
+// nesting outright, and it is the usual way a card system decays.
+check(
+  "Card documents the no-nesting rule",
+  /Do not nest a Card in a Card/.test(read("src/components/ui/Card.tsx")),
+);
+
+// StatTile owns the never-zero rule now, so it has to keep it.
+check(
+  "StatTile renders n/a for a missing value, never 0",
+  /isMissing \? "n\/a"/.test(card) && /value === null/.test(card),
+);
+check(
+  "StatTile suppresses the unit when the value is missing",
+  /unit && !isMissing/.test(card),
+  '"n/a h" is nonsense',
+);
+
+// The old SyncBar shipped a hardcoded near-black. It was the darkest surface in
+// the app and belonged to no token.
+check(
+  "SyncBar uses a token, not the hardcoded #0b0d0f",
+  !/#0b0d0f/.test(readStripped("src/components/SyncBar.tsx")),
+);
+
+// Segmented is the app's one mutually-exclusive control. Links, not buttons:
+// every use changes a search param, and that must survive a reload and the back
+// button.
+/*
+ * TYPE SCALE. A browser measurement of the rebuilt page found eight heavily-used
+ * font sizes including 12.5/12 and 10.5/10/9.5 -- half-pixel steps, which are
+ * imperceptible as hierarchy and make every new component a coin flip between
+ * two values that look identical. Collapsed to 21 / 13 / 12 / 11 / 10.
+ *
+ * Scoped to the files this change owns: several module pages another agent is
+ * editing still carry the old half-steps, and failing on those would turn CI red
+ * for unscheduled work.
+ */
+const SCALE_OWNED = [
+  "src/app/(app)/page.tsx",
+  "src/components/ui/Card.tsx",
+  "src/components/ui/Segmented.tsx",
+  "src/components/PageHeader.tsx",
+  "src/components/SyncBar.tsx",
+];
+for (const f of SCALE_OWNED) {
+  const halfSteps = readStripped(f).match(/text-\[(?:\d+\.5)px\]/g) ?? [];
+  check(
+    `${f.split("/").pop()} uses whole-pixel type sizes`,
+    halfSteps.length === 0,
+    halfSteps.length ? `half-pixel steps: ${[...new Set(halfSteps)].join(", ")}` : "",
+  );
+}
+
+const seg = readStripped("src/components/ui/Segmented.tsx");
+check("Segmented options are links, not buttons", /<Link/.test(seg) && !/<button/.test(seg.split("export function IconButton")[0]));
+check("Segmented marks the current option for assistive tech", /aria-current=\{active/.test(seg));
+check("IconButton requires an accessible label", /label: string/.test(seg) && /aria-label=\{label\}/.test(seg));
+
 console.log(failed ? "\nDESIGN SYSTEM: FAIL" : "\nDESIGN SYSTEM: OK");
 process.exitCode = failed ? 1 : 0;

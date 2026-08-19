@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
+import { Card, CardHeader, StatTile } from "@/components/ui/Card";
+import { Pill } from "@/components/ui/Segmented";
+import { TopBarChrome } from "@/components/TopBarChrome";
+import { IconWarning, IconArrowRight } from "@/components/nav-icons";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { getLiveOverview, OVERVIEW_WEEKS } from "@/lib/queries/overview-live";
@@ -53,9 +57,9 @@ export default async function OverviewPage() {
       <SyncBar />
 
       <PageHeader
-        category="HSE HUB / ANALYSE"
-        title="Business overview"
+        title="Overview"
         meta={`${counts.currentQuarter} · ${counts.activeMembers} PEOPLE · ${counts.activeProjects} ACTIVE PROJECTS · ${counts.customers} CUSTOMERS`}
+        chrome={<TopBarChrome />}
         actions={
           <ButtonLink variant="primary" href="/time/dashboard">
             Full dashboard
@@ -63,7 +67,7 @@ export default async function OverviewPage() {
         }
       />
 
-      <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+      <div className="flex flex-col gap-[var(--card-gap)] p-4 sm:p-6">
         {/*
           Surfaced rather than hidden: most of the roster has a TrackingTime
           record but no Hub sign-in, so their hours are counted in every figure
@@ -71,91 +75,78 @@ export default async function OverviewPage() {
           operational gap the exec reading this page is the one who can close.
         */}
         {unlinkedPeople > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5">
-            <span className="text-[12px] text-[var(--text-secondary)]">
-              <span className="font-mono font-semibold text-[var(--warning)]">
-                {unlinkedPeople}
-              </span>{" "}
-              of {counts.activeMembers} people have no Hub sign-in yet — their hours
-              count here, but they cannot see them.
+          <Card className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+            <span className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+              <IconWarning className="flex-none text-[var(--warning)]" />
+              <span>
+                <span className="font-mono font-semibold text-[var(--warning)]">
+                  {unlinkedPeople}
+                </span>{" "}
+                of {counts.activeMembers} people have no Hub sign-in yet — their
+                hours count here, but they cannot see them.
+              </span>
             </span>
             <Link
               href="/people"
-              className="whitespace-nowrap text-[11.5px] font-medium text-[var(--accent)] hover:underline"
+              className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium text-[var(--accent)] hover:underline"
             >
-              Review people →
+              Review people
+              <IconArrowRight className="flex-none" />
             </Link>
-          </div>
+          </Card>
         )}
 
-        {/* KPI strip — 2 cols mobile, 3 md, 5 lg */}
-        <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-3 lg:grid-cols-5">
-          {metrics.map((metric, idx) => (
-            <div
+        {/*
+          KPI tiles — SEPARATE cards on a gap, not one fused grid.
+
+          This was a single bordered box whose five cells shared hairlines, with
+          `border-b lg:border-b-0 lg:border-r` computed against the last-child
+          index. Two things were wrong with it. A shared border says "these cells
+          are one record", so five independent facts about the business read as a
+          single table row and none of them was scannable. And the last-child
+          arithmetic had to be re-derived by hand at every call site, which is
+          exactly where fused grids acquire a missing rule on one breakpoint.
+        */}
+        <div className="grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-5">
+          {metrics.map((metric) => (
+            <StatTile
               key={metric.key}
               data-metric={metric.key}
-              className={`flex flex-col gap-1.5 p-3 sm:p-3.5 ${
-                idx < metrics.length - 1
-                  ? "border-b border-[var(--border)] lg:border-b-0 lg:border-r"
-                  : ""
-              }`}
-            >
-              <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-                {metric.label}
-              </span>
-              <span
-                className="font-mono text-[20px] font-semibold tracking-[-0.02em] sm:text-[24px]"
-                style={{
-                  color:
-                    metric.value === null
-                      ? "var(--text-faint)"
-                      : metric.tone === "critical"
-                        ? "var(--critical)"
-                        : "var(--text-primary)",
-                }}
-              >
-                {/* Never 0 in place of "unknown" — see overview-live.ts. */}
-                {metric.value ?? "n/a"}
-              </span>
-              {metric.progressPercent !== null ? (
-                <div className="mt-1 h-1 w-full bg-[var(--border)]">
-                  <div
-                    className="h-full"
-                    style={{
-                      width: `${Math.min(100, metric.progressPercent)}%`,
-                      background: toneColour(metric.tone),
-                    }}
-                  />
-                </div>
-              ) : null}
-              <span className="font-mono text-[10.5px] text-[var(--text-faint)]">
-                {metric.subtext}
-              </span>
-            </div>
+              label={metric.label}
+              value={metric.value}
+              hint={metric.subtext}
+              tone={metric.tone}
+              progressPercent={metric.progressPercent}
+            />
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {/* Billable vs non-billable, per week, from time.org_week */}
-          <div className="flex flex-col gap-3.5 border border-[var(--border)] bg-[var(--surface)] p-4 lg:col-span-7">
-            <div className="flex flex-wrap items-baseline gap-2.5">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-                Billable vs non-billable hours
-              </span>
-              <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-                LAST {OVERVIEW_WEEKS} WEEKS · TRACKINGTIME
-              </span>
-              <div className="ml-auto flex items-center gap-3 font-mono text-[10.5px] text-[var(--text-secondary)]">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 bg-[var(--accent)]" />
-                  BILLABLE
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 bg-[var(--text-faint)]" />
-                  NON-BILLABLE
-                </span>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
+          {/*
+            Billable vs non-billable, per week, from time.org_week.
+
+            `tone="hero"` — the ONE tinted card on this page. It is the primary
+            chart, and without a material difference a grid of identically
+            surfaced cards reads as wallpaper with no entry point.
+          */}
+          <Card tone="hero" className="flex flex-col lg:col-span-7">
+            <CardHeader
+              title="Billable vs non-billable hours"
+              qualifier={`LAST ${OVERVIEW_WEEKS} WEEKS · TRACKINGTIME`}
+              actions={
+                <div className="flex items-center gap-3 font-mono text-[10px] text-[var(--text-secondary)]">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
+                    BILLABLE
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[var(--text-faint)]" />
+                    NON-BILLABLE
+                  </span>
+                </div>
+              }
+            />
+            <div className="flex flex-col gap-3.5 px-4 pb-4">
 
             <div className="flex h-[140px] items-end gap-1.5 pt-4 sm:h-[160px] sm:gap-2">
               {chartMax === 0 ? (
@@ -194,8 +185,14 @@ export default async function OverviewPage() {
                       <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] text-[var(--text-primary)] shadow-lg group-hover:block group-focus-visible:block">
                         {readout}
                       </div>
+                      {/*
+                        Only the TOP of each stack is rounded, via rounded-t on
+                        the upper segment. Rounding both segments would put a
+                        visible notch where they meet, which reads as a gap in
+                        the data rather than as a stacked bar.
+                      */}
                       <div
-                        className="w-full bg-[var(--text-faint)] transition-all duration-150 group-hover:brightness-125 group-focus-visible:brightness-125"
+                        className="w-full rounded-t-[3px] bg-[var(--text-faint)] transition-all duration-150 group-hover:brightness-125 group-focus-visible:brightness-125"
                         style={{ height: `${(nonBillable / chartMax) * 100}%` }}
                       />
                       <div
@@ -208,25 +205,19 @@ export default async function OverviewPage() {
               )}
             </div>
 
-            <div className="flex justify-between border-t border-[var(--border)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
+            <div className="flex justify-between border-t border-[var(--surface-accent-border)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
               {axisTicks.map((label, index) => (
                 <span key={`${label}-${index}`}>{label}</span>
               ))}
             </div>
-          </div>
+            </div>
+          </Card>
 
           {/* Utilisation per person, from time.member_utilisation */}
-          <div className="flex flex-col gap-3.5 border border-[var(--border)] bg-[var(--surface)] p-4 lg:col-span-5">
-            <div className="flex flex-wrap items-baseline gap-2.5">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-                Utilisation by person
-              </span>
-              <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-                TOP 6 BY HOURS
-              </span>
-            </div>
+          <Card className="flex flex-col lg:col-span-5">
+            <CardHeader title="Utilisation by person" qualifier="TOP 6 BY HOURS" />
 
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2.5 px-4 pb-4">
               {teams.length === 0 ? (
                 <p className="font-mono text-[11px] text-[var(--text-faint)]">
                   No members with logged time.
@@ -256,10 +247,10 @@ export default async function OverviewPage() {
                         {team.percent !== null ? `${team.percent}%` : "n/a"}
                       </span>
                     </div>
-                    <div className="h-1.5 w-full bg-[var(--border)]">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
                       {team.percent !== null ? (
                         <div
-                          className="h-full transition-[filter] duration-150 group-hover:brightness-110"
+                          className="h-full rounded-full transition-[filter] duration-150 group-hover:brightness-110"
                           style={{
                             width: `${Math.min(100, team.percent)}%`,
                             background: toneColour(team.tone),
@@ -285,7 +276,7 @@ export default async function OverviewPage() {
               )}
             </div>
 
-            <div className="mt-auto flex flex-col gap-1 border-t border-[var(--border)] pt-3">
+            <div className="mt-auto flex flex-col gap-1 border-t border-[var(--divider)] px-4 pb-4 pt-3">
               <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
                 BASIS
               </span>
@@ -295,32 +286,29 @@ export default async function OverviewPage() {
                 default — describing it as contracted would present a default
                 as a fact about someone's employment.
               */}
-              <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
                 Tracked hours against a nominal 40-hour week, across the weeks
                 each person was active. TrackingTime holds no contracted hours.
               </p>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Project ledger — real projects, ranked by hours logged */}
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex items-baseline justify-between border-b border-[var(--border)] px-4 py-3">
-            <div className="flex items-baseline gap-2.5">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-                Project ledger
-              </span>
-              <span className="hidden font-mono text-[10.5px] text-[var(--text-muted)] sm:inline">
-                TOP {projects.length} BY HOURS · TRACKINGTIME
-              </span>
-            </div>
-            <Link
-              href="/projects"
-              className="text-[11.5px] font-medium text-[var(--accent)] hover:underline"
-            >
-              All projects →
-            </Link>
-          </div>
+        <Card className="overflow-hidden">
+          <CardHeader
+            title="Project ledger"
+            qualifier={`TOP ${projects.length} BY HOURS · TRACKINGTIME`}
+            actions={
+              <Link
+                href="/projects"
+                className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--accent)] hover:underline"
+              >
+                All projects
+                <IconArrowRight className="flex-none" />
+              </Link>
+            }
+          />
 
           {projects.length === 0 ? (
             <p className="p-4 font-mono text-[11px] text-[var(--text-faint)]">
@@ -329,7 +317,7 @@ export default async function OverviewPage() {
           ) : (
             <>
               {/* Mobile cards */}
-              <div className="flex flex-col divide-y divide-[var(--border)] sm:hidden">
+              <div className="flex flex-col divide-y divide-[var(--divider)] border-t border-[var(--divider)] sm:hidden">
                 {projects.map((prj) => (
                   <div key={prj.id} className="flex flex-col gap-2 p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -346,13 +334,13 @@ export default async function OverviewPage() {
                         {prj.burnPercent !== null ? `${prj.burnPercent}%` : "no budget"}
                       </span>
                     </div>
-                    <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+                    <span className="font-mono text-[10px] text-[var(--text-muted)]">
                       {prj.customerName ?? "No customer"}
                     </span>
-                    <div className="h-1.5 w-full bg-[var(--border)]">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
                       {prj.burnPercent !== null ? (
                         <div
-                          className="h-full"
+                          className="h-full rounded-full"
                           style={{
                             width: `${Math.min(prj.burnPercent, 100)}%`,
                             background: toneColour(prj.tone),
@@ -360,7 +348,7 @@ export default async function OverviewPage() {
                         />
                       ) : null}
                     </div>
-                    <div className="flex gap-4 font-mono text-[10.5px] text-[var(--text-secondary)]">
+                    <div className="flex gap-4 font-mono text-[10px] text-[var(--text-secondary)]">
                       <span>{prj.loggedHours.toLocaleString("de-DE")} H LOGGED</span>
                       <span>{prj.billableHours.toLocaleString("de-DE")} H BILLABLE</span>
                     </div>
@@ -370,7 +358,7 @@ export default async function OverviewPage() {
 
               {/* Desktop table */}
               <div className="hidden overflow-x-auto sm:block">
-                <div className="grid min-w-[700px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+                <div className="grid min-w-[700px] grid-cols-12 gap-3 border-y border-[var(--divider)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
                   <span className="col-span-4">PROJECT</span>
                   <span className="col-span-3">CUSTOMER</span>
                   <span className="col-span-1 text-right">BUDGET H</span>
@@ -381,7 +369,7 @@ export default async function OverviewPage() {
                 {projects.map((prj) => (
                   <div
                     key={prj.id}
-                    className="grid min-w-[700px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-4 py-2.5 text-[12.5px] transition-colors hover:bg-[var(--surface-hover)]"
+                    className="grid min-w-[700px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-4 py-2.5 text-[12px] transition-colors last:border-b-0 hover:bg-[var(--surface-hover)]"
                   >
                     <Link
                       href={`/projects/${prj.id}`}
@@ -401,10 +389,10 @@ export default async function OverviewPage() {
                       {prj.loggedHours.toLocaleString("de-DE")}
                     </span>
                     <div className="col-span-3 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 bg-[var(--border)]">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--border)]">
                         {prj.burnPercent !== null ? (
                           <div
-                            className="h-full"
+                            className="h-full rounded-full"
                             style={{
                               width: `${Math.min(prj.burnPercent, 100)}%`,
                               background: toneColour(prj.tone),
@@ -412,19 +400,32 @@ export default async function OverviewPage() {
                           />
                         ) : null}
                       </div>
-                      <span
-                        className="w-20 shrink-0 text-right font-mono text-[11px] font-medium"
-                        style={{ color: toneColour(prj.tone) }}
+                      {/*
+                        A Pill, not bare coloured text. "no budget" is a state
+                        rather than a measurement, and 83 of 334 projects are in
+                        it -- painting that as a figure invites reading it as 0%.
+                      */}
+                      <Pill
+                        tone={
+                          prj.burnPercent === null
+                            ? "neutral"
+                            : prj.tone === "critical"
+                              ? "critical"
+                              : prj.tone === "warning"
+                                ? "warning"
+                                : "good"
+                        }
+                        className="w-[74px] shrink-0 justify-center"
                       >
                         {prj.burnPercent !== null ? `${prj.burnPercent}%` : "no budget"}
-                      </span>
+                      </Pill>
                     </div>
                   </div>
                 ))}
               </div>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

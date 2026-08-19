@@ -99,7 +99,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
             aria-hidden
             className="mx-3 mb-1 hidden h-px bg-[var(--border)] group-data-[collapsed=true]/sidebar:block"
           />
-          <div className="px-4 pb-1 font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
+          <div className="px-4 pb-1 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
             {group.title}
           </div>
 
@@ -142,33 +142,35 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       visible as a wonky column, and exactly what the visual
                       probe measured (icon at 27px, content centre at 32px).
                     */
-                    className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius-sm)] px-4 py-1.5 text-[12.5px] transition-colors duration-150 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5 ${
+                    /*
+                      The active row is a FILLED PILL, not a tinted rectangle
+                      with a 2px accent bar.
+
+                      Two reasons the bar went. It was a coloured border-left on
+                      a list item, which the craft floor rejects as a default:
+                      the marker was doing the job the fill should do, so the
+                      row read as "highlighted" rather than "selected". And in
+                      the rail it had to shrink to a stub floating 2px from a
+                      centred icon, which reads as a rendering artifact rather
+                      than as state.
+
+                      A filled pill states the same thing once, at both widths,
+                      with nothing to special-case.
+                    */
+                    className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 text-[12px] transition-colors duration-150 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5 ${
                       active
-                        ? "bg-[var(--surface-hover)] font-medium text-[var(--text-primary)]"
+                        ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     {/*
-                      Active marker. A left bar in the expanded panel; in the
-                      rail it becomes a short centred stub, because a full-height
-                      bar 2px from a centred icon reads as a rendering artifact.
-
-                      Not `layoutId` any more: a shared layout animation between
-                      two elements of different size and axis makes the marker
-                      visibly fly across the panel every time the rail toggles.
+                      `text-current` on BOTH states now. The icon used to be
+                      forced to --accent when active, which against the filled
+                      pill would put the accent on top of itself -- 1.06:1,
+                      effectively invisible. It inherits --accent-contrast from
+                      the pill instead.
                     */}
-                    {active && (
-                      <span
-                        aria-hidden
-                        className="absolute left-0 top-1/2 h-full w-0.5 -translate-y-1/2 rounded-r bg-[var(--accent)] group-data-[collapsed=true]/sidebar:h-4"
-                      />
-                    )}
-
-                    <Icon
-                      className={`flex-none transition-colors ${
-                        active ? "text-[var(--accent)]" : "text-current"
-                      }`}
-                    />
+                    <Icon className="flex-none transition-colors text-current" />
 
                     {/*
                       Clipped, not removed. `w-0 opacity-0` keeps the text in the
@@ -183,10 +185,23 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       {link.label}
                     </span>
 
+                    {/*
+                      On an ACTIVE row the badge sits on the filled accent pill,
+                      so it cannot use an accent fill of its own -- the default
+                      badgeColor is --accent, which would be accent-on-accent
+                      (1.0:1, invisible). Active rows get the pill's own
+                      foreground as a solid chip instead.
+                    */}
                     {link.badge && (
                       <span
-                        className="flex-none rounded-[3px] px-1.5 py-0.5 font-mono text-[9.5px] font-semibold text-black group-data-[collapsed=true]/sidebar:hidden"
-                        style={{ background: link.badgeColor || "var(--accent)" }}
+                        className={`flex-none rounded-full px-1.5 py-0.5 font-mono text-[10px] font-semibold group-data-[collapsed=true]/sidebar:hidden ${
+                          active ? "text-[var(--accent)]" : "text-black"
+                        }`}
+                        style={{
+                          background: active
+                            ? "var(--accent-contrast)"
+                            : link.badgeColor || "var(--accent)",
+                        }}
                       >
                         {link.badge}
                       </span>

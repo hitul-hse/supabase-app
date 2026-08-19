@@ -10,7 +10,7 @@ const IDLE: ProfileActionState = { status: "idle" };
 
 const inputClass =
   "w-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]";
-const labelClass = "font-mono text-[9.5px] uppercase tracking-[0.12em] text-[var(--text-faint)]";
+const labelClass = "font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--text-faint)]";
 
 export function SecurityCard() {
   const [state, action, pending] = useActionState(changePassword, IDLE);

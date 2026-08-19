@@ -101,29 +101,29 @@ export function TeamLeadBoard({
             different claims, and 0% reads as a team sitting idle. */}
         <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] lg:grid-cols-4">
           <div className="flex flex-col gap-1 border-b border-r border-[var(--border)] p-3 sm:p-3.5 lg:border-b-0">
-            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
+            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
               TEAM UTILISATION
             </span>
             <span className="font-mono text-[20px] font-semibold text-[var(--text-primary)] sm:text-[23px]">
               {teamUtilisationPercent === null ? "n/a" : `${teamUtilisationPercent}%`}
             </span>
-            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
+            <span className="font-mono text-[10px] text-[var(--text-faint)]">
               {board.weeklyHoursAreNominal ? "VS NOMINAL 40 H WEEK" : "VS CONTRACTED"}
             </span>
           </div>
 
           <div className="flex flex-col gap-1 border-b border-[var(--border)] p-3 sm:p-3.5 lg:border-b-0 lg:border-r">
-            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
+            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
               LOGGED THIS WINDOW
             </span>
             <span className="font-mono text-[20px] font-semibold text-[var(--text-primary)] sm:text-[23px]">
               {activeCount}
             </span>
-            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">PEOPLE</span>
+            <span className="font-mono text-[10px] text-[var(--text-faint)]">PEOPLE</span>
           </div>
 
           <div className="flex flex-col gap-1 border-r border-[var(--border)] p-3 sm:p-3.5 lg:border-r">
-            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
+            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
               NO TIME LOGGED
             </span>
             <span
@@ -132,13 +132,13 @@ export function TeamLeadBoard({
             >
               {idleCount}
             </span>
-            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
+            <span className="font-mono text-[10px] text-[var(--text-faint)]">
               ACTIVE MEMBERS
             </span>
           </div>
 
           <div className="flex flex-col gap-1 p-3 sm:p-3.5">
-            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
+            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
               OVER ESTIMATE
             </span>
             <span
@@ -151,17 +151,17 @@ export function TeamLeadBoard({
             >
               {overBudgetProjects.filter((p) => p.burnPercent >= 100).length}
             </span>
-            <span className="font-mono text-[9.5px] text-[var(--text-faint)]">PROJECTS</span>
+            <span className="font-mono text-[10px] text-[var(--text-faint)]">PROJECTS</span>
           </div>
         </div>
 
         {/* Workload grid — horizontally scrollable with a sticky name column */}
         <div className="border border-[var(--border)] bg-[var(--surface)]">
           <div className="flex flex-wrap items-baseline gap-2.5 border-b border-[var(--border)] px-4 py-3">
-            <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+            <span className="text-[12px] font-semibold text-[var(--text-primary)]">
               Hours logged per week
             </span>
-            <span className="hidden font-mono text-[10.5px] text-[var(--text-muted)] sm:inline">
+            <span className="hidden font-mono text-[10px] text-[var(--text-muted)] sm:inline">
               FROM TRACKINGTIME ENTRIES · BOUNDED AT TODAY
             </span>
           </div>
@@ -196,7 +196,7 @@ export function TeamLeadBoard({
                   {rows.map((member) => (
                     <tr
                       key={member.memberId}
-                      className="border-b border-[var(--divider)] text-[12.5px] hover:bg-[var(--surface-hover)]"
+                      className="border-b border-[var(--divider)] text-[12px] hover:bg-[var(--surface-hover)]"
                     >
                       <td className="sticky left-0 bg-[var(--surface)] px-4 py-2 hover:bg-[var(--surface-hover)]">
                         <div className="flex items-center gap-2">
@@ -236,7 +236,7 @@ export function TeamLeadBoard({
                         </td>
                       ))}
 
-                      <td className="px-4 py-2 text-right font-mono text-[11.5px] text-[var(--text-secondary)]">
+                      <td className="px-4 py-2 text-right font-mono text-[11px] text-[var(--text-secondary)]">
                         {member.totalHours} h
                       </td>
                     </tr>
@@ -246,7 +246,7 @@ export function TeamLeadBoard({
             </div>
           )}
 
-          <div className="border-t border-[var(--border)] px-4 py-2 font-mono text-[9.5px] text-[var(--text-faint)]">
+          <div className="border-t border-[var(--border)] px-4 py-2 font-mono text-[10px] text-[var(--text-faint)]">
             {board.weeklyHoursAreNominal
               ? "OVER / UNDER IS AGAINST A NOMINAL 40 H WEEK — TRACKINGTIME'S ACCOUNT DEFAULT, NOT A CONTRACT"
               : "OVER / UNDER IS AGAINST CONTRACTED HOURS"}
@@ -258,10 +258,10 @@ export function TeamLeadBoard({
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex items-center justify-between">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+              <span className="text-[12px] font-semibold text-[var(--text-primary)]">
                 Needs your decision
               </span>
-              <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+              <span className="font-mono text-[10px] text-[var(--text-muted)]">
                 {decisions.length} PENDING
               </span>
             </div>
@@ -291,7 +291,7 @@ export function TeamLeadBoard({
                       <span className="text-[12px] font-medium text-[var(--text-primary)]">
                         {item.title}
                       </span>
-                      <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+                      <span className="font-mono text-[10px] text-[var(--text-muted)]">
                         {item.subtitle}
                       </span>
                     </div>
@@ -317,7 +317,7 @@ export function TeamLeadBoard({
 
           <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+              <span className="text-[12px] font-semibold text-[var(--text-primary)]">
                 Projects over estimate
               </span>
               <span className="font-mono text-[10px] text-[var(--text-muted)]">
@@ -340,7 +340,7 @@ export function TeamLeadBoard({
                       : "var(--accent)";
                   return (
                     <div key={project.projectId} className="flex flex-col gap-1">
-                      <div className="flex flex-wrap justify-between gap-1 text-[12.5px]">
+                      <div className="flex flex-wrap justify-between gap-1 text-[12px]">
                         <span className="font-medium text-[var(--text-primary)]">
                           {project.name}
                         </span>
@@ -359,7 +359,7 @@ export function TeamLeadBoard({
                           }}
                         />
                       </div>
-                      <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+                      <span className="font-mono text-[10px] text-[var(--text-muted)]">
                         {project.burnPercent}% OF ESTIMATE
                       </span>
                     </div>

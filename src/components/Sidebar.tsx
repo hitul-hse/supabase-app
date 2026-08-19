@@ -138,7 +138,7 @@ export async function Sidebar({
           */}
           <BrandMark size={26} className="flex-none" />
           <div className="flex min-w-0 flex-col leading-[1.15] transition-opacity duration-150 group-data-[collapsed=true]/sidebar:hidden">
-            <span className="font-sans text-[12.5px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
+            <span className="font-sans text-[12px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
               HSE HUB
             </span>
             <span className="truncate font-mono text-[8px] tracking-[0.14em] text-[var(--text-faint)]">
@@ -200,7 +200,7 @@ export async function Sidebar({
                 <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
                   {identityLabel}
                 </span>
-                <span className="font-mono text-[9.5px] text-[var(--text-faint)]">
+                <span className="font-mono text-[10px] text-[var(--text-faint)]">
                   {roleDisplayName ? roleDisplayName.toUpperCase() : "PENDING ACCESS"}
                 </span>
               </div>
@@ -256,7 +256,7 @@ export async function Sidebar({
             className="h-1.5 w-1.5 flex-none rounded-full"
             style={{ background: dotColor }}
           />
-          <span className="font-mono text-[9.5px] tracking-[0.02em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
+          <span className="font-mono text-[10px] tracking-[0.02em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
             {statusLabel.toUpperCase()}
           </span>
           {/* Always announced, even when the words are visually hidden. */}

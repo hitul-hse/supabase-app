@@ -11,7 +11,7 @@ export function AddEntryForm({ weekStart }: { weekStart: string }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="self-start border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+        className="self-start border border-[var(--border-strong)] px-3 py-1.5 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
       >
         Add entry
       </button>
@@ -34,7 +34,7 @@ export function AddEntryForm({ weekStart }: { weekStart: string }) {
           required
           disabled={isPending}
           placeholder="Project"
-          className="w-32 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+          className="w-32 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
         <input
           name="task_name"
@@ -42,16 +42,16 @@ export function AddEntryForm({ weekStart }: { weekStart: string }) {
           required
           disabled={isPending}
           placeholder="Task"
-          className="min-w-[140px] flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+          className="min-w-[140px] flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
         <input
           name="customer"
           type="text"
           disabled={isPending}
           placeholder="Customer (optional)"
-          className="w-36 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+          className="w-36 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
-        <label className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-secondary)]">
+        <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
           <input name="is_billable" type="checkbox" defaultChecked disabled={isPending} />
           Billable
         </label>
@@ -71,7 +71,7 @@ export function AddEntryForm({ weekStart }: { weekStart: string }) {
         </button>
       </div>
       {state.status === "error" && (
-        <p className="text-[11.5px] text-[var(--critical)]">{state.message}</p>
+        <p className="text-[11px] text-[var(--critical)]">{state.message}</p>
       )}
     </form>
   );

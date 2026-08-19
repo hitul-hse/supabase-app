@@ -16,7 +16,7 @@ function Utilisation({ percent }: { percent: number | null }) {
   if (percent === null) {
     // No contracted hours on record. A dash is honest; "0%" would read as
     // "logged nothing against a full week".
-    return <span className="font-mono text-[11.5px] text-[var(--text-faint)]">—</span>;
+    return <span className="font-mono text-[11px] text-[var(--text-faint)]">—</span>;
   }
 
   // Over 100% is real and worth seeing rather than clamping away: it means
@@ -38,7 +38,7 @@ function Utilisation({ percent }: { percent: number | null }) {
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>
-      <span className={`font-mono text-[11.5px] tabular-nums ${tone}`}>{percent}%</span>
+      <span className={`font-mono text-[11px] tabular-nums ${tone}`}>{percent}%</span>
     </div>
   );
 }
@@ -53,7 +53,7 @@ export function WeekSummaryTable({
   return (
     <section className="border border-[var(--border)] bg-[var(--surface)]">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2.5">
-        <h2 className="text-[12.5px] font-medium text-[var(--text-primary)]">
+        <h2 className="text-[12px] font-medium text-[var(--text-primary)]">
           Week summary
         </h2>
         <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
@@ -70,7 +70,7 @@ export function WeekSummaryTable({
                   <th
                     key={h}
                     scope="col"
-                    className={`px-4 py-2 font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)] ${
+                    className={`px-4 py-2 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)] ${
                       i === 0 ? "" : "text-right"
                     }`}
                   >
@@ -87,7 +87,7 @@ export function WeekSummaryTable({
                 key={r.memberId}
                 className="border-b border-[var(--border)] transition-colors last:border-b-0 hover:bg-[var(--surface-hover)]"
               >
-                <td className="px-4 py-2.5 text-[12.5px] text-[var(--text-primary)]">
+                <td className="px-4 py-2.5 text-[12px] text-[var(--text-primary)]">
                   {r.memberName}
                 </td>
                 <td className="px-4 py-2.5 text-right font-mono text-[12px] tabular-nums text-[var(--text-primary)]">

@@ -77,7 +77,7 @@ export function BillableRatePanel({
               {canEdit && (
                 <button
                   onClick={() => setEditing(true)}
-                  className="ml-2 align-middle text-[10.5px] font-normal text-[var(--text-faint)] hover:text-[var(--accent)]"
+                  className="ml-2 align-middle text-[10px] font-normal text-[var(--text-faint)] hover:text-[var(--accent)]"
                 >
                   edit
                 </button>
@@ -97,7 +97,7 @@ export function BillableRatePanel({
         </div>
       </div>
 
-      {error && <p className="text-[11.5px] text-[var(--critical)]">{error}</p>}
+      {error && <p className="text-[11px] text-[var(--critical)]">{error}</p>}
     </div>
   );
 }

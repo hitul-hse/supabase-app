@@ -238,7 +238,7 @@ function MultiSelect({
             className="flex-1 overflow-y-auto"
           >
             {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center text-[11.5px] text-[var(--text-faint)]">
+              <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
                 No {label.toLowerCase()} matches “{query.trim()}”
               </p>
             ) : (
@@ -301,7 +301,7 @@ function MultiSelect({
                   ? `Add all ${filtered.length} matches to the selection`
                   : "Search first — selecting every option is the same as selecting none"
               }
-              className="text-[11.5px] text-[var(--text-secondary)] transition-colors hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[var(--text-secondary)]"
+              className="text-[11px] text-[var(--text-secondary)] transition-colors hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[var(--text-secondary)]"
             >
               Select these {q ? filtered.length : ""}
             </button>
@@ -309,7 +309,7 @@ function MultiSelect({
               type="button"
               disabled={selected.length === 0}
               onClick={() => onChange([])}
-              className="text-[11.5px] text-[var(--text-secondary)] transition-colors hover:text-[var(--critical)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[var(--text-secondary)]"
+              className="text-[11px] text-[var(--text-secondary)] transition-colors hover:text-[var(--critical)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[var(--text-secondary)]"
             >
               Clear {selected.length > 0 ? selected.length : ""}
             </button>
@@ -428,7 +428,7 @@ export function ReportFilters({
        */}
       <p
         aria-live="polite"
-        className={`pointer-events-none absolute right-3 top-3 font-mono text-[9.5px] tracking-[0.12em] text-[var(--accent)] transition-opacity ${
+        className={`pointer-events-none absolute right-3 top-3 font-mono text-[10px] tracking-[0.12em] text-[var(--accent)] transition-opacity ${
           pending ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -456,7 +456,7 @@ export function ReportFilters({
             max={to}
             onChange={(e) => push({ preset: "custom", from: e.target.value, to })}
             aria-label="From date"
-            className={`border bg-[var(--page)] px-2 py-1.5 font-mono text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`border bg-[var(--page)] px-2 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />
@@ -467,7 +467,7 @@ export function ReportFilters({
             min={from}
             onChange={(e) => push({ preset: "custom", from, to: e.target.value })}
             aria-label="To date"
-            className={`border bg-[var(--page)] px-2 py-1.5 font-mono text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`border bg-[var(--page)] px-2 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />

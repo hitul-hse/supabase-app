@@ -76,10 +76,10 @@ export function TimerBar({ running }: { running: RunningTimer | null }) {
               </span>
 
               <div className="flex min-w-0 flex-col">
-                <span className="truncate text-[12.5px] font-medium text-[var(--text-primary)]">
+                <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
                   {running.taskName}
                 </span>
-                <span className="truncate font-mono text-[10.5px] text-[var(--text-muted)]">
+                <span className="truncate font-mono text-[10px] text-[var(--text-muted)]">
                   {running.projectName} · {running.isBillable ? "BILLABLE" : "NON-BILLABLE"}
                 </span>
               </div>
@@ -102,7 +102,7 @@ export function TimerBar({ running }: { running: RunningTimer | null }) {
                 onClick={() => run(discardTimer)}
                 disabled={isPending}
                 title="Discard without logging time"
-                className="text-[11.5px] text-[var(--text-faint)] transition-colors hover:text-[var(--critical)] disabled:opacity-50"
+                className="text-[11px] text-[var(--text-faint)] transition-colors hover:text-[var(--critical)] disabled:opacity-50"
               >
                 Discard
               </button>
@@ -123,7 +123,7 @@ export function TimerBar({ running }: { running: RunningTimer | null }) {
                 required
                 disabled={isPending}
                 placeholder="What are you working on?"
-                className="min-w-[180px] flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+                className="min-w-[180px] flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
               />
               <input
                 name="project_name"
@@ -131,9 +131,9 @@ export function TimerBar({ running }: { running: RunningTimer | null }) {
                 required
                 disabled={isPending}
                 placeholder="Project"
-                className="w-36 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+                className="w-36 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
               />
-              <label className="flex items-center gap-1.5 font-mono text-[10.5px] text-[var(--text-muted)]">
+              <label className="flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-muted)]">
                 <input
                   name="is_billable"
                   type="checkbox"
@@ -156,7 +156,7 @@ export function TimerBar({ running }: { running: RunningTimer | null }) {
       </div>
 
       {error && (
-        <p className="px-4 pb-2 text-[11.5px] text-[var(--critical)] sm:px-6" role="alert">
+        <p className="px-4 pb-2 text-[11px] text-[var(--critical)] sm:px-6" role="alert">
           {error}
         </p>
       )}

@@ -236,7 +236,7 @@ export function DataTable<T>({
                 )}
                 {title}
               </h2>
-              <span className="text-[10.5px] leading-tight text-[var(--text-faint)]">
+              <span className="text-[10px] leading-tight text-[var(--text-faint)]">
                 {/* The row count is stated whether open or shut. A collapsed
                     panel must never look like an absent one. */}
                 {open ? showing : (summary ?? showing)}
@@ -282,7 +282,7 @@ export function DataTable<T>({
                   setPage(0);
                 }}
                 placeholder={searchPlaceholder}
-                className="w-[9.5rem] border border-[var(--border)] bg-[var(--page)] py-1 pl-2 pr-6 text-[11.5px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-faint)] focus:border-[var(--accent)] sm:w-[12rem]"
+                className="w-[9.5rem] border border-[var(--border)] bg-[var(--page)] py-1 pl-2 pr-6 text-[11px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-faint)] focus:border-[var(--accent)] sm:w-[12rem]"
               />
               {query && (
                 <button
@@ -336,9 +336,9 @@ export function DataTable<T>({
       </header>
 
       {!open ? null : rows.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[11.5px] text-[var(--text-faint)]">{emptyText}</p>
+        <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">{emptyText}</p>
       ) : total === 0 ? (
-        <p className="px-4 py-6 text-center text-[11.5px] text-[var(--text-faint)]">
+        <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">
           No row matches “{query.trim()}”.{" "}
           <button
             type="button"
@@ -370,7 +370,7 @@ export function DataTable<T>({
                         key={c.key}
                         scope="col"
                         aria-sort={active ? (desc ? "descending" : "ascending") : "none"}
-                        className={`whitespace-nowrap px-4 py-2 font-mono text-[9.5px] font-medium tracking-[0.1em] ${
+                        className={`whitespace-nowrap px-4 py-2 font-mono text-[10px] font-medium tracking-[0.1em] ${
                           c.align === "right" ? "text-right" : "text-left"
                         } ${active ? "text-[var(--accent)]" : "text-[var(--text-faint)]"} ${c.className ?? ""}`}
                       >
@@ -423,7 +423,7 @@ export function DataTable<T>({
 
           {(pageCount > 1 || footnote) && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] px-4 py-1.5">
-              <span className="text-[10.5px] text-[var(--text-faint)]">{footnote}</span>
+              <span className="text-[10px] text-[var(--text-faint)]">{footnote}</span>
               {pageCount > 1 && (
                 <div className="flex items-center gap-1">
                   <button

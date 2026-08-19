@@ -168,7 +168,7 @@ export function PeopleDirectory({
               <span className="text-[14px] font-semibold text-[var(--text-primary)]">People</span>
               {/* Shows what is on screen over the matching total, so a
                   truncated list cannot be mistaken for the whole roster. */}
-              <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+              <span className="font-mono text-[10px] text-[var(--text-muted)]">
                 {visiblePeople.length} OF {filteredPeople.length}
                 {filteredPeople.length !== people.length && ` (${people.length} TOTAL)`}
               </span>
@@ -238,7 +238,7 @@ export function PeopleDirectory({
             */}
             {filteredPeople.length === 0 && (
               <div className="flex flex-col items-start gap-2 p-4">
-                <p className="text-[12.5px] text-[var(--text-secondary)]">
+                <p className="text-[12px] text-[var(--text-secondary)]">
                   No one matches {query ? `“${searchQuery.trim()}”` : "these filters"}.
                 </p>
                 <button
@@ -248,7 +248,7 @@ export function PeopleDirectory({
                     setOnlyLogged(false);
                     setOnlyNoAccount(false);
                   }}
-                  className="font-mono text-[10.5px] text-[var(--accent)] hover:underline"
+                  className="font-mono text-[10px] text-[var(--accent)] hover:underline"
                 >
                   CLEAR {activeFilterCount} FILTER{activeFilterCount === 1 ? "" : "S"}
                 </button>
@@ -273,7 +273,7 @@ export function PeopleDirectory({
                     {initialsOf(person.name)}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-[12.5px] font-medium text-[var(--text-primary)]">
+                    <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
                       {person.name}
                     </span>
                     <span className="truncate font-mono text-[10px] text-[var(--text-muted)]">
@@ -334,7 +334,7 @@ export function PeopleDirectory({
               <div className="mt-1 flex flex-wrap gap-2">
                 {capacity ? (
                   <span
-                    className="px-2 py-0.5 font-mono text-[10.5px] font-medium"
+                    className="px-2 py-0.5 font-mono text-[10px] font-medium"
                     style={{
                       color: tone(capacity.tone),
                       background: "var(--surface)",
@@ -343,7 +343,7 @@ export function PeopleDirectory({
                     {capacity.label}
                   </span>
                 ) : (
-                  <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--text-faint)]">
+                  <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-faint)]">
                     NO UTILISATION DATA
                   </span>
                 )}
@@ -353,12 +353,12 @@ export function PeopleDirectory({
                   not anyone's contract — so this must not read as contractual.
                 */}
                 <span
-                  className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--text-secondary)]"
+                  className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
                   title="TrackingTime account default, not a contracted figure"
                 >
                   NOMINAL {selectedPerson.weeklyHours} H/WEEK
                 </span>
-                <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--text-secondary)]">
+                <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
                   {selectedPerson.accountRole ?? "NO ROLE"}
                 </span>
                 {/*
@@ -367,7 +367,7 @@ export function PeopleDirectory({
                   operational fact worth showing, not one to hide.
                 */}
                 {!selectedPerson.hasAccount && (
-                  <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--warning)]">
+                  <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--warning)]">
                     NO HUB ACCOUNT
                   </span>
                 )}
@@ -438,10 +438,10 @@ export function PeopleDirectory({
           {/* Assignments — real projects this person logged against */}
           <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex items-baseline gap-2.5">
-              <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+              <span className="text-[12px] font-semibold text-[var(--text-primary)]">
                 Projects
               </span>
-              <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+              <span className="font-mono text-[10px] text-[var(--text-muted)]">
                 TOP {selectedPerson.assignments.length} BY HOURS · TRACKINGTIME
               </span>
             </div>
@@ -462,7 +462,7 @@ export function PeopleDirectory({
                 {selectedPerson.assignments.map((asg) => (
                   <div
                     key={`${asg.projectId ?? "none"}-${asg.projectName}`}
-                    className="grid min-w-[420px] grid-cols-12 items-center border-b border-[var(--divider)] py-2 text-[12.5px] transition-colors hover:bg-[var(--surface-hover)]"
+                    className="grid min-w-[420px] grid-cols-12 items-center border-b border-[var(--divider)] py-2 text-[12px] transition-colors hover:bg-[var(--surface-hover)]"
                   >
                     {/* The unattributed row has no record to link to. */}
                     {asg.projectId !== null ? (
@@ -494,7 +494,7 @@ export function PeopleDirectory({
 
           {unlinkedCount > 0 && (
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
-              <span className="text-[12.5px] text-[var(--text-secondary)]">
+              <span className="text-[12px] text-[var(--text-secondary)]">
                 {unlinkedCount} of {people.length} people have no Hub sign-in yet, so they cannot
                 see their own hours.
               </span>

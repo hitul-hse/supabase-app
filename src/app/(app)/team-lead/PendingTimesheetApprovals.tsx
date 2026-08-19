@@ -52,13 +52,13 @@ export function PendingTimesheetApprovals({ initialWeeks }: { initialWeeks: Pend
   return (
     <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="flex items-baseline justify-between">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">
           Pending timesheet approvals
         </span>
-        <span className="font-mono text-[10.5px] text-[var(--text-muted)]">{weeks.length} WEEKS</span>
+        <span className="font-mono text-[10px] text-[var(--text-muted)]">{weeks.length} WEEKS</span>
       </div>
 
-      {error && <p className="text-[11.5px] text-[var(--critical)]">{error}</p>}
+      {error && <p className="text-[11px] text-[var(--critical)]">{error}</p>}
 
       {weeks.length === 0 ? (
         <p className="text-[12px] text-[var(--text-muted)]">Nothing pending.</p>
@@ -68,8 +68,8 @@ export function PendingTimesheetApprovals({ initialWeeks }: { initialWeeks: Pend
             <div key={key(w)} className="flex flex-col gap-2 py-2.5">
               <div className="flex items-center justify-between gap-3">
               <div className="flex flex-col">
-                <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{w.personName}</span>
-                <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+                <span className="text-[12px] font-medium text-[var(--text-primary)]">{w.personName}</span>
+                <span className="font-mono text-[10px] text-[var(--text-muted)]">
                   Week of {w.weekStart} · {w.entryCount} entries
                 </span>
               </div>

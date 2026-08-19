@@ -23,7 +23,7 @@ function Tile({
 }) {
   return (
     <div className="flex flex-col gap-1 border-r border-[var(--border)] px-4 py-3 last:border-r-0">
-      <span className="font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)]">
+      <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
         {label}
       </span>
       <span

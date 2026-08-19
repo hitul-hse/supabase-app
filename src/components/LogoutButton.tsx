@@ -61,7 +61,7 @@ export function LogoutButton() {
       disabled={pending}
       aria-label="Log out"
       data-testid="logout-button"
-      className="group/logout relative flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-[12.5px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-60 group-data-[collapsed=true]/sidebar:mx-auto group-data-[collapsed=true]/sidebar:h-10 group-data-[collapsed=true]/sidebar:w-10 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-0"
+      className="group/logout relative flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-60 group-data-[collapsed=true]/sidebar:mx-auto group-data-[collapsed=true]/sidebar:h-10 group-data-[collapsed=true]/sidebar:w-10 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-0"
     >
       <IconLogout />
       {/*

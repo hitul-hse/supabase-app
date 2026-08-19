@@ -66,7 +66,7 @@ function Feedback({ result }: { result: TimeActionResult | null }) {
       // interrupt; `status` is the right politeness for inline feedback.
       role="status"
       aria-live="polite"
-      className={`border px-3 py-2 text-[11.5px] leading-relaxed ${tone}`}
+      className={`border px-3 py-2 text-[11px] leading-relaxed ${tone}`}
     >
       {result.message}
     </p>
@@ -226,7 +226,7 @@ function TimerPanel({
             <span className="truncate text-[13px] text-[var(--text-primary)]">
               {running.taskName ?? "Untitled entry"}
             </span>
-            <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+            <span className="font-mono text-[10px] text-[var(--text-muted)]">
               {running.customerName ?? "No customer"} / {running.projectName ?? "No project"}
               {running.serviceName ? ` / ${running.serviceName}` : ""}
             </span>
@@ -470,7 +470,7 @@ function ManualPanel({
 
       <Feedback result={result} />
 
-      <p className="text-[10.5px] leading-relaxed text-[var(--text-muted)]">
+      <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
         {/* Stated rather than discovered on submit: the module reads and renders
             everything in UTC, so a user off UTC needs to know which clock these
             fields are on before they type a time, not after. */}
@@ -511,7 +511,7 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
         <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
           Today
         </span>
-        <span className="font-mono text-[11.5px] tabular-nums text-[var(--text-secondary)]">
+        <span className="font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
           {entries.length} {entries.length === 1 ? "entry" : "entries"}
         </span>
       </div>
@@ -586,7 +586,7 @@ export function TimeTracker({
   return (
     <div className="flex flex-col gap-5">
       {!canWrite && (
-        <p className="border border-[var(--border-strong)] px-3 py-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
+        <p className="border border-[var(--border-strong)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
           Your role permits viewing time but not logging it, so these controls are
           disabled. That is the access model working rather than a fault.
         </p>

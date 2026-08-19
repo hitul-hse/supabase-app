@@ -82,7 +82,7 @@ export function ProjectTotalsStrip({
           data-tile={c.label}
           className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3.5 sm:p-4"
         >
-          <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
+          <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
             {c.label}
           </span>
           {/* Baseline-aligned so the unit sits ON the number's baseline rather
@@ -103,7 +103,7 @@ export function ProjectTotalsStrip({
           {/* Every tile carries a hint, so the five cards stay the same height
               on a row. Without it the two that had one were taller and the row
               looked broken. */}
-          <span className="font-mono text-[10.5px] leading-tight text-[var(--text-faint)]">
+          <span className="font-mono text-[10px] leading-tight text-[var(--text-faint)]">
             {c.hint}
           </span>
         </div>
@@ -168,10 +168,10 @@ export function BurnChart({
     <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-5">
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="text-[13px] font-semibold text-[var(--text-primary)]">Hours over time</span>
-        <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+        <span className="font-mono text-[10px] text-[var(--text-muted)]">
           CUMULATIVE · MONTHLY · OBSERVED
         </span>
-        <div className="ml-auto flex items-center gap-4 font-mono text-[10.5px] text-[var(--text-secondary)]">
+        <div className="ml-auto flex items-center gap-4 font-mono text-[10px] text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5">
             <span className="h-0.5 w-3 bg-[var(--accent)]" /> LOGGED
           </span>
@@ -207,7 +207,7 @@ export function BurnChart({
         </svg>
       </div>
 
-      <div className="flex justify-between font-mono text-[10.5px] text-[var(--text-faint)]">
+      <div className="flex justify-between font-mono text-[10px] text-[var(--text-faint)]">
         <span>{points[0].label}</span>
         {points.length > 2 && <span>{points[Math.floor(points.length / 2)].label}</span>}
         <span>{points[points.length - 1].label}</span>
@@ -220,7 +220,7 @@ export function ContributorTable({ rows }: { rows: ProjectContributor[] }) {
   return (
     <div className="flex flex-col border border-[var(--border)] bg-[var(--surface)]">
       <div className="border-b border-[var(--border)] px-4 py-3">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">
           Who worked on this
         </span>
       </div>
@@ -232,10 +232,10 @@ export function ContributorTable({ rows }: { rows: ProjectContributor[] }) {
         rows.map((r) => (
           <div
             key={r.memberId}
-            className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2 text-[12.5px] last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2 text-[12px] last:border-b-0"
           >
             <span className="truncate text-[var(--text-primary)]">{r.memberName}</span>
-            <span className="flex shrink-0 gap-4 font-mono text-[11.5px]">
+            <span className="flex shrink-0 gap-4 font-mono text-[11px]">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
               <span className="w-16 text-right text-[var(--accent)]">{h(r.billableHours)} b</span>
               <span className="w-16 text-right text-[var(--text-primary)]">{h(r.hours)} h</span>
@@ -252,7 +252,7 @@ export function TaskTable({ rows }: { rows: ProjectTaskRow[] }) {
   return (
     <div className="flex flex-col border border-[var(--border)] bg-[var(--surface)]">
       <div className="flex items-baseline justify-between border-b border-[var(--border)] px-4 py-3">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">Time by task</span>
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">Time by task</span>
         {rows.length > shown.length && (
           <span className="font-mono text-[10px] text-[var(--text-faint)]">
             TOP {shown.length} OF {rows.length}
@@ -267,10 +267,10 @@ export function TaskTable({ rows }: { rows: ProjectTaskRow[] }) {
         shown.map((r) => (
           <div
             key={r.taskName}
-            className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2 text-[12.5px] last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2 text-[12px] last:border-b-0"
           >
             <span className="truncate text-[var(--text-secondary)]">{r.taskName}</span>
-            <span className="flex shrink-0 gap-4 font-mono text-[11.5px]">
+            <span className="flex shrink-0 gap-4 font-mono text-[11px]">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
               <span className="w-16 text-right text-[var(--text-primary)]">{h(r.hours)} h</span>
             </span>

@@ -513,7 +513,10 @@ check(
 );
 check(
   "no HSE record data is on that page",
-  !/EMPLOYEE NUMBER|Business overview|Needs your decision/i.test(stranger.text),
+      // "Utilisation by person", not "Business overview" -- the Overview H1 is
+      // now the plain noun "Overview", which the sidebar also renders, so it is
+      // not a leak signal.
+      !/EMPLOYEE NUMBER|Utilisation by person|Needs your decision/i.test(stranger.text),
 );
 
 clearTimeout(watchdog);

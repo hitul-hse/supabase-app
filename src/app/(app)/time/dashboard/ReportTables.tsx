@@ -133,7 +133,7 @@ export function BreakdownTable({
           <>
             <span className="block truncate text-[12px] text-[var(--text-primary)]">{r.label}</span>
             {r.secondary && (
-              <span className="block truncate text-[10.5px] text-[var(--text-faint)]">
+              <span className="block truncate text-[10px] text-[var(--text-faint)]">
                 {r.secondary}
               </span>
             )}
@@ -233,7 +233,7 @@ export function BreakdownTable({
           <span className="flex-1">
             <Bar percent={maxShare > 0 ? (r.sharePercent / maxShare) * 100 : 0} />
           </span>
-          <span className="w-[3.2rem] text-right font-mono text-[10.5px] tabular-nums text-[var(--text-faint)]">
+          <span className="w-[3.2rem] text-right font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
             {r.sharePercent.toFixed(1)}%
           </span>
         </span>
@@ -288,7 +288,7 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
             {r.projectName}
           </Link>
           {r.customerName && (
-            <span className="block truncate text-[10.5px] text-[var(--text-faint)]">
+            <span className="block truncate text-[10px] text-[var(--text-faint)]">
               {r.customerName}
             </span>
           )}
@@ -343,7 +343,7 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
             <Bar percent={r.burnPercent} tone={r.isOver ? "over" : "accent"} />
           </span>
           <span
-            className={`w-[3.8rem] text-right font-mono text-[10.5px] tabular-nums ${
+            className={`w-[3.8rem] text-right font-mono text-[10px] tabular-nums ${
               r.isOver ? "text-[var(--critical)]" : "text-[var(--text-faint)]"
             }`}
           >
@@ -448,7 +448,7 @@ export function EconomicsTable({
             </Link>
           )}
           {r.customerName && (
-            <span className="block truncate text-[10.5px] text-[var(--text-faint)]">
+            <span className="block truncate text-[10px] text-[var(--text-faint)]">
               {r.customerName}
             </span>
           )}
@@ -531,7 +531,7 @@ export function EconomicsTable({
           },
         ].map((t) => (
           <div key={t.label} className="border-r border-[var(--border)] px-4 py-3 last:border-r-0">
-            <div className="font-mono text-[9.5px] tracking-[0.12em] text-[var(--text-faint)]">
+            <div className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
               {t.label}
             </div>
             <div
@@ -605,7 +605,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
       compare: (a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt),
       csv: (r) => r.startedAt,
       cell: (r) => (
-        <span className="whitespace-nowrap font-mono text-[11.5px] text-[var(--text-faint)]">
+        <span className="whitespace-nowrap font-mono text-[11px] text-[var(--text-faint)]">
           {shortDate(r.startedAt.slice(0, 10))}
           {/* The clock time matters for an entry-level check: two 2h entries on
               one day are ambiguous without it. */}
@@ -637,7 +637,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
             {r.projectName ?? "—"}
           </span>
           {(r.taskName || r.notes) && (
-            <span className="block truncate text-[10.5px] text-[var(--text-faint)]" title={r.notes ?? undefined}>
+            <span className="block truncate text-[10px] text-[var(--text-faint)]" title={r.notes ?? undefined}>
               {r.taskName ?? r.notes}
             </span>
           )}
@@ -653,7 +653,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
       search: (r) => r.customerName ?? "",
       csv: (r) => r.customerName ?? "",
       cell: (r) => (
-        <span className="block truncate text-[11.5px] text-[var(--text-faint)]">
+        <span className="block truncate text-[11px] text-[var(--text-faint)]">
           {r.customerName ?? "—"}
         </span>
       ),

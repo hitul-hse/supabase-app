@@ -49,7 +49,7 @@ function Kpi({
       >
         {value}
       </span>
-      {sub && <span className="text-[10.5px] leading-tight text-[var(--text-faint)]">{sub}</span>}
+      {sub && <span className="text-[10px] leading-tight text-[var(--text-faint)]">{sub}</span>}
     </>
   );
 
@@ -161,7 +161,7 @@ export function TotalsStrip({
         caveat that appears only in an empty state teaches people to read the
         absence of a note as "nothing was excluded". */}
     {calendarExcludedHours > 0 && (
-      <p className="mt-2 text-[11.5px] text-[var(--text-muted)]">
+      <p className="mt-2 text-[11px] text-[var(--text-muted)]">
         <span className="font-mono">{hrs(calendarExcludedHours)}</span> of calendar time is excluded
         from these figures.{" "}
         {includeCalendarHref ? (
@@ -222,7 +222,7 @@ export function FreshnessBanner({ freshness }: { freshness: SyncFreshness }) {
 
   if (status === "ok" && lastSuccessAt && hoursSince !== null) {
     return (
-      <p className="text-[10.5px] text-[var(--text-faint)]">
+      <p className="text-[10px] text-[var(--text-faint)]">
         Imported from the TrackingTime API {age(hoursSince)} ({stamp(lastSuccessAt)})
         {recordCount !== null ? ` · ${recordCount.toLocaleString("en-GB")} entries` : ""}
         {inProgress ? " · a sync is running now" : ""}

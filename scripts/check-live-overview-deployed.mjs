@@ -176,7 +176,10 @@ try {
   await page.goto(`${SITE}/`, { waitUntil: "networkidle", timeout: 90_000 });
   const body = await page.locator("body").innerText();
 
-  check("landed on the Hub overview as an exec, not redirected", /Business overview/i.test(body),
+  // "Overview", not "Business overview": the heading lost its adjective when the
+  // eyebrow above it ("HSE HUB / ANALYSE") was deleted, since the sidebar
+  // already names both the product and the section permanently.
+  check("landed on the Hub overview as an exec, not redirected", /\bOverview\b/.test(body),
     `at ${page.url()} -- "${body.slice(0, 100).replace(/\n/g, " ")}"`);
 
   // ── The figures on screen must be the measured ones ──────────────────────

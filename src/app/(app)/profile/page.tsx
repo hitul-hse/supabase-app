@@ -37,7 +37,7 @@ export default async function ProfilePage() {
         <h1 className="text-[15px] font-semibold text-[var(--text-primary)]">
           We couldn&apos;t find your profile
         </h1>
-        <p className="max-w-[48ch] text-[12.5px] leading-relaxed text-[var(--text-muted)]">
+        <p className="max-w-[48ch] text-[12px] leading-relaxed text-[var(--text-muted)]">
           Your account looked provisioned a moment ago, but no active profile record could be
           read just now. Reloading the page usually resolves this; contact an administrator if it
           persists.

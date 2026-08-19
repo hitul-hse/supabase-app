@@ -90,7 +90,7 @@ export function StaleDeployNotice() {
       style={{ background: "var(--warning-wash)" }}
     >
       <div className="flex flex-col">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">
           A new version of the Hub was deployed while this page was open
         </span>
         <span className="text-[12px] text-[var(--text-secondary)]">

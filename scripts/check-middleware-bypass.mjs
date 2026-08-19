@@ -67,9 +67,14 @@ for (const path of protectedRoutes) {
     // Match on real record data, not on shared chrome. "HSE HUB" appears in the
     // logo wordmark on the public login page too, so keying off it produces
     // false alarms; these strings only ever appear in rendered table rows.
-    const leaked = /Needs your decision|EMPLOYEE NUMBER|Users &amp; Roles|Business overview/.test(
-      body,
-    );
+    // "Utilisation by person", not "Business overview": the Overview H1 was
+    // renamed to the plain noun "Overview", which also appears in the sidebar
+    // and is therefore not a leak signal. This card heading renders only on the
+    // authenticated page.
+    const leaked =
+      /Needs your decision|EMPLOYEE NUMBER|Users &amp; Roles|Utilisation by person/.test(
+        body,
+      );
 
     if (leaked) {
       console.log(`FAIL ${path} [${payload}] -> 200 LEAKED PROTECTED CONTENT`);

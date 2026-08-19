@@ -23,7 +23,7 @@ export function MyLeavePanel({
       <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--border)] pb-4">
         <div className="flex flex-col gap-1">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">My leave balance</span>
-          <span className="font-mono text-[10.5px] text-[var(--text-muted)]">FACTORIALHR-EQUIVALENT</span>
+          <span className="font-mono text-[10px] text-[var(--text-muted)]">FACTORIALHR-EQUIVALENT</span>
         </div>
         <span className="font-mono text-[26px] font-semibold text-[var(--text-primary)]">
           {balance?.holiday_left ?? "—"}{" "}
@@ -34,7 +34,7 @@ export function MyLeavePanel({
       </div>
 
       <form action={formAction} className="flex flex-col gap-2 border-b border-[var(--border)] pb-4">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">Request leave</span>
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">Request leave</span>
         <div className="flex flex-wrap items-center gap-2">
           <TextInput label="Leave start date" name="start_date" type="date" required disabled={isPending} />
           <TextInput label="Leave end date" name="end_date" type="date" required disabled={isPending} />
@@ -67,19 +67,19 @@ export function MyLeavePanel({
           user most needs told rather than left to notice.
         */}
         {state.status === "error" && (
-          <p role="status" className="text-[11.5px] text-[var(--critical)]">
+          <p role="status" className="text-[11px] text-[var(--critical)]">
             {state.message}
           </p>
         )}
         {state.status === "success" && (
-          <p role="status" className="text-[11.5px] text-[var(--accent)]">
+          <p role="status" className="text-[11px] text-[var(--accent)]">
             {state.message}
           </p>
         )}
       </form>
 
       <div className="flex flex-col gap-2">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">My requests</span>
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">My requests</span>
         {requests.length === 0 && (
           <EmptyState
             title="No leave requests yet"
@@ -97,7 +97,7 @@ export function MyLeavePanel({
                 <IconArrowRight className="h-3 w-3 text-[var(--text-faint)]" />
                 {r.end_date}
               </span>
-              <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+              <span className="font-mono text-[10px] text-[var(--text-muted)]">
                 {r.days} DAY{Number(r.days) === 1 ? "" : "S"}
                 {r.reason ? ` · ${r.reason}` : ""}
               </span>

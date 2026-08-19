@@ -163,7 +163,7 @@ export function IdentityCard({
         <form action={nameAction} className="flex flex-1 flex-col gap-2">
           <label
             htmlFor="display_name"
-            className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-[var(--text-faint)]"
+            className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--text-faint)]"
           >
             Display name
           </label>

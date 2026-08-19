@@ -29,13 +29,13 @@ export function PendingLeaveApprovals({ initialRequests }: { initialRequests: Le
   return (
     <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="flex items-baseline justify-between">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">
           Pending leave approvals
         </span>
-        <span className="font-mono text-[10.5px] text-[var(--text-muted)]">{requests.length} REQUESTS</span>
+        <span className="font-mono text-[10px] text-[var(--text-muted)]">{requests.length} REQUESTS</span>
       </div>
 
-      {error && <p className="text-[11.5px] text-[var(--critical)]">{error}</p>}
+      {error && <p className="text-[11px] text-[var(--critical)]">{error}</p>}
 
       {requests.length === 0 ? (
         <p className="text-[12px] text-[var(--text-muted)]">Nothing pending.</p>
@@ -44,8 +44,8 @@ export function PendingLeaveApprovals({ initialRequests }: { initialRequests: Le
           {requests.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="flex flex-col">
-                <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{r.personName}</span>
-                <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+                <span className="text-[12px] font-medium text-[var(--text-primary)]">{r.personName}</span>
+                <span className="font-mono text-[10px] text-[var(--text-muted)]">
                   {r.start_date} → {r.end_date} · {r.days} day{Number(r.days) === 1 ? "" : "s"}
                   {r.reason ? ` · ${r.reason}` : ""}
                 </span>

@@ -25,7 +25,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 const CONTROL_BASE =
   "rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--page)] " +
-  "text-[12.5px] text-[var(--text-primary)] placeholder-[var(--text-muted)] " +
+  "text-[12px] text-[var(--text-primary)] placeholder-[var(--text-muted)] " +
   "transition-colors duration-150 " +
   "hover:border-[var(--text-faint)] " +
   // No `focus:outline-none` — the global :focus-visible ring is the whole
@@ -150,7 +150,7 @@ export function FilterChip({
       aria-pressed={active}
       className={
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 " +
-        "font-mono text-[10.5px] tracking-[0.06em] transition-colors duration-150 " +
+        "font-mono text-[10px] tracking-[0.06em] transition-colors duration-150 " +
         "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
         (active
           ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]"

@@ -58,16 +58,16 @@ function NodeRow({
         )}
         <span
           aria-hidden
-          className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[var(--surface-2)] font-mono text-[9.5px] text-[var(--text-secondary)]"
+          className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[var(--surface-2)] font-mono text-[10px] text-[var(--text-secondary)]"
         >
           {initialsOf(node.name)}
         </span>
-        <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{node.name}</span>
+        <span className="text-[12px] font-medium text-[var(--text-primary)]">{node.name}</span>
         {node.jobTitle && (
-          <span className="text-[11.5px] text-[var(--text-secondary)]">{node.jobTitle}</span>
+          <span className="text-[11px] text-[var(--text-secondary)]">{node.jobTitle}</span>
         )}
         {node.team && (
-          <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.06em] text-[var(--text-muted)]">
+          <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] tracking-[0.06em] text-[var(--text-muted)]">
             {teamLabel(node.team)}
           </span>
         )}
@@ -127,7 +127,7 @@ export function OrgChartView({
       <div className="p-4 sm:p-6">
         <div className="border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">No active people</p>
-          <p className="mt-1 text-[12.5px] text-[var(--text-secondary)]">
+          <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
             Nobody in the TrackingTime roster is currently active.
           </p>
         </div>
@@ -144,7 +144,7 @@ export function OrgChartView({
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             Reporting structure
           </span>
-          <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+          <span className="font-mono text-[10px] text-[var(--text-muted)]">
             RECORDED IN THE HUB · TRACKINGTIME HOLDS NO HIERARCHY
           </span>
         </div>
@@ -168,7 +168,7 @@ export function OrgChartView({
           className="border border-[var(--border)] px-4 py-3"
           style={{ background: "var(--warning-wash)" }}
         >
-          <p className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+          <p className="text-[12px] font-semibold text-[var(--text-primary)]">
             Showing a partial chart
           </p>
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
@@ -182,7 +182,7 @@ export function OrgChartView({
       {(supState.status !== "idle" || detState.status !== "idle") && (
         <p
           role="status"
-          className="border border-[var(--border)] px-3 py-2 text-[12.5px] text-[var(--text-primary)]"
+          className="border border-[var(--border)] px-3 py-2 text-[12px] text-[var(--text-primary)]"
           style={{
             background:
               supState.status === "error" || detState.status === "error"
@@ -201,7 +201,7 @@ export function OrgChartView({
           className="border border-[var(--critical)] p-4"
           style={{ background: "var(--warning-wash)" }}
         >
-          <p className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+          <p className="text-[12px] font-semibold text-[var(--text-primary)]">
             {cycles.length} reporting loop{cycles.length === 1 ? "" : "s"} recorded
           </p>
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
@@ -218,7 +218,7 @@ export function OrgChartView({
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">
             No reporting lines recorded yet
           </p>
-          <p className="mx-auto mt-1 max-w-[46ch] text-[12.5px] text-[var(--text-secondary)]">
+          <p className="mx-auto mt-1 max-w-[46ch] text-[12px] text-[var(--text-secondary)]">
             TrackingTime does not hold who reports to whom, so nothing can be
             imported. {canEdit
               ? "Use EDIT beside anyone below to record their manager, and the chart will build itself."
@@ -240,7 +240,7 @@ export function OrgChartView({
       {unplaced.length > 0 && (
         <div className="border border-[var(--border)] bg-[var(--surface)]">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
-            <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+            <span className="text-[12px] font-semibold text-[var(--text-primary)]">
               Not yet placed
             </span>
             <span className="font-mono text-[10px] text-[var(--text-muted)]">
@@ -255,19 +255,19 @@ export function OrgChartView({
               >
                 <span
                   aria-hidden
-                  className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[var(--surface-2)] font-mono text-[9.5px] text-[var(--text-secondary)]"
+                  className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[var(--surface-2)] font-mono text-[10px] text-[var(--text-secondary)]"
                 >
                   {initialsOf(m.name)}
                 </span>
-                <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{m.name}</span>
+                <span className="text-[12px] font-medium text-[var(--text-primary)]">{m.name}</span>
                 <span className="font-mono text-[10px] text-[var(--text-faint)]">
                   {m.accountRole}
                 </span>
                 {m.jobTitle && (
-                  <span className="text-[11.5px] text-[var(--text-secondary)]">{m.jobTitle}</span>
+                  <span className="text-[11px] text-[var(--text-secondary)]">{m.jobTitle}</span>
                 )}
                 {m.team && (
-                  <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9.5px] text-[var(--text-muted)]">
+                  <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
                     {teamLabel(m.team)}
                   </span>
                 )}
@@ -313,7 +313,7 @@ export function OrgChartView({
                 name="supervisor_member_id"
                 defaultValue={editing.supervisorMemberId ?? ""}
                 disabled={supPending}
-                className="min-w-[220px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12.5px] text-[var(--text-primary)] disabled:opacity-50"
+                className="min-w-[220px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12px] text-[var(--text-primary)] disabled:opacity-50"
               >
                 <option value="">Nobody (top of the chart)</option>
                 {everyone
@@ -351,7 +351,7 @@ export function OrgChartView({
                 name="team"
                 defaultValue={editing.team ?? ""}
                 disabled={detPending}
-                className="min-w-[160px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12.5px] text-[var(--text-primary)] disabled:opacity-50"
+                className="min-w-[160px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12px] text-[var(--text-primary)] disabled:opacity-50"
               >
                 <option value="">— None —</option>
                 {teamOptionsFor(editing.team).map((t) => (
@@ -368,7 +368,7 @@ export function OrgChartView({
                 defaultValue={editing.jobTitle ?? ""}
                 placeholder="e.g. Safety consultant"
                 disabled={detPending}
-                className="min-w-[200px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12.5px] text-[var(--text-primary)] disabled:opacity-50"
+                className="min-w-[200px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12px] text-[var(--text-primary)] disabled:opacity-50"
               />
             </label>
             <button
@@ -380,7 +380,7 @@ export function OrgChartView({
             </button>
           </form>
 
-          <p className="pt-3 font-mono text-[9.5px] text-[var(--text-faint)]">
+          <p className="pt-3 font-mono text-[10px] text-[var(--text-faint)]">
             JOB TITLE IS NOT THE SAME AS {editing.accountRole} — THAT IS THIS
             PERSON&apos;S TRACKINGTIME ACCESS LEVEL, NOT THEIR ROLE HERE
           </p>

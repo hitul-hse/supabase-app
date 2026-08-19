@@ -11,7 +11,7 @@ import type { ProfileView } from "@/lib/queries/profile";
 function Field({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-[var(--text-faint)]">
+      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--text-faint)]">
         {label}
       </span>
       <span className={`text-[13px] text-[var(--text-secondary)] ${mono ? "font-mono" : ""}`}>
@@ -32,7 +32,7 @@ export function EmploymentCard({ profile }: { profile: ProfileView }) {
       </div>
 
       {profile.personId === null && (
-        <p className="mb-4 border-b border-[var(--border)] pb-4 text-[12.5px] text-[var(--text-muted)]">
+        <p className="mb-4 border-b border-[var(--border)] pb-4 text-[12px] text-[var(--text-muted)]">
           No HR record is linked to your account yet, so the fields below are unavailable. This
           fills in once HR links your profile.
         </p>

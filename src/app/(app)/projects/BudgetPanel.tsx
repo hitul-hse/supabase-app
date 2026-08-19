@@ -34,7 +34,7 @@ export function BudgetPanel({ status }: { status: ProjectBudgetStatusRow | null 
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-2.5">
           <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Budget &amp; margin</h2>
-          <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+          <span className="font-mono text-[10px] text-[var(--text-muted)]">
             APPROVED HOURS ONLY
           </span>
         </div>

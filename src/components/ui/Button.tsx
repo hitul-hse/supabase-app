@@ -57,10 +57,10 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const SIZES: Record<Size, string> = {
-  sm: "px-2.5 py-1 text-[11.5px] gap-1.5",
+  sm: "px-2.5 py-1 text-[11px] gap-1.5",
   // 32px min-height. Not a full 44px: this is a dense desktop tool with tables
   // of hundreds of rows, and the pointer-coarse bump below covers touch.
-  md: "px-3 py-1.5 text-[12.5px] gap-2 min-h-[32px]",
+  md: "px-3 py-1.5 text-[12px] gap-2 min-h-[32px]",
 };
 
 const BASE =

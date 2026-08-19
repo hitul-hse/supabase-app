@@ -27,7 +27,7 @@
  * is a deliberate, labelled choice rather than the default, and it flips back.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 export type PagerState = {
   /** Zero-based index of the visible page. */

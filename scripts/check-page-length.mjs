@@ -75,11 +75,26 @@ await ctx.addCookies(cookies);
 const page = await ctx.newPage();
 
 const docHeight = () => page.evaluate(() => document.documentElement.scrollHeight);
-/** A fingerprint of the rows currently rendered, to prove a page change did something. */
+/**
+ * A fingerprint of the rows currently rendered, to prove a page change did something.
+ *
+ * Deliberately generic: the first version fingerprinted only /projects/ links, which is
+ * empty on the People and dashboard surfaces -- so before === after ("" === "") and the
+ * check failed while the pager was working. It now hashes the visible text of the row-like
+ * elements each surface actually renders.
+ */
 const rowFingerprint = () =>
   page.evaluate(() => {
-    const links = [...document.querySelectorAll('a[href^="/projects/"], a[href^="/people"], [data-task-row]')];
-    return links.slice(0, 8).map((a) => (a.textContent ?? "").trim()).join("|");
+    const candidates = [
+      ...document.querySelectorAll(
+        'a[href^="/projects/"], a[href^="/time/dashboard?"], tbody tr, [data-task-row], button[class*="border-l-2"]',
+      ),
+    ];
+    return candidates
+      .slice(0, 10)
+      .map((el) => (el.textContent ?? "").trim().slice(0, 60))
+      .filter(Boolean)
+      .join("|");
   });
 
 try {

@@ -572,25 +572,94 @@ check(
     !/breathe:\s*"/.test(MARK_C),
   "a per-piece breath separates the pieces during the hold",
 );
-// The mark must be STILL between arriving and breathing. Without a second stop
-// at rest the breath interpolates straight out of the settle keyframe, so the
-// assemble never resolves into anything that reads as finished — measured live,
-// the piece was already 3.1px off rest at t=1500ms of a 7.2s cycle.
+// The mark must be STILL between arriving and breathing, but not for so long that
+// it reads as frozen. Two assertions, pulling in opposite directions:
+//
+//   too little hold -> the breath interpolates straight out of the settle
+//     keyframe, so the assemble never resolves into anything that reads as
+//     finished (measured live: 3.1px off rest at t=1500ms of the old 7.2s cycle)
+//   too much hold   -> a dead logo, which is what "it stays for 3 seconds"
+//     reported on the first shipped version
 {
   const kf = CSS_C.match(/@keyframes\s+brand-mark-assemble-loop\s*\{([\s\S]*?)\n\}/);
-  const restStops = kf
-    ? [...kf[1].matchAll(/(\d+(?:\.\d+)?)%\s*\{([^}]*)\}/g)]
-        .filter((m) => /transform:\s*translate\(0,\s*0\)/.test(m[2]))
-        .map((m) => Number(m[1]))
-        .filter((n) => n > 0 && n < 100)
+  /*
+   * The stop IMMEDIATELY AFTER the settle must ALSO be at rest.
+   *
+   * Not "there exist two rest stops with a gap between them": that version
+   * passed with the hold stop deleted, because the settle (15%) and the
+   * post-breath rest (90%) are two rest stops 75% apart — while the breath began
+   * the instant the mark landed, which is the exact defect the check exists to
+   * catch. Adjacency is the whole assertion.
+   */
+  const kfStops = kf
+    ? [...kf[1].matchAll(/(\d+(?:\.\d+)?)%\s*\{([^}]*)\}/g)].map((m) => ({
+        at: Number(m[1]),
+        rest: /transform:\s*translate\(0,\s*0\)/.test(m[2]),
+      }))
     : [];
+  const settleIdx = kfStops.findIndex((s) => s.rest && s.at > 0 && s.at < 100);
+  const afterSettle = settleIdx === -1 ? undefined : kfStops[settleIdx + 1];
   check(
     "the mark actually HOLDS still after settling, before it breathes",
-    restStops.length >= 2 && Math.max(...restStops) - Math.min(...restStops) >= 10,
-    restStops.length
-      ? `rest stops at ${restStops.join("%, ")}%`
+    Boolean(afterSettle) && afterSettle.rest,
+    afterSettle
+      ? `settles at ${kfStops[settleIdx].at}%, next stop ${afterSettle.at}% is ${afterSettle.rest ? "rest (holds)" : "MOVING — the breath starts on landing"}`
       : "no rest stops — the breath starts the instant the mark lands",
   );
+
+  /*
+   * ...but the hold must not be so long that the mark reads as FROZEN.
+   *
+   * This is the other half of the check above, and it needs its own assertion
+   * because every existing timing check passes at any period: "period >= 3s" is
+   * a floor, and "settles by 20%" is a PERCENTAGE, so both are satisfied just as
+   * happily by a 7.2s cycle as a 4.8s one. Nothing here bounded the stillness,
+   * and the first shipped version sat visibly dead for ~2.5s as a result.
+   *
+   * Measured in MILLISECONDS off the keyframes, not percentages — a stop at 25%
+   * means nothing without the period. Reported feedback was "it stays for 3
+   * seconds"; 700ms per stretch keeps the mark settled long enough to read as
+   * finished without ever reading as stopped.
+   *
+   * NOTE this number is SMALLER than what a browser measures, and both are right.
+   * This counts the gap between rest KEYFRAMES (576ms at 4800ms). What the eye
+   * gets is longer — measured 1480ms — because the breath's return ramp is eased,
+   * so the piece is already within half a pixel of rest well before the next rest
+   * stop. Do not "reconcile" the two by raising this bound: the keyframe gap is
+   * the lever, the rendered stillness is the outcome, and the ratio is ~2.5x.
+   */
+  const period = CSS_C.match(/\.brand-mark__piece--loop\s*\{[\s\S]*?animation:[^;]*?(\d+)ms/);
+  if (kf && period) {
+    const P = Number(period[1]);
+    const allStops = [...kf[1].matchAll(/(\d+(?:\.\d+)?)%\s*\{([^}]*)\}/g)].map((m) => ({
+      at: Number(m[1]),
+      rest: /transform:\s*translate\(0,\s*0\)/.test(m[2]),
+    }));
+    // A motionless stretch is two ADJACENT stops that are both at rest: any stop
+    // between them (the breath) means the piece is moving through it.
+    let longest = 0;
+    let where = "";
+    for (let i = 0; i < allStops.length - 1; i++) {
+      if (!allStops[i].rest || !allStops[i + 1].rest) continue;
+      const ms = ((allStops[i + 1].at - allStops[i].at) / 100) * P;
+      if (ms > longest) {
+        longest = ms;
+        where = `${allStops[i].at}%->${allStops[i + 1].at}%`;
+      }
+    }
+    check(
+      "no single stretch leaves the mark motionless for longer than 700ms",
+      longest > 0 && longest <= 700,
+      longest > 0
+        ? `longest still stretch ${Math.round(longest)}ms (${where}) of a ${P}ms cycle`
+        : "no motionless stretch found at all — the mark never settles",
+    );
+    check(
+      "the loop period stays under 5.4s (a longer cycle is mostly dead air)",
+      P <= 5400,
+      `${P}ms — the assemble is only ~1050ms, so everything beyond this is hold`,
+    );
+  }
 }
 
 /* ── 6. Accessibility ────────────────────────────────────────────────────── */

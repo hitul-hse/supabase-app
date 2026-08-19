@@ -216,10 +216,18 @@ body {
  * assemble, assemble — is a different and much worse thing: it never resolves,
  * so the eye is pulled back every half second and the page never settles.
  *
- * So the cycle is 630ms of motion inside a 5.4s period, expressed as keyframe
- * percentages: the mark assembles, then holds for ~4.8s — long enough to stop
- * being a distraction, short enough that someone reading the sign-in form sees
- * it play again.
+ * So the cycle is 1050ms of motion inside a 4.8s period, expressed as keyframe
+ * percentages: the mark assembles, then holds — long enough to stop being a
+ * distraction, short enough that someone reading the sign-in form sees it play
+ * again.
+ *
+ * HOW LONG THE HOLD SHOULD BE
+ * The first version held too long: measured, ~1.35s literally motionless after
+ * settling plus ~1.16s before the restart, which reads as roughly 3s of a frozen
+ * logo. The breath is only 4 user units, so it does not register as movement
+ * until it has travelled ~0.5px — the "still" the eye reports is therefore much
+ * longer than the gap between the rest keyframes. Shortening the PERIOD (not the
+ * assemble) cuts that to ~1.4s while leaving the 720ms arrival untouched.
  *
  * Percentages, not a second @keyframes with a delay: `animation-delay` applies
  * once, not per iteration, so it cannot produce a gap BETWEEN repeats. The hold
@@ -230,26 +238,30 @@ body {
     transform: var(--piece-from);
     opacity: 0.55;
   }
-  /* Overshoot at 447ms of 7200ms = 6.2%, mirroring the one-shot's 62%. */
-  6.2% {
+  /* Overshoot at 446ms of 4800ms = 9.3%, mirroring the one-shot's 62%. */
+  9.3% {
     transform: var(--piece-over);
     opacity: 1;
     animation-timing-function: var(--ease-settle);
   }
-  /* Settled at 720ms of 7200ms = 10%. */
-  10% {
+  /* Settled at 720ms of 4800ms = 15%. Percentages track the SHORTER period so
+     the arrival itself still takes 720ms — only the hold got shorter. */
+  15% {
     transform: translate(0, 0);
     opacity: 1;
   }
   /*
-   * A REAL hold at rest before the breath begins (10% -> 25%, ~1.1s).
+   * A REAL hold at rest before the breath begins (15% -> 27%, ~580ms).
    *
    * Without this stop the breath interpolates straight out of the settle
    * keyframe, so the assemble never resolves into anything the eye can read as
    * finished — measured live, the piece was already 3.1px off rest at t=1500ms.
    * The mark has to arrive, be still, and only then breathe.
+   *
+   * Kept deliberately, just shorter: deleting it to cut the still time would
+   * remove the only thing that makes the arrival read as finished.
    */
-  25% {
+  27% {
     transform: translate(0, 0);
     opacity: 1;
   }
@@ -263,12 +275,12 @@ body {
    * finished object. This is the "not just one simple animation" part — the
    * mark is alive through the whole cycle instead of frozen for 6 seconds.
    */
-  55% {
+  58% {
     transform: var(--piece-breathe);
     opacity: 1;
   }
   /* Back to rest, and hold there until the cycle restarts. */
-  88% {
+  90% {
     transform: translate(0, 0);
     opacity: 1;
   }
@@ -279,9 +291,11 @@ body {
 }
 
 .brand-mark__piece--loop {
-  /* 7200ms, up from 5400ms: the assemble itself is now 1050ms rather than
-     630ms, so the same hold length needs a longer period. */
-  animation: brand-mark-assemble-loop 7200ms var(--ease-out) infinite both;
+  /* 4800ms, down from 7200ms. The period is the only lever that shortens the
+     "frozen logo" stretch without speeding up the arrival: the assemble is
+     pinned to 720ms by the keyframe percentages above, so a shorter period
+     spends less of the cycle sitting at rest. ~1.4s of perceived stillness. */
+  animation: brand-mark-assemble-loop 4800ms var(--ease-out) infinite both;
 }
 
 /*

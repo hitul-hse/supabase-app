@@ -266,67 +266,58 @@ export function UserRow({
     </div>
   );
 
-  const feedback = (error || notice || fallbackLink) && (
-    <span className="flex flex-col items-start gap-1 sm:items-end">
-      {(error || notice) && (
-        <span
-          role={error ? "alert" : "status"}
-          className={`text-[10px] ${error ? "text-[var(--critical)]" : "text-[var(--accent)]"}`}
+  /**
+   * The one-time sign-in link, and the way to copy it.
+   *
+   * Not a rare error path: sending is rate-limited project-wide on Supabase's built-in
+   * SMTP, so passing this link on is the normal way a colleague gets in until custom
+   * SMTP is configured. So it is labelled, wide enough to read, and copyable in one
+   * click.
+   *
+   * An input rather than a bare <a>: it has to be pasted into a message to a person, and
+   * a link you can only click is the one thing that does not help.
+   *
+   * This part is shared between the two layouts because it carries no live region -- the
+   * announcements below are what must exist per layout.
+   */
+  const linkPanel = fallbackLink ? (
+    <span className="flex w-full flex-col gap-1 sm:items-end">
+      <span className="font-mono text-[9px] tracking-[0.06em] text-[var(--text-faint)]">
+        ONE-TIME SIGN-IN LINK — SEND THIS TO THEM
+      </span>
+      <span className="flex w-full items-center gap-1">
+        <input
+          readOnly
+          value={fallbackLink}
+          // Select the whole URL on focus or click, so one gesture then Ctrl+C is enough
+          // and a partial selection cannot produce a broken link.
+          onFocus={(e) => e.currentTarget.select()}
+          onClick={(e) => e.currentTarget.select()}
+          aria-label={`One-time sign-in link for ${email}`}
+          className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)]"
+        />
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(fallbackLink);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 2000);
+            } catch {
+              // Clipboard access can be refused (insecure context, permissions). The
+              // field beside this is still selectable, so say what to do rather than
+              // fail silently.
+              setCopied(false);
+              setError("Could not reach the clipboard — select the link and copy it manually.");
+            }
+          }}
+          className="flex-none rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
-          {error ?? notice}
-        </span>
-      )}
-      {fallbackLink && (
-        /*
-         * A copyable field, sized to be used rather than tucked away.
-         *
-         * This is not a rare error path: sending is rate-limited project-wide on
-         * Supabase's built-in SMTP, so handing over this link is the normal way a
-         * colleague gets in until custom SMTP is configured. It needs a label saying
-         * what it is, a field wide enough to see it, and one-click copying.
-         *
-         * An input rather than a bare <a>: the link has to be pasted into a message to
-         * a person, and a link you can only click is the one thing that does not help.
-         */
-        <span className="flex w-full flex-col gap-1 sm:items-end">
-          <span className="font-mono text-[9px] tracking-[0.06em] text-[var(--text-faint)]">
-            ONE-TIME SIGN-IN LINK — SEND THIS TO THEM
-          </span>
-          <span className="flex w-full items-center gap-1">
-            <input
-              readOnly
-              value={fallbackLink}
-              // Select the whole URL on focus, so click-then-Ctrl+C is enough and a
-              // partial selection cannot produce a broken link.
-              onFocus={(e) => e.currentTarget.select()}
-              onClick={(e) => e.currentTarget.select()}
-              aria-label={`One-time sign-in link for ${email}`}
-              className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)]"
-            />
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(fallbackLink);
-                  setCopied(true);
-                  window.setTimeout(() => setCopied(false), 2000);
-                } catch {
-                  // Clipboard access can be refused (insecure context, permissions).
-                  // The field beside this is still selectable, so say what to do rather
-                  // than failing silently.
-                  setCopied(false);
-                  setError("Could not reach the clipboard — select the link and copy it manually.");
-                }
-              }}
-              className="flex-none rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-            >
-              {copied ? "COPIED" : "COPY"}
-            </button>
-          </span>
-        </span>
-      )}
+          {copied ? "COPIED" : "COPY"}
+        </button>
+      </span>
     </span>
-  );
+  ) : null;
 
   return (
     <>
@@ -348,7 +339,21 @@ export function UserRow({
           {statusToggle}
         </div>
 
-        {feedback}
+        {/* This card's OWN live regions. Static roles, because a role that changes
+            after mount is not reliably announced; separate elements, because the
+            desktop row below needs its own and a shared one would leave whichever
+            layout is hidden owning a region that can never fire. */}
+        {error && (
+          <span role="alert" className="text-[10px] text-[var(--critical)]">
+            {error}
+          </span>
+        )}
+        {!error && notice && (
+          <span role="status" className="text-[10px] text-[var(--accent)]">
+            {notice}
+          </span>
+        )}
+        {linkPanel}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
@@ -389,7 +394,20 @@ export function UserRow({
           {/* The message itself, not "Error" behind a title= tooltip: a failed
               permission change is exactly the case where the reason matters,
               and title is unreachable by keyboard and on touch. */}
-          {feedback}
+          {/* This row's OWN live regions -- see the card above. The message itself,
+              not "Error" behind a title= tooltip: a refused permission change is exactly
+              when the reason matters, and title is unreachable by keyboard and on touch. */}
+          {error && (
+            <span role="alert" className="text-[10px] text-[var(--critical)]">
+              {error}
+            </span>
+          )}
+          {!error && notice && (
+            <span role="status" className="text-[10px] text-[var(--accent)]">
+              {notice}
+            </span>
+          )}
+          {linkPanel}
           {canEdit ? actionButtons : new Date(createdAt).toLocaleDateString("de-DE")}
         </span>
       </div>

@@ -147,6 +147,7 @@ export function StatTile({
   tone = "neutral",
   progressPercent = null,
   className = "",
+  ...rest
 }: {
   label: string;
   value: string | number | null;
@@ -155,7 +156,17 @@ export function StatTile({
   tone?: "neutral" | "good" | "warning" | "critical";
   progressPercent?: number | null;
   className?: string;
-}) {
+  /**
+   * Everything else lands on the root div — in practice `data-metric`, which
+   * is how the deployed-page checks find a specific figure.
+   *
+   * Without this spread the prop was accepted by TypeScript (JSX allows extra
+   * props on an inline-typed component) and then silently dropped, so the
+   * attribute never reached the DOM. That is not a cosmetic loss: it read as
+   * "the card is not rendered" to anything selecting on it, which is exactly
+   * how the live Overview check failed while the page itself was correct.
+   */
+} & React.HTMLAttributes<HTMLDivElement>) {
   const toneColour =
     tone === "critical"
       ? "var(--critical)"
@@ -169,6 +180,7 @@ export function StatTile({
 
   return (
     <div
+      {...rest}
       data-stat-tile
       className={`card-elev flex flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3.5 ${className}`}
     >

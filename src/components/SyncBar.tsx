@@ -51,7 +51,10 @@ export async function SyncBar() {
     <div
       data-tour="tour-sync"
       data-sync-status={freshness.status}
-      className="flex items-center gap-4 overflow-x-auto border-b border-[var(--border)] bg-[#0b0d0f] px-4 py-2 font-mono text-[11px] sm:px-6 [&::-webkit-scrollbar]:hidden"
+      /* --surface-2, not the hardcoded #0b0d0f this carried: a colour in no
+         token and in no design doc, nearly black against a #2a3038 page, and
+         the darkest surface anywhere in the app. */
+      className="flex items-center gap-4 overflow-x-auto border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-1.5 font-mono text-[10px] sm:px-6 [&::-webkit-scrollbar]:hidden"
     >
       <span className="flex-none tracking-[0.12em] text-[var(--text-faint)]">SYNC</span>
 

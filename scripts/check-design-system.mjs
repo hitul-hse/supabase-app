@@ -611,6 +611,32 @@ check(
   '"n/a h" is nonsense',
 );
 
+/*
+  StatTile must forward unknown props to its root element.
+
+  `data-metric` is how the deployed-page checks locate one specific figure.
+  Without a `...rest` spread TypeScript still accepts the prop -- JSX permits
+  extra props against an inline-typed component -- and React then drops it, so
+  the attribute never reaches the DOM. The failure does not look like a missing
+  attribute either: every selector on it reports "card not rendered", which
+  sends you hunting a page that was correct all along.
+*/
+/*
+  Scoped to StatTile's own body, deliberately. Card has a `...rest` spread too,
+  so a file-wide /\.\.\.rest/ passes with StatTile's spread deleted -- it was
+  testing Card and reporting on StatTile.
+*/
+const statTileBody = card.slice(card.indexOf("export function StatTile"));
+check(
+  "StatTile forwards unknown props (data-metric) to the DOM",
+  /\.\.\.rest/.test(statTileBody) && /\{\.\.\.rest\}/.test(statTileBody),
+  "without the spread, data-metric is silently dropped",
+);
+check(
+  "the Overview still tags its KPI tiles with data-metric",
+  /data-metric=\{metric\.key\}/.test(read("src/app/(app)/page.tsx")),
+);
+
 // The old SyncBar shipped a hardcoded near-black. It was the darkest surface in
 // the app and belonged to no token.
 check(

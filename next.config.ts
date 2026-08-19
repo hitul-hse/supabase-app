@@ -39,6 +39,38 @@ const nextConfig: NextConfig = {
   // the build output lean in production.
   reactStrictMode: true,
 
+  // ─── Deployment skew: keep an open tab talking to the build it was served ──
+  //
+  // THE REPORTED BUG. While recording the org chart ("Björn is CEO, everyone
+  // reports to him"), saving a reporting line made the page break and ask for a
+  // reload. The org chart itself was not at fault: single edits, deep trees,
+  // reporting loops, and five saves in a row were all driven through the live site
+  // without a single failure. What does fail is skew.
+  //
+  // A Server Action is addressed by an opaque ID baked into the JS bundle at BUILD
+  // time. Every deploy mints new IDs. A tab loaded before a deploy still holds the
+  // old ones, so its next save reaches a server that has never heard of that action,
+  // and Next.js can only tell the user to reload -- losing whatever they were doing.
+  //
+  // MEASURED, not assumed. An authenticated POST to /people carrying a
+  // correctly-shaped but unknown action id returns, against production:
+  //
+  //     HTTP 404, x-nextjs-action-not-found=1, body "Server action not found."
+  //
+  // Six deploys landed during that editing session, so this was near-certain to hit
+  // somebody with the page open, and it did.
+  //
+  // THE FIX. Pinning deploymentId makes every request from a bundle carry the
+  // deployment that produced it, so Vercel can route it back to that deployment
+  // rather than the newest one, and an open tab keeps working across a deploy. Read
+  // from VERCEL_DEPLOYMENT_ID rather than hardcoded; locally it is undefined, which
+  // is the correct value for a single dev server.
+  //
+  // This requires Skew Protection to be enabled on the Vercel project for the
+  // routing half to take effect. Until then the setting is harmless and the failure
+  // stays what it was: rare, tied to deploy timing, and cured by a reload.
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+
   // Lets next/image render the signed avatar URL from the private `avatars`
   // storage bucket (see src/app/(app)/profile/page.tsx).
   images: {

@@ -8,6 +8,7 @@ import { SidebarCollapseProvider } from "@/components/SidebarCollapseContext";
 // of the string. See sidebar-collapse-shared.ts.
 import { SIDEBAR_COOKIE } from "@/components/sidebar-collapse-shared";
 import { DesktopSidebarShell } from "@/components/DesktopSidebarShell";
+import { StaleDeployNotice } from "@/components/StaleDeployNotice";
 import { TimerBarSlot } from "./TimerBarSlot";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -53,14 +54,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         Main content — on mobile add top padding for the fixed top bar.
 
         `overflow-x-clip`, NOT `overflow-x-hidden`. Both stop a wide table forcing
-        the page sideways, but `hidden` makes this element a scroll CONTAINER,
-        and `position: sticky` inside a scroll container sticks to that container
-        rather than to the viewport -- so it silently does nothing on a page that
-        scrolls the window. That is what defeated the sticky filter bar on
-        /time/dashboard: the class was applied and correct, and the bar still
-        scrolled away. `clip` suppresses the overflow without establishing a
-        scroll container, which is exactly what was wanted here in the first
-        place.
+        the page sideways, but `hidden` makes this element a scroll CONTAINER, which
+        changes the behaviour of everything inside it: `position: sticky` then
+        sticks to this element rather than to the viewport, and programmatic
+        scrolling targets it instead of the window. `clip` suppresses the overflow
+        without establishing a scroll container, which is what was actually wanted.
+
+        Do not "simplify" this to `hidden`. It was `hidden` once, and the sticky
+        table headers on /time/dashboard silently did nothing -- the classes were
+        present and correct, and the headers still scrolled away.
       */}
       <main className="flex min-w-0 flex-1 flex-col overflow-x-clip pt-12 lg:pt-0">
         <TimerBarSlot />
@@ -69,6 +71,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* First-time onboarding tour — renders only once, client-side */}
       <OnboardingTour />
+
+      {/*
+        Skew recovery, mounted shell-wide because every page in here saves through
+        Server Actions. When a deploy lands while a tab is open, that tab's action
+        IDs no longer exist server-side (measured: HTTP 404 with
+        x-nextjs-action-not-found=1), and the user's save fails. This says so and
+        offers a reload instead of the page breaking with no explanation.
+      */}
+      <StaleDeployNotice />
     </div>
     </SidebarCollapseProvider>
   );

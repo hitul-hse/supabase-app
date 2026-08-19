@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
+import { RecordsTabs } from "../../RecordsTabs";
 import { createClient } from "@/utils/supabase/server";
 import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -342,6 +343,13 @@ export default async function TrackingTimeDashboardPage({
           title="TrackingTime API Dashboard"
           meta={`${period} · ${totals.entryCount.toLocaleString("en-GB")} ENTRIES · ${totals.totalHours.toLocaleString("en-GB", { maximumFractionDigits: 1 })}H`}
         />
+
+        {/* Reaching the other records surfaces from here. This replaces a
+            "My time tracker →" button that used to sit in the header above: it was
+            an uncommitted local change, so it appeared or vanished depending on which
+            deployment was serving, which is exactly what was reported. A tab row is
+            also the better shape -- it is in the same place on every surface. */}
+        <RecordsTabs canReadAll />
 
         <div className="flex flex-col gap-5 p-4 sm:p-6">
           <ReportFilters

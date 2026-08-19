@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
+import { RecordsTabs } from "../RecordsTabs";
 import { createClient } from "@/utils/supabase/server";
 import { requirePermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -101,6 +102,18 @@ export default async function TimePage({
     p_key: PERMISSIONS.TIMESHEETS_WRITE,
   });
 
+  /*
+   * Whether to offer the TrackingTime Dashboard tab.
+   *
+   * /time/dashboard redirects anyone without timesheets:read_all straight back here, so
+   * offering them the tab would be a link that returns you to the page you are already
+   * on. Asked through the same RPC as canWrite above rather than by comparing role keys,
+   * so the toggle in /admin/roles actually decides it.
+   */
+  const { data: canReadAll } = await supabase.rpc("app_user_has_permission", {
+    p_key: PERMISSIONS.TIMESHEETS_READ_ALL,
+  });
+
   const today = todayIso();
 
   // Only fetch what the active view renders. The tracker needs lookups and
@@ -142,6 +155,11 @@ export default async function TimePage({
                 }`
           }
         />
+
+        {/* canReadAll decides whether the dashboard tab is offered: /time/dashboard
+            redirects anyone without timesheets:read_all straight back here, so showing
+            it to them would be a tab that returns you to where you already are. */}
+        <RecordsTabs canReadAll={canReadAll === true} />
 
         <div className="flex flex-col gap-5 p-4 sm:p-6">
           <TimeViewTabs

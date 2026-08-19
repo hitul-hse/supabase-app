@@ -263,3 +263,237 @@ export async function changeUserDepartment(
   revalidatePath("/admin/users");
   return {};
 }
+
+/**
+ * Send the invite again, for somebody who never signed in.
+ *
+ * WHY THIS IS NEEDED. Nineteen accounts were provisioned for real colleagues and most
+ * have never signed in. There was no way to reach those people from the console: the
+ * invite form calls inviteUserByEmail, which fails on an address that already has an
+ * account, so the only apparent route was to delete the person and invite them afresh.
+ *
+ * HOW IT DELIVERS, and why not the obvious way. My first attempt used
+ * admin.generateLink, which looked right and would have been a silent failure.
+ * Measured against this project:
+ *
+ *     generateLink({type:'recovery'}) x3  -> ok, ok, ok      (never throttled)
+ *     resetPasswordForEmail               -> 429 rate limited
+ *     inviteUserByEmail                   -> "email rate limit exceeded"
+ *
+ * Only calls that actually queue mail are subject to the mail limiter. generateLink
+ * hands the link BACK to the caller instead -- which is why it also returns
+ * properties.action_link. So a resendInvite built on it would have reported success
+ * while nothing reached the colleague.
+ *
+ * This therefore uses resetPasswordForEmail, the same call the sign-in page's own
+ * "forgot password" flow uses, so the mail is one Supabase is configured to send and
+ * the recipient lands on /auth/set-password exactly as a new invitee does.
+ *
+ * AND IT RETURNS THE LINK AS A FALLBACK. The mail limiter is real and shared with
+ * every other mail the project sends, so a re-invite can legitimately be refused for
+ * a minute. When that happens the admin is given the one-time link to pass on by
+ * hand, rather than a dead end. The link is only shown to an admin who already holds
+ * admin:users:write and could reset that account anyway.
+ *
+ * ALREADY-ACTIVE ACCOUNTS ARE REFUSED. A password link arriving unrequested by
+ * somebody who signs in daily looks exactly like a phishing attempt, and they can
+ * reset their own password from the sign-in page. The UI only offers this where it
+ * applies; this re-checks, because the UI is not the boundary.
+ */
+export async function resendInvite(
+  userId: string,
+): Promise<{ error?: string; message?: string; link?: string }> {
+  const guard = await assertCanManageUsers();
+  if ("error" in guard) return { error: guard.error };
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Admin client unavailable." };
+  }
+
+  const { data: target, error: lookupError } = await admin.auth.admin.getUserById(userId);
+  if (lookupError || !target?.user) {
+    return { error: lookupError?.message ?? "That account no longer exists." };
+  }
+  const email = target.user.email;
+  if (!email) {
+    return { error: "That account has no email address, so there is nowhere to send an invite." };
+  }
+
+  if (target.user.last_sign_in_at) {
+    return {
+      error: `${email} has already signed in, so an invite would be misleading. They can reset their own password from the sign-in page.`,
+    };
+  }
+
+  // A deactivated profile cannot use the link even after setting a password, and that
+  // dead end would be invisible to the recipient.
+  const { data: profile } = await admin
+    .from("app_user_profile")
+    .select("is_active")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (profile && profile.is_active === false) {
+    return {
+      error: `${email}'s account is deactivated, so they could set a password and still be refused. Set them ACTIVE first.`,
+    };
+  }
+
+  const redirectTo = `${getSiteUrl()}/auth/callback?next=%2Fauth%2Fset-password`;
+
+  /*
+   * The link is generated FIRST, as the fallback, before attempting to send.
+   *
+   * generateLink does not send and is not throttled, so it always succeeds and gives
+   * the admin something usable even when the mail is refused. Note that each call
+   * invalidates the previous token for that user, so this must come before the send
+   * rather than after it -- generating afterwards would hand over a link while
+   * invalidating the one just mailed.
+   */
+  let fallbackLink: string | undefined;
+  const generated = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo },
+  });
+  if (!generated.error) {
+    fallbackLink = generated.data?.properties?.action_link ?? undefined;
+  }
+
+  // Sending happens through the ordinary reset flow, which IS wired to the project's
+  // mail configuration. The anon client is correct here: this is the same call the
+  // sign-in page makes, and the service role has no separate sending path.
+  const supabase = await createClient();
+  const { error: sendError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+
+  if (sendError) {
+    // Not a failure if there is a link to hand over: say plainly what happened and
+    // what to do, rather than reporting success or leaving a dead end.
+    if (fallbackLink) {
+      return {
+        message: `Could not send the email (${sendError.message}). A one-time sign-in link for ${email} is below — send it to them directly, or try again in a minute.`,
+        link: fallbackLink,
+      };
+    }
+    return { error: `Could not send the invite: ${sendError.message}` };
+  }
+
+  revalidatePath("/admin/users");
+  return { message: `Invite re-sent to ${email}. They will get a link to set a password.` };
+}
+
+/**
+ * Remove an account from the Hub entirely.
+ *
+ * DELETION IS NOT THE USUAL ANSWER, and the UI says so before asking for confirmation:
+ * deactivating keeps the audit trail and is reversible, which is what suits somebody
+ * who has left. This exists for what deactivation does not cover -- an address typed
+ * wrong, a duplicate, a test account -- where a dead row in the console is just
+ * clutter.
+ *
+ * WHAT IT DELIBERATELY DOES NOT TOUCH: the person's TrackingTime member record and
+ * their logged hours. That is vendor data about work which really happened, and the
+ * org chart and every hours total depend on it. Only the LINK is cleared
+ * (time.member.user_id), so the roster keeps the person and the hours keep their
+ * attribution while the Hub sign-in goes away.
+ *
+ * Clearing that link is not optional. Left in place it would point at a deleted auth
+ * user, and the next person invited on that address could not be linked, because
+ * inviteUser refuses to take over a member already claimed by another account.
+ *
+ * ORDER MATTERS. Link, then profile, then the auth user -- because
+ * app_user_profile.user_id references auth.users. Deleting the user first either
+ * cascades in a way that hides failures or fails halfway and leaves a profile whose
+ * account is gone.
+ *
+ * TWO REFUSALS. Deleting yourself, for the reason self-deactivation is refused but
+ * worse, since there is no undo. And deleting the last account that can manage users,
+ * which would leave the Hub with no administrator at all.
+ */
+export async function deleteUser(userId: string): Promise<{ error?: string; message?: string }> {
+  const guard = await assertCanManageUsers();
+  if ("error" in guard) return { error: guard.error };
+
+  if (guard.userId === userId) {
+    return { error: "You cannot delete your own account. Ask another administrator." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Admin client unavailable." };
+  }
+
+  // Read the address BEFORE deleting: afterwards there is nothing left to name, and
+  // "Removed the account" without saying whose is a poor thing to read.
+  const { data: target } = await admin.auth.admin.getUserById(userId);
+  const email = target?.user?.email ?? "that account";
+
+  const { data: rows } = await admin
+    .from("app_user_profile")
+    .select("user_id, role_key, is_active");
+  if (rows) {
+    const managers: string[] = [];
+    for (const row of rows) {
+      if (!row.is_active) continue;
+      if (await roleHasPermission(row.role_key, PERMISSIONS.ADMIN_USERS_WRITE)) {
+        managers.push(row.user_id);
+      }
+    }
+    if (managers.includes(userId) && managers.length <= 1) {
+      return {
+        error: "That is the only active account that can manage users. Promote somebody else first, or nobody will be able to administer the Hub.",
+      };
+    }
+  }
+
+  // 1. Unlink the TrackingTime member, keeping the person and their hours.
+  let unlinkNote = "";
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const timeAdmin = (admin as any).schema("time");
+    const { data: members } = await timeAdmin
+      .from("member")
+      .select("id, display_name")
+      .eq("user_id", userId);
+    if (members && members.length > 0) {
+      const { error: unlinkError } = await timeAdmin
+        .from("member")
+        .update({ user_id: null })
+        .eq("user_id", userId);
+      if (unlinkError) {
+        return {
+          error: `Could not unlink their TrackingTime record, so nothing was deleted: ${unlinkError.message}`,
+        };
+      }
+      unlinkNote = ` Their TrackingTime record ("${members[0].display_name}") and its hours were kept, and unlinked.`;
+    }
+  } catch (err) {
+    return {
+      error: `Could not unlink their TrackingTime record, so nothing was deleted: ${err instanceof Error ? err.message : "unknown error"}`,
+    };
+  }
+
+  // 2. The Hub profile.
+  const { error: profileError } = await admin
+    .from("app_user_profile")
+    .delete()
+    .eq("user_id", userId);
+  if (profileError) {
+    return { error: `Could not remove their profile, so the account was left in place: ${profileError.message}` };
+  }
+
+  // 3. The sign-in itself.
+  const { error: authError } = await admin.auth.admin.deleteUser(userId);
+  if (authError) {
+    return {
+      error: `Their profile was removed but the sign-in could not be deleted: ${authError.message}. They can no longer use the Hub, but the account still exists.`,
+    };
+  }
+
+  revalidatePath("/admin/users");
+  return { message: `Removed ${email} from the Hub.${unlinkNote}` };
+}

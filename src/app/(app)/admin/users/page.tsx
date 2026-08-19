@@ -28,16 +28,34 @@ export default async function AdminUsersPage() {
   ]);
 
   let emailByUserId = new Map<string, string>();
+  /**
+   * Who has ever signed in, from the SAME listUsers response as the emails.
+   *
+   * This decides whether RE-INVITE is offered on a row. Most of the 19 provisioned
+   * accounts have never been used, and there was previously no way to reach those
+   * people from this console: the invite form calls inviteUserByEmail, which fails on
+   * an address that already has an account.
+   *
+   * A missing entry means "cannot tell" rather than "never signed in", which is why
+   * the row prop is boolean | null. Without the service-role client this map is empty,
+   * and offering to send password links on that basis would mail people who did not
+   * ask.
+   */
+  let signedInByUserId = new Map<string, boolean>();
   let adminUnavailable: string | null = null;
   try {
     const admin = createAdminClient();
     const { data } = await admin.auth.admin.listUsers();
     emailByUserId = new Map(data.users.map((u) => [u.id, u.email ?? ""]));
+    signedInByUserId = new Map(data.users.map((u) => [u.id, Boolean(u.last_sign_in_at)]));
   } catch (err) {
     adminUnavailable = err instanceof Error ? err.message : "Admin client unavailable.";
   }
 
   const activeCount = profiles.filter(p => p.isActive).length;
+  // Counted over the profiles actually listed, not over auth.users, so it agrees with
+  // the rows on screen rather than with accounts the page does not show.
+  const neverSignedIn = profiles.filter((p) => signedInByUserId.get(p.userId) === false).length;
 
   return (
     <div className="flex flex-col">
@@ -45,7 +63,7 @@ export default async function AdminUsersPage() {
       <PageHeader
         category="HSE HUB / ADMIN"
         title="Users &amp; Roles"
-        meta={`${activeCount} ACTIVE · ${profiles.length} TOTAL`}
+        meta={`${activeCount} ACTIVE · ${profiles.length} TOTAL${neverSignedIn > 0 ? ` · ${neverSignedIn} NEVER SIGNED IN` : ""}`}
         actions={
           <ButtonLink href="/admin/roles">
             Role Permissions
@@ -76,9 +94,13 @@ export default async function AdminUsersPage() {
             <span className="col-span-3">EMAIL</span>
             <span className="col-span-2">ROLE</span>
             <span className="col-span-2">TEAM</span>
-            <span className="col-span-2">PERSON</span>
+            <span className="col-span-1">PERSON</span>
             <span className="col-span-1">STATUS</span>
-            <span className="col-span-2 text-right">SINCE</span>
+            {/* PERSON narrowed and SINCE replaced: the date was the least useful
+                column on the page, and the row needs the width for the re-invite
+                and remove controls. The created date is still shown on the mobile
+                card, where there is room for it. */}
+            <span className="col-span-3 text-right">ACTIONS</span>
           </div>
 
           {profiles.length === 0 ? (
@@ -99,6 +121,7 @@ export default async function AdminUsersPage() {
                 createdAt={p.createdAt}
                 roles={roles}
                 canEdit={canEdit}
+                hasSignedIn={signedInByUserId.has(p.userId) ? signedInByUserId.get(p.userId)! : null}
               />
             ))
           )}

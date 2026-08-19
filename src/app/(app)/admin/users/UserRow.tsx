@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import { setUserActive, changeUserRole, changeUserDepartment } from "./actions";
+import { setUserActive, changeUserRole, changeUserDepartment, resendInvite, deleteUser } from "./actions";
 import { teamLabel, teamOptionsFor } from "@/lib/teams";
 import type { AppRoleRow } from "./page";
 
@@ -16,22 +16,51 @@ interface Props {
   createdAt: string;
   roles: AppRoleRow[];
   canEdit: boolean;
+  /**
+   * Whether this person has ever signed in. Drives whether RE-INVITE is offered at
+   * all: sending an unrequested password link to somebody who signs in daily looks
+   * like a phishing attempt, and they can reset their own password anyway.
+   *
+   * Null when the service-role client is unavailable, in which case the page cannot
+   * know -- so the control is hidden rather than shown on a guess.
+   */
+  hasSignedIn: boolean | null;
 }
 
 /**
  * Interactive user row in the admin user list. Shows as a full table row on
- * desktop (sm+) and as a compact card on mobile. Inline role/department edits
- * and activate/deactivate toggle — no page reload needed.
+ * desktop (sm+) and as a compact card on mobile. Inline role/team edits, the
+ * activate/deactivate toggle, re-invite, and removal — no page reload needed.
  */
 export function UserRow({
   userId, email, roleKey, roleDisplayName, department, personName,
-  isActive, createdAt, roles, canEdit,
+  isActive, createdAt, roles, canEdit, hasSignedIn,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [localActive, setLocalActive] = useState(isActive);
   const [localRole, setLocalRole] = useState(roleKey);
   const [localDept, setLocalDept] = useState(department ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * A one-time sign-in link, shown only when the email could not be sent.
+   *
+   * Supabase's mail limiter is shared across every mail the project sends, so a
+   * re-invite is sometimes refused for a minute. The action returns the link in that
+   * case so the admin can pass it on by hand instead of hitting a dead end. Held in
+   * state rather than rendered from the message so it can be selected on its own.
+   */
+  const [fallbackLink, setFallbackLink] = useState<string | null>(null);
+  /**
+   * Two-step delete, in the row itself rather than a window.confirm().
+   *
+   * confirm() is blocked in some embedded browsers and reads as a browser alert
+   * rather than part of the app, which is the wrong tone for the one irreversible
+   * action on this page. Inline also lets the warning name what is kept -- their
+   * TrackingTime hours -- which is the fact that decides whether to go ahead.
+   */
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleted, setDeleted] = useState(false);
 
   function handleToggleActive() {
     const next = !localActive;
@@ -69,10 +98,43 @@ export function UserRow({
     });
   }
 
-  const currentRole = roles.find(r => r.role_key === localRole);
-  const opacity = isPending || !localActive ? "opacity-60" : "";
+  function handleResend() {
+    setError(null);
+    setNotice(null);
+    setFallbackLink(null);
+    startTransition(async () => {
+      const res = await resendInvite(userId);
+      if (res.error) setError(res.error);
+      else {
+        setNotice(res.message ?? "Invite re-sent.");
+        // Present when the mail was refused. Rendered below so the admin can copy it.
+        if (res.link) setFallbackLink(res.link);
+      }
+    });
+  }
 
-  const roleSelect = canEdit ? (
+  function handleDelete() {
+    setError(null);
+    setNotice(null);
+    startTransition(async () => {
+      const res = await deleteUser(userId);
+      if (res.error) {
+        setError(res.error);
+        setConfirmingDelete(false);
+      } else {
+        // The row stays mounted until the server component re-renders without it.
+        // Marking it removed avoids a moment where a deleted account still looks
+        // editable, which would invite a second click and a confusing error.
+        setDeleted(true);
+        setNotice(res.message ?? "Account removed.");
+      }
+    });
+  }
+
+  const currentRole = roles.find(r => r.role_key === localRole);
+  const opacity = isPending || !localActive || deleted ? "opacity-60" : "";
+
+  const roleSelect = canEdit && !deleted ? (
     <select
       value={localRole}
       onChange={handleRoleChange}
@@ -90,7 +152,7 @@ export function UserRow({
     <span className="text-[var(--text-secondary)]">{currentRole?.display_name ?? roleDisplayName}</span>
   );
 
-  const deptInput = canEdit ? (
+  const deptInput = canEdit && !deleted ? (
     <select
       value={localDept}
       onChange={handleTeamChange}
@@ -112,7 +174,7 @@ export function UserRow({
     <span className="text-[var(--text-secondary)]">{teamLabel(department)}</span>
   );
 
-  const statusToggle = canEdit ? (
+  const statusToggle = canEdit && !deleted ? (
     <button
       onClick={handleToggleActive}
       disabled={isPending}
@@ -130,7 +192,100 @@ export function UserRow({
     </button>
   ) : (
     <span className={localActive ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}>
-      {localActive ? "ACTIVE" : "INACTIVE"}
+      {deleted ? "REMOVED" : localActive ? "ACTIVE" : "INACTIVE"}
+    </span>
+  );
+
+  /*
+   * RE-INVITE, only where it means something.
+   *
+   * Shown when the account has never been used. Most of the 19 provisioned accounts
+   * are in that state, and before this there was no way to reach those people from
+   * the console at all: the invite form calls inviteUserByEmail, which fails outright
+   * on an address that already has an account.
+   *
+   * Hidden when hasSignedIn is null, which means the service-role client is missing
+   * and the page cannot tell. Offering it then would send password links to people who
+   * did not ask, on a guess.
+   */
+  const showResend = canEdit && !deleted && hasSignedIn === false;
+
+  const actionButtons = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {showResend && (
+        <button
+          onClick={handleResend}
+          disabled={isPending}
+          aria-label={`Re-send the invite to ${email}`}
+          title="This account has never been used. Sends a fresh link to set a password."
+          className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
+        >
+          RE-INVITE
+        </button>
+      )}
+
+      {canEdit && !deleted && !confirmingDelete && (
+        <button
+          onClick={() => { setConfirmingDelete(true); setError(null); setNotice(null); }}
+          disabled={isPending}
+          aria-label={`Remove ${email} from the Hub`}
+          className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--text-muted)] transition-colors hover:border-[var(--critical)] hover:text-[var(--critical)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
+        >
+          REMOVE
+        </button>
+      )}
+
+      {confirmingDelete && !deleted && (
+        // The warning states what survives. Someone hesitating over this button is
+        // usually worried about destroying work history, and that is exactly what is
+        // NOT destroyed -- so saying it is what lets them decide.
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10.5px] text-[var(--text-secondary)]">
+            Delete sign-in? Their tracked hours are kept. Deactivating is reversible;
+            this is not.
+          </span>
+          <button
+            onClick={handleDelete}
+            disabled={isPending}
+            aria-label={`Confirm removing ${email}`}
+            className="rounded-[var(--radius-sm)] border border-[var(--critical)] px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.06em] text-[var(--critical)] transition-colors hover:bg-[var(--warning-wash)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px] pointer-coarse:px-3"
+          >
+            {isPending ? "REMOVING…" : "CONFIRM"}
+          </button>
+          <button
+            onClick={() => setConfirmingDelete(false)}
+            disabled={isPending}
+            className="rounded-[var(--radius-sm)] px-2 py-0.5 font-mono text-[9.5px] tracking-[0.06em] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed pointer-coarse:min-h-[32px]"
+          >
+            CANCEL
+          </button>
+        </span>
+      )}
+    </div>
+  );
+
+  const feedback = (error || notice || fallbackLink) && (
+    <span className="flex flex-col items-start gap-1 sm:items-end">
+      {(error || notice) && (
+        <span
+          role={error ? "alert" : "status"}
+          className={`text-[10px] ${error ? "text-[var(--critical)]" : "text-[var(--accent)]"}`}
+        >
+          {error ?? notice}
+        </span>
+      )}
+      {fallbackLink && (
+        // A real input, not a bare <a>: this needs to be COPIED and pasted into a
+        // message to a colleague, and a link you can only click is the one thing that
+        // does not help. readOnly with select-on-focus makes one click enough.
+        <input
+          readOnly
+          value={fallbackLink}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-label={`One-time sign-in link for ${email}`}
+          className="w-full max-w-[320px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[9.5px] text-[var(--text-secondary)]"
+        />
+      )}
     </span>
   );
 
@@ -148,16 +303,13 @@ export function UserRow({
             <span className="font-mono text-[10px] text-[var(--text-muted)]">
               {new Date(createdAt).toLocaleDateString("de-DE")}
               {personName ? ` · ${personName}` : ""}
+              {hasSignedIn === false ? " · NEVER SIGNED IN" : ""}
             </span>
           </div>
           {statusToggle}
         </div>
 
-        {error && (
-          <span role="alert" className="font-mono text-[10px] text-[var(--critical)]">
-            {error}
-          </span>
-        )}
+        {feedback}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
@@ -169,30 +321,37 @@ export function UserRow({
             {deptInput}
           </div>
         </div>
+
+        {canEdit && actionButtons}
       </div>
 
       {/* Desktop table row — shown from sm up */}
       <div
         className={`hidden grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-4 py-2.5 text-[12.5px] transition-opacity sm:grid ${opacity}`}
       >
-        <span className="col-span-3 truncate text-[var(--text-primary)]">{email || "—"}</span>
+        <span className="col-span-3 flex min-w-0 flex-col">
+          <span className="truncate text-[var(--text-primary)]">{email || "—"}</span>
+          {/* Stated on the row rather than only implied by the RE-INVITE button:
+              "never signed in" is the reason the button is there, and an admin
+              scanning the list wants to see who is still outside. */}
+          {hasSignedIn === false && (
+            <span className="font-mono text-[9px] tracking-[0.06em] text-[var(--text-faint)]">
+              NEVER SIGNED IN
+            </span>
+          )}
+        </span>
 
         <span className="col-span-2">{roleSelect}</span>
         <span className="col-span-2">{deptInput}</span>
-        <span className="col-span-2 text-[var(--text-secondary)]">{personName ?? "—"}</span>
+        <span className="col-span-1 text-[var(--text-secondary)] truncate">{personName ?? "—"}</span>
         <span className="col-span-1">{statusToggle}</span>
 
-        <span className="col-span-2 text-right font-mono text-[11px] text-[var(--text-muted)]">
-          {error ? (
-            // The message itself, not "Error" behind a title= tooltip: a failed
-            // permission change is exactly the case where the reason matters,
-            // and title is unreachable by keyboard and on touch.
-            <span role="alert" className="text-[10px] text-[var(--critical)]">
-              {error}
-            </span>
-          ) : (
-            new Date(createdAt).toLocaleDateString("de-DE")
-          )}
+        <span className="col-span-3 flex flex-col items-end gap-1 text-right font-mono text-[11px] text-[var(--text-muted)]">
+          {/* The message itself, not "Error" behind a title= tooltip: a failed
+              permission change is exactly the case where the reason matters,
+              and title is unreachable by keyboard and on touch. */}
+          {feedback}
+          {canEdit ? actionButtons : new Date(createdAt).toLocaleDateString("de-DE")}
         </span>
       </div>
     </>

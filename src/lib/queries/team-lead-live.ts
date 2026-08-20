@@ -46,6 +46,18 @@ const PAGE = 1000;
 /** How many recent weeks the board shows. */
 export const BOARD_WEEKS = 4;
 
+/**
+ * Normalise a stored team value to a comparable key.
+ *
+ * Uppercased because that is the convention teams.ts stores ("ORGA", "TECH"), while
+ * time.member.team has arrived from hand entry in both cases. Null stays null: an
+ * unrecorded team is a fact to show, not a value to invent.
+ */
+export function teamKey(raw: string | null | undefined): string | null {
+  const t = (raw ?? "").trim().toUpperCase();
+  return t === "" ? null : t;
+}
+
 /** Projects on the team panel: the few that need a decision, not a ledger. */
 const TEAM_PROJECTS = 5;
 
@@ -96,6 +108,12 @@ export type BoardCell = {
 export type BoardRow = {
   memberId: number;
   name: string;
+  /**
+   * The member's team, normalised to the uppercase keys teams.ts defines, or null
+   * when nobody has recorded one. Live data holds both "OPERATIONS" and "Operations";
+   * without normalisation one team would render as two.
+   */
+  team: string | null;
   isArchived: boolean;
   /** Contracted hours per week from TrackingTime (an account-wide default). */
   weeklyHours: number;
@@ -180,7 +198,7 @@ export async function getLiveTeamLeadBoard(
 
   const { data: members, error: memberError } = await timeSchema(supabase)
     .from("member")
-    .select("id, display_name, email, is_archived, weekly_hours");
+    .select("id, display_name, email, is_archived, weekly_hours, team");
 
   if (memberError || !members) return {
     weeks,
@@ -194,7 +212,7 @@ export async function getLiveTeamLeadBoard(
 
   type MemberRow = {
     id: number; display_name: string | null; email: string | null;
-    is_archived: boolean | null; weekly_hours: number | null;
+    is_archived: boolean | null; weekly_hours: number | null; team: string | null;
   };
   const roster = (members as MemberRow[]).filter((m) => !isSharedMailbox(m.email));
   const byId = new Map(roster.map((m) => [Number(m.id), m]));
@@ -242,6 +260,7 @@ export async function getLiveTeamLeadBoard(
     rows.push({
       memberId,
       name: m.display_name ?? `Member ${memberId}`,
+      team: teamKey(m.team),
       isArchived: Boolean(m.is_archived),
       weeklyHours,
       cells,

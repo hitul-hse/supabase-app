@@ -3,16 +3,16 @@
 :root {
   color-scheme: dark;
 
-  --background: #2a3038;
+  --background: #121418;
   --foreground: #f2f3f4;
 
-  --page: #2a3038;
-  --sidebar: #23282f;
-  --surface: #363d48;
-  --surface-2: #2b313a;
-  --surface-hover: #3d4550;
-  --border: #414954;
-  --border-strong: #4d5661;
+  --page: #121418;
+  --sidebar: #0d0f12;
+  --surface: #1a1e24;
+  --surface-2: #14171c;
+  --surface-hover: #232933;
+  --border: #262c35;
+  --border-strong: #364050;
 
   --text-primary: #f2f3f4;
   --text-secondary: #bcc1c4;
@@ -34,7 +34,7 @@
    * Naming it makes the two-tier system deliberate: --border outlines a
    * surface, --divider separates rows within one.
    */
-  --divider: #3d444f;
+  --divider: #21262e;
 
   --accent: #91c2b7;
   --accent-hover: #a8d0c6;
@@ -121,8 +121,8 @@
    * contrast because this is a dark UI where a heavy shadow reads as grime
    * rather than lift.
    */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.18), 0 4px 12px -6px rgba(0, 0, 0, 0.32);
-  --shadow-raised: 0 2px 4px rgba(0, 0, 0, 0.22), 0 12px 28px -12px rgba(0, 0, 0, 0.44);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px -6px rgba(0, 0, 0, 0.5);
+  --shadow-raised: 0 2px 4px rgba(0, 0, 0, 0.34), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
 
   /*
    * The tinted "hero" panel -- the one card per page carrying the primary
@@ -137,8 +137,8 @@
    * while every text token still clears 4.5:1 on it: worst case is --text-faint
    * at 5.35.
    */
-  --surface-accent: #283733;
-  --surface-accent-border: #3a4f48;
+  --surface-accent: #1c2a26;
+  --surface-accent-border: #2e433c;
 
   /*
    * The top bar. Darker than --surface so the chrome recedes and the content
@@ -147,7 +147,7 @@
    * Replaces the hardcoded #0b0d0f that SyncBar shipped -- a colour in no
    * token and in no design doc, and nearly black against a #2a3038 page.
    */
-  --topbar: #23282f;
+  --topbar: #0d0f12;
 
   /*
    * HERO CARD GRADIENT
@@ -158,7 +158,7 @@
    * chart area read as lit rather than as a box with a chart in it. Both stops
    * derive from --surface-accent so the theme swap re-derives them.
    */
-  --hero-gradient: linear-gradient(160deg, #2e423c 0%, #283733 42%, #232e2b 100%);
+  --hero-gradient: linear-gradient(160deg, #24352f 0%, #1c2a26 45%, #151f1c 100%);
 }
 
 /*

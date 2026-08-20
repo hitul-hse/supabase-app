@@ -53,6 +53,7 @@ export function TimesheetGrid({
   const entries = initialEntries;
   const labels = dayLabels(weekStart);
   const weekSubmitted = entries.length > 0 && entries.every((e) => e.status !== "draft");
+  const rejections = entries.filter((e) => e.rejectionNote);
 
   const dayTotals = [0, 1, 2, 3, 4, 5].map((dayIdx) =>
     entries.reduce((sum, item) => sum + item.hours[dayIdx], 0),
@@ -138,10 +139,32 @@ export function TimesheetGrid({
       />
 
       <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+        {/* Why the week came back.
+            The note is mandatory when a lead rejects, and it reached the
+            database, but nothing read it -- the employee saw the grid become
+            editable again and had to guess. Rendered above the rows because
+            that is the first thing to read, and only when a note exists, so an
+            approved week is not decorated with an empty box. */}
+        {rejections.length > 0 && (
+          <div className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-3">
+            <p className="font-mono text-[10px] tracking-[0.1em] text-[var(--critical)]">
+              SENT BACK FOR CHANGES
+            </p>
+            <ul className="mt-1.5 flex flex-col gap-1">
+              {rejections.map((r) => (
+                <li key={r.entryGroup} className="text-[12.5px] text-[var(--text-primary)]">
+                  <span className="text-[var(--text-secondary)]">{r.projectName}:</span>{" "}
+                  {r.rejectionNote}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <AddEntryForm weekStart={weekStart} />
 
         {/* Desktop table */}
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
+        <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
           <div className="overflow-x-auto">
             <div className="grid min-w-[800px] grid-cols-[repeat(13,minmax(0,1fr))] gap-2 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
               <span className="col-span-3">PROJECT / TASK</span>

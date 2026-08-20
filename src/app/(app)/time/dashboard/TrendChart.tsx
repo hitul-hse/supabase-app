@@ -92,7 +92,7 @@ export function TrendChart({
   const peak = shown.reduce((a, b) => (b.totalSeconds > a.totalSeconds ? b : a), shown[0]);
 
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)]">
+    <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
       <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-[var(--border)] px-4 py-2.5">
         <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
           {bucketLabel} TREND

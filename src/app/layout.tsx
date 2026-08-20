@@ -62,8 +62,25 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${poppins.variable} ${cormorant.variable} ${plusJakarta.variable} ${jetbrains.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
+      {/*
+        Theme boot. Runs BEFORE any CSS resolves, so a light-theme user never sees a
+        dark flash while React hydrates -- the classic failure of client-side theming.
+        Precedence: the user's stored choice, then the OS preference for somebody who
+        has never chosen, then dark (the app's historical default). ThemeToggle.tsx
+        owns changes after load; this only sets the first paint.
+
+        suppressHydrationWarning is on <html> because this script legitimately makes
+        the server-rendered attribute differ from the client's.
+      */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "try{var t=localStorage.getItem('hse-hub-theme');if(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)t='light';if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}",
+        }}
+      />
       <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
         {children}
       </body>

@@ -24,6 +24,7 @@ import { getProjectEconomics, getSyncFreshness } from "@/lib/queries/time-dashbo
 import { ReportFilters } from "./ReportFilters";
 import { FreshnessBanner, TotalsStrip } from "./ReportPanels";
 import { TrendChart } from "./TrendChart";
+import { BillableDonut } from "./BillableDonut";
 import {
   BreakdownTable,
   BudgetTable,
@@ -444,7 +445,21 @@ export default async function TrackingTimeDashboardPage({
                 includeCalendarHref={`/time/dashboard?${buildQuery(filters, { calendar: "1", group, bucket })}`}
               />
 
-              <TrendChart points={points} bucket={bucket} hrefFor={trendHrefs} />
+              {/* Trend and split side by side, reference-style: the movement over
+                  time and the proportion right now answer different questions and
+                  are read together. On narrow screens they stack. */}
+              <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
+                <div className="lg:col-span-9">
+                  <TrendChart points={points} bucket={bucket} hrefFor={trendHrefs} />
+                </div>
+                <div className="lg:col-span-3">
+                  <BillableDonut
+                    totals={totals}
+                    billableHref={`/time/dashboard?${buildQuery(filters, { billable: "yes", group, bucket })}`}
+                    nonBillableHref={`/time/dashboard?${buildQuery(filters, { billable: "no", group, bucket })}`}
+                  />
+                </div>
+              </div>
 
               {/* Economics sits high when present: for the audience allowed to
                   see it, margin is the first question rather than the last. */}

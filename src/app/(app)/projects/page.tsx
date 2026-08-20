@@ -37,6 +37,7 @@ import { getSyncFreshness } from "@/lib/queries/time-dashboard";
 import { FreshnessBanner } from "../time/dashboard/ReportPanels";
 import { ProjectTotalsStrip } from "./ProjectPanels";
 import { ProjectsLedger, type LedgerSort } from "./ProjectsLedger";
+import { PortfolioCharts } from "./PortfolioCharts";
 
 /** `?sort=` values the ledger accepts as its initial state. */
 const SORT_KEYS: LedgerSort[] = ["burn", "hours", "recent", "name", "budget", "people"];
@@ -151,6 +152,11 @@ export default async function ProjectsPage({
                 overBudget={overBudget}
                 noBudget={noBudget}
               />
+              {/* The figures before the table: state of the portfolio as a donut,
+                  and where the hours go as a ranked bar list. The ledger below
+                  stays the tool for finding one project; these answer the two
+                  questions people previously scrolled the ledger to estimate. */}
+              <PortfolioCharts rows={rows} />
               <ProjectsLedger rows={rows} initialSort={initialSort} />
             </>
           )}

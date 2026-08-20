@@ -5,6 +5,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { getPendingTimesheetApprovals, getApprovalDecisions } from "@/lib/queries/hse";
 import { getLiveTeamLeadBoard } from "@/lib/queries/team-lead-live";
 import { TeamLeadBoard } from "./TeamLeadBoard";
+import { TeamLeadCharts } from "./TeamLeadCharts";
 import { PendingTimesheetApprovals } from "./PendingTimesheetApprovals";
 import PageTransition from "@/components/animations/PageTransition";
 
@@ -28,6 +29,10 @@ export default async function TeamLeadPage() {
       <div className="flex flex-col">
         <SyncBar />
         <TeamLeadBoard board={board} initialDecisions={decisions} />
+        {/* The figures under the board, derived from the same board data so the
+            two can never disagree: the team's weekly total as an area, and the
+            last completed week's workload as a donut. */}
+        <TeamLeadCharts board={board} />
         <div className="flex flex-col gap-4 px-4 pb-6 sm:px-6">
           <PendingTimesheetApprovals initialWeeks={pendingTimesheets} />
         </div>

@@ -50,7 +50,7 @@ type Tone = "default" | "hero";
 const TONES: Record<Tone, string> = {
   default: "border-[var(--border)] bg-[var(--surface)] card-elev",
   hero:
-    "border-[var(--surface-accent-border)] bg-[var(--surface-accent)] card-elev-raised",
+    "border-[var(--surface-accent-border)] bg-[var(--surface-accent)] [background-image:var(--hero-gradient)] card-elev-raised",
 };
 
 export function Card({

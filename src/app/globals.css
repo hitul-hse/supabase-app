@@ -148,6 +148,72 @@
    * token and in no design doc, and nearly black against a #2a3038 page.
    */
   --topbar: #23282f;
+
+  /*
+   * HERO CARD GRADIENT
+   *
+   * The reference dashboards do not paint their hero panel a flat tint -- the
+   * "Billable utilisation" card in the first screenshot falls from a lifted
+   * green-grey at the top-left toward the panel base, which is what makes the
+   * chart area read as lit rather than as a box with a chart in it. Both stops
+   * derive from --surface-accent so the theme swap re-derives them.
+   */
+  --hero-gradient: linear-gradient(160deg, #2e423c 0%, #283733 42%, #232e2b 100%);
+}
+
+/*
+ * LIGHT THEME
+ *
+ * One attribute selector, same token names. Nothing else in the codebase knows
+ * or cares which theme is active -- that is what the token pass bought.
+ *
+ * Contrast held to the same floors as dark: body text >= 4.5:1 on --surface and
+ * --page, status colours >= 4.5:1 as text. The accent keeps its hue but drops
+ * luminance (the dark theme's #91c2b7 is a pastel that fails 2:1 as text on
+ * white) -- large fills keep reading as the same brand green.
+ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --background: #eef0f2;
+  --foreground: #1d2429;
+
+  --page: #eef0f2;
+  --sidebar: #e4e7ea;
+  --surface: #ffffff;
+  --surface-2: #f2f4f5;
+  --surface-hover: #e9edee;
+  --border: #d5dade;
+  --border-strong: #bfc7cc;
+  --divider: #e2e6e9;
+
+  --text-primary: #1d2429;
+  --text-secondary: #3f4a51;
+  --text-muted: #55616a;
+  --text-faint: #5d6a72;
+
+  --accent: #1f7a67;
+  --accent-hover: #17604f;
+  --accent-contrast: #ffffff;
+  --accent-wash: rgba(31, 122, 103, 0.12);
+
+  --chart-hue: #2b8f77;
+
+  --good: #1f7a67;
+  --good-wash: rgba(31, 122, 103, 0.12);
+  --critical: #b5432c;
+  --critical-wash: rgba(181, 67, 44, 0.1);
+  --warning: #8a6116;
+  --warning-wash: rgba(138, 97, 22, 0.12);
+
+  --shadow-card: 0 1px 2px rgba(23, 32, 38, 0.06), 0 4px 12px -6px rgba(23, 32, 38, 0.12);
+  --shadow-raised: 0 2px 4px rgba(23, 32, 38, 0.08), 0 12px 28px -12px rgba(23, 32, 38, 0.2);
+
+  --surface-accent: #dcebe6;
+  --surface-accent-border: #b8d4cb;
+  --hero-gradient: linear-gradient(160deg, #e6f2ed 0%, #dcebe6 48%, #d0e3dc 100%);
+
+  --topbar: #e4e7ea;
 }
 
 @theme inline {
@@ -436,6 +502,7 @@ body {
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: #0a1012; }
   ::-webkit-scrollbar-thumb { background: #29474b; border-radius: 3px; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #b7c4c1; border-radius: 3px; }
 
   /* Ensure the demo bg overrides the app body bg */
   background: #0a1012;

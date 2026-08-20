@@ -73,7 +73,7 @@ export function RecordsTabs({ canReadAll }: { canReadAll: boolean }) {
       // of the same records, and a screen reader should hear it as such.
       role="tablist"
       aria-label="Records view"
-      className="flex flex-wrap items-center gap-0 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 sm:px-6"
+      className="flex flex-wrap items-center gap-1.5 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 sm:px-6"
     >
       {tabs.map((tab) => {
         const active = tab.href === activeHref;
@@ -85,15 +85,15 @@ export function RecordsTabs({ canReadAll }: { canReadAll: boolean }) {
             aria-selected={active}
             title={tab.hint}
             /*
-             * The active marker is a bottom border on the tab itself, sitting on the
-             * container's own border. `-mb-px` pulls it down by exactly one pixel so the
-             * two occupy the same line, instead of the active tab appearing one pixel
-             * taller than its neighbours.
+             * A filled pill for the current tab rather than an underline: the reference
+             * navigation (FinPoint's Dashboard/Investment/Card row) carries selection as
+             * a pill, and the rest of this app's segment controls now speak the same
+             * shape, so an underline here would be the odd one out.
              */
-            className={`-mb-px border-b-2 px-3 py-2 text-[12px] transition-colors ${
+            className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
               active
-                ? "border-[var(--accent)] font-medium text-[var(--text-primary)]"
-                : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
             }`}
           >
             {tab.label}

@@ -16,10 +16,10 @@ function Tab({ href, label, active }: { href: string; label: string; active: boo
       // aria-current is what conveys selection to a screen reader; colour alone
       // does not.
       aria-current={active ? "page" : undefined}
-      className={`px-3 py-1.5 text-[12px] transition-colors ${
+      className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
         active
-          ? "bg-[var(--surface-hover)] font-medium text-[var(--text-primary)]"
-          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
+          : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
       }`}
     >
       {label}
@@ -69,10 +69,10 @@ export function TimeViewTabs({
   const onCurrentWeek = weekStart === currentWeek;
 
   return (
-    <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 card-elev sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-3">
         {/* Track first: logging time is the action, reading it is the report. */}
-        <div className="flex overflow-hidden border border-[var(--border)]">
+        <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           <Tab href={url({ view: "track" })} label="Track" active={view === "track"} />
           <Tab href={url({ view: "records" })} label="Records" active={view === "records"} />
         </div>
@@ -81,7 +81,7 @@ export function TimeViewTabs({
             always the signed-in member's own time, so offering "Team" there
             would imply you could start a timer for a colleague. */}
         {view === "records" && (
-          <div className="flex overflow-hidden border border-[var(--border)]">
+          <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
             <Tab href={url({ scope: "mine" })} label="My time" active={scope === "mine"} />
             <Tab href={url({ scope: "team" })} label="Team" active={scope === "team"} />
           </div>
@@ -92,7 +92,7 @@ export function TimeViewTabs({
         <Link
           href={url({ week: shiftWeek(weekStart, -1) })}
           aria-label="Previous week"
-          className="border border-[var(--border)] px-2.5 py-1.5 font-mono text-[12px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          className="rounded-full border border-[var(--border)] px-3 py-1.5 font-mono text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
         >
           ←
         </Link>
@@ -104,7 +104,7 @@ export function TimeViewTabs({
         <Link
           href={url({ week: shiftWeek(weekStart, 1) })}
           aria-label="Next week"
-          className="border border-[var(--border)] px-2.5 py-1.5 font-mono text-[12px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          className="rounded-full border border-[var(--border)] px-3 py-1.5 font-mono text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
         >
           →
         </Link>
@@ -112,13 +112,13 @@ export function TimeViewTabs({
         {/* Rendered as inert text when already on this week, rather than a link
             that looks clickable and does nothing. */}
         {onCurrentWeek ? (
-          <span className="border border-[var(--border)] px-2.5 py-1.5 text-[12px] text-[var(--text-faint)]">
+          <span className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-faint)]">
             This week
           </span>
         ) : (
           <Link
             href={url({ week: currentWeek })}
-            className="border border-[var(--border)] px-2.5 py-1.5 text-[12px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
           >
             This week
           </Link>

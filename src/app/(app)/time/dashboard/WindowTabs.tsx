@@ -17,8 +17,8 @@ const OPTIONS = [
 
 export function WindowTabs({ current }: { current: string }) {
   return (
-    <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex overflow-hidden border border-[var(--border)]">
+    <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 card-elev sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
         {OPTIONS.map((o) => {
           const active = o.key === current;
           return (
@@ -27,10 +27,10 @@ export function WindowTabs({ current }: { current: string }) {
               href={`/time/dashboard?window=${o.key}`}
               // Colour alone does not convey selection to a screen reader.
               aria-current={active ? "page" : undefined}
-              className={`px-3 py-1.5 text-[12px] transition-colors ${
+              className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
                 active
-                  ? "bg-[var(--surface-hover)] font-medium text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
+                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
               }`}
             >
               {o.label}
@@ -41,7 +41,7 @@ export function WindowTabs({ current }: { current: string }) {
 
       <Link
         href="/time"
-        className="self-start border border-[var(--border)] px-2.5 py-1.5 text-[12px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:self-auto"
+        className="self-start rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)] sm:self-auto"
       >
         Week view →
       </Link>

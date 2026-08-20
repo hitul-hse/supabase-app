@@ -46,10 +46,10 @@ function Toggle({
       onClick={onClick}
       aria-pressed={on}
       title={title}
-      className={`px-2.5 py-1.5 text-[12px] transition-colors ${
+      className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
         on
-          ? "bg-[var(--surface-hover)] font-medium text-[var(--text-primary)]"
-          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
+          : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
       }`}
     >
       {children}
@@ -173,7 +173,7 @@ function MultiSelect({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex min-w-[9rem] max-w-[14rem] items-center justify-between gap-2 border px-2.5 py-1.5 text-left text-[12px] transition-colors ${
+        className={`flex min-w-[9rem] max-w-[14rem] items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] transition-colors ${
           selected.length
             ? "border-[var(--accent)] text-[var(--text-primary)]"
             : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -192,7 +192,7 @@ function MultiSelect({
 
       {open && (
         <div
-          className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col border border-[var(--border)] bg-[var(--surface)] shadow-lg"
+          className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev-raised"
         >
           <div className="border-b border-[var(--border)] p-2">
             <input
@@ -211,7 +211,7 @@ function MultiSelect({
               aria-controls={`${label}-options`}
               aria-autocomplete="list"
               placeholder={`Search ${label.toLowerCase()}…`}
-              className="w-full border border-[var(--border)] bg-[var(--page)] px-2 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
             {/* The count is the fix for the old silent 200-option cap: however
                 many options there are, the number is on screen, so a list that
@@ -413,7 +413,7 @@ export function ReportFilters({
        * table below, whose headers are sticky at z-10, and without it the popovers
        * are clipped by them.
        */
-      className={`z-20 flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[0_6px_16px_-12px_rgba(0,0,0,0.9)] transition-opacity ${
+      className={`z-20 flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 card-elev transition-opacity ${
         pending ? "opacity-70" : "opacity-100"
       }`}
     >
@@ -437,7 +437,7 @@ export function ReportFilters({
 
       {/* Row 1 — period */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap overflow-hidden border border-[var(--border)]">
+        <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           {PRESETS.map((p) => (
             <Toggle
               key={p.key}
@@ -456,7 +456,7 @@ export function ReportFilters({
             max={to}
             onChange={(e) => push({ preset: "custom", from: e.target.value, to })}
             aria-label="From date"
-            className={`border bg-[var(--page)] px-2 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />
@@ -467,7 +467,7 @@ export function ReportFilters({
             min={from}
             onChange={(e) => push({ preset: "custom", from, to: e.target.value })}
             aria-label="To date"
-            className={`border bg-[var(--page)] px-2 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />
@@ -481,7 +481,7 @@ export function ReportFilters({
         <MultiSelect label="Customer" options={customers} selected={customerIds} onChange={ids("customers")} />
         <MultiSelect label="Service" options={services} selected={serviceIds} onChange={ids("services")} />
 
-        <div className="flex overflow-hidden border border-[var(--border)]">
+        <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           <Toggle on={billable === null} onClick={() => push({ billable: null })}>
             All
           </Toggle>
@@ -498,9 +498,7 @@ export function ReportFilters({
           onClick={() => push({ calendar: includeCalendar ? null : "1" })}
           title="Calendar placeholders are 46% of imported events and 40% of logged hours. Off by default so largely-undeliberate time cannot distort a billable ratio — but 37% of those hours ARE billable, so the total they hide is shown above."
         >
-          <span className="border border-[var(--border)] px-2 py-1">
-            {includeCalendar ? "✓ " : ""}Calendar time
-          </span>
+          <span>{includeCalendar ? "✓ " : ""}Calendar time</span>
         </Toggle>
 
         {anyFilter && (
@@ -528,7 +526,7 @@ export function ReportFilters({
         <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
           GROUP BY
         </span>
-        <div className="flex overflow-hidden border border-[var(--border)]">
+        <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           {[
             ["member", "Member"],
             ["project", "Project"],
@@ -545,7 +543,7 @@ export function ReportFilters({
         <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
           TREND
         </span>
-        <div className="flex overflow-hidden border border-[var(--border)]">
+        <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           {[
             ["day", "Daily"],
             ["week", "Weekly"],

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
-import { AreaTrend, Donut, Gauge, LegendDot } from "@/components/ui/Charts";
+import { TrendFigure, Donut, Gauge, LegendDot } from "@/components/ui/Charts";
 import { Pill } from "@/components/ui/Segmented";
 import { TopBarChrome } from "@/components/TopBarChrome";
 import { IconWarning, IconArrowRight } from "@/components/nav-icons";
@@ -209,7 +209,8 @@ export default async function OverviewPage() {
                   {/* min-h keeps the figure honest on short viewports; flex-1 is what
                       lets it use the card's height on tall ones. */}
                   <div className="min-h-[180px] flex-1">
-                    <AreaTrend
+                    <TrendFigure
+                      id="overview-billable-share"
                       points={trendPoints}
                       yDomain={[0, 100]}
                       label={`Billable share per week over the last ${OVERVIEW_WEEKS} weeks, from ${trendPoints[0].label} to ${trendPoints[trendPoints.length - 1].label}`}

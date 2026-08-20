@@ -395,7 +395,7 @@ check(
 check("chart points carry an accessible label", /aria-label=\{p\.readout\}/.test(chartsSrc));
 check(
   "the page actually renders the shared chart",
-  /<AreaTrend/.test(overview),
+  /<AreaTrend|<TrendFigure/.test(overview),
   "the two checks above are about Charts.tsx, which only matters if the page uses it",
 );
 

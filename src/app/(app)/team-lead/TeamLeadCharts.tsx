@@ -11,7 +11,7 @@
  */
 
 import { Card, CardHeader } from "@/components/ui/Card";
-import { AreaTrend, Donut, LegendDot } from "@/components/ui/Charts";
+import { TrendFigure, Donut, LegendDot } from "@/components/ui/Charts";
 import type { TeamLeadBoardData } from "@/lib/queries/team-lead-live";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
@@ -68,7 +68,8 @@ export function TeamLeadCharts({ board }: { board: TeamLeadBoardData }) {
         />
         <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4">
           <div className="min-h-[140px] flex-1">
-            <AreaTrend
+            <TrendFigure
+              id="team-lead-hours"
               points={points}
               label={`Team hours per week from ${weeks[0].label} to ${weeks[weeks.length - 1].label}`}
             />

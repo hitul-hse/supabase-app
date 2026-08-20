@@ -43,8 +43,16 @@ const timeSchema = (s: SupabaseTyped) => (s as any).schema("time");
 /** PostgREST caps one response at 1000 rows; page rather than truncate. */
 const PAGE = 1000;
 
-/** How many recent weeks the board shows. */
+/** The default window, and the windows the board offers. */
 export const BOARD_WEEKS = 4;
+export const BOARD_WINDOWS = [4, 8, 12, 26] as const;
+export type BoardWindow = (typeof BOARD_WINDOWS)[number];
+
+/** Parse a ?weeks= param to an allowed window; anything else is the default. */
+export function parseBoardWindow(raw: string | undefined): BoardWindow {
+  const n = Number(raw);
+  return (BOARD_WINDOWS as readonly number[]).includes(n) ? (n as BoardWindow) : BOARD_WEEKS;
+}
 
 /**
  * Normalise a stored team value to a comparable key.
@@ -176,6 +184,7 @@ function classify(hours: number | null, weeklyHours: number): BoardCellStatus {
 
 export async function getLiveTeamLeadBoard(
   supabase: SupabaseTyped,
+  windowWeeks: BoardWindow = BOARD_WEEKS,
 ): Promise<TeamLeadBoardData> {
   const today = new Date().toISOString().slice(0, 10);
   const thisMonday = isoWeekMonday(today);
@@ -183,7 +192,7 @@ export async function getLiveTeamLeadBoard(
   // The window: the current week plus the three before it. The current week is
   // included because a lead needs to see the week they are in, even part-filled.
   const weeks: BoardWeek[] = [];
-  for (let back = BOARD_WEEKS - 1; back >= 0; back -= 1) {
+  for (let back = windowWeeks - 1; back >= 0; back -= 1) {
     const d = new Date(`${thisMonday}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() - back * 7);
     const weekStart = d.toISOString().slice(0, 10);

@@ -7,12 +7,17 @@ import { getLiveTeamLeadBoard } from "@/lib/queries/team-lead-live";
 import { TeamLeadBoard } from "./TeamLeadBoard";
 import { TeamLeadCharts } from "./TeamLeadCharts";
 import { TeamAnalysisSection } from "./TeamAnalysisSection";
-import { teamKey } from "@/lib/queries/team-lead-live";
+import { teamKey, parseBoardWindow, BOARD_WINDOWS } from "@/lib/queries/team-lead-live";
+import Link from "next/link";
 import { getCurrentProfile } from "@/lib/queries/auth";
 import { PendingTimesheetApprovals } from "./PendingTimesheetApprovals";
 import PageTransition from "@/components/animations/PageTransition";
 
-export default async function TeamLeadPage() {
+export default async function TeamLeadPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ weeks?: string }>;
+}) {
   // NOTE this WIDENS access: workload:read is held by exec, dept_head AND
   // project_manager, where the old ["exec", "dept_head"] list excluded the last.
   // That is the intended reading of the permission — a project manager who holds
@@ -45,8 +50,9 @@ export default async function TeamLeadPage() {
       .maybeSingle();
     viewerTeam = teamKey(memberRow?.team ?? null);
   }
+  const windowWeeks = parseBoardWindow((await searchParams).weeks);
   const [board, decisions, pendingTimesheets] = await Promise.all([
-    getLiveTeamLeadBoard(supabase),
+    getLiveTeamLeadBoard(supabase, windowWeeks),
     getApprovalDecisions(supabase),
     getPendingTimesheetApprovals(supabase),
   ]);
@@ -55,16 +61,41 @@ export default async function TeamLeadPage() {
     <PageTransition>
       <div className="flex flex-col">
         <SyncBar />
-        <TeamLeadBoard board={board} initialDecisions={decisions} />
-        {/* The figures under the board, derived from the same board data so the
-            two can never disagree: the team's weekly total as an area, and the
-            last completed week's workload as a donut. */}
+        {/* The window filter: how far back the WHOLE view reads. Analysis, charts
+            and grid all derive from one query, so one control moves everything.
+            Links, because the window is URL state -- shareable, back-button-safe. */}
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 sm:px-6">
+          <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+            WINDOW
+          </span>
+          <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+            {BOARD_WINDOWS.map((w) => (
+              <Link
+                key={w}
+                href={w === 4 ? "/team-lead" : `/team-lead?weeks=${w}`}
+                aria-current={w === windowWeeks ? "page" : undefined}
+                className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+                  w === windowWeeks
+                    ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {w} weeks
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* GRAPHS FIRST, per request: per-team analysis leads (execs see every team
+            segregated, a dept_head exactly their own), the org-wide pair follows,
+            and the grid of raw cells comes after the figures it explains. The grid
+            stays unscoped for both roles -- RLS already decides whose HOURS a
+            viewer may read; this ordering is presentation, not access control. */}
+        <div className="pt-4">
+          <TeamAnalysisSection board={board} viewerRole={viewerRole} viewerTeam={viewerTeam} />
+        </div>
         <TeamLeadCharts board={board} />
-        {/* Per-team analysis. Execs see every team segregated; a dept_head sees
-            exactly their own. The board grid above stays unscoped for both --
-            RLS already decides whose HOURS a viewer may read, and this section
-            is an analysis lens over the same rows, not an access control. */}
-        <TeamAnalysisSection board={board} viewerRole={viewerRole} viewerTeam={viewerTeam} />
+        <TeamLeadBoard board={board} initialDecisions={decisions} />
         <div className="flex flex-col gap-4 px-4 pb-6 sm:px-6">
           <PendingTimesheetApprovals initialWeeks={pendingTimesheets} />
         </div>

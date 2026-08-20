@@ -26,7 +26,7 @@
  * names -- the convention TrendChart.tsx established.
  */
 
-import { useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 
 /* ------------------------------------------------------------------ AreaTrend */
 
@@ -98,18 +98,28 @@ export function AreaTrend({
 
   const pts = points.map((p, i) => ({ px: x(i), py: y(p.value) }));
 
-  // Catmull-Rom -> Bézier. Standard tension 1/6; clamped ends.
-  let d = `M ${pts[0].px} ${pts[0].py}`;
+  /*
+   * Catmull-Rom -> Bézier, with every y CLAMPED into the canvas.
+   *
+   * The spline's smoothness comes from overshooting its knots, and a series that
+   * touches its own extreme near the edge pushes CONTROL POINTS above PAD_TOP --
+   * where the viewBox clips them, slicing the crest off the curve. Seen in the
+   * wild on a four-point series with a hard swing (a two-person team's weekly
+   * hours). Clamping the control points flattens the overshoot exactly at the
+   * edge and nowhere else.
+   */
+  const clampY = (v: number) => Math.max(3, Math.min(H - 3, v));
+  let d = `M ${pts[0].px} ${clampY(pts[0].py)}`;
   for (let i = 0; i < pts.length - 1; i += 1) {
     const p0 = pts[i - 1] ?? pts[i];
     const p1 = pts[i];
     const p2 = pts[i + 1];
     const p3 = pts[i + 2] ?? p2;
     const c1x = p1.px + (p2.px - p0.px) / 6;
-    const c1y = p1.py + (p2.py - p0.py) / 6;
+    const c1y = clampY(p1.py + (p2.py - p0.py) / 6);
     const c2x = p2.px - (p3.px - p1.px) / 6;
-    const c2y = p2.py - (p3.py - p1.py) / 6;
-    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.px} ${p2.py}`;
+    const c2y = clampY(p2.py - (p3.py - p1.py) / 6);
+    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.px} ${clampY(p2.py)}`;
   }
   const area = `${d} L ${pts[pts.length - 1].px} ${H} L ${pts[0].px} ${H} Z`;
 
@@ -444,5 +454,179 @@ export function LegendDot({ color, children }: { color: string; children: React.
       <span className="h-2 w-2 rounded-full" style={{ background: color }} />
       {children}
     </span>
+  );
+}
+
+
+/* ------------------------------------------------------------------- BarTrend */
+
+/**
+ * The same series as AreaTrend, drawn as rounded vertical bars.
+ *
+ * Bars where the reader counts discrete periods; the area where they read a shape.
+ * Which is right depends on the reader, which is why TrendFigure below lets them
+ * choose. The interaction contract is identical to AreaTrend: hover/focus readout
+ * pinned top-right, one focusable target per point carrying its own name.
+ */
+export function BarTrend({
+  points,
+  label,
+  yDomain,
+  className = "",
+}: {
+  points: AreaPoint[];
+  label: string;
+  yDomain?: [number, number];
+  className?: string;
+}) {
+  const [active, setActive] = useState<number | null>(null);
+
+  if (points.length === 0) return null;
+
+  const lo = yDomain ? yDomain[0] : 0;
+  const hi = yDomain ? yDomain[1] : Math.max(...points.map((p) => p.value), 1);
+  const span = hi - lo || 1;
+  const hot = active !== null ? points[active] : null;
+
+  return (
+    <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex justify-end px-1">
+        <span
+          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--text-primary)] shadow-lg transition-opacity duration-100 ${
+            hot ? "opacity-100" : "opacity-0"
+          }`}
+          aria-hidden
+        >
+          {hot?.readout ?? "\u00A0"}
+        </span>
+      </div>
+
+      {/* Plain flex bars, not an SVG: rounded caps and per-bar hover come free, and
+          there is no aspect-ratio stretching to fight. The 26px top padding reserves
+          the readout's space so it never overlaps a tall bar. */}
+      <div
+        role="img"
+        aria-label={label}
+        className="flex h-full min-h-0 flex-1 items-end gap-[6px] pt-[26px]"
+        onMouseLeave={() => setActive(null)}
+      >
+        {points.map((p, i) => {
+          const fraction = Math.max(0.02, (p.value - lo) / span);
+          const on = active === i;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              aria-label={p.readout}
+              onMouseEnter={() => setActive(i)}
+              onFocus={() => setActive(i)}
+              onBlur={() => setActive(null)}
+              className="flex h-full flex-1 cursor-default items-end focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            >
+              <span
+                className="block w-full rounded-[5px] transition-[height,filter] duration-200"
+                style={{
+                  height: `${fraction * 100}%`,
+                  background: on ? "var(--accent-hover)" : "var(--accent)",
+                  opacity: on ? 1 : 0.85,
+                }}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- TrendFigure */
+
+/**
+ * A trend with a reader-selectable shape: area or bars.
+ *
+ * WHY THE CHOICE EXISTS. An area reads a season's shape; bars read discrete weeks.
+ * Both are honest renderings of the same numbers, and which lands depends on the
+ * reader -- so the reader decides, per figure, and the choice persists.
+ *
+ * PERSISTENCE is localStorage through useSyncExternalStore, the same pattern as the
+ * theme toggle and for the same reason: the stored choice is external state, the
+ * server cannot know it, and reading it in an effect trips the compiler's
+ * setState-in-effect rule. Until hydration the default shape renders, which keeps
+ * server and client HTML identical.
+ */
+const chartKindListeners = new Set<() => void>();
+function chartKindSubscribe(onChange: () => void): () => void {
+  chartKindListeners.add(onChange);
+  return () => chartKindListeners.delete(onChange);
+}
+function setChartKind(id: string, kind: "area" | "bars"): void {
+  try {
+    localStorage.setItem(`hse-hub-chart:${id}`, kind);
+  } catch {
+    /* storage may be blocked; the choice still applies via the re-render below */
+  }
+  for (const l of chartKindListeners) l();
+}
+
+export function TrendFigure({
+  id,
+  points,
+  label,
+  yDomain,
+  defaultKind = "area",
+  className = "",
+}: {
+  /** Stable per-figure key for the persisted preference, e.g. "overview-hero". */
+  id: string;
+  points: AreaPoint[];
+  label: string;
+  yDomain?: [number, number];
+  defaultKind?: "area" | "bars";
+  className?: string;
+}) {
+  const kind = useSyncExternalStore(
+    chartKindSubscribe,
+    () => {
+      try {
+        const stored = localStorage.getItem(`hse-hub-chart:${id}`);
+        return stored === "bars" || stored === "area" ? stored : defaultKind;
+      } catch {
+        return defaultKind;
+      }
+    },
+    () => defaultKind,
+  );
+
+  return (
+    <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
+      {/*
+        The switcher, top-LEFT: the readout owns the top-right. Two tiny pills;
+        aria-pressed carries the state, the labels say what you get.
+      */}
+      <div className="absolute left-0 top-0 z-20 flex gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+        {(["area", "bars"] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={kind === k}
+            aria-label={`Draw this figure as ${k === "area" ? "an area" : "bars"}`}
+            onClick={() => setChartKind(id, k)}
+            className={`rounded-full px-2 py-0.5 font-mono text-[9px] tracking-[0.08em] transition-colors ${
+              kind === k
+                ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+                : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            {k.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {kind === "bars" ? (
+        <BarTrend points={points} label={label} yDomain={yDomain} />
+      ) : (
+        <AreaTrend points={points} label={label} yDomain={yDomain} />
+      )}
+    </div>
   );
 }

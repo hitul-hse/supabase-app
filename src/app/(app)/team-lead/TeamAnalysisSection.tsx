@@ -17,7 +17,7 @@
  */
 
 import { Card, CardHeader } from "@/components/ui/Card";
-import { AreaTrend, Gauge, LegendDot } from "@/components/ui/Charts";
+import { TrendFigure, Gauge, LegendDot } from "@/components/ui/Charts";
 import { teamLabel } from "@/lib/teams";
 import type { TeamLeadBoardData, BoardRow } from "@/lib/queries/team-lead-live";
 
@@ -119,7 +119,8 @@ function TeamAnalysis({ block, board }: { block: TeamBlock; board: TeamLeadBoard
       <div className="grid flex-1 grid-cols-1 gap-4 px-4 pb-4 sm:grid-cols-3">
         {/* Weekly area, the team's rhythm. */}
         <div className="flex min-h-[150px] flex-col sm:col-span-2">
-          <AreaTrend
+          <TrendFigure
+            id={`team-analysis-${block.key}`}
             points={points}
             label={`${block.label}: hours per week from ${weeks[0].label} to ${weeks[weeks.length - 1].label}`}
           />

@@ -160,11 +160,21 @@ export async function getLivePeople(
   const { includeArchived = false } = opts;
 
   try {
-    const [allMembers, memberMeta] = await Promise.all([
+    /*
+     * ONE round of parallel requests. The assignments scan used to wait for the
+     * utilisation read so it could filter on the visible member ids -- which
+     * serialised the two slowest reads in the app (measured on /people, the
+     * slowest page: ~14s to DOM-content-loaded). The entry scan costs the same
+     * with or without the member filter (it reads the whole table either way
+     * under RLS), so it now runs unfiltered alongside the others, and the
+     * visible-member narrowing happens where it belongs: at lookup.
+     */
+    const [allMembers, memberMeta, assignmentsByMember] = await Promise.all([
       // Archived members are fetched regardless so `archivedCount` is honest —
       // the page states how many it is hiding rather than silently shrinking.
       getMemberUtilisation(supabase, { includeArchived: true }),
       getMemberMeta(supabase),
+      getAssignments(supabase, null),
     ]);
 
     if (allMembers.length === 0) {
@@ -181,11 +191,6 @@ export async function getLivePeople(
     );
 
     const visible = includeArchived ? humans : humans.filter((m) => !m.isArchived);
-
-    const assignmentsByMember = await getAssignments(
-      supabase,
-      visible.map((m) => m.memberId),
-    );
 
     const people = visible.map((m) => toLivePerson(m, memberMeta, assignmentsByMember));
 
@@ -306,10 +311,11 @@ async function getMemberMeta(
  */
 async function getAssignments(
   supabase: SupabaseTyped,
-  memberIds: number[],
+  /** null = every member; the caller narrows at lookup. */
+  memberIds: number[] | null,
 ): Promise<Map<number, PersonAssignment[]>> {
   const out = new Map<number, PersonAssignment[]>();
-  if (memberIds.length === 0) return out;
+  if (memberIds !== null && memberIds.length === 0) return out;
 
   // memberId -> projectId -> tally
   const tally = new Map<
@@ -321,14 +327,15 @@ async function getAssignments(
     // Pages fetched in PARALLEL batches (see paged.ts for the measurements):
     // this scan of all ~5.3k entries was the directory's whole latency, and
     // awaiting each page serially paid the RLS toll one page at a time.
-    const { rows: entryRows } = await fetchAllPaged<Record<string, unknown>>((from, to) =>
-      timeSchema(supabase)
+    const { rows: entryRows } = await fetchAllPaged<Record<string, unknown>>((from, to) => {
+      let q = timeSchema(supabase)
         .from("entry")
         .select("member_id, project_id, duration_seconds, is_billable, project:project_id(name)")
-        .in("member_id", memberIds)
         .not("duration_seconds", "is", null)
-        .range(from, to),
-    );
+        .range(from, to);
+      if (memberIds !== null) q = q.in("member_id", memberIds);
+      return q;
+    });
 
     {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

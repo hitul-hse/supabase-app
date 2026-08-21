@@ -4,10 +4,7 @@ import { requirePermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getPendingTimesheetApprovals, getApprovalDecisions } from "@/lib/queries/hse";
 import { getLiveTeamLeadBoard } from "@/lib/queries/team-lead-live";
-import { TeamLeadBoard } from "./TeamLeadBoard";
-import { TeamLeadCharts } from "./TeamLeadCharts";
-import { TeamAnalysisSection } from "./TeamAnalysisSection";
-import { TeamDeepAnalysis } from "./TeamDeepAnalysis";
+import { TeamLeadExplorer } from "./TeamLeadExplorer";
 import { BoardRangeFilter } from "./BoardRangeFilter";
 import { teamKey, parseBoardRange } from "@/lib/queries/team-lead-live";
 import { getCurrentProfile } from "@/lib/queries/auth";
@@ -72,16 +69,19 @@ export default async function TeamLeadPage({
             segregated, a dept_head exactly their own), the org-wide pair follows,
             and the grid of raw cells comes after the figures it explains. The grid
             stays unscoped for both roles -- RLS already decides whose HOURS a
-            viewer may read; this ordering is presentation, not access control. */}
-        <div className="pt-4">
-          <TeamAnalysisSection board={board} viewerRole={viewerRole} viewerTeam={viewerTeam} />
-        </div>
-        {/* The deep-analysis figures (month-over-month movement, utilisation
-            heatmap, travel burden) sit between the per-team blocks and the
-            org-wide trend: they answer the questions the grid below raises. */}
-        <TeamDeepAnalysis board={board} />
-        <TeamLeadCharts board={board} />
-        <TeamLeadBoard board={board} initialDecisions={decisions} />
+            viewer may read; this ordering is presentation, not access control.
+
+            The explorer wraps all four (analysis, deep figures, org charts and the
+            grid) so a client-side team/person SLICE re-derives every figure from
+            the same narrowed rows. It only ever narrows what this viewer already
+            received, so it changes presentation, not access; the period filter
+            above still owns the server query. Empty selection shows everyone. */}
+        <TeamLeadExplorer
+          board={board}
+          viewerRole={viewerRole}
+          viewerTeam={viewerTeam}
+          initialDecisions={decisions}
+        />
         <div className="flex flex-col gap-4 px-4 pb-6 sm:px-6">
           <PendingTimesheetApprovals initialWeeks={pendingTimesheets} />
         </div>

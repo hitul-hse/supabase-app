@@ -103,15 +103,16 @@ export function TrendChart({
         {hot ? (
           <span className="font-mono text-[10.5px] tabular-nums text-[var(--text-primary)]">
             {labelWithDate(hot.bucket, bucket)} ·{" "}
-            <span className="text-[var(--accent)]">{hrs(hot.billableHours)} billable</span> of{" "}
-            {hrs(hot.totalHours)} · {hot.entryCount} {hot.entryCount === 1 ? "entry" : "entries"}
+            <span className="text-[var(--accent)]">{hrs(hot.billableHours)} billable</span> +{" "}
+            <span className="text-[var(--text-secondary)]">{hrs(Math.max(0, hot.totalHours - hot.billableHours))} non-billable</span> ={" "}
+            {hrs(hot.totalHours)} · {hot.entryCount} {hot.entryCount === 1 ? "entry" : "entries"}
           </span>
         ) : (
           <span className="text-[10.5px] text-[var(--text-faint)]">
             {shown.length === points.length
               ? `${points.length} ${points.length === 1 ? "bucket" : "buckets"}`
               : `last ${shown.length} of ${points.length} buckets`}{" "}
-            · solid = billable · dashed = total · hover the line{hrefFor ? " · click to filter to it" : ""}
+            · <span className="text-[var(--accent)]">billable</span> + <span className="text-[var(--text-secondary)]">non-billable</span> stacked to total · hover{hrefFor ? " · click to filter" : ""}
           </span>
         )}
       </header>
@@ -161,9 +162,15 @@ export function TrendChart({
             return d;
           };
 
+          // Two boundary curves: billable (lower) and total (upper). The area
+          // under TOTAL is filled muted for NON-BILLABLE; the area under BILLABLE
+          // is filled accent on top. What remains muted is exactly the gap
+          // between the two lines — the non-billable hours — and the heights sum
+          // to total by construction.
           const billPath = spline(shown.map((p) => p.billableSeconds));
           const totalPath = spline(shown.map((p) => p.totalSeconds));
-          const area = `${billPath} L ${W} ${H} L 0 ${H} Z`;
+          const totalArea = `${totalPath} L ${W} ${H} L 0 ${H} Z`;
+          const billArea = `${billPath} L ${W} ${H} L 0 ${H} Z`;
           const activeIndex = active ? shown.findIndex((p) => p.bucket === active) : -1;
 
           return (
@@ -176,9 +183,9 @@ export function TrendChart({
             >
               <defs>
                 <linearGradient id="tt-trend-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.26" />
-                  <stop offset="60%" stopColor="var(--accent)" stopOpacity="0.07" />
-                  <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+                  <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.34" />
+                  <stop offset="70%" stopColor="var(--accent)" stopOpacity="0.12" />
+                  <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.04" />
                 </linearGradient>
               </defs>
 
@@ -198,17 +205,24 @@ export function TrendChart({
                 );
               })}
 
-              <path d={area} fill="url(#tt-trend-fill)" />
-              {/* Total: the quieter dashed line. It sits above billable by
-                  construction, and the gap between them is the non-billable share. */}
+              {/* Non-billable band first: the area under TOTAL, muted. The
+                  billable fill drawn on top leaves only the gap between the two
+                  curves showing muted — that gap IS the non-billable share. */}
+              <path d={totalArea} fill="var(--text-secondary)" fillOpacity="0.16" />
+              {/* Billable band: baseline up to the billable curve, strong fill. */}
+              <path d={billArea} fill="url(#tt-trend-fill)" />
+              {/* Total boundary: a solid quiet line, the top of the stack. */}
               <path
                 d={totalPath}
                 fill="none"
-                stroke="var(--text-faint)"
+                stroke="var(--text-secondary)"
                 strokeWidth="1.5"
-                strokeDasharray="4 4"
+                strokeOpacity="0.7"
                 vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+                strokeLinecap="round"
               />
+              {/* Billable boundary: the strong accent line. */}
               <path
                 d={billPath}
                 fill="none"

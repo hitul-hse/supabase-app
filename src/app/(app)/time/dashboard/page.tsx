@@ -22,12 +22,14 @@ import {
 } from "@/lib/queries/trackingtime-report";
 import { getProjectEconomics, getSyncFreshness } from "@/lib/queries/time-dashboard";
 import {
+  capacityByMember,
   customerConcentration,
   serviceMixByMonth,
   weekdayHourPattern,
 } from "@/lib/queries/time-insights";
 import { ReportFilters } from "./ReportFilters";
 import { InsightPanels } from "./InsightPanels";
+import { CapacityPanel } from "./CapacityPanel";
 import { FreshnessBanner, TotalsStrip } from "./ReportPanels";
 import { TrendChart } from "./TrendChart";
 import { BillableDonut } from "./BillableDonut";
@@ -191,6 +193,10 @@ export default async function TrackingTimeDashboardPage({
   const concentration = customerConcentration(entries);
   const weekPattern = weekdayHourPattern(entries);
   const serviceMix = serviceMixByMonth(entries);
+  // Who has room to take on more work / cover a holiday — logged load against a
+  // nominal 40h week over the selected period. Same entries, so it obeys the
+  // filter bar (pick a service and it answers "who has room on THIS work").
+  const capacity = capacityByMember(entries, filters.from, filters.to);
 
   // Budget burn is scoped to the projects actually present in this selection.
   // Listing all 251 estimated projects while the filter shows one week would
@@ -477,6 +483,12 @@ export default async function TrackingTimeDashboardPage({
                   Between the headline figures and the tables, because they answer
                   the questions the headline raises before the reader drills into
                   rows. */}
+              {/* Who can take on more work — the planning answer (holiday cover,
+                  load-balancing) the work-pattern heatmap raises but cannot give. */}
+              <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
+                <CapacityPanel data={capacity} />
+              </div>
+
               <InsightPanels
                 customers={concentration.top}
                 otherHours={concentration.otherHours}

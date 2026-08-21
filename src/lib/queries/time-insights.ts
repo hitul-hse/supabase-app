@@ -178,3 +178,106 @@ export function serviceMixByMonth(entries: ReportEntry[], topN = 5): ServiceMixM
       };
     });
 }
+
+/* ------------------------------------------------ capacity to take on work */
+
+export type CapacityRow = {
+  memberId: number;
+  name: string;
+  /** Tracked hours in the selected period. */
+  trackedHours: number;
+  /** Billable share of those hours, 0-100, or null with nothing logged. */
+  billablePercent: number | null;
+  /** Nominal capacity for the period = 40h × working weeks in range. */
+  nominalHours: number;
+  /** trackedHours / nominalHours, 0-100+ (can exceed 100 when overloaded). */
+  loadPercent: number;
+  /** nominalHours − trackedHours, rounded. Negative = over capacity. */
+  spareHours: number;
+  /** How to read the load, so the UI does not re-derive the thresholds. */
+  band: "over" | "full" | "steady" | "light" | "open";
+};
+
+export type CapacityView = {
+  rows: CapacityRow[];
+  /** Weeks spanned by the range, the nominal denominator basis. */
+  weeks: number;
+  /** People with meaningful spare capacity (light or open), most-spare first. */
+  available: CapacityRow[];
+};
+
+/**
+ * Who has capacity to take on more work — the panel that answers "who can pick
+ * up this project" and "who can cover while X is on holiday".
+ *
+ * WHAT "CAPACITY" MEANS HERE, stated plainly because it is a claim about people.
+ * Nominal capacity is 40h per working week across the selected period (every
+ * member reports the account-default 40h; there is no negotiated figure in the
+ * data, so the UI must say "nominal"). Load is tracked hours over that nominal.
+ * LOW LOAD IS NOT IDLENESS: consultancy weeks hold unlogged office work, and
+ * someone at 45% tracked is not half-free. So the bands are deliberately wide
+ * and the panel is framed as "logged load", a planning signal, not a verdict.
+ *
+ * Pure over the entries the dashboard already holds, so it obeys the filter bar
+ * (pick a service or a customer and it answers "who has room on THIS kind of
+ * work"). The period comes from the same from/to the report is scoped to.
+ */
+export function capacityByMember(
+  entries: ReportEntry[],
+  fromIso: string,
+  toIso: string,
+): CapacityView {
+  // Working weeks in the range, clamped so a huge custom range does not produce
+  // an absurd nominal. Whole weeks, minimum one — a two-day range still has a
+  // week's worth of "could they take on more today" meaning.
+  const from = new Date(`${fromIso}T00:00:00Z`);
+  const to = new Date(`${toIso}T00:00:00Z`);
+  const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1);
+  const weeks = Math.max(1, Math.min(53, Math.round((days / 7) * 10) / 10));
+  const nominalHours = Math.round(40 * weeks * 10) / 10;
+
+  const tally = new Map<number, { name: string; total: number; billable: number }>();
+  for (const e of entries) {
+    let a = tally.get(e.memberId);
+    if (!a) {
+      a = { name: e.memberName, total: 0, billable: 0 };
+      tally.set(e.memberId, a);
+    }
+    a.total += e.durationSeconds;
+    if (e.isBillable) a.billable += e.durationSeconds;
+  }
+
+  const band = (loadPercent: number): CapacityRow["band"] => {
+    if (loadPercent > 105) return "over";
+    if (loadPercent >= 80) return "full";
+    if (loadPercent >= 55) return "steady";
+    if (loadPercent >= 25) return "light";
+    return "open";
+  };
+
+  const rows: CapacityRow[] = [...tally.entries()]
+    .map(([memberId, a]) => {
+      const trackedHours = secondsToHours(a.total);
+      const loadPercent = nominalHours > 0 ? Math.round((trackedHours / nominalHours) * 100) : 0;
+      return {
+        memberId,
+        name: a.name,
+        trackedHours,
+        billablePercent: a.total > 0 ? Math.round((a.billable / a.total) * 100) : null,
+        nominalHours,
+        loadPercent,
+        spareHours: Math.round((nominalHours - trackedHours) * 10) / 10,
+        band: band(loadPercent),
+      };
+    })
+    // Busiest first: the panel reads top-down from "at capacity" to "wide open",
+    // so an overloaded person and an available one are both easy to spot.
+    .sort((x, y) => y.loadPercent - x.loadPercent);
+
+  const available = rows
+    .filter((r) => r.band === "light" || r.band === "open")
+    .sort((x, y) => y.spareHours - x.spareHours);
+
+  return { rows, weeks, available };
+}
+

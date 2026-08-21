@@ -407,7 +407,9 @@ export function allTimeFilters(overrides: Partial<TimeFilters> = {}): TimeFilter
     // Calendar entries ARE included here. On a project page the question is
     // "how much time did this project consume", and a meeting about the project
     // consumed it. The dashboard excludes them because it reports billable
-    // ratios, where a 34% block of 98%-non-billable time skews the headline.
+    // ratios, where a 40%-of-hours block that is 63% non-billable skews the
+    // headline. (Measured; the 34%/98% previously quoted here was both stale
+    // and, in the 98%, wrong by enough to change the argument.)
     includeCalendar: true,
     ...overrides,
   };
@@ -448,6 +450,105 @@ export async function getProjectOverview(supabase: SupabaseTyped, id: number) {
   };
 }
 
+/* -------------------------------------------------- customer rank by month */
+
+export type CustomerRankSeries = {
+  name: string;
+  /** 1 = top customer that month; null = outside the top N that month. */
+  ranks: (number | null)[];
+  /** Hours this customer logged in each month, top-N or not. */
+  hoursByMonth: number[];
+};
+
+export type CustomerRankByMonth = {
+  /** Month labels, e.g. ["JAN", ..., "AUG"]. Year-suffixed only if spanning years. */
+  labels: string[];
+  series: CustomerRankSeries[];
+};
+
+/**
+ * Rank customers per calendar month by hours, top `topN` lanes.
+ *
+ * WHY IT REUSES THE PAGE'S ENTRIES
+ * --------------------------------
+ * getProjectList already fetches every entry once (allTimeFilters, calendar
+ * INCLUDED — this page's convention, see the comment on allTimeFilters). A
+ * separate query would re-page ~5,000 rows to answer a question this array
+ * already answers, so this is a pure fold over what is in hand.
+ *
+ * Months run from the first entry to the CURRENT month only: allTimeFilters
+ * caps `to` at today, so later months would be all-null lanes — an empty
+ * right half that reads as "everyone stopped" rather than "no data yet".
+ * Gap months in between are kept (a customer's rank surviving a quiet month
+ * is real signal). Rank is null outside the top N rather than clamped to N,
+ * because a lane pinned to the bottom would claim the customer was ranked.
+ */
+export function customerRankByMonth(entries: ReportEntry[], topN = 6): CustomerRankByMonth {
+  // month key (YYYY-MM) -> customer name -> seconds
+  const byMonth = new Map<string, Map<string, number>>();
+  for (const e of entries) {
+    if (!e.customerName) continue;
+    const key = e.startedAt.slice(0, 7);
+    let m = byMonth.get(key);
+    if (!m) {
+      m = new Map();
+      byMonth.set(key, m);
+    }
+    m.set(e.customerName, (m.get(e.customerName) ?? 0) + e.durationSeconds);
+  }
+
+  if (byMonth.size === 0) return { labels: [], series: [] };
+
+  // First data month .. current month, gaps included. UTC throughout, matching
+  // burndown() above (a Berlin-local Date would misfile month boundaries).
+  const first = [...byMonth.keys()].sort()[0];
+  const nowKey = new Date().toISOString().slice(0, 7);
+  const months: string[] = [];
+  const cursor = new Date(`${first}-01T00:00:00.000Z`);
+  while (cursor.toISOString().slice(0, 7) <= nowKey && months.length < 60) {
+    months.push(cursor.toISOString().slice(0, 7));
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  const multiYear = new Set(months.map((m) => m.slice(0, 4))).size > 1;
+  const labels = months.map((m) => {
+    const d = new Date(`${m}-01T00:00:00.000Z`);
+    const mon = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }).toUpperCase();
+    return multiYear ? `${mon} ${m.slice(2, 4)}` : mon;
+  });
+
+  // Per month: sort customers by seconds desc (name asc as a deterministic
+  // tiebreak), assign ranks 1..topN.
+  const rankByMonth = months.map((m) => {
+    const totals = byMonth.get(m);
+    if (!totals) return new Map<string, number>();
+    const ranked = [...totals.entries()]
+      .filter(([, s]) => s > 0)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, topN);
+    return new Map(ranked.map(([name], i) => [name, i + 1]));
+  });
+
+  // A customer earns a lane by making the top N in ANY month.
+  const laneNames = new Set<string>();
+  for (const m of rankByMonth) for (const name of m.keys()) laneNames.add(name);
+
+  const series: CustomerRankSeries[] = [...laneNames].map((name) => ({
+    name,
+    ranks: rankByMonth.map((m) => m.get(name) ?? null),
+    hoursByMonth: months.map((m) => secondsToHours(byMonth.get(m)?.get(name) ?? 0)),
+  }));
+
+  // Biggest customers first, so callers assigning colours by index give the
+  // strongest hue to the lane the eye should find first.
+  series.sort(
+    (a, b) =>
+      b.hoursByMonth.reduce((s, h) => s + h, 0) - a.hoursByMonth.reduce((s, h) => s + h, 0),
+  );
+
+  return { labels, series };
+}
+
 /** Everything the project list page needs, in one call. */
 export async function getProjectList(supabase: SupabaseTyped, sort: ProjectSort = "burn") {
   const [projects, { entries, truncated }] = await Promise.all([
@@ -456,5 +557,6 @@ export async function getProjectList(supabase: SupabaseTyped, sort: ProjectSort 
   ]);
 
   const rows = summariseProjects(projects, entries);
-  return { rows: sortProjects(rows, sort), truncated };
+  // Derived from the SAME entries fetched above — zero extra queries.
+  return { rows: sortProjects(rows, sort), truncated, customerRanks: customerRankByMonth(entries) };
 }

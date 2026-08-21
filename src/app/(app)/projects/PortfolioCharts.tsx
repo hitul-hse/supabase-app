@@ -113,6 +113,87 @@ export function PortfolioCharts({ rows }: { rows: ProjectListRow[] }) {
           ))}
         </div>
       </Card>
+
+      <BurnDonutRow rows={rows} />
     </div>
+  );
+}
+
+/**
+ * Budget burn per project as a row of small donuts — analysis #8 from the
+ * time-analytics spec.
+ *
+ * ONLY BUDGETED PROJECTS, AND ONLY REAL BUDGETS. Unbudgeted projects are already
+ * a slice of the health donut above; repeating them here as empty rings would say
+ * "0% burned" about projects with no budget to burn. The >= 10h floor exists
+ * because 32 live projects carry a placeholder "2h" estimate (per the analysis
+ * spec) — a 2h budget at 300% burn is an artefact of the placeholder, not a
+ * finding, and it would crowd out every genuinely over-budget project.
+ *
+ * The ring is CAPPED at 100%: a 340% overrun drawn as 3.4 laps is unreadable.
+ * Over-budget rings go full-circle in --critical, and the overrun magnitude
+ * lives in the centre label ("64h over") where it can actually be read.
+ */
+function BurnDonutRow({ rows }: { rows: ProjectListRow[] }) {
+  const budgeted = rows.filter(
+    (p) => p.estimatedHours !== null && p.estimatedHours >= 10 && p.burnPercent !== null,
+  );
+  const top = [...budgeted]
+    .sort((a, b) => (b.burnPercent ?? 0) - (a.burnPercent ?? 0))
+    .slice(0, 5);
+
+  return (
+    <Card className="flex flex-col lg:col-span-12">
+      <CardHeader
+        title="Budget burn"
+        qualifier="TOP 5 BUDGETED PROJECTS BY BURN · ESTIMATES UNDER 10H EXCLUDED AS PLACEHOLDERS"
+      />
+      {top.length === 0 ? (
+        <p className="px-4 pb-5 text-[12px] text-[var(--text-faint)]">
+          No projects carry a real budget yet — every estimate on file is below
+          the 10h placeholder floor, so there is no burn to show.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-start justify-around gap-x-6 gap-y-4 px-4 pb-5">
+          {top.map((p) => {
+            const est = p.estimatedHours!;
+            const used = Math.min(p.actualHours, est);
+            const slices = p.isOver
+              ? [{ label: "Over budget", value: est, color: "var(--critical)" }]
+              : [
+                  { label: "Hours used", value: used, color: burnColor(p.burnPercent) },
+                  { label: "Hours remaining", value: Math.max(est - used, 0), color: "var(--surface-2)" },
+                ];
+            const remaining = p.remainingHours ?? 0;
+            const centreLabel = remaining >= 0 ? `${h(remaining)}h left` : `${h(-remaining)}h over`;
+            return (
+              <Link
+                key={p.id}
+                href={`/projects/${p.id}`}
+                className="group flex w-[128px] flex-col items-center gap-1.5 rounded-[var(--radius-sm)] p-1.5 transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <Donut
+                  slices={slices}
+                  centre={`${Math.round(p.burnPercent ?? 0)}%`}
+                  centreLabel={centreLabel}
+                  size={104}
+                  thickness={9}
+                  label={`${p.name}: ${h(p.actualHours)} of ${h(est)} estimated hours used (${Math.round(p.burnPercent ?? 0)}% burned), ${centreLabel}`}
+                />
+                <span
+                  className="w-full truncate text-center text-[11px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                  title={p.name}
+                >
+                  {p.name}
+                </span>
+                <span className="font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
+                  {h(p.actualHours)}h / {h(est)}h
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }

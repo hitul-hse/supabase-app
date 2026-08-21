@@ -102,3 +102,4 @@ docs/discovery/
 # directory and does not follow the .claude ones). Machine-specific, ~150 files
 # of somebody else's code, and regenerable with .v3code/sync-claude-skills.ps1.
 .v3code/
+.claude/settings.json.graphify-bak  

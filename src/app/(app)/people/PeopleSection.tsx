@@ -22,6 +22,7 @@ export function PeopleSection({
   unlinkedCount,
   mailboxCount,
   initialQuery = "",
+  includeArchived = false,
 }: {
   people: LivePerson[];
   /** The reporting tree, recorded in the Hub because TrackingTime has none. */
@@ -33,6 +34,8 @@ export function PeopleSection({
   mailboxCount: number;
   /** Seeded from ?q= so the Overview can deep-link straight to one colleague. */
   initialQuery?: string;
+  /** Whether the roster above already includes archived members (?archived=1). */
+  includeArchived?: boolean;
 }) {
   const [view, setView] = useState<"directory" | "orgchart">("directory");
 
@@ -81,6 +84,7 @@ export function PeopleSection({
           unlinkedCount={unlinkedCount}
           mailboxCount={mailboxCount}
           initialQuery={initialQuery}
+          includeArchived={includeArchived}
         />
       ) : (
         <OrgChartView chart={chart} canEdit={canEditPeople} />

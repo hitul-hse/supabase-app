@@ -220,11 +220,28 @@ try {
     "module.exports = { getMemberUtilisation: async () => [] };",
   );
 
+  // Compiled for real: it is pure and self-contained, and the paging rule it
+  // encodes is the reason no member's hours are truncated at 1000 entries.
+  const pagedFile = await compile("src/lib/queries/paged.ts", "paged.cjs");
+
+  /*
+   * people-live and team-lead-live import each other -- isSharedMailbox one
+   * way, teamKey the other. Both are written to disk BEFORE either is
+   * required, so CommonJS resolves the cycle the same way the bundler does.
+   */
+  const leadFile = await compile("src/lib/queries/team-lead-live.ts", "team-lead-live.cjs", {
+    "./people-live": posix(join(dir, "people-live.cjs")),
+    "@/lib/queries/paged": posix(pagedFile),
+    "@/lib/database.types": posix(transformFile),
+  });
+
   const live = require(
     await compile(QUERY, "people-live.cjs", {
       "@/lib/time-transform": posix(transformFile),
       "./time-dashboard": posix(dashStub),
       "@/lib/database.types": posix(transformFile),
+      "@/lib/queries/paged": posix(pagedFile),
+      "./team-lead-live": posix(leadFile),
     }),
   );
 
@@ -243,6 +260,37 @@ try {
   check("capacityLabel flags sustained overload", live.capacityLabel(140)?.tone === "critical");
   check("capacityLabel flags unsold capacity", live.capacityLabel(20)?.tone === "warning");
   check("capacityLabel calls a healthy figure on track", live.capacityLabel(80)?.tone === "good");
+
+  /*
+   * R6. Two spellings of one team.
+   *
+   * time.member.team arrived from hand entry and holds both "OPERATIONS" and
+   * "Operations". Compared raw, a team filter silently splits one team into
+   * two, each missing half its people -- and the page still looks fine.
+   * people-live must therefore normalise through the SAME teamKey() the team
+   * board uses, not a second copy of the rule.
+   */
+  const lead = require(leadFile);
+  check(
+    "R6: people-live reuses teamKey from the team board rather than re-implementing it",
+    /import \{ teamKey \} from "\.\/team-lead-live"/.test(readFileSync(QUERY, "utf8")),
+    "two copies of the normalisation rule eventually disagree, and then the directory and the board show different teams for one person",
+  );
+  check(
+    "R6: teamKey folds case variants onto one key",
+    lead.teamKey("Operations") === lead.teamKey("OPERATIONS"),
+    'live data holds both spellings; compared raw they are two teams of half the people each',
+  );
+  check(
+    "R6: an unrecorded team stays null rather than becoming an empty-string team",
+    lead.teamKey(null) === null && lead.teamKey("  ") === null,
+    'a "" team would render as a real, selectable team with no name',
+  );
+  check(
+    "R6: the query selects the team column it now exposes",
+    /\.select\("id, email, role, status, user_id, team"\)/.test(readFileSync(QUERY, "utf8")),
+    "LivePerson.team would be null for everyone, and the filter would offer only 'No team recorded'",
+  );
 
   // ── 3. Render the real component ─────────────────────────────────────────
   const linkStub = join(dir, "link-stub.cjs");
@@ -306,9 +354,40 @@ module.exports = {
 };`,
   );
 
+  /*
+   * next/navigation, stubbed.
+   *
+   * The archived toggle is a URL round-trip (?archived=1) because the SERVER
+   * decides whether archived members are fetched at all -- so the view now
+   * reads the router. Nothing here asserts on navigation; the stub exists so
+   * the component can render outside an app-router tree.
+   */
+  const navStub = join(dir, "nav-stub.cjs");
+  writeFileSync(
+    navStub,
+    `module.exports = {
+  useRouter: () => ({ push: () => {}, replace: () => {} }),
+  usePathname: () => "/people",
+  useSearchParams: () => new URLSearchParams(),
+};`,
+  );
+
+  // teams.ts is pure and is the single source of team LABELS, so it is
+  // compiled rather than stubbed: a stub could pass while the shipped list
+  // rendered a legacy team as a blank option.
+  const teamsFile = await compile("src/lib/teams.ts", "teams.cjs");
+
+  // The shared pager, compiled for real: it imports nothing but React, and the
+  // slice bounds it returns are what decides which rows the assertions below
+  // can see at all.
+  const pagerFile = await compile("src/components/Pager.tsx", "pager.cjs");
+
   const view = require(
     await compile(VIEW, "people-view.cjs", {
       "@/components/ui/Field": posix(fieldStub),
+      "next/navigation": posix(navStub),
+      "@/lib/teams": posix(teamsFile),
+      "@/components/Pager": posix(pagerFile),
       "@/components/ui/Button": posix(buttonStub),
       "@/components/PageHeader": posix(headerStub),
       "@/components/EmptyState": posix(emptyStub),

@@ -2,11 +2,19 @@
 
 import { useMemo, useState, useRef } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { ButtonLink } from "@/components/ui/Button";
-import { FilterChip, SearchInput, SortHeader, type SortDirection } from "@/components/ui/Field";
+import {
+  FilterChip,
+  SearchInput,
+  Select,
+  SortHeader,
+  type SortDirection,
+} from "@/components/ui/Field";
 import { capacityLabel, type LivePerson } from "@/lib/queries/people-live";
+import { teamLabel } from "@/lib/teams";
 import { Pager, usePager } from "@/components/Pager";
 
 /**
@@ -30,12 +38,23 @@ export function PeopleDirectory({
   unlinkedCount,
   mailboxCount,
   initialQuery = "",
+  includeArchived = false,
 }: {
   people: LivePerson[];
   archivedCount: number;
   unlinkedCount: number;
   mailboxCount: number;
   initialQuery?: string;
+  /**
+   * Whether the roster ALREADY contains archived members.
+   *
+   * Server state, not client state: getLivePeople decides what it fetches, so
+   * the archived toggle is a URL round-trip (?archived=1, the same shape
+   * /projects uses) rather than something this component can filter locally.
+   * Filtering archived people out client-side would be a lie of a different
+   * kind -- the rows were never fetched.
+   */
+  includeArchived?: boolean;
 }) {
   // `people` can legitimately be empty: RLS scopes the underlying reads, and a
   // fresh database has no import yet. The detail pane dereferences the
@@ -44,6 +63,19 @@ export function PeopleDirectory({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [onlyLogged, setOnlyLogged] = useState(false);
   const [onlyNoAccount, setOnlyNoAccount] = useState(false);
+  /**
+   * "" = every team, NO_TEAM = the people with nothing recorded.
+   *
+   * The no-team bucket is a first-class choice, not an omission: most of the
+   * live roster has no team on time.member, and "who have we not placed yet"
+   * is a question someone actually asks from this page.
+   */
+  const [teamFilter, setTeamFilter] = useState<string>("");
+  /**
+   * Selected capacity bands. EMPTY MEANS EVERYONE, never nobody -- a filter
+   * that empties the page on first click reads as data loss.
+   */
+  const [bands, setBands] = useState<CapacityBand[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
@@ -52,6 +84,36 @@ export function PeopleDirectory({
   // match the current filter tells you nothing you cannot already see.
   const loggedCount = useMemo(() => people.filter((p) => p.totalHours > 0).length, [people]);
   const noAccountCount = useMemo(() => people.filter((p) => !p.hasAccount).length, [people]);
+
+  /**
+   * Only the teams actually present, plus the no-team bucket when it is
+   * occupied. The canonical four in teams.ts are what /admin can ASSIGN;
+   * offering a team with zero people here would be a filter that can only
+   * ever empty the list.
+   */
+  const teamOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    let noTeam = 0;
+    for (const p of people) {
+      if (p.team === null) noTeam += 1;
+      else counts.set(p.team, (counts.get(p.team) ?? 0) + 1);
+    }
+    const named = [...counts.entries()]
+      // teamLabel() so a legacy value stored by the mockup era still reads as
+      // itself ("Safety (legacy)") instead of as a bare code.
+      .map(([value, count]) => ({ value, label: teamLabel(value), count }))
+      .sort((a, b) => a.label.localeCompare(b.label, "de"));
+    return noTeam > 0
+      ? [...named, { value: NO_TEAM, label: "No team recorded", count: noTeam }]
+      : named;
+  }, [people]);
+
+  /** Counts per capacity band, over the FULL roster, same rule as the chips above. */
+  const bandCounts = useMemo(() => {
+    const out: Record<CapacityBand, number> = { over: 0, low: 0, ontrack: 0, unknown: 0 };
+    for (const p of people) out[bandOf(p)] += 1;
+    return out;
+  }, [people]);
 
   const query = searchQuery.trim().toLowerCase();
   const filteredPeople = useMemo(() => {
@@ -65,12 +127,58 @@ export function PeopleDirectory({
       // department concept, and the old SAFETY/ENG/LAB tabs were mockup values.
       const matchesLogged = !onlyLogged || p.totalHours > 0;
       const matchesAccount = !onlyNoAccount || !p.hasAccount;
-      return matchesSearch && matchesLogged && matchesAccount;
+      // Team is real data or it is absent. An unrecorded team matches the
+      // no-team bucket and nothing else -- it is never folded into a guess.
+      const matchesTeam =
+        teamFilter === "" ||
+        (teamFilter === NO_TEAM ? p.team === null : p.team === teamFilter);
+      // No selection = everyone. Including `unknown` in the band list is the
+      // ONLY way null utilisation is filtered on, so "no basis to judge" is
+      // never silently scored as 0%.
+      const matchesBand = bands.length === 0 || bands.includes(bandOf(p));
+      return matchesSearch && matchesLogged && matchesAccount && matchesTeam && matchesBand;
     });
     return sortPeople(matched, sortKey, sortDir);
-  }, [people, query, onlyLogged, onlyNoAccount, sortKey, sortDir]);
+  }, [people, query, onlyLogged, onlyNoAccount, teamFilter, bands, sortKey, sortDir]);
 
-  const activeFilterCount = (onlyLogged ? 1 : 0) + (onlyNoAccount ? 1 : 0) + (query ? 1 : 0);
+  const activeFilterCount =
+    (onlyLogged ? 1 : 0) +
+    (onlyNoAccount ? 1 : 0) +
+    (query ? 1 : 0) +
+    (teamFilter ? 1 : 0) +
+    bands.length;
+
+  /**
+   * Reset everything the client owns. Deliberately does NOT drop
+   * ?archived=1: that is a decision about which rows exist at all, and
+   * silently re-hiding 30 people as a side effect of "clear filters" would
+   * shrink the roster without being asked to.
+   */
+  const clearFilters = () => {
+    setSearchQuery("");
+    setOnlyLogged(false);
+    setOnlyNoAccount(false);
+    setTeamFilter("");
+    setBands([]);
+  };
+
+  const toggleBand = (b: CapacityBand) =>
+    setBands((cur) => (cur.includes(b) ? cur.filter((x) => x !== b) : [...cur, b]));
+
+  /**
+   * The archived toggle rewrites the URL, because the server decides the
+   * roster. `scroll: false` keeps you where you were reading.
+   */
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const toggleArchived = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (includeArchived) next.delete("archived");
+    else next.set("archived", "1");
+    const qs = next.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   /**
    * Paged, not appended.
@@ -93,7 +201,9 @@ export function PeopleDirectory({
   const pager = usePager(
     filteredPeople.length,
     PAGE_SIZE,
-    `${query}|${onlyLogged}|${onlyNoAccount}`,
+    // Every filter belongs in the reset key: narrowing while on page 3 would
+    // otherwise leave you looking at an empty column.
+    `${query}|${onlyLogged}|${onlyNoAccount}|${teamFilter}|${[...bands].sort().join(",")}`,
   );
   const visiblePeople = filteredPeople.slice(pager.start, pager.end);
   const listRef = useRef<HTMLDivElement>(null);
@@ -155,7 +265,9 @@ export function PeopleDirectory({
          * DOM as the five literal characters, which is exactly what the live
          * page showed ("8 ACTIVE CONSULTANTS &amp; STAFF"). Use the character.
          */
-        meta={`${people.length} ACTIVE · ${archivedCount} ARCHIVED${
+        meta={`${people.length} ${includeArchived ? "ACTIVE + ARCHIVED" : "ACTIVE"} · ${archivedCount} ARCHIVED${
+          includeArchived ? " INCLUDED" : ""
+        }${
           mailboxCount > 0 ? ` · ${mailboxCount} SHARED INBOX EXCLUDED` : ""
         } · TRACKINGTIME`}
       />
@@ -168,7 +280,15 @@ export function PeopleDirectory({
               <span className="text-[14px] font-semibold text-[var(--text-primary)]">People</span>
               {/* Shows what is on screen over the matching total, so a
                   truncated list cannot be mistaken for the whole roster. */}
-              <span className="font-mono text-[10px] text-[var(--text-muted)]">
+              {/* A live region, so toggling a filter ANNOUNCES the new count.
+                  Without it the only feedback for a screen-reader user is the
+                  chip's own pressed state, which says nothing about whether
+                  the roster still contains anybody. */}
+              <span
+                role="status"
+                aria-live="polite"
+                className="font-mono text-[10px] text-[var(--text-muted)]"
+              >
                 {visiblePeople.length} OF {filteredPeople.length}
                 {filteredPeople.length !== people.length && ` (${people.length} TOTAL)`}
               </span>
@@ -180,6 +300,32 @@ export function PeopleDirectory({
               onValueChange={setSearchQuery}
               placeholder="Search name, email, role…"
             />
+
+            {/* data-people-filters marks the whole bar as one control group for
+                live verification, so a check can assert the filters reached the
+                DOM rather than inferring it from a class name. */}
+            <div data-people-filters="1" className="flex flex-col gap-2">
+              {teamOptions.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {/* Native <select>, per Field.tsx: a handful of teams needs no
+                      search box, and it is one tap on a phone. */}
+                  <Select
+                    label="Filter by team"
+                    value={teamFilter}
+                    onChange={(e) => setTeamFilter(e.target.value)}
+                    className="w-full"
+                  >
+                    {/* The default is EVERYONE. A team filter that starts
+                        pre-narrowed would misreport the roster size. */}
+                    <option key="__all" value="">All teams ({people.length})</option>
+                    {teamOptions.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label} ({t.count})
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
 
             <div className="flex flex-wrap gap-1.5">
               <FilterChip
@@ -201,6 +347,56 @@ export function PeopleDirectory({
               >
                 NO HUB ACCOUNT
               </FilterChip>
+              {/*
+                Archived is a SERVER decision (getLivePeople's includeArchived),
+                so this chip pushes ?archived=1 rather than filtering locally.
+                Offered because 30 of the 49 members are archived and their
+                hours are still in every project total -- "who logged this"
+                and "who can I staff" are different questions.
+              */}
+              {(archivedCount > 0 || includeArchived) && (
+                <FilterChip
+                  active={includeArchived}
+                  onToggle={toggleArchived}
+                  count={archivedCount}
+                >
+                  INCLUDE ARCHIVED
+                </FilterChip>
+              )}
+            </div>
+
+            {/*
+              Capacity bands, from the same capacityLabel() the detail pane
+              shows, so a chip and a badge can never disagree. NO UTILISATION
+              DATA is its own chip: null means "no basis to judge", and folding
+              it into LOW UTILISATION would accuse people of idling when the
+              truth is that they have logged nothing to measure.
+            */}
+            <div className="flex flex-wrap gap-1.5">
+              {CAPACITY_BANDS.map((b) => (
+                <FilterChip
+                  key={b.band}
+                  active={bands.includes(b.band)}
+                  onToggle={() => toggleBand(b.band)}
+                  count={bandCounts[b.band]}
+                >
+                  {b.label}
+                </FilterChip>
+              ))}
+            </div>
+
+            {/* The clear affordance lives WITH the filters, not only in the
+                filtered-to-empty state: a narrowed-but-not-empty list needs a
+                way out too, and you should not have to empty it to find one. */}
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="self-start font-mono text-[10px] text-[var(--accent)] hover:underline"
+              >
+                CLEAR {activeFilterCount} FILTER{activeFilterCount === 1 ? "" : "S"}
+              </button>
+            )}
             </div>
 
             <div className="flex items-center justify-between gap-2 border-t border-[var(--divider)] pt-2">
@@ -243,11 +439,7 @@ export function PeopleDirectory({
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setOnlyLogged(false);
-                    setOnlyNoAccount(false);
-                  }}
+                  onClick={clearFilters}
                   className="font-mono text-[10px] text-[var(--accent)] hover:underline"
                 >
                   CLEAR {activeFilterCount} FILTER{activeFilterCount === 1 ? "" : "S"}
@@ -277,7 +469,11 @@ export function PeopleDirectory({
                       {person.name}
                     </span>
                     <span className="truncate font-mono text-[10px] text-[var(--text-muted)]">
-                      {person.accountRole ?? "—"}
+                      {/* Absence renders as absence: a person with no team shows
+                          the role alone rather than a guessed one. */}
+                      {person.team !== null
+                        ? `${person.accountRole ?? "—"} · ${teamLabel(person.team)}`
+                        : (person.accountRole ?? "—")}
                     </span>
                   </div>
                   {/*
@@ -361,6 +557,27 @@ export function PeopleDirectory({
                 <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
                   {selectedPerson.accountRole ?? "NO ROLE"}
                 </span>
+                {/* Stated either way. "NO TEAM RECORDED" is the honest reading
+                    of a blank column, and it is the thing somebody would act
+                    on; a missing badge just looks like the page forgot. */}
+                <span
+                  className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px]"
+                  style={{
+                    color:
+                      selectedPerson.team === null
+                        ? "var(--text-faint)"
+                        : "var(--text-secondary)",
+                  }}
+                >
+                  {selectedPerson.team !== null
+                    ? teamLabel(selectedPerson.team).toUpperCase()
+                    : "NO TEAM RECORDED"}
+                </span>
+                {selectedPerson.isArchived && (
+                  <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--warning)]">
+                    ARCHIVED IN TRACKINGTIME
+                  </span>
+                )}
                 {/*
                   Surfaced deliberately: 46 of 49 members have no Hub login, so
                   they cannot sign in and see their own hours. That is an
@@ -495,8 +712,8 @@ export function PeopleDirectory({
           {unlinkedCount > 0 && (
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
               <span className="text-[12px] text-[var(--text-secondary)]">
-                {unlinkedCount} of {people.length} people have no Hub sign-in yet, so they cannot
-                see their own hours.
+                {unlinkedCount} of the {people.length} people listed have no Hub sign-in yet, so
+                they cannot see their own hours.
               </span>
               <ButtonLink variant="primary" href="/admin/users" className="whitespace-nowrap">
                 Manage users
@@ -510,6 +727,37 @@ export function PeopleDirectory({
 }
 
 type SortKey = "name" | "hours" | "billable";
+
+/** Sentinel for the "nothing recorded" team, which has no value of its own. */
+const NO_TEAM = "__none";
+
+type CapacityBand = "over" | "low" | "ontrack" | "unknown";
+
+/**
+ * The band chips, in the order someone reads them: the two that need action,
+ * then the healthy one, then the one that is an absence of data.
+ */
+const CAPACITY_BANDS: { band: CapacityBand; label: string }[] = [
+  { band: "over", label: "OVER CAPACITY" },
+  { band: "low", label: "LOW UTILISATION" },
+  { band: "ontrack", label: "ON TRACK" },
+  { band: "unknown", label: "NO UTILISATION DATA" },
+];
+
+/**
+ * Which band a person falls in.
+ *
+ * Derived from capacityLabel() rather than re-deriving the thresholds, so the
+ * chip that says OVER CAPACITY and the badge in the detail pane cannot drift
+ * apart. A null utilisation is `unknown` -- its own bucket, never 0%.
+ */
+function bandOf(p: LivePerson): CapacityBand {
+  const cap = capacityLabel(p.utilisationPercent);
+  if (cap === null) return "unknown";
+  if (cap.label === "OVER CAPACITY") return "over";
+  if (cap.label === "LOW UTILISATION") return "low";
+  return "ontrack";
+}
 
 /**
  * Order the roster.

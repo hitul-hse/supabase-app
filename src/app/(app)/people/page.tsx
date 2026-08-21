@@ -18,7 +18,11 @@ export default async function PeoplePage({
   searchParams,
 }: {
   // Async in this Next version — awaiting is required, not optional.
-  searchParams: Promise<{ q?: string }>;
+  // ?archived=1 mirrors /projects. It is a URL param and not client state
+  // because getLivePeople decides which rows are fetched at all: 30 of the 49
+  // members are archived, and a client toggle could only ever hide rows that
+  // were already on the wire.
+  searchParams: Promise<{ q?: string; archived?: string }>;
 }) {
   // Previously a bare requireProfile with no permission check at all, so
   // people:read_own — the key the directory exists to gate — decided nothing.
@@ -33,8 +37,12 @@ export default async function PeoplePage({
   // The org chart reads the same table, plus the reporting lines recorded in the
   // Hub -- TrackingTime carries none, so there is nothing to import. Fetched in
   // parallel because neither depends on the other.
+  // Read BEFORE the fetch: it decides what getLivePeople returns.
+  const { q, archived } = await searchParams;
+  const includeArchived = archived === "1";
+
   const [directory, chart, canEditPeople] = await Promise.all([
-    getLivePeople(supabase),
+    getLivePeople(supabase, { includeArchived }),
     getOrgChart(supabase),
     // Whether to show the editor at all. The server actions re-check this on every
     // write, so hiding the buttons is presentation, not the security boundary.
@@ -43,8 +51,7 @@ export default async function PeoplePage({
 
   // The Overview's utilisation rows deep-link here as /people?q=<name>, so a
   // reader who spots an outlier lands on that person instead of on a list they
-  // then have to search by hand.
-  const { q } = await searchParams;
+  // then have to search by hand. Read above, with ?archived=.
 
   return (
     <PageTransition>
@@ -58,6 +65,7 @@ export default async function PeoplePage({
           unlinkedCount={directory.unlinkedCount}
           mailboxCount={directory.mailboxCount}
           initialQuery={typeof q === "string" ? q : ""}
+          includeArchived={includeArchived}
         />
       </div>
     </PageTransition>

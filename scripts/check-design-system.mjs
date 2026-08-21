@@ -515,7 +515,12 @@ const card = readStripped("src/components/ui/Card.tsx");
 // value, and the token itself must carry a non-zero OFFSET (a zero-offset halo
 // is decoration, not depth).
 check(
-  "card elevation is a real CSS class, not shadow-[var(...)]",
+  // The label deliberately does NOT spell the arbitrary class out. Tailwind 4
+  // scans scripts/ too, so a literal shadow-[...] in a string HERE was treated
+  // as a utility to emit: it generated an invalid `--tw-shadow: var(...)` rule
+  // into globals.css and every page 500ed with "Parsing CSS source code
+  // failed". A gate must not be able to break the app it guards.
+  "card elevation is a real CSS class, not the arbitrary shadow-[] form",
   /\.card-elev\s*\{[^}]*box-shadow:\s*var\(--shadow-card\)/.test(css) &&
     !/shadow-\[var\(--shadow-card\)\]/.test(card),
   "Tailwind 4 emits no rule for the arbitrary form; the shadow silently vanishes",

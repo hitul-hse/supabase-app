@@ -51,6 +51,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { getMemberUtilisation, type MemberUtilisationRow } from "./time-dashboard";
+// Imported rather than re-implemented: the team board already normalises
+// time.member.team, and live data holds both "OPERATIONS" and "Operations".
+// Two copies of that rule would eventually disagree, and then the directory
+// and the board would show different teams for the same person.
+import { teamKey } from "./team-lead-live";
 import { secondsToHours } from "@/lib/time-transform";
 import { fetchAllPaged } from "@/lib/queries/paged";
 
@@ -118,6 +123,15 @@ export type LivePerson = {
   utilisationPercent: number | null;
   /** True when this member is linked to a Hub sign-in account. */
   hasAccount: boolean;
+  /**
+   * Team recorded on time.member, normalised by teamKey() so "Operations"
+   * and "OPERATIONS" are one team.
+   *
+   * Null for the many members with nothing recorded. That is a real bucket
+   * the directory offers as "No team recorded" -- not a hidden row, and
+   * never guessed from a role or a project.
+   */
+  team: string | null;
   assignments: PersonAssignment[];
 };
 
@@ -267,6 +281,7 @@ type MemberMeta = {
   accountRole: string | null;
   status: string | null;
   hasAccount: boolean;
+  team: string | null;
 };
 
 /**
@@ -281,7 +296,7 @@ async function getMemberMeta(
   try {
     const { data, error } = await timeSchema(supabase)
       .from("member")
-      .select("id, email, role, status, user_id");
+      .select("id, email, role, status, user_id, team");
 
     if (error || !data) return out;
 
@@ -292,6 +307,7 @@ async function getMemberMeta(
         accountRole: r.role ?? null,
         status: r.status ?? null,
         hasAccount: Boolean(r.user_id),
+        team: teamKey(r.team),
       });
     }
   } catch {
@@ -416,6 +432,8 @@ function toLivePerson(
       m.totalSeconds > 0 ? Math.round((m.billableSeconds / m.totalSeconds) * 100) : null,
     utilisationPercent: m.utilisationPercent,
     hasAccount: info?.hasAccount ?? false,
+    // Already normalised in getMemberMeta; null stays null.
+    team: info?.team ?? null,
     assignments: assignments.get(m.memberId) ?? [],
   };
 }

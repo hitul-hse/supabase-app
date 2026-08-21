@@ -35,6 +35,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
+import { evaluateBudget, refusalMessage, type BudgetDecision } from "@/lib/budget-guard";
+import { notifyOverbooking } from "@/lib/overbooking-notify";
 
 /**
  * What every action returns.
@@ -174,6 +176,123 @@ function combineInstant(date: string, time: string): string | null {
   return d.toISOString();
 }
 
+/**
+ * Would these hours push the project past its budget?
+ *
+ * Reads the project's budget and everything already logged against it, then asks
+ * the pure rule in budget-guard.ts to decide. Returns null when the booking may
+ * proceed, or a refusal message when it may not -- and in that case it has
+ * already recorded the alert and notified the sales team.
+ *
+ * WHY THE READS USE THE CALLER'S CLIENT. The user can already see this project's
+ * hours (the guard only fires on a project they are booking against), so no
+ * privilege is added here. If RLS hides some entries from them, the sum is the
+ * one THEY can see -- which is the honest basis for a message shown to them, and
+ * the alert row records the same figures so a reviewer sees exactly what the
+ * user was told.
+ *
+ * `excludeEntryId` matters for edits: when changing an existing entry's hours,
+ * its OWN current hours must not be counted as "already logged", or every edit
+ * would appear to double-book.
+ */
+async function checkBudget(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    projectId,
+    requestedSeconds,
+    excludeEntryId,
+    memberId,
+    source,
+  }: {
+    projectId: number | null;
+    requestedSeconds: number;
+    excludeEntryId?: number | null;
+    memberId: number;
+    source: "create_entry" | "update_entry" | "start_timer" | "stop_timer";
+  },
+): Promise<string | null> {
+  // No project means no budget to breach: unattributed time is a separate
+  // problem (40% of live entries carry no project) and not this guard's job.
+  if (projectId === null) return null;
+
+  const { data: project, error: projectError } = await timeSchema(supabase)
+    .from("project")
+    .select("id, name, estimated_hours")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  // A read failure must not block a booking: failing closed here would stop
+  // people logging real work because of an unrelated outage.
+  if (projectError || !project) return null;
+
+  const budgetHours =
+    project.estimated_hours === null ? null : Number(project.estimated_hours);
+
+  // Cheap exit before summing thousands of rows: an unbudgeted or placeholder
+  // project can never refuse, so do not pay for the scan.
+  const preflight = evaluateBudget({
+    budgetHours,
+    loggedHours: 0,
+    requestedHours: 0,
+  });
+  if (preflight.budgetHours === null) return null;
+
+  // Sum what is already logged. Paged because PostgREST truncates at 1000 rows
+  // silently, which on a busy project would understate the total and let an
+  // overbooking through.
+  let loggedSeconds = 0;
+  for (let page = 0; page < 20; page += 1) {
+    let q = timeSchema(supabase)
+      .from("entry")
+      .select("id, duration_seconds")
+      .eq("project_id", projectId)
+      .not("duration_seconds", "is", null)
+      .range(page * 1000, page * 1000 + 999);
+    const { data, error } = await q;
+    if (error || !data) break;
+    for (const row of data as { id: number; duration_seconds: number | null }[]) {
+      if (excludeEntryId != null && Number(row.id) === Number(excludeEntryId)) continue;
+      loggedSeconds += Number(row.duration_seconds) || 0;
+    }
+    if (data.length < 1000) break;
+  }
+
+  const decision: BudgetDecision = evaluateBudget({
+    budgetHours,
+    loggedHours: loggedSeconds / 3600,
+    requestedHours: requestedSeconds / 3600,
+  });
+
+  if (decision.allowed) return null;
+
+  const projectName = project.name ?? `Project ${projectId}`;
+
+  // Record + notify. Deliberately awaited: a fire-and-forget promise in a Server
+  // Action can be cut off when the response is sent, which would lose exactly
+  // the alert the feature exists to produce.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: memberRow } = await timeSchema(supabase)
+    .from("member")
+    .select("display_name")
+    .eq("id", memberId)
+    .maybeSingle();
+
+  await notifyOverbooking({
+    actorUserId: user?.id ?? null,
+    actorMemberId: memberId,
+    actorName: memberRow?.display_name ?? user?.email ?? `Member ${memberId}`,
+    projectId,
+    projectName,
+    decision,
+    source,
+  });
+
+  return refusalMessage(decision, projectName);
+}
+
 // ─── Timer ───────────────────────────────────────────────────────────────────
 
 /**
@@ -218,6 +337,28 @@ export async function startTimer(formData: FormData): Promise<TimeActionResult> 
 
   if (existing) {
     return { ok: false, message: "A timer is already running. Stop it before starting another." };
+  }
+
+  /*
+   * Budget guard, BEFORE the work starts.
+   *
+   * A timer has no duration yet, so there are no hours to add -- this asks the
+   * narrower question "is the budget already spent?". Catching it here is the
+   * kind thing to do: the alternative is letting somebody track four hours and
+   * only telling them the project was full when they try to stop.
+   *
+   * stopTimer deliberately does NOT check. Refusing to stop a running timer
+   * would trap the user with a timer they cannot close and work they cannot
+   * save, which is worse than recording an overrun we can see and report.
+   */
+  {
+    const refusal = await checkBudget(supabase, {
+      projectId,
+      requestedSeconds: 0,
+      memberId: auth.memberId,
+      source: "start_timer",
+    });
+    if (refusal) return { ok: false, message: refusal };
   }
 
   // customer_id is derived from the chosen project rather than accepted from the
@@ -416,6 +557,18 @@ export async function createEntry(formData: FormData): Promise<TimeActionResult>
     return { ok: false, message: "Pick a project or a task for this entry." };
   }
 
+  // Budget guard: this path knows exactly how many hours are being added, so it
+  // asks the full question and refuses the booking if it would breach.
+  {
+    const refusal = await checkBudget(supabase, {
+      projectId,
+      requestedSeconds: durationSeconds,
+      memberId: auth.memberId,
+      source: "create_entry",
+    });
+    if (refusal) return { ok: false, message: refusal };
+  }
+
   // Same reasoning as startTimer: the customer follows the project so no rollup
   // can be fed a contradictory pair.
   let customerId: number | null = null;
@@ -474,7 +627,7 @@ export async function updateEntry(formData: FormData): Promise<TimeActionResult>
   // update that silently affected zero rows and looked like success.
   const { data: existing } = await timeSchema(supabase)
     .from("entry")
-    .select("id, member_id, is_billed, started_at")
+    .select("id, member_id, is_billed, started_at, project_id")
     .eq("id", entryId)
     .maybeSingle();
 
@@ -516,6 +669,26 @@ export async function updateEntry(formData: FormData): Promise<TimeActionResult>
 
   const notes = optionalText(formData.get("notes"));
   const isBillable = formData.get("is_billable") === "on";
+
+  /*
+   * Budget guard on the EDIT, excluding this entry's own current hours.
+   *
+   * Without excludeEntryId a one-hour edit on a full project would compare
+   * "everything logged (including this entry) + the new hours" against the
+   * budget and refuse a change that actually REDUCES the total. The exclusion is
+   * what makes shrinking an entry on an over-budget project possible, which is
+   * exactly how somebody fixes an overrun.
+   */
+  {
+    const refusal = await checkBudget(supabase, {
+      projectId: existing.project_id === null ? null : Number(existing.project_id),
+      requestedSeconds: durationSeconds,
+      excludeEntryId: entryId,
+      memberId: auth.memberId,
+      source: "update_entry",
+    });
+    if (refusal) return { ok: false, message: refusal };
+  }
 
   const { error } = await timeSchema(supabase)
     .from("entry")

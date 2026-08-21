@@ -549,6 +549,141 @@ export function customerRankByMonth(entries: ReportEntry[], topN = 6): CustomerR
   return { labels, series };
 }
 
+/* ---------------------------------------------------- customer portfolio */
+
+export type CustomerPortfolioRow = {
+  name: string;
+  /** All logged hours for this customer across their projects. */
+  hours: number;
+  /** Billable share of those hours, 0-100, or null when nothing is billable-flagged. */
+  billablePercent: number | null;
+  /** Share of the whole portfolio's hours, 0-100 (one decimal). */
+  sharePercent: number;
+  /** Number of this customer's projects that have any logged time. */
+  activeProjects: number;
+  /**
+   * Budgeted hours across this customer's projects that carry an estimate.
+   * null when NONE of their projects were budgeted -- capacity is unknowable,
+   * not zero.
+   */
+  committedHours: number | null;
+  /**
+   * Delivered against committed: committed - delivered on budgeted projects.
+   * Positive = budget headroom (capacity still available), negative = overrun
+   * (we are delivering beyond what was scoped). null when nothing is budgeted.
+   */
+  headroomHours: number | null;
+  /** Hours logged in the last 60 days vs the 60 before -- recent momentum. */
+  recentHours: number;
+  priorHours: number;
+};
+
+export type CustomerPortfolio = {
+  rows: CustomerPortfolioRow[];
+  totalHours: number;
+  /** Customers with any logged time. */
+  customerCount: number;
+  /** Cumulative share of the top 5, 0-100 -- the concentration headline. */
+  top5SharePercent: number;
+};
+
+/**
+ * Aggregate the project ledger by CUSTOMER.
+ *
+ * Answers the two questions the old rank chart could not: WHO are the biggest
+ * customers (by delivered hours and share), and WHERE is capacity tight --
+ * committed budget against delivered hours per customer, so an overrun (no
+ * headroom) reads differently from a customer with budget still to burn.
+ *
+ * Budget is summed only over a customer's BUDGETED projects: folding a
+ * zero-estimate project into "committed" would understate the burn on the ones
+ * that were actually scoped. A customer with no budgeted project at all reports
+ * committedHours = null (capacity unknowable) rather than 0.
+ *
+ * recentHours/priorHours need per-entry dates, so this takes the entries too --
+ * the same array getProjectList already holds; no extra query.
+ */
+export function customerPortfolio(
+  rows: ProjectListRow[],
+  entries: ReportEntry[],
+): CustomerPortfolio {
+  type Acc = {
+    hours: number;
+    billableHours: number;
+    projects: Set<number>;
+    committed: number;
+    committedDelivered: number;
+    hasBudget: boolean;
+  };
+  const byCustomer = new Map<string, Acc>();
+  const get = (name: string) => {
+    let a = byCustomer.get(name);
+    if (!a) {
+      a = { hours: 0, billableHours: 0, projects: new Set(), committed: 0, committedDelivered: 0, hasBudget: false };
+      byCustomer.set(name, a);
+    }
+    return a;
+  };
+
+  for (const p of rows) {
+    if (p.actualHours <= 0 && (p.estimatedHours ?? 0) <= 0) continue;
+    const name = p.customerName ?? "(no customer)";
+    const a = get(name);
+    a.hours += p.actualHours;
+    a.billableHours += p.billableHours;
+    if (p.actualHours > 0) a.projects.add(p.id);
+    if (p.estimatedHours !== null && p.estimatedHours > 0) {
+      a.committed += p.estimatedHours;
+      a.committedDelivered += p.actualHours;
+      a.hasBudget = true;
+    }
+  }
+
+  // Recent vs prior 60-day windows, from entry timestamps.
+  const now = Date.now();
+  const DAY = 86_400_000;
+  const recentCut = now - 60 * DAY;
+  const priorCut = now - 120 * DAY;
+  const recent = new Map<string, number>();
+  const prior = new Map<string, number>();
+  for (const e of entries) {
+    const name = e.customerName ?? "(no customer)";
+    const t = new Date(e.startedAt).getTime();
+    if (Number.isNaN(t)) continue;
+    if (t >= recentCut) recent.set(name, (recent.get(name) ?? 0) + e.durationSeconds);
+    else if (t >= priorCut) prior.set(name, (prior.get(name) ?? 0) + e.durationSeconds);
+  }
+
+  const totalHours = [...byCustomer.values()].reduce((s, a) => s + a.hours, 0);
+
+  const out: CustomerPortfolioRow[] = [...byCustomer.entries()]
+    .filter(([, a]) => a.hours > 0)
+    .map(([name, a]) => ({
+      name,
+      hours: Math.round(a.hours * 10) / 10,
+      billablePercent: a.hours > 0 ? Math.round((a.billableHours / a.hours) * 100) : null,
+      sharePercent: totalHours > 0 ? Math.round((a.hours / totalHours) * 1000) / 10 : 0,
+      activeProjects: a.projects.size,
+      committedHours: a.hasBudget ? Math.round(a.committed * 10) / 10 : null,
+      headroomHours: a.hasBudget ? Math.round((a.committed - a.committedDelivered) * 10) / 10 : null,
+      recentHours: Math.round(secondsToHours(recent.get(name) ?? 0) * 10) / 10,
+      priorHours: Math.round(secondsToHours(prior.get(name) ?? 0) * 10) / 10,
+    }))
+    .sort((x, y) => y.hours - x.hours);
+
+  const top5SharePercent =
+    totalHours > 0
+      ? Math.round((out.slice(0, 5).reduce((s, r) => s + r.hours, 0) / totalHours) * 100)
+      : 0;
+
+  return {
+    rows: out,
+    totalHours: Math.round(totalHours * 10) / 10,
+    customerCount: out.length,
+    top5SharePercent,
+  };
+}
+
 /** Everything the project list page needs, in one call. */
 export async function getProjectList(supabase: SupabaseTyped, sort: ProjectSort = "burn") {
   const [projects, { entries, truncated }] = await Promise.all([
@@ -557,6 +692,10 @@ export async function getProjectList(supabase: SupabaseTyped, sort: ProjectSort 
   ]);
 
   const rows = summariseProjects(projects, entries);
-  // Derived from the SAME entries fetched above — zero extra queries.
-  return { rows: sortProjects(rows, sort), truncated, customerRanks: customerRankByMonth(entries) };
+  // Both derived from the SAME entries fetched above — zero extra queries.
+  return {
+    rows: sortProjects(rows, sort),
+    truncated,
+    customerPortfolio: customerPortfolio(rows, entries),
+  };
 }

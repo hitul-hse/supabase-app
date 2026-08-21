@@ -38,7 +38,7 @@ import { FreshnessBanner } from "../time/dashboard/ReportPanels";
 import { ProjectTotalsStrip } from "./ProjectPanels";
 import { ProjectsLedger, type LedgerSort } from "./ProjectsLedger";
 import { PortfolioCharts } from "./PortfolioCharts";
-import { CustomerRankChart } from "./CustomerRankChart";
+import { CustomerPortfolioCharts } from "./CustomerPortfolioCharts";
 
 /** `?sort=` values the ledger accepts as its initial state. */
 const SORT_KEYS: LedgerSort[] = ["burn", "hours", "recent", "name", "budget", "people"];
@@ -92,7 +92,7 @@ export default async function ProjectsPage({
   }
 
   const supabase = await createClient();
-  const [{ rows: allRows, truncated, customerRanks }, freshness] = await Promise.all([
+  const [{ rows: allRows, truncated, customerPortfolio }, freshness] = await Promise.all([
     // The server sort is now only a stable starting order — the ledger re-sorts
     // in the browser, where all 334 rows already are.
     getProjectList(supabase, (SORT_KEYS.includes(initialSort) ? initialSort : "burn") as ProjectSort),
@@ -158,9 +158,11 @@ export default async function ProjectsPage({
                   stays the tool for finding one project; these answer the two
                   questions people previously scrolled the ledger to estimate. */}
               <PortfolioCharts rows={rows} />
-              {/* Spec analysis #4: who is rising or fading, customer-side. Derived
-                  from the same entry fetch as the rows — no extra query. */}
-              <CustomerRankChart data={customerRanks} />
+              {/* Who our biggest customers are, and where capacity is tight:
+                  delivered-hours share plus delivered-vs-committed budget per
+                  customer. Derived from the same entry fetch as the rows — no
+                  extra query. */}
+              <CustomerPortfolioCharts data={customerPortfolio} />
               <ProjectsLedger rows={rows} initialSort={initialSort} />
             </>
           )}

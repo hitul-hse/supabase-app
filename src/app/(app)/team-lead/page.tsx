@@ -7,8 +7,9 @@ import { getLiveTeamLeadBoard } from "@/lib/queries/team-lead-live";
 import { TeamLeadBoard } from "./TeamLeadBoard";
 import { TeamLeadCharts } from "./TeamLeadCharts";
 import { TeamAnalysisSection } from "./TeamAnalysisSection";
-import { teamKey, parseBoardWindow, BOARD_WINDOWS } from "@/lib/queries/team-lead-live";
-import Link from "next/link";
+import { TeamDeepAnalysis } from "./TeamDeepAnalysis";
+import { BoardRangeFilter } from "./BoardRangeFilter";
+import { teamKey, parseBoardRange } from "@/lib/queries/team-lead-live";
 import { getCurrentProfile } from "@/lib/queries/auth";
 import { PendingTimesheetApprovals } from "./PendingTimesheetApprovals";
 import PageTransition from "@/components/animations/PageTransition";
@@ -16,7 +17,7 @@ import PageTransition from "@/components/animations/PageTransition";
 export default async function TeamLeadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ weeks?: string }>;
+  searchParams: Promise<{ weeks?: string; range?: string; from?: string; to?: string }>;
 }) {
   // NOTE this WIDENS access: workload:read is held by exec, dept_head AND
   // project_manager, where the old ["exec", "dept_head"] list excluded the last.
@@ -50,9 +51,9 @@ export default async function TeamLeadPage({
       .maybeSingle();
     viewerTeam = teamKey(memberRow?.team ?? null);
   }
-  const windowWeeks = parseBoardWindow((await searchParams).weeks);
+  const range = parseBoardRange(await searchParams);
   const [board, decisions, pendingTimesheets] = await Promise.all([
-    getLiveTeamLeadBoard(supabase, windowWeeks),
+    getLiveTeamLeadBoard(supabase, range),
     getApprovalDecisions(supabase),
     getPendingTimesheetApprovals(supabase),
   ]);
@@ -61,30 +62,11 @@ export default async function TeamLeadPage({
     <PageTransition>
       <div className="flex flex-col">
         <SyncBar />
-        {/* The window filter: how far back the WHOLE view reads. Analysis, charts
+        {/* The period filter: how far back the WHOLE view reads. Analysis, charts
             and grid all derive from one query, so one control moves everything.
-            Links, because the window is URL state -- shareable, back-button-safe. */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 sm:px-6">
-          <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-            WINDOW
-          </span>
-          <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
-            {BOARD_WINDOWS.map((w) => (
-              <Link
-                key={w}
-                href={w === 4 ? "/team-lead" : `/team-lead?weeks=${w}`}
-                aria-current={w === windowWeeks ? "page" : undefined}
-                className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
-                  w === windowWeeks
-                    ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                {w} weeks
-              </Link>
-            ))}
-          </div>
-        </div>
+            Presets plus real from/to dates; the range is URL state -- shareable
+            and back-button-safe. */}
+        <BoardRangeFilter range={board.range} />
 
         {/* GRAPHS FIRST, per request: per-team analysis leads (execs see every team
             segregated, a dept_head exactly their own), the org-wide pair follows,
@@ -94,6 +76,10 @@ export default async function TeamLeadPage({
         <div className="pt-4">
           <TeamAnalysisSection board={board} viewerRole={viewerRole} viewerTeam={viewerTeam} />
         </div>
+        {/* The deep-analysis figures (month-over-month movement, utilisation
+            heatmap, travel burden) sit between the per-team blocks and the
+            org-wide trend: they answer the questions the grid below raises. */}
+        <TeamDeepAnalysis board={board} />
         <TeamLeadCharts board={board} />
         <TeamLeadBoard board={board} initialDecisions={decisions} />
         <div className="flex flex-col gap-4 px-4 pb-6 sm:px-6">

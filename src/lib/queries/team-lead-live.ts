@@ -44,16 +44,106 @@ const timeSchema = (s: SupabaseTyped) => (s as any).schema("time");
 /** PostgREST caps one response at 1000 rows; page rather than truncate. */
 const PAGE = 1000;
 
-/** The default window, and the windows the board offers. */
+/** The default window when nothing is asked for: the last four ISO weeks. */
 export const BOARD_WEEKS = 4;
-export const BOARD_WINDOWS = [4, 8, 12, 26] as const;
-export type BoardWindow = (typeof BOARD_WINDOWS)[number];
 
-/** Parse a ?weeks= param to an allowed window; anything else is the default. */
-export function parseBoardWindow(raw: string | undefined): BoardWindow {
-  const n = Number(raw);
-  return (BOARD_WINDOWS as readonly number[]).includes(n) ? (n as BoardWindow) : BOARD_WEEKS;
+/** The presets the range filter offers. Custom from/to dates bypass them. */
+export type BoardPreset = "4w" | "12w" | "26w" | "month" | "prev-month" | "year";
+
+/**
+ * An inclusive date range the whole page reads. This replaced fixed week-count
+ * windows (?weeks=4/8/12/26) BY REQUEST: "i dont want just 4,8,12,26 weeks
+ * options, i want proper date and time filters". Presets are still the fast
+ * path; arbitrary from/to is the point.
+ */
+export type BoardRange = {
+  /** Inclusive ISO date (YYYY-MM-DD). */
+  from: string;
+  /** Inclusive ISO date. May exceed today; actuals are clamped when reading. */
+  to: string;
+  /** Which preset produced this range, for highlighting. null = custom dates. */
+  preset: BoardPreset | null;
+};
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
+
+/** The last n ISO weeks including the current one, as a range. */
+function weeksBack(n: number, preset: BoardPreset | null): BoardRange {
+  const today = todayIso();
+  const monday = isoWeekMonday(today);
+  const d = new Date(`${monday}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - (n - 1) * 7);
+  return { from: d.toISOString().slice(0, 10), to: today, preset };
+}
+
+export function boardRangeForPreset(preset: BoardPreset): BoardRange {
+  const today = todayIso();
+  const monthStart = `${today.slice(0, 7)}-01`;
+  switch (preset) {
+    case "4w":
+      return weeksBack(4, preset);
+    case "12w":
+      return weeksBack(12, preset);
+    case "26w":
+      return weeksBack(26, preset);
+    case "month": {
+      const end = new Date(`${monthStart}T00:00:00Z`);
+      end.setUTCMonth(end.getUTCMonth() + 1);
+      end.setUTCDate(0);
+      return { from: monthStart, to: end.toISOString().slice(0, 10), preset };
+    }
+    case "prev-month": {
+      const start = new Date(`${monthStart}T00:00:00Z`);
+      start.setUTCMonth(start.getUTCMonth() - 1);
+      const end = new Date(`${monthStart}T00:00:00Z`);
+      end.setUTCDate(0);
+      return {
+        from: start.toISOString().slice(0, 10),
+        to: end.toISOString().slice(0, 10),
+        preset,
+      };
+    }
+    case "year":
+      return { from: `${today.slice(0, 4)}-01-01`, to: today, preset };
+  }
+}
+
+/**
+ * Parse the URL into a range. Custom from/to (both valid, ordered) wins; then a
+ * named preset; then the legacy ?weeks= numbers, kept so old links and the old
+ * check scripts do not break; then the default.
+ */
+export function parseBoardRange(params: {
+  weeks?: string;
+  range?: string;
+  from?: string;
+  to?: string;
+}): BoardRange {
+  const { from, to } = params;
+  if (from && to && ISO_DATE.test(from) && ISO_DATE.test(to) && from <= to) {
+    return { from, to, preset: null };
+  }
+  const named = params.range as BoardPreset | undefined;
+  if (named && ["4w", "12w", "26w", "month", "prev-month", "year"].includes(named)) {
+    return boardRangeForPreset(named);
+  }
+  const legacy = Number(params.weeks);
+  if ([4, 8, 12, 26].includes(legacy)) {
+    return weeksBack(legacy, legacy === 4 ? "4w" : legacy === 12 ? "12w" : legacy === 26 ? "26w" : null);
+  }
+  return boardRangeForPreset("4w");
+}
+
+/**
+ * Week columns are capped at a year. Uncapped, a custom 2020->2026 range would
+ * render thousands of empty cells; clamped FROM THE LEFT because the recent end
+ * is the end a lead is reading.
+ */
+const MAX_BOARD_WEEKS = 53;
 
 /**
  * Normalise a stored team value to a comparable key.
@@ -149,7 +239,76 @@ export type TeamLeadBoardData = {
   activeCount: number;
   /** Projects over their estimate, worth a lead's attention. */
   overBudgetProjects: TeamProject[];
+  /** The range every figure on the page covers. */
+  range: BoardRange;
+  /** This calendar month against the previous one, or null with no data. */
+  monthComparison: MonthComparison | null;
+  /** Travel/internal/client composition per person over the range. */
+  travelRows: TravelRow[];
 };
+
+/** One person's movement between last month and this one. */
+export type MonthDelta = {
+  memberId: number;
+  name: string;
+  prevHours: number;
+  currHours: number;
+  /** currHours - prevHours, rounded to 0.1h. */
+  deltaHours: number;
+};
+
+/**
+ * This month against last month -- the core comparison the analysis spec ranks
+ * first. Always CALENDAR months anchored at today, independent of the selected
+ * range: "are we doing more than last month" is a fixed question, and tying it
+ * to the range filter would quietly change what the figure means.
+ */
+export type MonthComparison = {
+  /** e.g. "AUG". */
+  currLabel: string;
+  prevLabel: string;
+  orgPrevHours: number;
+  orgCurrHours: number;
+  orgPrevBillablePercent: number | null;
+  orgCurrBillablePercent: number | null;
+  /**
+   * The current month projected to month-end at the observed per-working-day
+   * pace, or null before any working day has elapsed. Stated because a partial
+   * month always reads as a collapse next to a complete one.
+   */
+  orgPaceHours: number | null;
+  /** Sorted by delta, biggest riser first. */
+  deltas: MonthDelta[];
+};
+
+/**
+ * Where one person's tracked time goes: client work, paid travel, unpaid
+ * travel, internal. Travel is 22% of all tracked time in the live data and
+ * unpaid travel is the actionable slice -- see the analysis spec (#7).
+ */
+export type TravelRow = {
+  memberId: number;
+  name: string;
+  clientHours: number;
+  paidTravelHours: number;
+  unpaidTravelHours: number;
+  internalHours: number;
+  totalHours: number;
+};
+
+/** Working days (Mon-Fri) between two inclusive ISO dates. Holidays are not
+ * modelled; the pace figure says "working-day pace", not "business-day pace". */
+function workingDaysBetween(fromIso: string, toIso: string): number {
+  let n = 0;
+  const d = new Date(`${fromIso}T00:00:00Z`);
+  const end = new Date(`${toIso}T00:00:00Z`);
+  while (d <= end) {
+    const day = d.getUTCDay();
+    if (day !== 0 && day !== 6) n += 1;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return n;
+}
 
 /**
  * One project on the team panel.
@@ -185,17 +344,22 @@ function classify(hours: number | null, weeklyHours: number): BoardCellStatus {
 
 export async function getLiveTeamLeadBoard(
   supabase: SupabaseTyped,
-  windowWeeks: BoardWindow = BOARD_WEEKS,
+  range?: BoardRange,
 ): Promise<TeamLeadBoardData> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const thisMonday = isoWeekMonday(today);
+  const r = range ?? boardRangeForPreset("4w");
 
-  // The window: the current week plus the three before it. The current week is
-  // included because a lead needs to see the week they are in, even part-filled.
+  // Week columns spanning the range, oldest first. Clamped from the left at a
+  // year of columns (MAX_BOARD_WEEKS) -- see the constant.
+  const firstMonday = isoWeekMonday(r.from);
+  const lastMonday = isoWeekMonday(r.to <= today ? r.to : today);
   const weeks: BoardWeek[] = [];
-  for (let back = windowWeeks - 1; back >= 0; back -= 1) {
-    const d = new Date(`${thisMonday}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() - back * 7);
+  for (
+    const d = new Date(`${firstMonday}T00:00:00Z`);
+    d.toISOString().slice(0, 10) <= lastMonday;
+    d.setUTCDate(d.getUTCDate() + 7)
+  ) {
     const weekStart = d.toISOString().slice(0, 10);
     weeks.push({
       weekStart,
@@ -203,63 +367,137 @@ export async function getLiveTeamLeadBoard(
       isCurrent: weekStart === thisMonday,
     });
   }
+  while (weeks.length > MAX_BOARD_WEEKS) weeks.shift();
+  if (weeks.length === 0) {
+    weeks.push({
+      weekStart: lastMonday,
+      label: `W${isoWeekNumber(lastMonday)}`,
+      isCurrent: lastMonday === thisMonday,
+    });
+  }
+
   const windowStart = weeks[0].weekStart;
+  // Actuals stop at the range end or today, whichever is earlier. The live data
+  // contains future-dated TRACKED entries (retainers pre-logged months ahead,
+  // 430h of them); without this clamp they would book hours into weeks that
+  // have not happened.
+  const effTo = r.to <= today ? r.to : today;
   const weekIndex = new Map(weeks.map((w, i) => [w.weekStart, i]));
 
-  const { data: members, error: memberError } = await timeSchema(supabase)
-    .from("member")
-    .select("id, display_name, email, is_archived, weekly_hours, team");
-
-  if (memberError || !members) return {
-    weeks,
-    rows: [],
-    idleCount: 0,
-    weeklyHoursAreNominal: false,
-    teamUtilisationPercent: null,
-    activeCount: 0,
-    overBudgetProjects: [],
-  };
+  // Month-over-month is anchored at TODAY's calendar month, not at the range --
+  // see MonthComparison. Its scan is separate and runs in parallel below.
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const prevMonthStart = (() => {
+    const d = new Date(`${monthStart}T00:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return d.toISOString().slice(0, 10);
+  })();
 
   type MemberRow = {
     id: number; display_name: string | null; email: string | null;
     is_archived: boolean | null; weekly_hours: number | null; team: string | null;
   };
-  const roster = (members as MemberRow[]).filter((m) => !isSharedMailbox(m.email));
-  const byId = new Map(roster.map((m) => [Number(m.id), m]));
+  type EntryRow = {
+    member_id: number | null; duration_seconds: number | null;
+    started_at: string | null; is_billable: boolean | null; service_id: number | null;
+  };
+  type MomRow = {
+    member_id: number | null; duration_seconds: number | null;
+    started_at: string | null; is_billable: boolean | null;
+  };
+  type ServiceRow = {
+    id: number; is_travel: boolean | null; is_paid_travel: boolean | null; is_internal: boolean | null;
+  };
 
-  // Per member, per week seconds. Aggregated here because PostgREST cannot
-  // GROUP BY, and paged because a single request truncates at 1000 rows with no
-  // error -- which over 5,218 entries would quietly under-report everyone.
-  // Pages fetched in parallel (paged.ts): the serial loop paid the per-row RLS
-  // toll once per awaited page and dominated the board's latency at wide windows.
-  const tally = new Map<number, number[]>();
-  type EntryRow = { member_id: number | null; duration_seconds: number | null; started_at: string | null };
-  let entryRows: EntryRow[] = [];
-  try {
-    ({ rows: entryRows } = await fetchAllPaged<EntryRow>((from, to) =>
+  /*
+   * Everything in ONE round of parallel requests. These used to run in
+   * sequence (members, then a page-by-page entry loop, then projects), which
+   * serialised both the network and the per-row RLS evaluation.
+   *
+   * Both entry scans filter is_calendar = false. Calendar placeholders are
+   * imported plans, not work -- 2,438 of the 5,260 live entries -- and counting
+   * them inflated every cell of this board. Measured in the analysis spec:
+   * 3,288 calendar hours next to 5,026 tracked ones.
+   */
+  const emptyPaged = { rows: [] as EntryRow[], truncated: false };
+  const emptyMom = { rows: [] as MomRow[], truncated: false };
+  const [memberRes, entryRes, momRes, serviceRes, overBudgetProjects] = await Promise.all([
+    timeSchema(supabase)
+      .from("member")
+      .select("id, display_name, email, is_archived, weekly_hours, team"),
+    fetchAllPaged<EntryRow>((from, to) =>
       timeSchema(supabase)
         .from("entry")
-        .select("member_id, duration_seconds, started_at")
+        .select("member_id, duration_seconds, started_at, is_billable, service_id")
         .not("duration_seconds", "is", null)
-        // Bounded both ends: the window start, and today so planned work is out.
+        .eq("is_calendar", false)
         .gte("started_at", `${windowStart}T00:00:00Z`)
+        .lte("started_at", `${effTo}T23:59:59Z`)
+        .range(from, to),
+    ).catch(() => emptyPaged),
+    fetchAllPaged<MomRow>((from, to) =>
+      timeSchema(supabase)
+        .from("entry")
+        .select("member_id, duration_seconds, started_at, is_billable")
+        .not("duration_seconds", "is", null)
+        .eq("is_calendar", false)
+        .gte("started_at", `${prevMonthStart}T00:00:00Z`)
         .lte("started_at", `${today}T23:59:59Z`)
         .range(from, to),
-    ));
-  } catch {
-    entryRows = [];
-  }
-  {
-    for (const row of entryRows) {
-      const memberId = row.member_id === null ? null : Number(row.member_id);
-      if (memberId === null || !byId.has(memberId)) continue;
-      const day = (row.started_at ?? "").slice(0, 10);
-      if (!day) continue;
-      const idx = weekIndex.get(isoWeekMonday(day));
-      if (idx === undefined) continue;
+    ).catch(() => emptyMom),
+    timeSchema(supabase).from("service").select("id, is_travel, is_paid_travel, is_internal"),
+    getOverBudgetProjects(supabase),
+  ]);
 
+  if (memberRes.error || !memberRes.data) {
+    return {
+      weeks,
+      rows: [],
+      idleCount: 0,
+      weeklyHoursAreNominal: false,
+      teamUtilisationPercent: null,
+      activeCount: 0,
+      overBudgetProjects: [],
+      range: r,
+      monthComparison: null,
+      travelRows: [],
+    };
+  }
+
+  const roster = (memberRes.data as MemberRow[]).filter((m) => !isSharedMailbox(m.email));
+  const byId = new Map(roster.map((m) => [Number(m.id), m]));
+
+  const services = new Map<number, ServiceRow>(
+    ((serviceRes.data ?? []) as ServiceRow[]).map((s) => [Number(s.id), s]),
+  );
+
+  // Per member: per-week seconds for the grid, and the travel split -- one pass
+  // over the same rows, so the two figures cannot disagree about the window.
+  const tally = new Map<number, number[]>();
+  const travel = new Map<number, { client: number; paid: number; unpaid: number; internal: number }>();
+  for (const row of entryRes.rows) {
+    const memberId = row.member_id === null ? null : Number(row.member_id);
+    if (memberId === null || !byId.has(memberId)) continue;
+    const day = (row.started_at ?? "").slice(0, 10);
+    if (!day) continue;
+    const seconds = Number(row.duration_seconds) || 0;
+
+    const idx = weekIndex.get(isoWeekMonday(day));
+    if (idx !== undefined) {
       if (!tally.has(memberId)) tally.set(memberId, new Array(weeks.length).fill(0));
-      tally.get(memberId)![idx] += Number(row.duration_seconds) || 0;
+      tally.get(memberId)![idx] += seconds;
+    }
+
+    if (!travel.has(memberId)) travel.set(memberId, { client: 0, paid: 0, unpaid: 0, internal: 0 });
+    const t = travel.get(memberId)!;
+    const svc = row.service_id === null ? undefined : services.get(Number(row.service_id));
+    if (svc?.is_travel) {
+      if (svc.is_paid_travel) t.paid += seconds;
+      else t.unpaid += seconds;
+    } else if (svc?.is_internal) {
+      t.internal += seconds;
+    } else {
+      t.client += seconds;
     }
   }
 
@@ -294,27 +532,110 @@ export async function getLiveTeamLeadBoard(
   // as idle whenever most of it is on other work.
   let trackedSeconds = 0;
   let contractedSeconds = 0;
-  for (const r of rows) {
-    if (r.isArchived) continue;
-    trackedSeconds += r.totalHours * 3600;
+  for (const row of rows) {
+    if (row.isArchived) continue;
+    trackedSeconds += row.totalHours * 3600;
     // Only weeks the person actually appears in, matching getMemberUtilisation.
-    const weeksWithTime = r.cells.filter((c) => c.hours !== null).length;
-    contractedSeconds += r.weeklyHours * 3600 * weeksWithTime;
+    const weeksWithTime = row.cells.filter((c) => c.hours !== null).length;
+    contractedSeconds += row.weeklyHours * 3600 * weeksWithTime;
   }
 
-  const overBudgetProjects = await getOverBudgetProjects(supabase);
+  /* ------------------------------------------------- month over month */
+  const mom = new Map<number, { prev: number; curr: number }>();
+  let orgPrev = 0;
+  let orgCurr = 0;
+  let orgPrevBillable = 0;
+  let orgCurrBillable = 0;
+  for (const row of momRes.rows) {
+    const memberId = row.member_id === null ? null : Number(row.member_id);
+    if (memberId === null || !byId.has(memberId)) continue;
+    const day = (row.started_at ?? "").slice(0, 10);
+    if (!day) continue;
+    const seconds = Number(row.duration_seconds) || 0;
+    const isCurr = day >= monthStart;
+    if (!mom.has(memberId)) mom.set(memberId, { prev: 0, curr: 0 });
+    const cell = mom.get(memberId)!;
+    if (isCurr) {
+      cell.curr += seconds;
+      orgCurr += seconds;
+      if (row.is_billable) orgCurrBillable += seconds;
+    } else {
+      cell.prev += seconds;
+      orgPrev += seconds;
+      if (row.is_billable) orgPrevBillable += seconds;
+    }
+  }
+
+  let monthComparison: MonthComparison | null = null;
+  if (orgPrev > 0 || orgCurr > 0) {
+    const monthEnd = (() => {
+      const d = new Date(`${monthStart}T00:00:00Z`);
+      d.setUTCMonth(d.getUTCMonth() + 1);
+      d.setUTCDate(0);
+      return d.toISOString().slice(0, 10);
+    })();
+    const elapsed = workingDaysBetween(monthStart, today);
+    const totalDays = workingDaysBetween(monthStart, monthEnd);
+    const monthLabel = (iso: string) =>
+      new Date(`${iso}T00:00:00Z`)
+        .toLocaleString("en-GB", { month: "short", timeZone: "UTC" })
+        .toUpperCase();
+    const deltas: MonthDelta[] = [...mom.entries()]
+      .map(([memberId, v]) => ({
+        memberId,
+        name: byId.get(memberId)?.display_name ?? `Member ${memberId}`,
+        prevHours: Math.round(v.prev / 360) / 10,
+        currHours: Math.round(v.curr / 360) / 10,
+        deltaHours: Math.round((v.curr - v.prev) / 360) / 10,
+      }))
+      // Zero-movement rows say nothing a reader needs; the org line covers them.
+      .filter((d) => d.prevHours > 0 || d.currHours > 0)
+      .sort((a, b) => b.deltaHours - a.deltaHours);
+
+    monthComparison = {
+      currLabel: monthLabel(monthStart),
+      prevLabel: monthLabel(prevMonthStart),
+      orgPrevHours: Math.round(orgPrev / 360) / 10,
+      orgCurrHours: Math.round(orgCurr / 360) / 10,
+      orgPrevBillablePercent: orgPrev > 0 ? Math.round((orgPrevBillable / orgPrev) * 100) : null,
+      orgCurrBillablePercent: orgCurr > 0 ? Math.round((orgCurrBillable / orgCurr) * 100) : null,
+      orgPaceHours:
+        elapsed > 0 ? Math.round(((orgCurr / elapsed) * totalDays) / 360) / 10 : null,
+      deltas,
+    };
+  }
+
+  /* --------------------------------------------------- travel burden */
+  const travelRows: TravelRow[] = [...travel.entries()]
+    .map(([memberId, t]) => {
+      const total = t.client + t.paid + t.unpaid + t.internal;
+      return {
+        memberId,
+        name: byId.get(memberId)?.display_name ?? `Member ${memberId}`,
+        clientHours: Math.round(t.client / 360) / 10,
+        paidTravelHours: Math.round(t.paid / 360) / 10,
+        unpaidTravelHours: Math.round(t.unpaid / 360) / 10,
+        internalHours: Math.round(t.internal / 360) / 10,
+        totalHours: Math.round(total / 360) / 10,
+      };
+    })
+    .filter((t) => t.totalHours > 0)
+    .sort((a, b) => b.totalHours - a.totalHours);
 
   return {
     weeks,
     rows,
-    idleCount: Math.max(0, contracted - rows.filter((r) => !r.isArchived).length),
+    idleCount: Math.max(0, contracted - rows.filter((row) => !row.isArchived).length),
     // One distinct value across the whole roster means it is the account default
     // rather than anybody's negotiated hours.
     weeklyHoursAreNominal: distinctWeekly.size === 1,
     teamUtilisationPercent:
       contractedSeconds > 0 ? Math.round((trackedSeconds / contractedSeconds) * 100) : null,
-    activeCount: rows.filter((r) => !r.isArchived).length,
+    activeCount: rows.filter((row) => !row.isArchived).length,
     overBudgetProjects,
+    range: r,
+    monthComparison,
+    travelRows,
   };
 }
 

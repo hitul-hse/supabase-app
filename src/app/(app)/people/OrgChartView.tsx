@@ -25,6 +25,7 @@ import { useActionState, useState } from "react";
 import type { OrgChartData, OrgNode, OrgMember } from "@/lib/queries/org-chart-live";
 import { setSupervisor, setMemberDetails } from "./org-actions";
 import { teamLabel, teamOptionsFor } from "@/lib/teams";
+import { SearchableSelect } from "@/components/ui/Field";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -98,6 +99,49 @@ function NodeRow({
         <NodeRow key={child.memberId} node={child} onEdit={onEdit} canEdit={canEdit} />
       ))}
     </>
+  );
+}
+
+/**
+ * The manager picker — searchable, because "everyone" is the whole active
+ * roster and a native select offers nothing beyond first-letter type-ahead
+ * for finding a name in it. Rendered with key={editing.memberId} so the
+ * selection resets when EDIT moves to a different person.
+ *
+ * The team picker below it stays a native <select>: four named teams need
+ * no search box.
+ */
+function ManagerPicker({
+  editing,
+  everyone,
+  disabled,
+}: {
+  editing: OrgMember;
+  everyone: OrgMember[];
+  disabled: boolean;
+}) {
+  const [supervisorId, setSupervisorId] = useState(
+    editing.supervisorMemberId === null ? "" : String(editing.supervisorMemberId),
+  );
+  return (
+    <SearchableSelect
+      className="min-w-[240px]"
+      label="Reports to"
+      name="supervisor_member_id"
+      options={everyone
+        // Never offer somebody as their own manager. Longer loops are
+        // refused server-side, where the whole chain is visible.
+        .filter((p) => p.memberId !== editing.memberId)
+        .map((p) => ({
+          value: String(p.memberId),
+          name: p.name,
+          hint: p.jobTitle ?? undefined,
+        }))}
+      value={supervisorId}
+      onChange={setSupervisorId}
+      allowEmpty={{ value: "", name: "Nobody (top of the chart)" }}
+      disabled={disabled}
+    />
   );
 }
 
@@ -305,28 +349,12 @@ export function OrgChartView({
 
           <form action={supAction} className="flex flex-wrap items-end gap-2 pt-3">
             <input type="hidden" name="member_id" value={editing.memberId} />
-            <label className="flex flex-col gap-1">
-              <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-muted)]">
-                REPORTS TO
-              </span>
-              <select
-                name="supervisor_member_id"
-                defaultValue={editing.supervisorMemberId ?? ""}
-                disabled={supPending}
-                className="min-w-[220px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12px] text-[var(--text-primary)] disabled:opacity-50"
-              >
-                <option value="">Nobody (top of the chart)</option>
-                {everyone
-                  // Never offer somebody as their own manager. Longer loops are
-                  // refused server-side, where the whole chain is visible.
-                  .filter((p) => p.memberId !== editing.memberId)
-                  .map((p) => (
-                    <option key={p.memberId} value={p.memberId}>
-                      {p.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            <ManagerPicker
+              key={editing.memberId}
+              editing={editing}
+              everyone={everyone}
+              disabled={supPending}
+            />
             <button
               type="submit"
               disabled={supPending}

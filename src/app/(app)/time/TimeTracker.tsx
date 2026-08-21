@@ -31,6 +31,7 @@ import {
   stopTimer,
   type TimeActionResult,
 } from "./actions";
+import { SearchableSelect } from "@/components/ui/Field";
 
 /** Seconds → "1:02:03". Distinct from formatSeconds(), which is "H:MM". */
 function formatElapsed(totalSeconds: number): string {
@@ -86,21 +87,29 @@ const BUTTON =
  * Task and service options narrow to the chosen project. `projectId` is lifted to
  * the parent rather than held here so both forms can keep their own selection —
  * two independent copies of this component must not share one project.
+ *
+ * SearchableSelect rather than native <select>: the project list is ~334 options,
+ * which no native control can search. Each picker posts through a hidden input
+ * carrying the same name and value the native select submitted, so the server
+ * actions see no difference.
  */
 function EntryFields({
   lookups,
   projectId,
   onProjectChange,
-  idPrefix,
   disabled,
 }: {
   lookups: TimeLookups;
   projectId: string;
   onProjectChange: (next: string) => void;
-  /** Ids must be unique per form instance, or a <label> points at the wrong field. */
-  idPrefix: string;
   disabled: boolean;
 }) {
+  // Task and service selections live here, not in the parent, because only the
+  // project drives cross-field narrowing. The task is cleared when the project
+  // changes: a task belonging to the old project would submit silently wrong.
+  const [taskId, setTaskId] = useState("");
+  const [serviceId, setServiceId] = useState("");
+
   // Tasks belonging to the chosen project, or all of them when none is chosen.
   // A project with no tasks of its own still has to be loggable, so an empty
   // filtered list falls back to "no task" rather than blocking the form.
@@ -110,60 +119,58 @@ function EntryFields({
     return lookups.tasks.filter((t) => t.projectId === pid);
   }, [lookups.tasks, projectId]);
 
+  const projectOptions = useMemo(
+    () => lookups.projects.map((p) => ({ value: String(p.id), name: p.name })),
+    [lookups.projects],
+  );
+  const taskOptions = useMemo(
+    () => tasks.map((t) => ({ value: String(t.id), name: t.name ?? `Task ${t.id}` })),
+    [tasks],
+  );
+  const serviceOptions = useMemo(
+    () =>
+      lookups.services.map((s) => ({
+        value: String(s.id),
+        // Unpaid travel is a real commercial distinction the vendor hides
+        // inside the label text. Surfacing it here stops somebody picking
+        // the wrong one of two near-identical names.
+        name: `${s.name}${s.isTravel && !s.isPaidTravel ? " (unpaid)" : ""}`,
+      })),
+    [lookups.services],
+  );
+
   return (
     <>
-      <div>
-        <label className={LABEL} htmlFor={`${idPrefix}-project`}>
-          Project
-        </label>
-        <select
-          id={`${idPrefix}-project`}
-          name="project_id"
-          value={projectId}
-          onChange={(e) => onProjectChange(e.target.value)}
-          disabled={disabled}
-          className={FIELD}
-        >
-          <option value="">No project</option>
-          {lookups.projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className={LABEL} htmlFor={`${idPrefix}-task`}>
-          Task
-        </label>
-        <select id={`${idPrefix}-task`} name="task_id" disabled={disabled} className={FIELD}>
-          <option value="">No task</option>
-          {tasks.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name ?? `Task ${t.id}`}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className={LABEL} htmlFor={`${idPrefix}-service`}>
-          Service
-        </label>
-        <select id={`${idPrefix}-service`} name="service_id" disabled={disabled} className={FIELD}>
-          <option value="">No service</option>
-          {lookups.services.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-              {/* Unpaid travel is a real commercial distinction the vendor hides
-                  inside the label text. Surfacing it here stops somebody
-                  picking the wrong one of two near-identical names. */}
-              {s.isTravel && !s.isPaidTravel ? " (unpaid)" : ""}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SearchableSelect
+        label="Project"
+        name="project_id"
+        options={projectOptions}
+        value={projectId}
+        onChange={(next) => {
+          onProjectChange(next);
+          setTaskId("");
+        }}
+        allowEmpty={{ value: "", name: "No project" }}
+        disabled={disabled}
+      />
+      <SearchableSelect
+        label="Task"
+        name="task_id"
+        options={taskOptions}
+        value={taskId}
+        onChange={setTaskId}
+        allowEmpty={{ value: "", name: "No task" }}
+        disabled={disabled}
+      />
+      <SearchableSelect
+        label="Service"
+        name="service_id"
+        options={serviceOptions}
+        value={serviceId}
+        onChange={setServiceId}
+        allowEmpty={{ value: "", name: "No service" }}
+        disabled={disabled}
+      />
     </>
   );
 }
@@ -287,7 +294,6 @@ function TimerPanel({
           lookups={lookups}
           projectId={projectId}
           onProjectChange={setProjectId}
-          idPrefix="timer"
           disabled={!canWrite || pending}
         />
       </div>
@@ -348,6 +354,12 @@ function ManualPanel({
   const [pending, startAction] = useTransition();
   const [projectId, setProjectId] = useState("");
   const formRef = useRef<HTMLFormElement | null>(null);
+  /**
+   * Remounts EntryFields on successful save. form.reset() clears the native
+   * inputs, but the searchable pickers hold their choice in React state,
+   * which a DOM reset cannot reach — a fresh key clears it the React way.
+   */
+  const [formEpoch, setFormEpoch] = useState(0);
 
   // Sensible default window: the hour just gone, rounded to the minute. Guessing
   // a whole workday would be a bigger claim than the user made.
@@ -367,6 +379,7 @@ function ManualPanel({
           if (r.ok) {
             formRef.current?.reset();
             setProjectId("");
+            setFormEpoch((n) => n + 1);
           }
         })
       }
@@ -425,10 +438,10 @@ function ManualPanel({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <EntryFields
+          key={formEpoch}
           lookups={lookups}
           projectId={projectId}
           onProjectChange={setProjectId}
-          idPrefix="manual"
           disabled={!canWrite || pending}
         />
       </div>

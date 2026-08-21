@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 
 /**
@@ -250,5 +251,249 @@ export function SortHeader({
         )}
       </span>
     </button>
+  );
+}
+
+/* ------------------------------------------------------- searchable select */
+
+/**
+ * A searchable single-select combobox — the single-choice sibling of the
+ * dashboard's MultiSelect (ReportFilters.tsx), sharing its visual language
+ * (rounded-full trigger, popover on the card tokens) and its keyboard grammar
+ * (↑↓ move a clamped highlight, ⏎ picks, esc closes, outside click closes).
+ *
+ * WHY IT EXISTS. A native <select> over 334 projects is unusable: no search,
+ * and no way to browse a list that long. This keeps the native select's FORM
+ * SEMANTICS — pass `name` and a hidden input posts the chosen value inside a
+ * Server Action <form action={...}> exactly as the native control did — while
+ * adding a filterable option list.
+ *
+ * Keep native <select> for tiny enum lists (roles, teams, statuses): four
+ * options need no search box, and the native control is one tap on mobile.
+ */
+export function SearchableSelect({
+  label,
+  options,
+  value,
+  onChange,
+  placeholder = "Select…",
+  allowEmpty,
+  name,
+  disabled = false,
+  className = "",
+}: {
+  label: string;
+  options: { value: string; name: string; hint?: string }[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  /** A "none" choice, listed first — e.g. { value: "", name: "No project" }. */
+  allowEmpty?: { value: string; name: string };
+  /** When set, a hidden input posts the value, so inside a Server Action form this submits exactly like the native select it replaced. */
+  name?: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [cursor, setCursor] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listId = useId();
+
+  const all = useMemo<{ value: string; name: string; hint?: string }[]>(
+    () => (allowEmpty ? [allowEmpty, ...options] : options),
+    [allowEmpty, options],
+  );
+
+  // Close on outside click. Escape is handled on the input instead, so it can
+  // also return focus to the trigger — a document-level listener cannot.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const filtered = useMemo(
+    () =>
+      q
+        ? all.filter(
+            (o) =>
+              o.name.toLowerCase().includes(q) ||
+              (o.hint ? o.hint.toLowerCase().includes(q) : false),
+          )
+        : all,
+    [all, q],
+  );
+
+  const current = all.find((o) => o.value === value);
+
+  const close = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  const pick = (v: string) => {
+    onChange(v);
+    close();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      // Clamped, not wrapped — same reasoning as the dashboard MultiSelect:
+      // wrapping a long list loses the reader's place entirely.
+      const next = Math.max(
+        0,
+        Math.min(filtered.length - 1, cursor + (e.key === "ArrowDown" ? 1 : -1)),
+      );
+      setCursor(next);
+      listRef.current
+        ?.querySelectorAll("[data-option]")
+        [next]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const opt = filtered[cursor];
+      if (opt) pick(opt.value);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+    }
+  };
+
+  return (
+    <div ref={rootRef} className={`relative ${className}`}>
+      {/* The form contract: with a `name`, this posts exactly what the native
+          select it replaced would have posted — nothing else changes. */}
+      {name !== undefined && <input type="hidden" name={name} value={value} />}
+
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => {
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          setQuery("");
+          // Re-open aimed at the current choice, so Enter straight away keeps
+          // it rather than jumping to whatever is first alphabetically.
+          const at = all.findIndex((o) => o.value === value);
+          setCursor(at >= 0 ? at : 0);
+          setOpen(true);
+        }}
+        disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          current && (!allowEmpty || value !== allowEmpty.value)
+            ? "border-[var(--accent)] text-[var(--text-primary)]"
+            : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        }`}
+      >
+        <span className="flex min-w-0 flex-col leading-tight">
+          <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
+            {label.toUpperCase()}
+          </span>
+          <span className="truncate">{current ? current.name : placeholder}</span>
+        </span>
+        <span aria-hidden className="text-[9px] text-[var(--text-faint)]">
+          ▼
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-full min-w-[16rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev-raised">
+          <div className="border-b border-[var(--border)] p-2">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                // Re-aim at the first match: Enter after typing must pick what
+                // is visibly first, not whatever sat at the old index.
+                setCursor(0);
+              }}
+              onKeyDown={onKeyDown}
+              role="combobox"
+              aria-expanded
+              aria-controls={listId}
+              aria-autocomplete="list"
+              placeholder={`Search ${label.toLowerCase()}…`}
+              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] focus:border-[var(--accent)]"
+            />
+            {/* The count line: a list that scrolls past the fold must never
+                look complete when it is not. */}
+            <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
+              <span>
+                {filtered.length.toLocaleString("en-GB")}
+                {filtered.length !== all.length
+                  ? ` of ${all.length.toLocaleString("en-GB")}`
+                  : ""}{" "}
+                {all.length === 1 ? "option" : "options"}
+              </span>
+              <span aria-hidden>↑↓ move · ⏎ pick · esc close</span>
+            </p>
+          </div>
+
+          <div
+            ref={listRef}
+            id={listId}
+            role="listbox"
+            aria-label={label}
+            className="flex-1 overflow-y-auto"
+          >
+            {filtered.length === 0 ? (
+              <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
+                No {label.toLowerCase()} matches “{query.trim()}”
+              </p>
+            ) : (
+              filtered.map((o, i) => {
+                const on = o.value === value;
+                const hot = i === cursor;
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    role="option"
+                    data-option
+                    aria-selected={on}
+                    // Hovering moves the keyboard cursor too, so the mouse and
+                    // the keyboard never disagree about which row Enter hits.
+                    onMouseEnter={() => setCursor(i)}
+                    onClick={() => pick(o.value)}
+                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-[12px] transition-colors ${
+                      hot ? "bg-[var(--surface-hover)]" : ""
+                    } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
+                  >
+                    {/* A dot, not a check glyph: constant footprint, and the
+                        icon-set rule bans Unicode glyphs standing in for icons. */}
+                    <span
+                      aria-hidden
+                      className={`mt-[5px] h-1.5 w-1.5 flex-none rounded-full ${
+                        on ? "bg-[var(--accent)]" : "bg-transparent"
+                      }`}
+                    />
+                    <span className="flex min-w-0 flex-col leading-tight">
+                      <span className="truncate">{o.name}</span>
+                      {o.hint && (
+                        <span className="truncate text-[10px] text-[var(--text-faint)]">
+                          {o.hint}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

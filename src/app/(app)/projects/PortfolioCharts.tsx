@@ -19,10 +19,29 @@ import { Donut, LegendDot } from "@/components/ui/Charts";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { matchesFacet } from "./ProjectsLedger";
 import { burnColor } from "./ProjectPanels";
+import type { ProjectFacet } from "./project-insights";
+
+/** Donut slice label -> the status facet clicking it should toggle. */
+const SLICE_TO_FACET: Record<string, ProjectFacet> = {
+  "Over budget": "over",
+  "At risk": "risk",
+  Healthy: "healthy",
+  "No budget": "nobudget",
+};
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
-export function PortfolioCharts({ rows }: { rows: ProjectListRow[] }) {
+export function PortfolioCharts({
+  rows,
+  onFacet,
+  activeFacet = null,
+}: {
+  rows: ProjectListRow[];
+  /** When given, the health donut cross-filters: clicking a slice toggles its
+   * status facet on the page, the way clicking a mark filters in Power BI. */
+  onFacet?: (facet: ProjectFacet) => void;
+  activeFacet?: ProjectFacet | null;
+}) {
   if (rows.length === 0) return null;
 
   /*
@@ -65,13 +84,42 @@ export function PortfolioCharts({ rows }: { rows: ProjectListRow[] }) {
             centre={String(measured)}
             centreLabel="budgeted"
             label={`Portfolio health across ${rows.length} projects: ${over.length} over budget, ${risk.length} at risk, ${healthy.length} healthy, ${unbudgeted.length} without a budget`}
+            onSelect={onFacet ? (sliceLabel) => {
+              const facet = SLICE_TO_FACET[sliceLabel];
+              if (facet) onFacet(facet);
+            } : undefined}
+            activeLabel={
+              activeFacet
+                ? (Object.entries(SLICE_TO_FACET).find(([, f]) => f === activeFacet)?.[0] ?? null)
+                : null
+            }
           />
           <div className="flex flex-col gap-1.5">
-            {slices.map((s) => (
-              <LegendDot key={s.label} color={s.color}>
-                {s.value} {s.label.toUpperCase()}
-              </LegendDot>
-            ))}
+            {slices.map((s) => {
+              const facet = SLICE_TO_FACET[s.label];
+              const isActive = activeFacet !== null && facet === activeFacet;
+              // The legend rows are clickable too — a bigger hit target than the
+              // ring, and the standard way to pick a category in a BI legend.
+              return onFacet && facet ? (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => onFacet(facet)}
+                  aria-pressed={isActive}
+                  className={`flex items-center rounded-[var(--radius-sm)] px-1 py-0.5 text-left transition-colors hover:bg-[var(--surface-hover)] ${
+                    isActive ? "bg-[var(--surface-hover)]" : ""
+                  }`}
+                >
+                  <LegendDot color={s.color}>
+                    {s.value} {s.label.toUpperCase()}
+                  </LegendDot>
+                </button>
+              ) : (
+                <LegendDot key={s.label} color={s.color}>
+                  {s.value} {s.label.toUpperCase()}
+                </LegendDot>
+              );
+            })}
           </div>
         </div>
       </Card>

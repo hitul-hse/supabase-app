@@ -102,6 +102,18 @@ export function ProjectsExplorer({
       return { ...prev, facets: next };
     });
 
+  const toggleCustomer = (name: string) =>
+    setFilters((prev) => {
+      const next = new Set(prev.customers);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return { ...prev, customers: next };
+    });
+
+  // The health donut maps to exactly one facet when a single one is active, so
+  // it can ring that slice; with several selected it rings none.
+  const soleFacet = filters.facets.size === 1 ? [...filters.facets][0] : null;
+
   const clearAll = () =>
     setFilters({ query: "", customers: new Set(), facets: new Set(), billableOnly: null });
 
@@ -178,7 +190,9 @@ export function ProjectsExplorer({
         </div>
       </div>
 
-      {/* Everything below reads `filtered` — one control, whole page. */}
+      {/* Everything below reads `filtered` — one control, whole page. And the
+          charts are themselves controls: clicking a health-donut slice or a
+          customer slice toggles that filter, the cross-filtering BI tools do. */}
       <ProjectTotalsStrip
         projectCount={filtered.length}
         totalHours={totalHours}
@@ -186,8 +200,12 @@ export function ProjectsExplorer({
         overBudget={overBudget}
         noBudget={noBudget}
       />
-      <PortfolioCharts rows={filtered} />
-      <CustomerPortfolioCharts data={portfolio} />
+      <PortfolioCharts rows={filtered} onFacet={toggleFacet} activeFacet={soleFacet} />
+      <CustomerPortfolioCharts
+        data={portfolio}
+        onCustomer={toggleCustomer}
+        activeCustomers={filters.customers}
+      />
       <ProjectsLedger rows={filtered} initialSort={initialSort} />
     </div>
   );

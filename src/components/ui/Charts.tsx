@@ -271,6 +271,8 @@ export function Donut({
   label,
   size = 148,
   thickness = 12,
+  onSelect,
+  activeLabel = null,
 }: {
   slices: DonutSlice[];
   /** The big number in the middle, e.g. "84%". */
@@ -280,6 +282,15 @@ export function Donut({
   label: string;
   size?: number;
   thickness?: number;
+  /**
+   * When given, each slice becomes a CLICKABLE filter control — the
+   * cross-filtering that BI tools (Tableau, Power BI) offer: clicking a slice
+   * calls back with its label so the page can filter to it. Without it the
+   * donut is a plain read-only figure, unchanged.
+   */
+  onSelect?: (label: string) => void;
+  /** The currently-filtered slice label, so it reads as pressed and the rest dim. */
+  activeLabel?: string | null;
 }) {
   const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
   if (total <= 0) return null;
@@ -333,20 +344,29 @@ export function Donut({
             strokeOpacity="0.45"
             strokeWidth={thickness}
           />
-          {arcs.map((a) => (
-            <circle
-              key={a.label}
-              cx={c}
-              cy={c}
-              r={r}
-              fill="none"
-              stroke={a.color}
-              strokeWidth={thickness}
-              strokeDasharray={a.dasharray}
-              strokeDashoffset={a.dashoffset}
-              strokeLinecap="round"
-            />
-          ))}
+          {arcs.map((a) => {
+            // When a slice is filtered, the others fade so the selection reads at
+            // a glance — the emphasis Power BI gives a clicked mark.
+            const dim = activeLabel !== null && activeLabel !== a.label;
+            const arc = (
+              <circle
+                key={a.label}
+                cx={c}
+                cy={c}
+                r={r}
+                fill="none"
+                stroke={a.color}
+                strokeWidth={activeLabel === a.label ? thickness + 3 : thickness}
+                strokeDasharray={a.dasharray}
+                strokeDashoffset={a.dashoffset}
+                strokeLinecap="round"
+                opacity={dim ? 0.28 : 1}
+                style={onSelect ? { cursor: "pointer" } : undefined}
+                onClick={onSelect ? () => onSelect(a.label) : undefined}
+              />
+            );
+            return arc;
+          })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-mono text-[22px] font-semibold leading-none tracking-tight text-[var(--text-primary)]">

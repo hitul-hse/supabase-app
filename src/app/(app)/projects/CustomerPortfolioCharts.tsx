@@ -37,8 +37,19 @@ const SLICE_COLORS = [
   "var(--text-secondary)",
 ];
 
-export function CustomerPortfolioCharts({ data }: { data: CustomerPortfolioView }) {
+export function CustomerPortfolioCharts({
+  data,
+  onCustomer,
+  activeCustomers,
+}: {
+  data: CustomerPortfolioView;
+  /** When given, the donut cross-filters: clicking a slice or legend row toggles
+   * that customer in the page filter, the way a mark click filters in Tableau. */
+  onCustomer?: (name: string) => void;
+  activeCustomers?: Set<string>;
+}) {
   const { rows, totalHours, customerCount, top5SharePercent } = data;
+  const active = activeCustomers ?? new Set<string>();
 
   if (rows.length === 0) {
     return (
@@ -96,18 +107,40 @@ export function CustomerPortfolioCharts({ data }: { data: CustomerPortfolioView 
               .join(", ")}`}
             size={168}
             thickness={16}
+            onSelect={onCustomer ? (name) => onCustomer(name) : undefined}
+            activeLabel={active.size === 1 ? [...active][0] : null}
           />
           <div className="flex w-full flex-col gap-1.5">
-            {top.map((r, i) => (
-              <div key={r.name} className="flex items-baseline justify-between gap-2">
-                <LegendDot color={SLICE_COLORS[i % SLICE_COLORS.length]}>
-                  <span className="max-w-[12rem] truncate">{r.name}</span>
-                </LegendDot>
-                <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
-                  {r.sharePercent}% · {h(r.hours)}h
-                </span>
-              </div>
-            ))}
+            {top.map((r, i) => {
+              const isActive = active.has(r.name);
+              const row = (
+                <>
+                  <LegendDot color={SLICE_COLORS[i % SLICE_COLORS.length]}>
+                    <span className="max-w-[12rem] truncate">{r.name}</span>
+                  </LegendDot>
+                  <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
+                    {r.sharePercent}% · {h(r.hours)}h
+                  </span>
+                </>
+              );
+              return onCustomer ? (
+                <button
+                  key={r.name}
+                  type="button"
+                  onClick={() => onCustomer(r.name)}
+                  aria-pressed={isActive}
+                  className={`flex items-baseline justify-between gap-2 rounded-[var(--radius-sm)] px-1 py-0.5 text-left transition-colors hover:bg-[var(--surface-hover)] ${
+                    isActive ? "bg-[var(--surface-hover)]" : ""
+                  }`}
+                >
+                  {row}
+                </button>
+              ) : (
+                <div key={r.name} className="flex items-baseline justify-between gap-2">
+                  {row}
+                </div>
+              );
+            })}
             {tailHours > 0 && (
               <div className="flex items-baseline justify-between gap-2">
                 <LegendDot color="var(--border-strong)">{customerCount - TOP} more</LegendDot>

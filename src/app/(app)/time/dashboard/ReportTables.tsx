@@ -519,8 +519,12 @@ export function EconomicsTable({
   ];
 
   return (
-    <div className="flex flex-col">
-      <div className="grid grid-cols-3 border border-b-0 border-[var(--border)] bg-[var(--surface)]">
+    // The money tiles and the per-project table are two discrete cards on a gap,
+    // not one fused box. The strip used to share a hairline with the table below
+    // (border-b-0), which read as a single flat panel; separating them onto the
+    // page's card gap matches the card language used everywhere else.
+    <div className="flex flex-col gap-[var(--card-gap)]">
+      <div className="grid grid-cols-3 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
         {[
           { label: "REVENUE", value: eur(revenue), accent: false },
           { label: "COST", value: eur(cost), accent: false },

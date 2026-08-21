@@ -54,7 +54,7 @@ function Kpi({
   );
 
   const shell =
-    "flex flex-col gap-0.5 border border-[var(--border)] bg-[var(--surface)] px-4 py-3 transition-colors";
+    "flex flex-col gap-0.5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 transition-colors card-elev";
 
   // Only the tiles that MEAN a filter are links. Making every tile clickable
   // would promise a drill-down from "avg per active day", which is a derived
@@ -63,13 +63,14 @@ function Kpi({
     <Link
       href={href}
       scroll={false}
+      data-tile={label}
       title={title}
       className={`${shell} hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`}
     >
       {body}
     </Link>
   ) : (
-    <div className={shell} title={title}>
+    <div className={shell} data-tile={label} title={title}>
       {body}
     </div>
   );
@@ -245,7 +246,7 @@ export function FreshnessBanner({ freshness }: { freshness: SyncFreshness }) {
   return (
     <div
       role="status"
-      className="border px-4 py-2.5"
+      className="rounded-[var(--radius-card)] border px-4 py-2.5 card-elev"
       style={{ borderColor: colour, background: wash }}
     >
       <p className="text-[12px] font-medium" style={{ color: colour }}>

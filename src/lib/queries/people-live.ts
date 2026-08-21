@@ -52,6 +52,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { getMemberUtilisation, type MemberUtilisationRow } from "./time-dashboard";
 import { secondsToHours } from "@/lib/time-transform";
+import { fetchAllPaged } from "./paged";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -317,18 +318,21 @@ async function getAssignments(
   >();
 
   try {
-    for (let page = 0; ; page += 1) {
-      const { data, error } = await timeSchema(supabase)
+    // Pages fetched in PARALLEL batches (see paged.ts for the measurements):
+    // this scan of all ~5.3k entries was the directory's whole latency, and
+    // awaiting each page serially paid the RLS toll one page at a time.
+    const { rows: entryRows } = await fetchAllPaged<Record<string, unknown>>((from, to) =>
+      timeSchema(supabase)
         .from("entry")
         .select("member_id, project_id, duration_seconds, is_billable, project:project_id(name)")
         .in("member_id", memberIds)
         .not("duration_seconds", "is", null)
-        .range(page * PAGE, page * PAGE + PAGE - 1);
+        .range(from, to),
+    );
 
-      if (error || !data || data.length === 0) break;
-
+    {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const row of data as any[]) {
+      for (const row of entryRows as any[]) {
         const memberId = Number(row.member_id);
         const projectId = row.project_id === null ? null : Number(row.project_id);
         const seconds = Number(row.duration_seconds) || 0;
@@ -352,8 +356,6 @@ async function getAssignments(
         if (row.is_billable) cell.billable += seconds;
         cell.count += 1;
       }
-
-      if (data.length < PAGE) break;
     }
   } catch {
     return out;

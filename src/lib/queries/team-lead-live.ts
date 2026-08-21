@@ -34,6 +34,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { isSharedMailbox } from "./people-live";
+import { fetchAllPaged } from "./paged";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -229,21 +230,27 @@ export async function getLiveTeamLeadBoard(
   // Per member, per week seconds. Aggregated here because PostgREST cannot
   // GROUP BY, and paged because a single request truncates at 1000 rows with no
   // error -- which over 5,218 entries would quietly under-report everyone.
+  // Pages fetched in parallel (paged.ts): the serial loop paid the per-row RLS
+  // toll once per awaited page and dominated the board's latency at wide windows.
   const tally = new Map<number, number[]>();
-  for (let page = 0; ; page += 1) {
-    const { data, error } = await timeSchema(supabase)
-      .from("entry")
-      .select("member_id, duration_seconds, started_at")
-      .not("duration_seconds", "is", null)
-      // Bounded both ends: the window start, and today so planned work is out.
-      .gte("started_at", `${windowStart}T00:00:00Z`)
-      .lte("started_at", `${today}T23:59:59Z`)
-      .range(page * PAGE, page * PAGE + PAGE - 1);
-
-    if (error || !data || data.length === 0) break;
-
-    type EntryRow = { member_id: number | null; duration_seconds: number | null; started_at: string | null };
-    for (const row of data as EntryRow[]) {
+  type EntryRow = { member_id: number | null; duration_seconds: number | null; started_at: string | null };
+  let entryRows: EntryRow[] = [];
+  try {
+    ({ rows: entryRows } = await fetchAllPaged<EntryRow>((from, to) =>
+      timeSchema(supabase)
+        .from("entry")
+        .select("member_id, duration_seconds, started_at")
+        .not("duration_seconds", "is", null)
+        // Bounded both ends: the window start, and today so planned work is out.
+        .gte("started_at", `${windowStart}T00:00:00Z`)
+        .lte("started_at", `${today}T23:59:59Z`)
+        .range(from, to),
+    ));
+  } catch {
+    entryRows = [];
+  }
+  {
+    for (const row of entryRows) {
       const memberId = row.member_id === null ? null : Number(row.member_id);
       if (memberId === null || !byId.has(memberId)) continue;
       const day = (row.started_at ?? "").slice(0, 10);
@@ -254,8 +261,6 @@ export async function getLiveTeamLeadBoard(
       if (!tally.has(memberId)) tally.set(memberId, new Array(weeks.length).fill(0));
       tally.get(memberId)![idx] += Number(row.duration_seconds) || 0;
     }
-
-    if (data.length < PAGE) break;
   }
 
   const rows: BoardRow[] = [];

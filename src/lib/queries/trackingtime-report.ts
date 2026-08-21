@@ -40,6 +40,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { secondsToHours } from "@/lib/time-transform";
+import { fetchAllPaged } from "./paged";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -85,14 +86,14 @@ export type TimeFilters = {
   /**
    * Calendar (GHOST) entries are EXCLUDED by default and included on request.
    *
-   * MEASURED over all 4,194 stored entries, because the figures this decision
+   * MEASURED over all 5,218 stored entries, because the figures this decision
    * rests on had drifted badly from the ones written here:
    *
-   *   calendar share   46.5% of events, 41.8% of hours   (was documented as 34%)
-   *   non-billable     78.1% of events, 60.7% of hours   (was documented as 98%)
+   *   calendar share   46.4% of events, 39.6% of hours   (was documented as 34%)
+   *   non-billable     78.8% of events, 62.5% of hours   (was documented as 98%)
    *
    * The second correction matters more than the first. At 98% non-billable the
-   * exclusion is nearly free; at 60.7% it withholds roughly 1,027 BILLABLE hours,
+   * exclusion is nearly free; at 62.5% it withholds roughly 1,225 BILLABLE hours,
    * which is a real number about the business and not calendar noise. The default
    * is kept — folding largely-undeliberate time into a billable ratio still
    * distorts it — but it can no longer be justified as costless, which is why
@@ -279,7 +280,9 @@ export async function fetchExcludedCalendarSeconds(
   let total = 0;
 
   try {
-    for (let page = 0; page < MAX_PAGES; page++) {
+    // Parallel-paged (paged.ts): this runs alongside fetchAllEntries on every
+    // dashboard load, so its serial loop added a whole extra page-by-page scan.
+    const { rows } = await fetchAllPaged<{ duration_seconds: number | null }>((from, to) => {
       let q = timeSchema(supabase)
         .from("entry")
         .select("duration_seconds")
@@ -289,7 +292,7 @@ export async function fetchExcludedCalendarSeconds(
         // The one difference from fetchAllEntries: this asks for exactly the
         // rows that call excludes.
         .eq("is_calendar", true)
-        .range(page * PAGE, page * PAGE + PAGE - 1);
+        .range(from, to);
 
       if (filters.memberIds.length) q = q.in("member_id", filters.memberIds);
       if (filters.projectIds.length) q = q.in("project_id", filters.projectIds);
@@ -297,13 +300,11 @@ export async function fetchExcludedCalendarSeconds(
       if (filters.serviceIds.length) q = q.in("service_id", filters.serviceIds);
       if (filters.billable !== null) q = q.eq("is_billable", filters.billable);
 
-      const { data, error } = await q;
-      if (error || !data) break;
+      return q;
+    }, { maxPages: MAX_PAGES });
 
-      for (const r of data as { duration_seconds: number | null }[]) {
-        total += num(r.duration_seconds);
-      }
-      if (data.length < PAGE) break;
+    for (const r of rows) {
+      total += num(r.duration_seconds);
     }
   } catch {
     // A failure here must not take the page down: the caveat is additive, and

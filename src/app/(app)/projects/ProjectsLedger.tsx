@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
-import { Button } from "@/components/ui/Button";
-import { FilterChip, SearchInput, SortHeader, type SortDirection } from "@/components/ui/Field";
+import { SortHeader, type SortDirection } from "@/components/ui/Field";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { Pager, usePager } from "@/components/Pager";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
@@ -152,76 +151,14 @@ export function ProjectsLedger({
   rows: ProjectListRow[];
   initialSort?: LedgerSort;
 }) {
-  const [query, setQuery] = useState("");
-  const [facets, setFacets] = useState<Set<Facet>>(new Set());
   const [sortKey, setSortKey] = useState<LedgerSort>(initialSort);
   const [sortDir, setSortDir] = useState<SortDirection>(initialSort === "name" ? "asc" : "desc");
 
-  // Counts come from the FULL list, never the filtered one. A chip whose count
-  // shrinks to match the current filter tells the reader nothing they cannot
-  // already see, and makes it impossible to judge whether it is worth clicking.
-  const counts = useMemo(
-    () => ({
-      over: rows.filter((p) => matchesFacet(p, "over")).length,
-      risk: rows.filter((p) => matchesFacet(p, "risk")).length,
-      nobudget: rows.filter((p) => matchesFacet(p, "nobudget")).length,
-      idle: rows.filter((p) => matchesFacet(p, "idle")).length,
-    }),
-    [rows],
-  );
+  const sorted = sortRows(rows, sortKey, sortDir);
 
-  const q = query.trim().toLowerCase();
-  const filtered = useMemo(() => {
-    const matched = rows.filter((p) => {
-      const matchesSearch =
-        q === "" ||
-        p.name.toLowerCase().includes(q) ||
-        (p.customerName ?? "").toLowerCase().includes(q) ||
-        (p.code ?? "").toLowerCase().includes(q);
-      // Facets are OR'd, not AND'd: "over budget" and "at risk" are disjoint,
-      // so AND-ing them would always yield an empty list — a filter row where
-      // clicking a second chip empties the table is a trap, not a feature.
-      const matchesFacets =
-        facets.size === 0 || [...facets].some((f) => matchesFacet(p, f));
-      return matchesSearch && matchesFacets;
-    });
-    return sortRows(matched, sortKey, sortDir);
-  }, [rows, q, facets, sortKey, sortDir]);
-
-  /*
-   * Paged, not appended.
-   *
-   * The previous control added PAGE_SIZE rows per click, so the document grew each time and
-   * the reader had to scroll further to reach the button again -- with 334 live projects,
-   * up to about 13 screens. A page index keeps the ledger a constant height.
-   *
-   * The reset key is the filter and sort state: when the result set changes, page 7 of a
-   * list that just became 3 rows long would render empty and read as "no results".
-   */
-  // Scroll target for a page change: without it, paging from the bottom of one page
-  // leaves you at the bottom of the next, reading its last rows first.
   const tableRef = useRef<HTMLDivElement>(null);
-
-  const pager = usePager(
-    filtered.length,
-    PAGE_SIZE,
-    `${q}|${[...facets].sort().join(",")}|${sortKey}|${sortDir}`,
-  );
-  const visible = filtered.slice(pager.start, pager.end);
-  const activeFilters = facets.size + (q ? 1 : 0);
-
-  const toggleFacet = (f: Facet) => {
-    setFacets((prev) => {
-      const next = new Set(prev);
-      if (next.has(f)) next.delete(f);
-      else next.add(f);
-      return next;
-    });
-    // Any change to the result set resets paging: leaving the limit at 200
-    // after filtering down to 9 rows would show a "show more" control that
-    // does nothing.
-
-  };
+  const pager = usePager(sorted.length, PAGE_SIZE, `${sortKey}|${sortDir}|${rows.length}`);
+  const visible = sorted.slice(pager.start, pager.end);
 
   const handleSort = (key: string) => {
     const next = key as LedgerSort;
@@ -229,107 +166,154 @@ export function ProjectsLedger({
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(next);
-      // Names read naturally A→Z; every numeric column is more useful
-      // largest-first, which is what someone scanning for outliers wants.
       setSortDir(next === "name" ? "asc" : "desc");
     }
-
   };
 
-  const clearAll = () => {
-    setQuery("");
-    setFacets(new Set());
-
-  };
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        title="No projects match"
+        description="No project matches the current filters. Clearing them above brings the full portfolio back."
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ------------------------------------------------------------ toolbar */}
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-        <SearchInput
-          value={query}
-          onValueChange={(v) => {
-            setQuery(v);
-
-          }}
-          label="Search projects by name, customer or code"
-          placeholder="Search 334 projects…"
-          className="sm:w-72"
-        />
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <FilterChip active={facets.has("over")} onToggle={() => toggleFacet("over")} count={counts.over}>
-            OVER BUDGET
-          </FilterChip>
-          <FilterChip active={facets.has("risk")} onToggle={() => toggleFacet("risk")} count={counts.risk}>
-            AT RISK
-          </FilterChip>
-          <FilterChip
-            active={facets.has("nobudget")}
-            onToggle={() => toggleFacet("nobudget")}
-            count={counts.nobudget}
-          >
-            NO BUDGET
-          </FilterChip>
-          <FilterChip active={facets.has("idle")} onToggle={() => toggleFacet("idle")} count={counts.idle}>
-            NO ACTIVITY
-          </FilterChip>
-        </div>
-
-        <div className="flex items-center gap-3 sm:ml-auto">
-          <span
-            className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-muted)]"
-            // Announced when filtering changes the result count, so a
-            // screen-reader user learns the table shrank without re-reading it.
-            role="status"
-            aria-live="polite"
-          >
-            {filtered.length === rows.length
-              ? `${rows.length} PROJECTS`
-              : `${filtered.length} OF ${rows.length}`}
-          </span>
-          {activeFilters > 0 && (
-            <Button variant="ghost" size="sm" onClick={clearAll}>
-              Clear
-            </Button>
-          )}
-        </div>
+      <div className="flex items-center justify-between">
+        <h2 className="font-mono text-[10px] tracking-[0.14em] text-[var(--text-muted)]">
+          PROJECT LEDGER
+        </h2>
+        <span className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-faint)]">
+          {rows.length.toLocaleString("en-GB")} PROJECTS
+        </span>
       </div>
 
-      {/* -------------------------------------------------------------- table */}
-      {filtered.length === 0 ? (
-        <EmptyState
-          title="No projects match"
-          description="No project matches the current search and filters. Clearing them brings the full portfolio back."
-          action={
-            <Button variant="secondary" size="sm" onClick={clearAll}>
-              Clear filters
-            </Button>
-          }
-        />
-      ) : (
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
-          {/* Mobile cards — a 7-column grid is unreadable under ~640px. */}
-          <div className="flex flex-col divide-y divide-[var(--divider)] sm:hidden">
-            {visible.map((p) => (
-              <Link
-                key={p.id}
-                href={`/projects/${p.id}`}
-                className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-[var(--surface-hover)]"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-[12px] font-medium text-[var(--text-primary)]">{p.name}</span>
-                  <span
-                    className="shrink-0 font-mono text-[11px] font-semibold"
-                    style={{ color: burnColor(p.burnPercent) }}
-                  >
-                    {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
-                  </span>
-                </div>
-                <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                  {p.customerName ?? "No customer"}
+      <div className="border border-[var(--border)] bg-[var(--surface)]">
+        {/* Mobile cards — a 7-column grid is unreadable under ~640px. */}
+        <div className="flex flex-col divide-y divide-[var(--divider)] sm:hidden">
+          {visible.map((p) => (
+            <Link
+              key={p.id}
+              href={`/projects/${p.id}`}
+              className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-[var(--surface-hover)]"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[12px] font-medium text-[var(--text-primary)]">{p.name}</span>
+                <span
+                  className="shrink-0 font-mono text-[11px] font-semibold"
+                  style={{ color: burnColor(p.burnPercent) }}
+                >
+                  {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
                 </span>
-                <div className="h-1 w-full bg-[var(--border)]">
+              </div>
+              <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                {p.customerName ?? "No customer"}
+              </span>
+              <div className="h-1 w-full bg-[var(--border)]">
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
+                    background: burnColor(p.burnPercent),
+                  }}
+                />
+              </div>
+              <div className="flex gap-3 font-mono text-[10px] text-[var(--text-secondary)]">
+                <span>{h(p.actualHours)} H LOGGED</span>
+                <span>
+                  {p.estimatedHours && p.estimatedHours > 0
+                    ? `${h(p.estimatedHours)} H BUDGET`
+                    : "NO BUDGET"}
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        <div ref={tableRef} className="hidden sm:block">
+          <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5">
+            <SortHeader
+              label="PROJECT"
+              columnKey="name"
+              activeKey={sortKey}
+              direction={sortDir}
+              onSort={handleSort}
+              className="col-span-4"
+            />
+            <span className="col-span-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
+              CUSTOMER
+            </span>
+            <SortHeader
+              label="BUDGET"
+              columnKey="budget"
+              activeKey={sortKey}
+              direction={sortDir}
+              onSort={handleSort}
+              align="right"
+              className="col-span-1 justify-end"
+            />
+            <SortHeader
+              label="LOGGED"
+              columnKey="hours"
+              activeKey={sortKey}
+              direction={sortDir}
+              onSort={handleSort}
+              align="right"
+              className="col-span-1 justify-end"
+            />
+            <SortHeader
+              label="CONSUMED"
+              columnKey="burn"
+              activeKey={sortKey}
+              direction={sortDir}
+              onSort={handleSort}
+              className="col-span-2"
+            />
+            <SortHeader
+              label="PEOPLE"
+              columnKey="people"
+              activeKey={sortKey}
+              direction={sortDir}
+              onSort={handleSort}
+              align="right"
+              className="col-span-1 justify-end"
+            />
+            <SortHeader
+              label="LAST"
+              columnKey="recent"
+              activeKey={sortKey}
+              direction={sortDir}
+              onSort={handleSort}
+              align="right"
+              className="col-span-1 justify-end"
+            />
+          </div>
+
+          {visible.map((p) => (
+            <div
+              key={p.id}
+              className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1 text-[12.5px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
+            >
+              <Link
+                href={`/projects/${p.id}`}
+                className="col-span-4 truncate text-[12.5px] font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
+                title={p.name}
+              >
+                {p.name}
+              </Link>
+              <span className="col-span-2 truncate text-[var(--text-secondary)]" title={p.customerName ?? ""}>
+                {p.customerName ?? "—"}
+              </span>
+              <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
+                {p.estimatedHours && p.estimatedHours > 0 ? h(p.estimatedHours) : "—"}
+              </span>
+              <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-primary)]">
+                {h(p.actualHours)}
+              </span>
+              <div className="col-span-2 flex items-center gap-2">
+                <div className="h-1 flex-1 bg-[var(--border)]">
                   <div
                     className="h-full"
                     style={{
@@ -338,158 +322,25 @@ export function ProjectsLedger({
                     }}
                   />
                 </div>
-                <div className="flex gap-3 font-mono text-[10px] text-[var(--text-secondary)]">
-                  <span>{h(p.actualHours)} H LOGGED</span>
-                  <span>
-                    {p.estimatedHours && p.estimatedHours > 0
-                      ? `${h(p.estimatedHours)} H BUDGET`
-                      : "NO BUDGET"}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {/*
-            Desktop table.
-
-            `overflow-x-auto` is deliberately NOT on this wrapper. An overflow
-            value other than `visible` makes the element a scroll container, and
-            `position: sticky` then sticks to THAT box rather than the viewport —
-            measured, not guessed: with the wrapper in place the header sat at
-            top 324px and moved to -276px after scrolling 600px, i.e. it scrolled
-            away exactly like a static element while still carrying the class.
-
-            The grid is allowed to overflow the page instead. At the 1440px
-            viewport this page is designed for, 900px fits with room to spare,
-            and the whole ledger is hidden below `sm` anyway.
-          */}
-          <div ref={tableRef} className="hidden sm:block">
-            {/*
-              Sticky so the column labels survive a long scroll. Without it the
-              reader reaches row 40 and can no longer tell which number is the
-              budget and which is the burn.
-            */}
-            <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5">
-              <SortHeader
-                label="PROJECT"
-                columnKey="name"
-                activeKey={sortKey}
-                direction={sortDir}
-                onSort={handleSort}
-                className="col-span-4"
-              />
-              <span className="col-span-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
-                CUSTOMER
-              </span>
-              <SortHeader
-                label="BUDGET"
-                columnKey="budget"
-                activeKey={sortKey}
-                direction={sortDir}
-                onSort={handleSort}
-                align="right"
-                className="col-span-1 justify-end"
-              />
-              <SortHeader
-                label="LOGGED"
-                columnKey="hours"
-                activeKey={sortKey}
-                direction={sortDir}
-                onSort={handleSort}
-                align="right"
-                className="col-span-1 justify-end"
-              />
-              <SortHeader
-                label="CONSUMED"
-                columnKey="burn"
-                activeKey={sortKey}
-                direction={sortDir}
-                onSort={handleSort}
-                className="col-span-2"
-              />
-              <SortHeader
-                label="PEOPLE"
-                columnKey="people"
-                activeKey={sortKey}
-                direction={sortDir}
-                onSort={handleSort}
-                align="right"
-                className="col-span-1 justify-end"
-              />
-              <SortHeader
-                label="LAST"
-                columnKey="recent"
-                activeKey={sortKey}
-                direction={sortDir}
-                onSort={handleSort}
-                align="right"
-                className="col-span-1 justify-end"
-              />
-            </div>
-
-            {visible.map((p) => (
-              <div
-                key={p.id}
-                /*
-                 * py-1 rather than py-2.5: ~30px per row against the old ~41px.
-                 * The name stays 12.5px — shrinking the one column people
-                 * actually read to save 2px is a bad trade, and the measured p90
-                 * project name is 44 characters.
-                 */
-                className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1 text-[12px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
-              >
-                <Link
-                  href={`/projects/${p.id}`}
-                  className="col-span-4 truncate font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
-                  title={p.name}
+                <span
+                  className="w-11 text-right font-mono text-[11px] font-medium"
+                  style={{ color: burnColor(p.burnPercent) }}
                 >
-                  {p.name}
-                </Link>
-                <span className="col-span-2 truncate text-[var(--text-secondary)]" title={p.customerName ?? ""}>
-                  {p.customerName ?? "—"}
-                </span>
-                <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
-                  {p.estimatedHours && p.estimatedHours > 0 ? h(p.estimatedHours) : "—"}
-                </span>
-                <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-primary)]">
-                  {h(p.actualHours)}
-                </span>
-                <div className="col-span-2 flex items-center gap-2">
-                  <div className="h-1 flex-1 bg-[var(--border)]">
-                    <div
-                      className="h-full"
-                      style={{
-                        width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
-                        background: burnColor(p.burnPercent),
-                      }}
-                    />
-                  </div>
-                  <span
-                    className="w-11 text-right font-mono text-[11px] font-medium"
-                    style={{ color: burnColor(p.burnPercent) }}
-                  >
-                    {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
-                  </span>
-                </div>
-                <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
-                  {p.memberCount || "—"}
-                </span>
-                <span className="col-span-1 text-right font-mono text-[10px] text-[var(--text-faint)]">
-                  {p.lastActivity ?? "never"}
+                  {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
                 </span>
               </div>
-            ))}
-          </div>
-
-          {/* ------------------------------------------------------------ paging */}
-          {/* Fixed-height paging. The old control appended 30 rows a click, which is what
-              made this page grow without bound; anyone who genuinely wants one long list
-              can still choose ALL. tableRef scrolls the first row back into view on a page
-              change, so paging does not leave you at the bottom of the next page. */}
-          <Pager state={pager} total={filtered.length} noun="projects" anchorRef={tableRef} />
+              <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
+                {p.memberCount || "—"}
+              </span>
+              <span className="col-span-1 text-right font-mono text-[10px] text-[var(--text-faint)]">
+                {p.lastActivity ?? "never"}
+              </span>
+            </div>
+          ))}
         </div>
-      )}
+
+        <Pager state={pager} total={sorted.length} noun="projects" anchorRef={tableRef} />
+      </div>
     </div>
   );
 }

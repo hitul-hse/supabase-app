@@ -104,20 +104,57 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   // The ledger is a client component. `renderToStaticMarkup` runs it as a plain
   // function, so useState returns its INITIAL value — which is exactly what
   // this gate wants to assert: what the reader sees before touching anything.
+  // @/components/Pager pulls scroll/observer code irrelevant to this gate; a
+  // stub keeps the ledger compilable in a bare Node context.
+  const pagerStub = join(dir, "pager-stub.cjs");
+  writeFileSync(
+    pagerStub,
+    `const { createElement } = require("react");
+module.exports = {
+  __esModule: true,
+  usePager: (total, size) => ({ start: 0, end: Math.min(size, total), page: 0, pageCount: Math.max(1, Math.ceil(total / size)), size }),
+  Pager: ({ total, noun }) => (total > 30 ? createElement("div", null, \`1–30 OF \${total} \${(noun || "").toUpperCase()} · PER PAGE · ALL\`) : null),
+};`,
+  );
+
+  const emptyStateFile = await compile("src/components/EmptyState.tsx", "EmptyState.cjs", { "next/link": posix(linkStub) });
+  const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", { "next/link": posix(linkStub) });
+  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", { "next/link": posix(linkStub) });
+
+  const insightsFile = await compile("src/app/(app)/projects/project-insights.ts", "project-insights.cjs", {
+    "@/lib/queries/projects-live": posix(stub),
+  });
+  const insights = require(insightsFile);
+
   const ledger = require(
     await compile("src/app/(app)/projects/ProjectsLedger.tsx", "ProjectsLedger.cjs", {
       "@/lib/queries/projects-live": posix(stub),
       "next/link": posix(linkStub),
       "./ProjectPanels": posix(panelsFile),
-      "@/components/EmptyState": posix(
-        await compile("src/components/EmptyState.tsx", "EmptyState.cjs", { "next/link": posix(linkStub) }),
-      ),
-      "@/components/ui/Button": posix(
-        await compile("src/components/ui/Button.tsx", "Button.cjs", { "next/link": posix(linkStub) }),
-      ),
-      "@/components/ui/Field": posix(
-        await compile("src/components/ui/Field.tsx", "Field.cjs", { "next/link": posix(linkStub) }),
-      ),
+      "@/components/EmptyState": posix(emptyStateFile),
+      "@/components/ui/Field": posix(fieldFile),
+      "@/components/Pager": posix(pagerStub),
+    }),
+  );
+
+  // The filter surface moved OUT of the ledger into ProjectsExplorer. The heavy
+  // chart children are stubbed: this gate asserts the FILTER BAR markup (search,
+  // facet chips, pressed state), not the figures, which the design-system gate
+  // and the live browser check own.
+  const noopChild = join(dir, "noop-child.cjs");
+  writeFileSync(noopChild, `module.exports = new Proxy({}, { get: () => () => null });`);
+  const customerSelectFile = await compile("src/app/(app)/projects/CustomerMultiSelect.tsx", "CustomerMultiSelect.cjs", {});
+  const explorer = require(
+    await compile("src/app/(app)/projects/ProjectsExplorer.tsx", "ProjectsExplorer.cjs", {
+      "@/lib/queries/projects-live": posix(stub),
+      "./project-insights": posix(insightsFile),
+      "./ProjectPanels": posix(panelsFile),
+      "./PortfolioCharts": posix(noopChild),
+      "./CustomerPortfolioCharts": posix(noopChild),
+      "./ProjectsLedger": posix(join(dir, "ProjectsLedger.cjs")),
+      "./CustomerMultiSelect": posix(customerSelectFile),
+      "@/components/ui/Field": posix(fieldFile),
+      "@/components/ui/Button": posix(buttonFile),
     }),
   );
 
@@ -241,6 +278,8 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   console.log("\nWhat a person actually sees:\n");
 
   const tableHtml = render(ledger.ProjectsLedger, { rows: live.sortProjects(rows, "burn") });
+  // The filter surface lives in the explorer now; render it over the same rows.
+  const explorerHtml = render(explorer.ProjectsExplorer, { rows });
 
   // Exactly two rows are unbudgeted, and each must say "n/a". A genuine 0% (the
   // Untouched project, which HAS a 50h budget) is correct and must survive —
@@ -285,13 +324,13 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
 
   check(
     "REGRESSION 4: the list is searchable",
-    /type="search"/.test(tableHtml),
-    "no search input rendered",
+    /type="search"/.test(explorerHtml),
+    "no search input rendered in the explorer filter bar",
   );
 
   check(
     "the search box is reachable by screen reader, not a bare box",
-    /aria-label="Search projects/.test(tableHtml),
+    /aria-label="Search projects/.test(explorerHtml),
   );
 
   // Every facet chip must carry a COUNT. A chip that does not say how many rows
@@ -300,40 +339,58 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   for (const [facet, label] of [
     ["over", "OVER BUDGET"],
     ["risk", "AT RISK"],
+    ["healthy", "HEALTHY"],
     ["nobudget", "NO BUDGET"],
     ["idle", "NO ACTIVITY"],
   ]) {
-    check(`the '${label}' filter is offered`, tableHtml.includes(label), facet);
+    check(`the '${label}' filter is offered`, explorerHtml.includes(label), facet);
   }
 
   check(
     "filter chips announce their pressed state",
-    (tableHtml.match(/aria-pressed="false"/g) ?? []).length >= 4,
+    (explorerHtml.match(/aria-pressed="false"/g) ?? []).length >= 5,
     "chips must be real buttons with aria-pressed, not styled divs",
   );
 
-  // The pure predicates, exercised directly. These are what the chips call, and
-  // the boundaries are the part that silently misclassifies a project.
+  // The pure predicates, exercised directly against project-insights — what the
+  // chips call, and the boundaries are the part that silently misclassifies.
   const F = (burnPercent, actualHours = 1) => ({ burnPercent, actualHours });
   check(
     "'over budget' means strictly over 100%, not 100% itself",
-    ledger.matchesFacet(F(100.1), "over") && !ledger.matchesFacet(F(100), "over"),
+    insights.matchesProjectFacet(F(100.1), "over") && !insights.matchesProjectFacet(F(100), "over"),
   );
   check(
     "'at risk' spans 85% to 100% inclusive",
-    ledger.matchesFacet(F(85), "risk") &&
-      ledger.matchesFacet(F(100), "risk") &&
-      !ledger.matchesFacet(F(84.9), "risk"),
+    insights.matchesProjectFacet(F(85), "risk") &&
+      insights.matchesProjectFacet(F(100), "risk") &&
+      !insights.matchesProjectFacet(F(84.9), "risk"),
   );
   check(
     "'no budget' catches null burn, never a real 0%",
-    ledger.matchesFacet(F(null), "nobudget") && !ledger.matchesFacet(F(0), "nobudget"),
+    insights.matchesProjectFacet(F(null), "nobudget") && !insights.matchesProjectFacet(F(0), "nobudget"),
   );
   check(
     "'over budget' and 'at risk' can never both match one project",
     [0, 84.9, 85, 100, 100.1, 140].every(
-      (p) => !(ledger.matchesFacet(F(p), "over") && ledger.matchesFacet(F(p), "risk")),
+      (p) => !(insights.matchesProjectFacet(F(p), "over") && insights.matchesProjectFacet(F(p), "risk")),
     ),
+  );
+  // The filter fold itself: a customer constraint narrows, an empty one keeps all.
+  const fRows = [
+    { name: "A", customerName: "ACME", code: null, burnPercent: 50, actualHours: 5, isBillable: true },
+    { name: "B", customerName: "Other", code: null, burnPercent: 120, actualHours: 9, isBillable: false },
+  ];
+  check(
+    "filterProjectRows narrows by customer",
+    insights.filterProjectRows(fRows, { query: "", customers: new Set(["ACME"]), facets: new Set(), billableOnly: null }).length === 1,
+  );
+  check(
+    "an empty filter keeps everything, never nothing",
+    insights.filterProjectRows(fRows, { query: "", customers: new Set(), facets: new Set(), billableOnly: null }).length === 2,
+  );
+  check(
+    "billable-only narrows to billable projects",
+    insights.filterProjectRows(fRows, { query: "", customers: new Set(), facets: new Set(), billableOnly: true }).length === 1,
   );
 
   /* ─────────────────────── REGRESSION 5: paging is real ─────────────────── */
@@ -379,12 +436,12 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   );
   check(
     "the reader is told how many rows are hidden",
-    /SHOWING \d+ OF 120/.test(manyHtml),
-    "no 'showing N of M' summary",
+    /\d+–\d+ OF 120/.test(manyHtml),
+    "no 'N–M of total' summary from the pager",
   );
   check(
-    "there is a way to see the rest",
-    manyHtml.includes("Show 30 more") && manyHtml.includes("Show all"),
+    "there is a way to see the rest (per-page sizes incl. ALL)",
+    manyHtml.includes("PER PAGE") && manyHtml.includes("ALL"),
   );
   // The first paint must fit roughly one screen at ~28px a row. 50 rows was
   // still most of two, which defeats the point of paging at all.
@@ -395,7 +452,7 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
   );
   check(
     "a short list gets no pager at all",
-    !tableHtml.includes("SHOWING"),
+    !tableHtml.includes("PER PAGE"),
     "5 rows must not render a pager",
   );
 
@@ -437,7 +494,7 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
 
   check(
     "REGRESSION 7: the filtered result count is announced politely",
-    /aria-live="polite"/.test(tableHtml) && /role="status"/.test(tableHtml),
+    /aria-live="polite"/.test(explorerHtml) && /role="status"/.test(explorerHtml),
     "a sighted user sees the table shrink; a screen-reader user must be told",
   );
 

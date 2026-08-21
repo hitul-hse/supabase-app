@@ -20,7 +20,10 @@
 import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Donut, LegendDot } from "@/components/ui/Charts";
-import type { CustomerPortfolio } from "@/lib/queries/projects-live";
+// Fed a re-derived view: the Projects explorer recomputes this on every filter
+// change from rows already in the browser (project-insights.ts), so the charts
+// react to the shared filter bar rather than showing a fixed server snapshot.
+import type { CustomerPortfolioView } from "./project-insights";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
@@ -34,7 +37,7 @@ const SLICE_COLORS = [
   "var(--text-secondary)",
 ];
 
-export function CustomerPortfolioCharts({ data }: { data: CustomerPortfolio }) {
+export function CustomerPortfolioCharts({ data }: { data: CustomerPortfolioView }) {
   const { rows, totalHours, customerCount, top5SharePercent } = data;
 
   if (rows.length === 0) {

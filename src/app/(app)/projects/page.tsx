@@ -35,10 +35,8 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { getProjectList, type ProjectSort } from "@/lib/queries/projects-live";
 import { getSyncFreshness } from "@/lib/queries/time-dashboard";
 import { FreshnessBanner } from "../time/dashboard/ReportPanels";
-import { ProjectTotalsStrip } from "./ProjectPanels";
-import { ProjectsLedger, type LedgerSort } from "./ProjectsLedger";
-import { PortfolioCharts } from "./PortfolioCharts";
-import { CustomerPortfolioCharts } from "./CustomerPortfolioCharts";
+import { type LedgerSort } from "./ProjectsLedger";
+import { ProjectsExplorer } from "./ProjectsExplorer";
 
 /** `?sort=` values the ledger accepts as its initial state. */
 const SORT_KEYS: LedgerSort[] = ["burn", "hours", "recent", "name", "budget", "people"];
@@ -92,7 +90,7 @@ export default async function ProjectsPage({
   }
 
   const supabase = await createClient();
-  const [{ rows: allRows, truncated, customerPortfolio }, freshness] = await Promise.all([
+  const [{ rows: allRows, truncated }, freshness] = await Promise.all([
     // The server sort is now only a stable starting order — the ledger re-sorts
     // in the browser, where all 334 rows already are.
     getProjectList(supabase, (SORT_KEYS.includes(initialSort) ? initialSort : "burn") as ProjectSort),
@@ -101,13 +99,10 @@ export default async function ProjectsPage({
 
   const rows = showArchived ? allRows : allRows.filter((p) => !p.isArchived);
 
-  // Totals describe what is ON SCREEN, not the whole table. A strip that says
-  // "6,254 h" above a list filtered to 40 projects invites the reader to add up
-  // the rows, fail to reach the total, and distrust both numbers.
+  // The header totals describe the WHOLE portfolio; the explorer below recomputes
+  // its own totals strip against whatever the filter narrows to, so the two are
+  // deliberately different scopes (page = everything, strip = current filter).
   const totalHours = rows.reduce((s, p) => s + p.actualHours, 0);
-  const billableHours = rows.reduce((s, p) => s + p.billableHours, 0);
-  const overBudget = rows.filter((p) => p.isOver).length;
-  const noBudget = rows.filter((p) => p.burnPercent === null).length;
 
   return (
     <PageTransition>
@@ -146,24 +141,11 @@ export default async function ProjectsPage({
             />
           ) : (
             <>
-              <ProjectTotalsStrip
-                projectCount={rows.length}
-                totalHours={totalHours}
-                billableHours={billableHours}
-                overBudget={overBudget}
-                noBudget={noBudget}
-              />
-              {/* The figures before the table: state of the portfolio as a donut,
-                  and where the hours go as a ranked bar list. The ledger below
-                  stays the tool for finding one project; these answer the two
-                  questions people previously scrolled the ledger to estimate. */}
-              <PortfolioCharts rows={rows} />
-              {/* Who our biggest customers are, and where capacity is tight:
-                  delivered-hours share plus delivered-vs-committed budget per
-                  customer. Derived from the same entry fetch as the rows — no
-                  extra query. */}
-              <CustomerPortfolioCharts data={customerPortfolio} />
-              <ProjectsLedger rows={rows} initialSort={initialSort} />
+              {/* ONE filter bar drives the totals strip, both chart blocks and
+                  the ledger together: pick a customer or a status here and every
+                  figure on the page re-derives to match, instead of the charts
+                  showing the whole portfolio while only the table filters. */}
+              <ProjectsExplorer rows={rows} initialSort={initialSort} />
             </>
           )}
         </div>

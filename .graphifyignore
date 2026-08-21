@@ -1,0 +1,30 @@
+# Keep the knowledge graph about THIS project's own code, not its build
+# artifacts or the vendored agent-skill libraries.
+#
+# .gitignore is respected automatically (so node_modules/, .next/ etc. are
+# already out). These are the extras worth excluding:
+
+# Probe/verify build dirs left by the deploy checks (they mirror .next output).
+.next-*/
+
+# The agent skill trees are third-party prose and tooling, not this app's
+# architecture. Graphing them buries the real code: before excluding them, the
+# god-node ranking was dominated by the "impeccable" skill's own helpers
+# (parseAnyColor, collectBrowserFindings, detectHtml) rather than anything in
+# this codebase. Every location they are vendored into:
+.claude/skills/
+.agents/skills/
+.github/skills/
+.v3code/skills/
+agent/skills/
+.claude/agents/
+.github/agents/
+
+# NOTE .github/workflows/ is deliberately NOT excluded — the CI pipeline is
+# genuinely part of this project and belongs in the graph.
+
+# graphify's own output.
+graphify-out/
+
+# Supabase CLI scratch.
+supabase/.temp/

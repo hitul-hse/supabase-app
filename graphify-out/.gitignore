@@ -1,0 +1,27 @@
+# graphify knowledge graph — paths here are relative to this folder.
+#
+# graph.json, GRAPH_REPORT.md and manifest.json ARE committed on purpose: the
+# point is that everyone (and every agent) starts from the same map, and the
+# post-commit hook keeps them current for free (AST only, no API cost).
+#
+# Local-only below:
+
+# Per-machine interpreter/root pointers.
+.graphify_python
+.graphify_root
+
+# Rebuildable in seconds, and 2MB+ of churn per commit.
+graph.html
+cache/
+cost.json
+
+# Intermediate extraction sidecars, but KEEP .graphify_analysis.json — the
+# report and the community labels are derived from it.
+.graphify_ast.json
+.graphify_semantic.json
+.graphify_extract.json
+.graphify_detect.json
+.graphify_chunk_*.json
+.graphify_cached.json
+.graphify_uncached.txt
+.graphify_semantic_new.json

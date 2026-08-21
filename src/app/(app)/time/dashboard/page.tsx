@@ -21,7 +21,13 @@ import {
   type TrendBucket,
 } from "@/lib/queries/trackingtime-report";
 import { getProjectEconomics, getSyncFreshness } from "@/lib/queries/time-dashboard";
+import {
+  customerConcentration,
+  serviceMixByMonth,
+  weekdayHourPattern,
+} from "@/lib/queries/time-insights";
 import { ReportFilters } from "./ReportFilters";
+import { InsightPanels } from "./InsightPanels";
 import { FreshnessBanner, TotalsStrip } from "./ReportPanels";
 import { TrendChart } from "./TrendChart";
 import { BillableDonut } from "./BillableDonut";
@@ -179,6 +185,12 @@ export default async function TrackingTimeDashboardPage({
   const totals = summarise(entries);
   const breakdown = groupEntries(entries, group);
   const points = trend(entries, bucket);
+
+  // The deep-analysis panels fold the same filtered entries as the tables, so
+  // the filter bar governs them and they cannot disagree with the totals strip.
+  const concentration = customerConcentration(entries);
+  const weekPattern = weekdayHourPattern(entries);
+  const serviceMix = serviceMixByMonth(entries);
 
   // Budget burn is scoped to the projects actually present in this selection.
   // Listing all 251 estimated projects while the filter shows one week would
@@ -460,6 +472,18 @@ export default async function TrackingTimeDashboardPage({
                   />
                 </div>
               </div>
+
+              {/* The in-depth analyses: concentration, work pattern, mix shift.
+                  Between the headline figures and the tables, because they answer
+                  the questions the headline raises before the reader drills into
+                  rows. */}
+              <InsightPanels
+                customers={concentration.top}
+                otherHours={concentration.otherHours}
+                totalHours={concentration.totalHours}
+                pattern={weekPattern}
+                serviceMix={serviceMix}
+              />
 
               {/* Economics sits high when present: for the audience allowed to
                   see it, margin is the first question rather than the last. */}

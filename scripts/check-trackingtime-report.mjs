@@ -538,10 +538,13 @@ console.log("\n--- source guards against the silent regressions ----------------
 
 // The 1000-row cap is invisible: a truncated result is a short array, not an
 // error. If the paging loop is ever removed, totals drop by ~76% on live data
-// with nothing on screen to indicate it.
+// with nothing on screen to indicate it. Paging is satisfied either by an
+// inline `for (let page…)` loop or by delegating to the shared fetchAllPaged
+// (src/lib/queries/paged.ts), which pages in parallel batches.
 check(
   "fetchAllEntries pages rather than issuing one unbounded request",
-  /for\s*\(\s*let\s+page\s*=\s*0/.test(CODE) && CODE.includes(".range("),
+  (/for\s*\(\s*let\s+page\s*=/.test(CODE) || CODE.includes("fetchAllPaged(")) &&
+    CODE.includes(".range("),
 );
 
 check(

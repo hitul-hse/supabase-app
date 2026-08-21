@@ -34,7 +34,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { isSharedMailbox } from "./people-live";
-import { fetchAllPaged } from "./paged";
+import { fetchAllPaged } from "@/lib/queries/paged";
 
 type SupabaseTyped = SupabaseClient<Database>;
 

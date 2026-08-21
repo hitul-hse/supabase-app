@@ -52,7 +52,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { getMemberUtilisation, type MemberUtilisationRow } from "./time-dashboard";
 import { secondsToHours } from "@/lib/time-transform";
-import { fetchAllPaged } from "./paged";
+import { fetchAllPaged } from "@/lib/queries/paged";
 
 type SupabaseTyped = SupabaseClient<Database>;
 

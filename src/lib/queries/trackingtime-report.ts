@@ -40,7 +40,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { secondsToHours } from "@/lib/time-transform";
-import { fetchAllPaged } from "./paged";
+import { fetchAllPaged } from "@/lib/queries/paged";
 
 type SupabaseTyped = SupabaseClient<Database>;
 

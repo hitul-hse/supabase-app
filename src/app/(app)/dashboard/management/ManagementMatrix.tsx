@@ -6,12 +6,14 @@ import type { ManagementContractHours, ManagementPerson } from "@/lib/queries/ma
 import { ANNUAL_PLAN_HOURS, PEOPLE } from "@/lib/queries/management-contract-hours";
 import type { EmployeeOwnershipRow } from "@/lib/queries/management-employee-ownership";
 import type { ManagementDataQualityRow } from "@/lib/queries/management-data-quality";
+import type { ManagementProjectRiskRow } from "@/lib/queries/management-project-risks";
 import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
 import { ManagementDataQuality } from "./ManagementDataQuality";
+import { ManagementProjectRisks } from "./ManagementProjectRisks";
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 
-export function ManagementMatrix({ model, ownershipRows, dataQualityRows }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[] }) {
+export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[] }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   const totalByPerson = Object.fromEntries(
     PEOPLE.map((person) => [person, model.rows.reduce((sum, row) => sum + row.cells[person], 0)]),
@@ -32,6 +34,8 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows }: { mo
       <EmployeeOwnershipOverview rows={ownershipRows} />
 
       <ManagementDataQuality rows={dataQualityRows} />
+
+      <ManagementProjectRisks rows={projectRiskRows} />
 
       <Card className="overflow-hidden">
         <CardHeader title="Auslastungsausblick" qualifier={`GEBUNDENE VERTRAGSSTUNDEN / ${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} PLANSTUNDEN · 75% BILLABLE CAPACITY`} />

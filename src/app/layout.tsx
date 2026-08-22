@@ -76,7 +76,7 @@ export default function RootLayout({
         suppressHydrationWarning is on <html> because this script legitimately makes
         the server-rendered attribute differ from the client's.
       */}
-      <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
+      <head>
         <Script
           id="theme-init"
           strategy="beforeInteractive"
@@ -85,8 +85,8 @@ export default function RootLayout({
               "try{var t=localStorage.getItem('hse-hub-theme');if(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)t='light';if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}",
           }}
         />
-        {children}
-      </body>
+      </head>
+      <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">{children}</body>
     </html>
   );
 }

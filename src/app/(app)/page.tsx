@@ -8,7 +8,12 @@ import { TopBarChrome } from "@/components/TopBarChrome";
 import { IconWarning, IconArrowRight } from "@/components/nav-icons";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { getLiveOverview, OVERVIEW_WEEKS } from "@/lib/queries/overview-live";
+import {
+  getLiveOverview,
+  parseOverviewRange,
+  parseOverviewTeam,
+} from "@/lib/queries/overview-live";
+import { OverviewFilters } from "./OverviewFilters";
 import { requireUser } from "@/utils/supabase/require-user";
 
 /**
@@ -24,11 +29,61 @@ import { requireUser } from "@/utils/supabase/require-user";
  * The rule that shapes this file: a missing number renders "n/a", never 0 and
  * never a plausible substitute.
  */
-export default async function OverviewPage() {
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string; from?: string; to?: string; team?: string }>;
+}) {
   await requireUser("/");
   const supabase = await createClient();
-  const { metrics, weeks, teams, projects, counts, unlinkedPeople } =
-    await getLiveOverview(supabase);
+
+  /*
+   * The period and team come from the URL, so a scoped view is shareable and
+   * survives the back button. Both parsers fall back to the historical default
+   * on anything unrecognised: a hand-edited or stale link must never be able to
+   * empty this page, only to show it unfiltered.
+   */
+  const params = await searchParams;
+  const range = parseOverviewRange(params);
+  const team = parseOverviewTeam(params.team);
+  const {
+    metrics,
+    weeks,
+    teams,
+    projects,
+    counts,
+    unlinkedPeople,
+    teamOptions,
+    teamCoverage,
+    coveredWeeks,
+    scopeNotes,
+  } = await getLiveOverview(supabase, { range, team });
+
+  /*
+   * How the period is named everywhere on the page, once.
+   *
+   * Derived from the weeks ACTUALLY COUNTED rather than from the requested
+   * dates. Those differ whenever data does not span the whole request -- ask
+   * for this year in January and you get three weeks -- and printing the
+   * request would claim coverage the figures do not have.
+   */
+  const periodLabel =
+    coveredWeeks === null
+      ? "NO WEEKS IN PERIOD"
+      : coveredWeeks.count === 1
+        ? `${coveredWeeks.first}`
+        : `${coveredWeeks.first}–${coveredWeeks.last} · ${coveredWeeks.count} WEEKS`;
+
+  const teamLabelForScope =
+    team === null
+      ? null
+      : (teamOptions.find((t) => t.key === team)?.label ?? team);
+
+  /** The qualifier under a card title: period, plus the team when one is set. */
+  const scopedQualifier = (extra?: string) =>
+    [periodLabel, teamLabelForScope?.toUpperCase(), extra]
+      .filter(Boolean)
+      .join(" · ");
 
   // (chartMax is gone: it scaled the old bar strip, and the area chart owns its own scale.)
 
@@ -114,6 +169,29 @@ export default async function OverviewPage() {
 
       <div className="flex flex-col gap-[var(--card-gap)] p-4 sm:p-6">
         {/*
+          The filter surface. Every weekly figure below derives from the period
+          it resolves; the figures that CANNOT be period-scoped say "all time"
+          in their own qualifier rather than being quietly left unscoped.
+        */}
+        <OverviewFilters
+          range={range}
+          team={team}
+          teamOptions={teamOptions}
+          coverage={teamCoverage}
+        />
+
+        {/*
+          Said out loud because org_week aggregates by ISO week: a range starting
+          mid-month is widened to whole weeks, and a reader comparing this page
+          against a to-the-day report deserves to know why the totals differ.
+        */}
+        {scopeNotes.snappedToWholeWeeks && (
+          <p className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+            PERIOD WIDENED TO WHOLE ISO WEEKS ({periodLabel}) — WEEKLY TOTALS ARE
+            NOT AVAILABLE PER DAY
+          </p>
+        )}
+        {/*
           Surfaced rather than hidden: most of the roster has a TrackingTime
           record but no Hub sign-in, so their hours are counted in every figure
           on this page while they cannot log in to see them. That is an
@@ -179,7 +257,7 @@ export default async function OverviewPage() {
           <Card tone="hero" className="flex flex-col lg:col-span-7">
             <CardHeader
               title="Billable share"
-              qualifier={`LAST ${OVERVIEW_WEEKS} WEEKS · TRACKINGTIME`}
+              qualifier={scopedQualifier("TRACKINGTIME")}
               actions={
                 <div className="flex items-center gap-3">
                   <LegendDot color="var(--accent)">BILLABLE %</LegendDot>
@@ -189,8 +267,18 @@ export default async function OverviewPage() {
 
             <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4">
               {trendPoints.length === 0 ? (
-                <p className="self-center py-10 font-mono text-[11px] text-[var(--text-faint)]">
-                  No hours imported yet — run the TrackingTime sync.
+                <p className="self-center py-10 text-center font-mono text-[11px] text-[var(--text-faint)]">
+                  {/*
+                    Three different absences, three different sentences. "No
+                    hours in this period" is a fact about the filter; "run the
+                    sync" is a fact about the database, and offering the wrong
+                    one sends the reader to fix something that is not broken.
+                  */}
+                  {team !== null
+                    ? `No hours logged by ${teamLabelForScope} in this period.`
+                    : coveredWeeks !== null
+                      ? "No hours logged in this period."
+                      : "No hours imported yet — run the TrackingTime sync."}
                 </p>
               ) : (
                 <>
@@ -213,7 +301,7 @@ export default async function OverviewPage() {
                       id="overview-billable-share"
                       points={trendPoints}
                       yDomain={[0, 100]}
-                      label={`Billable share per week over the last ${OVERVIEW_WEEKS} weeks, from ${trendPoints[0].label} to ${trendPoints[trendPoints.length - 1].label}`}
+                      label={`Billable share per week over ${periodLabel.toLowerCase()}${teamLabelForScope ? ` for ${teamLabelForScope}` : ""}, from ${trendPoints[0].label} to ${trendPoints[trendPoints.length - 1].label}`}
                     />
                   </div>
 
@@ -229,12 +317,30 @@ export default async function OverviewPage() {
 
           {/* Utilisation per person, from time.member_utilisation */}
           <Card className="flex flex-col lg:col-span-5">
-            <CardHeader title="Utilisation by person" qualifier="TOP 6 BY HOURS" />
+            {/*
+              "ALL TIME" is load-bearing. time.member_utilisation is not
+              period-bounded, so this card genuinely cannot honour the filter,
+              and labelling it is the difference between a mixed-scope page and
+              a lying one. The team filter DOES apply -- it selects which people
+              appear -- so both facts are stated.
+            */}
+            <CardHeader
+              title="Utilisation by person"
+              qualifier={[
+                "TOP 6 BY HOURS",
+                scopeNotes.utilisationAllTime ? "ALL TIME" : null,
+                teamLabelForScope?.toUpperCase(),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            />
 
             <div className="flex flex-col gap-2.5 px-4 pb-4">
               {teams.length === 0 ? (
                 <p className="font-mono text-[11px] text-[var(--text-faint)]">
-                  No members with logged time.
+                  {team !== null
+                    ? `Nobody with ${teamLabelForScope} recorded has logged time.`
+                    : "No members with logged time."}
                 </p>
               ) : (
                 teams.map((team) => (
@@ -303,6 +409,8 @@ export default async function OverviewPage() {
               <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
                 Tracked hours against a nominal 40-hour week, across the weeks
                 each person was active. TrackingTime holds no contracted hours.
+                These percentages are all-time, not for the selected period —
+                the per-person view is not date-bounded.
               </p>
             </div>
           </Card>
@@ -318,10 +426,14 @@ export default async function OverviewPage() {
         */}
         <div className="grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-3">
           <Card className="flex flex-col">
-            <CardHeader title="Billable split" qualifier={`LAST ${OVERVIEW_WEEKS} WEEKS`} />
+            <CardHeader title="Billable split" qualifier={scopedQualifier()} />
             <div className="flex flex-1 flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 pb-5">
               {billableShareAll === null ? (
-                <p className="font-mono text-[11px] text-[var(--text-faint)]">No hours yet.</p>
+                <p className="font-mono text-[11px] text-[var(--text-faint)]">
+                  {team !== null || coveredWeeks !== null
+                    ? "No hours in this period."
+                    : "No hours yet."}
+                </p>
               ) : (
                 <>
                   <Donut
@@ -335,7 +447,7 @@ export default async function OverviewPage() {
                     ]}
                     centre={`${billableShareAll}%`}
                     centreLabel="billable"
-                    label={`Billable split over the last ${OVERVIEW_WEEKS} weeks: ${billableShareAll}% of ${Math.round(totalHoursAll).toLocaleString("de-DE")} hours billable`}
+                    label={`Billable split over ${periodLabel.toLowerCase()}${teamLabelForScope ? ` for ${teamLabelForScope}` : ""}: ${billableShareAll}% of ${Math.round(totalHoursAll).toLocaleString("de-DE")} hours billable`}
                   />
                   <div className="flex flex-col gap-2">
                     <LegendDot color="var(--accent)">
@@ -351,11 +463,22 @@ export default async function OverviewPage() {
           </Card>
 
           <Card className="flex flex-col">
-            <CardHeader title="Utilisation" qualifier="ROSTER AVERAGE" />
+            {/* The gauge averages the rows in the card above, so it inherits
+                their scope exactly -- all-time, team-filtered when one is set --
+                and must not imply otherwise by saying "ROSTER AVERAGE". */}
+            <CardHeader
+              title="Utilisation"
+              qualifier={[
+                team === null ? "ROSTER AVERAGE" : `${teamLabelForScope?.toUpperCase()} AVERAGE`,
+                "ALL TIME",
+              ].join(" · ")}
+            />
             <div className="flex flex-1 items-center justify-center px-4 pb-5">
               {avgUtilisation === null ? (
                 <p className="font-mono text-[11px] text-[var(--text-faint)]">
-                  No basis to compute — nobody has tracked hours yet.
+                  {team !== null
+                    ? `No basis to compute — nobody with ${teamLabelForScope} recorded has a utilisation figure.`
+                    : "No basis to compute — nobody has tracked hours yet."}
                 </p>
               ) : (
                 <Gauge
@@ -370,7 +493,7 @@ export default async function OverviewPage() {
           </Card>
 
           <Card className="flex flex-col sm:col-span-2 lg:col-span-1">
-            <CardHeader title="This period" qualifier="TRACKINGTIME TOTALS" />
+            <CardHeader title="This period" qualifier={scopedQualifier()} />
             {/* The plain numbers beside the two figures, so the strip answers
                 magnitude as well as proportion without a trip back to the tiles. */}
             <div className="flex flex-1 flex-col justify-center gap-3 px-4 pb-5">
@@ -387,7 +510,14 @@ export default async function OverviewPage() {
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">ACTIVE PEOPLE</span>
+                {/*
+                  The roster count is a headcount, not a period figure, so it is
+                  labelled ON ROSTER rather than sitting unqualified between two
+                  period totals.
+                */}
+                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+                  PEOPLE ON ROSTER
+                </span>
                 <span className="font-mono text-[18px] font-semibold text-[var(--text-primary)]">
                   {counts.activeMembers}
                 </span>
@@ -400,7 +530,9 @@ export default async function OverviewPage() {
         <Card className="overflow-hidden">
           <CardHeader
             title="Project ledger"
-            qualifier={`TOP ${projects.length} BY HOURS · TRACKINGTIME`}
+            /* All time, and said so: project_summary is not date-bounded, so
+               this ledger does not move with the period filter above it. */
+            qualifier={`TOP ${projects.length} BY HOURS · ALL TIME`}
             actions={
               <Link
                 href="/projects"

@@ -144,6 +144,75 @@ Die fachlichen Executive-Gruppen sind:
 
 Projekte ohne Service Mapping werden separat ausgewiesen. Ein Projekt mit mehreren Services darf nur nach einer bestätigten Verteilungsregel mehrfach oder anteilig berücksichtigt werden.
 
+## Multi-Service Matrix
+
+### Ziel
+
+Die Multi-Service Matrix zeigt, welche Kunden beziehungsweise Legal Entities welche HSE Services aktiv nutzen. Sie unterstützt die operative Kundensteuerung und macht Servicebreite, fehlende Zuordnungen und mögliche Portfolio-Lücken sichtbar.
+
+### Service-Katalog
+
+Die Matrix verwendet folgende kanonische Services:
+
+- DGUV V2 SiFa
+- H&S Consulting
+- Brandschutzbeauftragter
+- SiGeKo
+- ENERCON SiGeKo
+- Betriebsarzt
+- Reteach / Akademie
+
+### Berechnung
+
+Ein Service wird in der Matrix nur berücksichtigt, wenn alle drei Bedingungen erfüllt sind:
+
+1. Das Projekt ist aktiv beziehungsweise offen.
+2. Das Projekt besitzt eine stabile Customer-Master-Zuordnung.
+3. Das Projekt ist über `time.project` einem kanonischen Service aus `time.service` zugeordnet.
+
+Die fachliche Aggregation lautet:
+
+```text
+Customer / Legal Entity
+  + aktive Projekte
+  + Service Mapping
+  = Service Matrix
+```
+
+Ein Projekt mit mehreren Services darf nicht automatisch mehrfach in das Vertragsvolumen einfließen. Ohne bestätigte Verteilungsregel bleibt das betroffene Servicevolumen `n/a`, während die Projektzuordnung als Datenqualitätsfall sichtbar bleibt.
+
+### Kennzahlen
+
+- **Anzahl aktive Services je Kunde:** Anzahl unterschiedlicher kanonischer Services mit mindestens einem aktiven Projekt.
+- **Service-Abdeckung:** Belegte Servicespalten im Verhältnis zum definierten Service-Katalog.
+- **Cross-Selling-Hinweis:** rein deskriptive Anzeige von Services, die bei einer Legal Entity aktuell nicht belegt sind.
+
+### Cross-Selling-Regeln
+
+Die Servicebreite wird ohne Verkaufsautomatisierung klassifiziert:
+
+| Anzahl aktive Services | Anzeige |
+|---:|---|
+| `1` | Nur 1 Service |
+| `2` | 2 Services |
+| `>=3` | Multi-Service |
+
+Die Bezeichnung beschreibt ausschließlich den vorhandenen Servicebestand. Sie löst keine Verkaufsaktion, Empfehlung oder automatische Kundenansprache aus.
+
+### Architekturentscheidung
+
+Die Matrix wird nicht aus Excel-Zeilen abgeleitet und nicht über Freitext-Kunden aggregiert. Die verbindliche Read-Model-Quelle ist:
+
+```text
+crm.legal_entity
+  + aktive Projekte
+  + Service Mapping
+```
+
+Der Customer Master ist notwendig, weil mehrere Excel-Zeilen, Aufträge oder Projekte zu derselben Legal Entity gehören können. Eine Aggregation über den sichtbaren Kundennamen würde diese Zeilen möglicherweise als unterschiedliche Kunden zählen oder verschiedene Kunden fälschlich zusammenführen.
+
+Fehlt die stabile Legal-Entity-Referenz, wird das Projekt außerhalb der Kundenmatrix als Datenqualitätsproblem ausgewiesen und nicht einer vermuteten Kundenzeile zugeschlagen.
+
 ### Data Quality KPIs
 
 Data Quality KPIs zählen Projekte, nicht Stunden. Jedes Projekt wird innerhalb einer Prüfung höchstens einmal gezählt.

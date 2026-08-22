@@ -45,6 +45,16 @@ export const PERMISSIONS = {
   ADMIN_USERS_WRITE:       "admin:users:write",
   ADMIN_ROLES_READ:        "admin:roles:read",
   ADMIN_ROLES_WRITE:       "admin:roles:write",
+  // Administering SOMEBODY ELSE's record. Separate from people:write (the person
+  // directory) and from a user's own profile edit, because "may I edit my own
+  // profile" and "may I edit a colleague's" are different questions that must be
+  // separately grantable in /admin/roles. Held by exec and hr — see
+  // supabase/migrations/add_hr_role_and_profile_admin.sql.
+  ADMIN_PROFILES_READ:     "admin:profiles:read",
+  ADMIN_PROFILES_WRITE:    "admin:profiles:write",
+  // The most dangerous key in the system: it rewrites the hours invoices are
+  // based on. Deliberately NOT implied by admin:profiles:write.
+  ADMIN_ENTRIES_WRITE:     "admin:entries:write",
 
   // Sync
   SYNC_READ:               "sync:read",

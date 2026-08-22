@@ -9,16 +9,18 @@ import { getManagementContractHours } from "@/lib/queries/management-contract-ho
 import { getEmployeeOwnershipOverview } from "@/lib/queries/management-employee-ownership";
 import { getManagementDataQuality } from "@/lib/queries/management-data-quality";
 import { getManagementProjectRisks } from "@/lib/queries/management-project-risks";
+import { getManagementMultiServiceMatrix } from "@/lib/queries/management-multi-service-matrix";
 import { ManagementMatrix } from "./ManagementMatrix";
 
 export default async function ManagementPage() {
   await requirePermission("/dashboard/management", PERMISSIONS.HR_CONTRACT_READ);
   const supabase = await createClient();
-  const [model, ownershipRows, dataQualityRows, projectRiskRows] = await Promise.all([
+  const [model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel] = await Promise.all([
     getManagementContractHours(supabase),
     getEmployeeOwnershipOverview(supabase),
     getManagementDataQuality(supabase),
     getManagementProjectRisks(supabase),
+    getManagementMultiServiceMatrix(supabase),
   ]);
 
   return (
@@ -28,7 +30,7 @@ export default async function ManagementPage() {
         <main className="flex flex-col gap-4 p-4 sm:p-6">
           {model.projectCount === 0 ? (
             <Card><EmptyState title="Keine Vertragsstunden verfügbar" description="Das Read Model liefert aktuell keine sichtbaren Projekte aus public.projects." /></Card>
-          ) : <ManagementMatrix model={model} ownershipRows={ownershipRows} dataQualityRows={dataQualityRows} projectRiskRows={projectRiskRows} />}
+          ) : <ManagementMatrix model={model} ownershipRows={ownershipRows} dataQualityRows={dataQualityRows} projectRiskRows={projectRiskRows} multiServiceModel={multiServiceModel} />}
         </main>
       </div>
     </PageTransition>

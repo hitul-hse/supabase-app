@@ -7,13 +7,15 @@ import { ANNUAL_PLAN_HOURS, PEOPLE } from "@/lib/queries/management-contract-hou
 import type { EmployeeOwnershipRow } from "@/lib/queries/management-employee-ownership";
 import type { ManagementDataQualityRow } from "@/lib/queries/management-data-quality";
 import type { ManagementProjectRiskRow } from "@/lib/queries/management-project-risks";
+import type { ManagementMultiServiceMatrix as ManagementMultiServiceMatrixModel } from "@/lib/queries/management-multi-service-matrix";
 import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
 import { ManagementDataQuality } from "./ManagementDataQuality";
 import { ManagementProjectRisks } from "./ManagementProjectRisks";
+import { ManagementMultiServiceMatrix } from "./ManagementMultiServiceMatrix";
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 
-export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[] }) {
+export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   const totalByPerson = Object.fromEntries(
     PEOPLE.map((person) => [person, model.rows.reduce((sum, row) => sum + row.cells[person], 0)]),
@@ -36,6 +38,8 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
       <ManagementDataQuality rows={dataQualityRows} />
 
       <ManagementProjectRisks rows={projectRiskRows} />
+
+      <ManagementMultiServiceMatrix model={multiServiceModel} />
 
       <Card className="overflow-hidden">
         <CardHeader title="Auslastungsausblick" qualifier={`GEBUNDENE VERTRAGSSTUNDEN / ${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} PLANSTUNDEN · 75% BILLABLE CAPACITY`} />

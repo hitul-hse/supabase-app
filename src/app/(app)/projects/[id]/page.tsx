@@ -29,6 +29,8 @@ import { getProjectOverview } from "@/lib/queries/projects-live";
 import { BurnChart, ContributorTable, TaskTable, burnColor } from "../ProjectPanels";
 import { TasksSection } from "../TasksSection";
 import { getTimeProjectBoard } from "@/lib/queries/hse";
+import { getProjectContractPeriods } from "@/lib/queries/contract-periods";
+import { ContractPanel } from "../ContractPanel";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
@@ -84,6 +86,21 @@ export default async function ProjectDetailPage({
   // comments. They answer different questions and neither derives from the other.
   const board = await getTimeProjectBoard(supabase, id);
   const canWrite = await userHasPermission(PERMISSIONS.PROJECTS_WRITE);
+
+  /*
+   * Contract periods, and the separate permission to change them.
+   *
+   * Read unconditionally: "how many hours did we agree, and until when" is
+   * context for every other number on this page, so anybody who can see the
+   * project sees the terms. Only the FORMS are permission-gated, and by a
+   * capability of their own -- editing a project record is not the same act as
+   * changing a commercial budget.
+   *
+   * Returns [] while the migration is unapplied, which the panel renders as
+   * "no contract recorded" -- literally true in that window rather than an error.
+   */
+  const contractPeriods = await getProjectContractPeriods(supabase, id);
+  const canWriteContracts = await userHasPermission(PERMISSIONS.PROJECTS_CONTRACTS_WRITE);
   const hasBudget = project.estimatedHours !== null && project.estimatedHours > 0;
 
   const stats = [
@@ -174,6 +191,15 @@ export default async function ProjectDetailPage({
               only the most recent ones.
             </p>
           )}
+
+          {/* Above the burn chart deliberately: the burn only means something
+              measured against the agreed budget, so the terms are read first. */}
+          <ContractPanel
+            projectId={id}
+            periods={contractPeriods}
+            canWrite={canWriteContracts}
+            fallbackEstimateHours={project.estimatedHours}
+          />
 
           <BurnChart points={burn} estimatedHours={project.estimatedHours} />
 

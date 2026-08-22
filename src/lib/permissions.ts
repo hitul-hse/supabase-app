@@ -29,6 +29,10 @@ export const PERMISSIONS = {
   PROJECTS_READ_DEPT:      "projects:read_dept",
   PROJECTS_READ_ALL:       "projects:read_all",
   PROJECTS_WRITE:          "projects:write",
+  // Contract terms are commercial (the budget sales agreed, its dates), so they
+  // are a separate capability from editing a project record.
+  PROJECTS_CONTRACTS_READ:  "projects:contracts:read",
+  PROJECTS_CONTRACTS_WRITE: "projects:contracts:write",
 
   // Timesheets
   TIMESHEETS_READ_OWN:     "timesheets:read_own",

@@ -35,20 +35,24 @@ on conflict (role_key) do nothing;
 -- These are NEW capabilities, so they get their own keys rather than riding on
 -- an existing one. "May I edit my own profile" and "may I edit a colleague's"
 -- are different questions and must be separately grantable in /admin/roles.
+--
+-- resource/action are NOT NULL on app_permission and are split the same way
+-- every existing row splits them (resource 'admin', action 'profiles:read'),
+-- because /admin/roles groups the toggle list BY RESOURCE -- a null or a
+-- one-off spelling here would strand these keys outside the Admin group where
+-- nobody would find them. sort_order continues the existing admin block (60-63).
 
-insert into app_permission (permission_key, display_name, description, module_key) values
-  ('admin:profiles:read',
-   'View Any Profile',
+insert into app_permission
+  (permission_key, display_name, resource, action, description, module_key, sort_order) values
+  ('admin:profiles:read',  'View Any Profile',     'admin', 'profiles:read',
    'Open another person''s profile record: their name, role, department and linked accounts.',
-   'hub'),
-  ('admin:profiles:write',
-   'Edit Any Profile',
+   'hub',  64),
+  ('admin:profiles:write', 'Edit Any Profile',     'admin', 'profiles:write',
    'Change another person''s profile: display name, job title, department and contracted hours.',
-   'hub'),
-  ('admin:entries:write',
-   'Edit Any Time Entry',
-   'Correct or remove another person''s time entries, including invoiced ones. The most dangerous key in the system: it rewrites the hours invoices are based on.',
-   'time')
+   'hub',  65),
+  ('admin:entries:write',  'Edit Any Time Entry',  'admin', 'entries:write',
+   'Correct or remove another person''s time entries. The most dangerous key in the system: it rewrites the hours invoices are based on.',
+   'time', 66)
 on conflict (permission_key) do nothing;
 
 -- ---------------------------------------------------------------------------
@@ -93,11 +97,13 @@ on conflict (role_key, permission_key) do nothing;
 -- opening it up.
 
 drop policy if exists "exec can read all profiles" on app_user_profile;
+drop policy if exists "profile admins can read all profiles" on app_user_profile;
 create policy "profile admins can read all profiles"
   on app_user_profile for select to authenticated
   using ((select app_user_has_permission('admin:profiles:read')));
 
 drop policy if exists "exec can update profiles" on app_user_profile;
+drop policy if exists "profile admins can update profiles" on app_user_profile;
 create policy "profile admins can update profiles"
   on app_user_profile for update to authenticated
   using ((select app_user_has_permission('admin:profiles:write')))

@@ -11,3 +11,4 @@
 # -text disables all conversion: the bytes in the repo are the bytes on disk,
 # everywhere.
 supabase/apply-modules.sql -text
+graphify-out/graph.json merge=graphify

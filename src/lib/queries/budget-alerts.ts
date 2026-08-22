@@ -144,6 +144,36 @@ export async function getOpenAlertCounts(
   };
 }
 
+/**
+ * Is a permission key actually REGISTERED in the database?
+ *
+ * WHY THIS IS NEEDED. app_user_has_permission returns false for two completely
+ * different reasons: the role does not hold the capability, or the capability
+ * does not exist yet because a migration has not been applied. Those need
+ * opposite actions -- ask an admin for access, versus apply the migration -- and
+ * an interface that reports the second as the first sends people hunting in the
+ * wrong place. An executive holding 32 permissions was told their role was not
+ * eligible, which is how this was found.
+ *
+ * Read via the caller's own client: app_permission is world-readable to
+ * authenticated users (see the "authenticated can read app_permission" policy),
+ * so this needs no elevation.
+ */
+export async function permissionKeyExists(
+  supabase: SupabaseTyped,
+  key: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("app_permission")
+    .select("permission_key")
+    .eq("permission_key", key)
+    .maybeSingle();
+  // On error, claim it DOES exist: that keeps the message on the honest
+  // "ask an admin" path rather than blaming a migration on a transient fault.
+  if (error) return true;
+  return data !== null;
+}
+
 /** Human label for a kind. Kept here so every surface words it identically. */
 export function alertKindLabel(kind: BudgetAlertKind): string {
   switch (kind) {

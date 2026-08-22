@@ -3,7 +3,7 @@ import PageTransition from "@/components/animations/PageTransition";
 import { createClient } from "@/utils/supabase/server";
 import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
-import { getBudgetAlerts } from "@/lib/queries/budget-alerts";
+import { getBudgetAlerts, permissionKeyExists } from "@/lib/queries/budget-alerts";
 import { getContractsNeedingAttention } from "@/lib/queries/contract-periods";
 import { AlertList } from "./AlertList";
 import { ContractWatchlist } from "./ContractWatchlist";
@@ -36,24 +36,64 @@ export default async function AlertsPage({
   // recorded is a different question (answered by ?show=all).
   const openOnly = params.show !== "all";
 
+  const supabase = await createClient();
+
   if (!(await userHasPermission(PERMISSIONS.PROJECTS_ALERTS_READ))) {
+    /*
+     * Two very different reasons land here, and conflating them wasted a user's
+     * time: an executive holding 32 permissions was told their ROLE was not
+     * eligible, when in fact the capability did not exist in the database yet.
+     * Ask which it is before explaining it.
+     */
+    const registered = await permissionKeyExists(supabase, PERMISSIONS.PROJECTS_ALERTS_READ);
+
     return (
       <PageTransition>
         <div className="flex flex-col">
-          <PageHeader category="ADMIN / ALERTS" title="Budget alerts" />
+          <PageHeader
+            category="ADMIN / ALERTS"
+            title="Budget alerts"
+            meta={registered ? "ACCESS RESTRICTED" : "SETUP INCOMPLETE"}
+          />
           <div className="p-4 sm:p-6">
-            <p className="border border-[var(--border-strong)] px-4 py-3 text-[12px] leading-relaxed text-[var(--text-muted)]">
-              Your role does not include reading budget alerts. They expose commercial
-              pressure across the portfolio, so they are limited to executives,
-              department heads, project managers and HR.
-            </p>
+            {registered ? (
+              <p className="border border-[var(--border-strong)] px-4 py-3 text-[12px] leading-relaxed text-[var(--text-muted)]">
+                Your role does not include reading budget alerts. They expose commercial
+                pressure across the portfolio, so they are limited to executives,
+                department heads, project managers and HR.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 border border-[var(--border-strong)] px-4 py-3">
+                <p className="text-[12px] leading-relaxed text-[var(--text-primary)]">
+                  This feature is not switched on in the database yet, so nobody can
+                  reach it -- including executives. It is not a problem with your role.
+                </p>
+                <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+                  The permission{" "}
+                  <code className="font-mono text-[11px] text-[var(--accent)]">
+                    {PERMISSIONS.PROJECTS_ALERTS_READ}
+                  </code>{" "}
+                  does not exist. Apply{" "}
+                  <code className="font-mono text-[11px] text-[var(--text-primary)]">
+                    supabase/migrations/add_contract_periods.sql
+                  </code>{" "}
+                  and{" "}
+                  <code className="font-mono text-[11px] text-[var(--text-primary)]">
+                    supabase/migrations/add_budget_alert_visibility.sql
+                  </code>
+                  , in that order, then reload this page.
+                </p>
+                <p className="text-[11px] leading-relaxed text-[var(--text-faint)]">
+                  Until then the budget guard still works and still records alerts --
+                  they simply have nowhere to be displayed.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </PageTransition>
     );
   }
-
-  const supabase = await createClient();
   const [alerts, watchlist, canAck] = await Promise.all([
     getBudgetAlerts(supabase, { openOnly }),
     getContractsNeedingAttention(supabase),

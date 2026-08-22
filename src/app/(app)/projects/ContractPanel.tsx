@@ -187,11 +187,20 @@ export function ContractPanel({
   projectId,
   periods,
   canWrite,
+  featureInstalled,
   fallbackEstimateHours,
 }: {
   projectId: number;
   periods: ContractPeriodRow[];
   canWrite: boolean;
+  /**
+   * Whether the contract feature exists in the DATABASE yet.
+   *
+   * Without this, an unapplied migration makes canWrite false for everybody and
+   * the panel tells an executive that only executives may record terms. The two
+   * causes need opposite actions, so they must be told apart.
+   */
+  featureInstalled: boolean;
   /**
    * The vendor's estimate, shown ONLY when no contract is recorded and clearly
    * labelled as such. It is what the budget guard falls back to, so hiding it
@@ -264,7 +273,25 @@ export function ContractPanel({
             )}
           </p>
 
-          {canWrite ? (
+          {!featureInstalled ? (
+            <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4">
+              <p className="text-[12px] leading-relaxed text-[var(--text-primary)]">
+                Contract terms are not switched on in the database yet, so nobody can
+                record them -- including executives. This is not a permission problem.
+              </p>
+              <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+                Apply{" "}
+                <code className="font-mono text-[11px] text-[var(--text-primary)]">
+                  supabase/migrations/add_contract_periods.sql
+                </code>{" "}
+                and then{" "}
+                <code className="font-mono text-[11px] text-[var(--text-primary)]">
+                  supabase/migrations/add_budget_alert_visibility.sql
+                </code>
+                , and this panel becomes editable.
+              </p>
+            </div>
+          ) : canWrite ? (
             <form
               action={(fd) => run(() => setContractTerms(fd))}
               className="mt-4 flex flex-col gap-3 border-t border-[var(--border)] pt-4"

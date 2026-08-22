@@ -30,6 +30,7 @@ import { BurnChart, ContributorTable, TaskTable, burnColor } from "../ProjectPan
 import { TasksSection } from "../TasksSection";
 import { getTimeProjectBoard } from "@/lib/queries/hse";
 import { getProjectContractPeriods } from "@/lib/queries/contract-periods";
+import { permissionKeyExists } from "@/lib/queries/budget-alerts";
 import { ContractPanel } from "../ContractPanel";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
@@ -101,6 +102,15 @@ export default async function ProjectDetailPage({
    */
   const contractPeriods = await getProjectContractPeriods(supabase, id);
   const canWriteContracts = await userHasPermission(PERMISSIONS.PROJECTS_CONTRACTS_WRITE);
+  /*
+   * Whether the feature exists in the database at all. An unapplied migration
+   * makes canWriteContracts false for EVERY role, and without this the panel
+   * would blame the reader's permissions for a setup step.
+   */
+  const contractsInstalled = await permissionKeyExists(
+    supabase,
+    PERMISSIONS.PROJECTS_CONTRACTS_WRITE,
+  );
   const hasBudget = project.estimatedHours !== null && project.estimatedHours > 0;
 
   const stats = [
@@ -198,6 +208,7 @@ export default async function ProjectDetailPage({
             projectId={id}
             periods={contractPeriods}
             canWrite={canWriteContracts}
+            featureInstalled={contractsInstalled}
             fallbackEstimateHours={project.estimatedHours}
           />
 

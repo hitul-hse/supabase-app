@@ -391,6 +391,66 @@ check(
   "a viewer without the capability is told why",
   /does not include reading budget alerts/i.test(pageSrc),
 );
+
+/*
+ * THE REGRESSION THIS SECTION EXISTS FOR.
+ *
+ * An executive holding 32 permissions was told "your role is not eligible" for
+ * budget alerts. Their role was fine: the permission key did not exist in the
+ * database yet, because the migration was unapplied, so
+ * app_user_has_permission returned false for EVERY user. The page reported that
+ * as a role problem and sent them looking in exactly the wrong place.
+ *
+ * "Not installed" and "not permitted" need opposite actions, so any surface
+ * that denies access has to tell them apart.
+ */
+const panel = read("src/app/(app)/projects/ContractPanel.tsx");
+const projectPage = read("src/app/(app)/projects/[id]/page.tsx");
+const alertQueries = read("src/lib/queries/budget-alerts.ts");
+
+check(
+  "there is a way to ask whether a permission key exists at all",
+  /export async function permissionKeyExists/.test(alertQueries),
+);
+check(
+  "a read failure assumes the key EXISTS rather than blaming a migration",
+  alertQueries.includes("if (error) return true"),
+  "a transient fault must not be reported as a missing migration",
+);
+
+check(
+  "the alerts page distinguishes 'not installed' from 'not permitted'",
+  pageSrc.includes("permissionKeyExists") && /registered ?/.test(pageSrc),
+);
+check(
+  "and when not installed it says explicitly that the role is NOT the problem",
+  /not a problem with your role/i.test(pageSrc.replace(/\s+/g, " ")),
+  "this is the sentence whose absence cost a user their time",
+);
+check(
+  "it names the migrations to apply",
+  /add_contract_periods\.sql/.test(pageSrc) &&
+    /add_budget_alert_visibility\.sql/.test(pageSrc),
+  "an error that does not say what to do next is only half an error",
+);
+check(
+  "it states that the guard still works meanwhile",
+  /still records alerts/i.test(pageSrc.replace(/\s+/g, " ")),
+);
+
+check(
+  "the contract panel takes a featureInstalled flag",
+  /featureInstalled: boolean/.test(panel) && /!featureInstalled \\?/.test(panel),
+  "canWrite alone is false for everyone when the migration is unapplied",
+);
+check(
+  "the contract panel also says the role is not the problem",
+  /not a permission problem/i.test(panel.replace(/\s+/g, " ")),
+);
+check(
+  "the project page computes whether contracts are installed",
+  projectPage.includes("permissionKeyExists") && projectPage.includes("contractsInstalled"),
+);
 check(
   "acknowledge controls are gated on the acknowledge capability",
   pageSrc.includes("PROJECTS_ALERTS_ACKNOWLEDGE"),

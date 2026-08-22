@@ -271,18 +271,100 @@ async function submitTracker({ withCookie }) {
 
   const landedOnLogin = page.url().includes("/auth/login");
   const btn = page.getByRole("button", { name: "Start timer", exact: true }).first();
-  const hasForm = (await btn.count()) > 0;
 
-  // Choose a project before submitting. startTimer rightly refuses an entry with
-  // neither project nor task, so an empty submit would exercise validation rather
-  // than the authorised-write path the negative control is asserting.
+  /*
+   * WAIT FOR THE REVEAL, do not just count.
+   *
+   * The (app) group streams `loading.tsx` first, so React delivers the real page
+   * into a `<div hidden>` and only unhides it once that boundary resolves --
+   * measured at ~875ms here. `networkidle` fires BEFORE that, so counting the
+   * button straight after the goto found it in the DOM but invisible, and
+   * getByRole (which is correctly a11y-aware) reported zero.
+   *
+   * That timing alone produced three red checks that read exactly like an
+   * authorisation hole: "form not reachable", "no POST", and a negative control
+   * claiming an authorised write did not happen. Nothing was wrong with the
+   * actions. Waiting for the button to become visible is the whole fix.
+   *
+   * The anonymous case must NOT wait: no form is expected there, so a wait would
+   * burn the timeout on every run and prove nothing.
+   */
+  if (!landedOnLogin) {
+    await btn.waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+  }
+  const hasForm = await btn.isVisible().catch(() => false);
+
+  /*
+   * Choose a project before submitting. startTimer rightly refuses an entry with
+   * neither project nor task, so an empty submit would exercise validation rather
+   * than the authorised-write path the negative control is asserting.
+   *
+   * THE PROJECT PICKER IS NO LONGER A NATIVE <select>. It became a
+   * SearchableSelect combobox when the project list reached ~334 options (a
+   * native select over that many is unusable). This gate kept driving
+   * `select[name="project_id"]`, found nothing, submitted with no project, and
+   * read startTimer's correct refusal as "no write happened" -- reporting three
+   * failures that looked like an authorisation hole and were a stale selector.
+   *
+   * The combobox keeps the native form semantics via a hidden input, so the
+   * ASSERTIONS are unchanged; only the way a project gets chosen is.
+   */
   if (hasForm) {
-    const projectSelect = page.locator('select[name="project_id"]').first();
-    if (await projectSelect.count()) {
-      const values = await projectSelect
+    /*
+     * SCOPE EVERYTHING TO THE TIMER FORM. The tracker renders three comboboxes
+     * per form and two forms (start a timer, log past work), so a page-level
+     * ".first()" reaches into the wrong control. Anchor on the form that owns
+     * the "Start timer" button and query inside it.
+     */
+    const form = page.locator("form", { has: page.getByRole("button", { name: "Start timer", exact: true }) }).first();
+
+    const nativeSelect = form.locator('select[name="project_id"]').first();
+    if (await nativeSelect.count()) {
+      // Still native (a small enum list, or a future revert): drive it directly.
+      const values = await nativeSelect
         .locator("option")
         .evaluateAll((opts) => opts.map((o) => o.value).filter((v) => v !== ""));
-      if (values.length) await projectSelect.selectOption(values[0]).catch(() => {});
+      if (values.length) await nativeSelect.selectOption(values[0]).catch(() => {});
+    } else {
+      /*
+       * The combobox. Two traps, both of which silently produce "no project":
+       *
+       *  1. The FIRST listbox option is the allowEmpty row ("No project"), so
+       *     clicking blindly picks the empty value and the submit then exercises
+       *     validation instead of the write path.
+       *  2. The popover is portalled to the page, not nested in the form, so the
+       *     options must be queried at page level once the right trigger is open.
+       */
+      const trigger = form.locator('button[aria-haspopup="listbox"]').first();
+      if (await trigger.count()) {
+        await trigger.click().catch(() => {});
+        const options = page.locator('[role="option"]:visible');
+        await options.first().waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+
+        // Pick the first option that is not the empty choice.
+        const count = await options.count();
+        for (let i = 0; i < count; i++) {
+          const option = options.nth(i);
+          const text = ((await option.innerText().catch(() => "")) || "").trim();
+          if (!text || /^No project$/i.test(text)) continue;
+          await option.click().catch(() => {});
+          break;
+        }
+      }
+
+      /*
+       * Confirm a project actually landed in the hidden input. Without this the
+       * negative control can fail for a UI-driving reason while looking like an
+       * authorisation finding -- which is exactly how this gate misled us once.
+       */
+      const chosen = await form
+        .locator('input[type="hidden"][name="project_id"]')
+        .first()
+        .inputValue()
+        .catch(() => "");
+      if (!chosen) {
+        console.log("  note: could not choose a project via the combobox — the negative control below may fail for that reason rather than an auth one");
+      }
     }
   }
 

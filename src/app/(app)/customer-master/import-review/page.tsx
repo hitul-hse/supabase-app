@@ -61,7 +61,18 @@ function caseStatus(reviewCase: ReviewCase) {
 }
 
 export default async function CustomerMasterImportReviewPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireProfile("/customer-master/import-review", ["exec"]);
+  const developmentAuthBypass = process.env.NODE_ENV === "development";
+
+  /**
+   * Local-only development aid: the new Supabase project currently has no
+   * provisioned Auth user, so the read-only review surface must remain
+   * inspectable while its UI is being built. This branch is deliberately
+   * route-local and keyed only by NODE_ENV. Production always requires the
+   * real Supabase session, active app_user_profile, and exec role below.
+   */
+  if (!developmentAuthBypass) {
+    await requireProfile("/customer-master/import-review", ["exec"]);
+  }
   const params = await searchParams;
   const filter = parseFilter(params);
   const data = await getCustomerMasterImportReview(filter);
@@ -85,6 +96,12 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
       />
 
       <div className="flex flex-col gap-5 p-4 sm:p-6">
+        {developmentAuthBypass && (
+          <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border border-[var(--warning)] bg-[var(--warning-wash)] px-4 py-2.5 text-xs text-[var(--warning)]">
+            <span className="font-mono text-[10px] font-semibold tracking-[0.1em]">DEVELOPMENT MODE</span>
+            <span>Auth-Bypass nur für diese lokale, read-only Review-Ansicht aktiv.</span>
+          </div>
+        )}
         {data.error && <div role="alert" className="border border-[var(--critical)] bg-[var(--critical-wash)] px-4 py-3 text-sm text-[var(--critical)]">{data.error}</div>}
 
         <Card tone="hero">

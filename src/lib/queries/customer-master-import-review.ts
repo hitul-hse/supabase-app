@@ -56,7 +56,8 @@ export type ReviewPriority = "P0" | "P1" | "P2";
 export type ReviewCaseType =
   | "LEXWARE_REFERENCE_CONFLICT"
   | "ALIAS_REVIEW"
-  | "LOCATION_REVIEW"
+  | "PROJECT_LOCATION_CANDIDATE"
+  | "MULTI_LOCATION_CUSTOMER"
   | "HISTORICAL_SOURCE_REVIEW"
   | "CUSTOMER_MASTER_REVIEW";
 export type ReviewStatus = "OPEN" | "IN_REVIEW" | "RESOLVED" | "DEFERRED" | "REJECTED";
@@ -77,6 +78,11 @@ export type ReviewCase = {
   updated_at: string;
   resolution_status: ResolutionStatus;
   review_reason: string;
+  location_source: string | null;
+  project_references: string[];
+  customer_name: string | null;
+  location_address: string | null;
+  project_count: number;
   records: ImportRecord[];
   sheet_names: string[];
   review_statuses: string[];
@@ -117,12 +123,48 @@ function sheetName(record: ImportRecord) {
   return String(record.raw_payload.sheet_name ?? "unknown");
 }
 
+function isOperationalLocationRecord(record: ImportRecord) {
+  return ["location_observations", "locations"].includes(sheetName(record));
+}
+
+function isBillingOnlyRecord(record: ImportRecord) {
+  return ["addresses", "billing_address"].includes(sheetName(record));
+}
+
+function projectReferences(records: ImportRecord[]) {
+  const keys = ["project_id", "project_number", "project_name", "order_id", "order_number", "order_name"];
+  return [...new Set(records.flatMap((record) => keys.map((key) => payloadValues(record)[key]).filter((value) => value !== null && value !== undefined && value !== "").map(String)))];
+}
+
+function customerNameFor(records: ImportRecord[]) {
+  const keys = ["canonical_name", "customer_name", "company_name", "name"];
+  for (const record of records) {
+    const values = payloadValues(record);
+    const value = keys.map((key) => values[key]).find((candidate) => candidate !== null && candidate !== undefined && candidate !== "");
+    if (value) return String(value);
+  }
+  return null;
+}
+
+function locationAddressFor(records: ImportRecord[]) {
+  const keys = ["address", "address_line", "street", "street_address", "postal_code", "zip", "city", "location_name"];
+  const values = records.flatMap((record) => {
+    const payload = payloadValues(record);
+    return keys.map((key) => payload[key]).filter((value) => value !== null && value !== undefined && value !== "").map(String);
+  });
+  return [...new Set(values)].join(", ") || null;
+}
+
 function customerId(record: ImportRecord) {
   const value = payloadValues(record).customer_id;
   return value === null || value === undefined || value === "" ? null : String(value);
 }
 
 function caseKey(record: ImportRecord) {
+  if (isOperationalLocationRecord(record)) {
+    const id = customerId(record) ?? record.source_customer_number;
+    if (id) return `location-customer:${id}`;
+  }
   if (record.source_customer_number) return `lexware:${record.source_customer_number}`;
   const id = customerId(record);
   if (id) return `customer:${id}`;
@@ -142,15 +184,16 @@ function hasLexwareReferenceConflict(records: ImportRecord[]) {
 
 function caseType(records: ImportRecord[]): ReviewCase["case_type"] {
   const text = JSON.stringify(records).toUpperCase();
+  const locationRecords = records.filter(isOperationalLocationRecord);
+  if (locationRecords.length > 0 && !text.includes("LEXWARE_REFERENCE_CONFLICT")) {
+    return locationRecords.length > 1 ? "MULTI_LOCATION_CUSTOMER" : "PROJECT_LOCATION_CANDIDATE";
+  }
   if (
     hasLexwareReferenceConflict(records) ||
     text.includes("LEXWARE_REFERENCE_CONFLICT") ||
     text.includes("MULTIPLE LEGAL ENTITY") ||
     text.includes("MULTIPLE_LEGAL_ENTITY")
   ) return "LEXWARE_REFERENCE_CONFLICT";
-  if (records.some((record) => ["locations", "location_review", "location_observations", "addresses"].includes(sheetName(record)))) {
-    return "LOCATION_REVIEW";
-  }
   if (records.some((record) => sheetName(record) === "source_review") || text.includes("HISTORICAL") || text.includes("UNMAPPED")) {
     return "HISTORICAL_SOURCE_REVIEW";
   }
@@ -182,7 +225,7 @@ function priorityFor(reviewCase: Pick<ReviewCase, "case_type" | "records">): Rev
     text.includes("MULTIPLE LEGAL ENTITY") ||
     text.includes("MULTIPLE_LEGAL_ENTITY")
   ) return "P0";
-  if (reviewCase.case_type === "LOCATION_REVIEW" || reviewCase.case_type === "HISTORICAL_SOURCE_REVIEW") return "P2";
+  if (reviewCase.case_type === "PROJECT_LOCATION_CANDIDATE" || reviewCase.case_type === "MULTI_LOCATION_CUSTOMER" || reviewCase.case_type === "HISTORICAL_SOURCE_REVIEW") return "P2";
   return "P1";
 }
 
@@ -197,8 +240,9 @@ function reviewReasonFor(reviewCase: Pick<ReviewCase, "case_type" | "resolution_
   if (reviewCase.resolution_state === "documented" && reviewCase.resolution_note) return reviewCase.resolution_note;
   if (reviewCase.case_type === "LEXWARE_REFERENCE_CONFLICT") return "Eine Lexware-Kundennummer verweist auf mehrere Legal-Entity-Kandidaten.";
   if (reviewCase.case_type === "ALIAS_REVIEW") return "Namensvariante oder historische Firmierung fachlich prüfen.";
+  if (reviewCase.case_type === "PROJECT_LOCATION_CANDIDATE") return "Projekt-/Auftragsbezug enthält einen potenziell operativen Standort.";
+  if (reviewCase.case_type === "MULTI_LOCATION_CUSTOMER") return "Kunde besitzt mehrere operative Standortbezüge.";
   if (reviewCase.case_type === "CUSTOMER_MASTER_REVIEW") return "Allgemeine Legal-Entity-Prüfung fachlich abschließen.";
-  if (reviewCase.case_type === "LOCATION_REVIEW") return "Standortkandidat und Rechnungsadresse fachlich trennen.";
   if (reviewCase.case_type === "HISTORICAL_SOURCE_REVIEW") return "Alte oder nicht zuordenbare Quelle fachlich prüfen.";
   return reviewCase.records.map((record) => record.review_reason).filter(Boolean).join(" · ") || "Fachliche Resolution erforderlich.";
 }
@@ -262,6 +306,11 @@ function buildCases(records: ImportRecord[]) {
         updated_at: "",
         resolution_status: "open",
         review_reason: "",
+        location_source: null,
+        project_references: [],
+        customer_name: null,
+        location_address: null,
+        project_count: 0,
         case_type: "ALIAS_REVIEW",
         records: [record],
         sheet_names: [sheetName(record)],
@@ -277,6 +326,8 @@ function buildCases(records: ImportRecord[]) {
       const normalizedCase = { ...reviewCase, case_type: normalizedCaseType };
       const status = statusFor({ ...normalizedCase, resolution_state: resolution_note ? "documented" : "open" });
       const review_reason = reviewReasonFor({ ...normalizedCase, resolution_state: resolution_note ? "documented" : "open", resolution_note });
+      const locationRecords = normalizedCase.records.filter(isOperationalLocationRecord);
+      const projects = projectReferences(locationRecords);
       return {
         ...normalizedCase,
         priority: priorityFor(normalizedCase),
@@ -288,6 +339,11 @@ function buildCases(records: ImportRecord[]) {
         source_records: normalizedCase.records.map((record) => record.id),
         resolution_status: status.toLowerCase() as ResolutionStatus,
         review_reason,
+        location_source: locationRecords.length > 0 ? [...new Set(locationRecords.map(sheetName))].join(" · ") : null,
+        project_references: projects,
+        customer_name: locationRecords.length > 0 ? customerNameFor(locationRecords) : null,
+        location_address: locationRecords.length > 0 ? locationAddressFor(locationRecords) : null,
+        project_count: projects.length,
       };
     })
     .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.records[0].row_number - b.records[0].row_number);
@@ -360,7 +416,8 @@ export async function getCustomerMasterImportReview(
       `, [batch.id]),
     ]);
 
-    const allCases = buildCases(recordsResult.rows).map((reviewCase) => ({
+    const reviewRecords = recordsResult.rows.filter((record) => !isBillingOnlyRecord(record));
+    const allCases = buildCases(reviewRecords).map((reviewCase) => ({
       ...reviewCase,
       created_at: batch.received_at,
       updated_at: batch.finished_at ?? batch.received_at,

@@ -143,7 +143,9 @@
     "test:admin-user-writes": "node scripts/check-admin-user-writes.mjs",
     "check:contract-periods": "node scripts/check-contract-periods.mjs",
     "check:contract-ui": "node scripts/check-contract-ui.mjs",
-    "check:budget-alerts": "node scripts/check-budget-alerts.mjs"
+    "check:budget-alerts": "node scripts/check-budget-alerts.mjs",
+    "check:paste-sql": "node scripts/check-paste-sql.mjs",
+    "verify:migrations": "node scripts/verify-migrations-applied.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

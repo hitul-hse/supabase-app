@@ -5,11 +5,13 @@ import { Card, CardHeader, StatTile } from "@/components/ui/Card";
 import type { ManagementContractHours, ManagementPerson } from "@/lib/queries/management-contract-hours";
 import { ANNUAL_PLAN_HOURS, PEOPLE } from "@/lib/queries/management-contract-hours";
 import type { EmployeeOwnershipRow } from "@/lib/queries/management-employee-ownership";
+import type { ManagementDataQualityRow } from "@/lib/queries/management-data-quality";
 import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
+import { ManagementDataQuality } from "./ManagementDataQuality";
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 
-export function ManagementMatrix({ model, ownershipRows }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[] }) {
+export function ManagementMatrix({ model, ownershipRows, dataQualityRows }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[] }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   const totalByPerson = Object.fromEntries(
     PEOPLE.map((person) => [person, model.rows.reduce((sum, row) => sum + row.cells[person], 0)]),
@@ -28,6 +30,8 @@ export function ManagementMatrix({ model, ownershipRows }: { model: ManagementCo
       </div>
 
       <EmployeeOwnershipOverview rows={ownershipRows} />
+
+      <ManagementDataQuality rows={dataQualityRows} />
 
       <Card className="overflow-hidden">
         <CardHeader title="Auslastungsausblick" qualifier={`GEBUNDENE VERTRAGSSTUNDEN / ${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} PLANSTUNDEN · 75% BILLABLE CAPACITY`} />

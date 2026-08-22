@@ -63,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "ADMIN",
     items: [
+      { href: "/customer-master/import-review", label: "Customer Master", roles: ["exec"] },
       { href: "/admin/users", label: "Users & Roles",    roles: ["exec", "dept_head"] },
       { href: "/admin/roles", label: "Role Permissions", roles: ["exec", "dept_head"] },
     ],

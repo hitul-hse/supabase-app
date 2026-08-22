@@ -248,6 +248,10 @@ async function checkBudget(
       .select("id, duration_seconds")
       .eq("project_id", projectId)
       .not("duration_seconds", "is", null)
+      // Ordered: this sum decides whether a booking is REFUSED, so a paging
+      // race that under-counts would let an overbooking through (and one that
+      // over-counts would block honest work).
+      .order("id", { ascending: true })
       .range(page * 1000, page * 1000 + 999);
     const { data, error } = await q;
     if (error || !data) break;

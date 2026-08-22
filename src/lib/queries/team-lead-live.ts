@@ -433,6 +433,8 @@ export async function getLiveTeamLeadBoard(
         .eq("is_calendar", false)
         .gte("started_at", `${windowStart}T00:00:00Z`)
         .lte("started_at", `${effTo}T23:59:59Z`)
+        // Ordered: unordered paging repeats and skips rows.
+        .order("id", { ascending: true })
         .range(from, to),
     ).catch(() => emptyPaged),
     fetchAllPaged<MomRow>((from, to) =>
@@ -443,6 +445,8 @@ export async function getLiveTeamLeadBoard(
         .eq("is_calendar", false)
         .gte("started_at", `${prevMonthStart}T00:00:00Z`)
         .lte("started_at", `${today}T23:59:59Z`)
+        // Ordered: unordered paging repeats and skips rows.
+        .order("id", { ascending: true })
         .range(from, to),
     ).catch(() => emptyMom),
     timeSchema(supabase).from("service").select("id, is_travel, is_paid_travel, is_internal"),

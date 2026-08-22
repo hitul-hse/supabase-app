@@ -292,6 +292,9 @@ export async function fetchExcludedCalendarSeconds(
         // The one difference from fetchAllEntries: this asks for exactly the
         // rows that call excludes.
         .eq("is_calendar", true)
+        // Ordered so the calendar-exclusion total is reproducible; unordered
+        // paging made the same query return different sums run to run.
+        .order("id", { ascending: true })
         .range(from, to);
 
       if (filters.memberIds.length) q = q.in("member_id", filters.memberIds);

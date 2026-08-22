@@ -110,6 +110,10 @@ const ours = [];
       .gte("started_at", `${FROM}T00:00:00.000Z`)
       .lt("started_at", toExcl.toISOString())
       .not("duration_seconds", "is", null)
+      // Ordered, and this is the bug that made this gate fail CI: without it
+      // the walk fetched 299 duplicate rows out of 5,299 and reported 8,208.4h
+      // against the vendor's 8,409h. The data was right; the read was not.
+      .order("id", { ascending: true })
       .range(off, off + 999);
     if (error) throw new Error(error.message);
     if (!data?.length) break;

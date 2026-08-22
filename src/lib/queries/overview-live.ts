@@ -43,7 +43,18 @@ import {
   getMemberUtilisation,
   type OrgWeekRow,
 } from "./time-dashboard";
-import { getRosterCounts } from "./people-live";
+import { getRosterCounts, isSharedMailbox } from "./people-live";
+import {
+  boardRangeForPreset,
+  isoWeekMonday,
+  isoWeekNumber,
+  teamKey,
+  type BoardPreset,
+  type BoardRange,
+} from "./team-lead-live";
+import { fetchAllPaged } from "./paged";
+import { secondsToHours } from "@/lib/time-transform";
+import { teamLabel } from "@/lib/teams";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -55,6 +66,119 @@ export const OVERVIEW_WEEKS = 12;
 
 /** Rows in the landing page's project ledger. The full list lives at /projects. */
 const LEDGER_ROWS = 8;
+
+/**
+ * The Overview's period filter reuses the Team Lead board's range grammar --
+ * the SAME presets, the same custom from/to parsing, the same URL keys. Two
+ * filter surfaces one click apart that disagree about what "?range=month"
+ * means is a worse defect than either surface lacking a control, because the
+ * reader has no way to tell which dialect they are reading.
+ *
+ * Only the DEFAULT differs, and deliberately: the board defaults to 4 weeks
+ * because a lead reads the near term, and this page defaults to the 12 weeks
+ * it has always shown, so a reader who never touches the filter sees exactly
+ * what they saw before.
+ */
+export type OverviewPreset = BoardPreset;
+export type OverviewRange = BoardRange;
+
+/** The preset that reproduces the historical hardcoded window. */
+export const OVERVIEW_DEFAULT_PRESET: OverviewPreset = "12w";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const PRESET_KEYS: OverviewPreset[] = [
+  "4w",
+  "12w",
+  "26w",
+  "month",
+  "prev-month",
+  "year",
+];
+
+/**
+ * The URL value for "people with no team recorded".
+ *
+ * A sentinel rather than an empty string, because empty means "no filter" and
+ * the no-team bucket is a REAL, selectable population -- 14 of the 19 people on
+ * the roster are in it. Hiding them behind "all teams" would make the one
+ * honest answer to "who is unassigned?" unreachable from this page.
+ *
+ * Lowercase, while every real team key is uppercased by teamKey(), so the
+ * sentinel cannot collide with a stored team value.
+ */
+export const NO_TEAM = "none";
+
+/** Parse the URL into an Overview range. Same precedence as parseBoardRange. */
+export function parseOverviewRange(params: {
+  range?: string;
+  from?: string;
+  to?: string;
+}): OverviewRange {
+  const { from, to } = params;
+  if (from && to && ISO_DATE.test(from) && ISO_DATE.test(to) && from <= to) {
+    return { from, to, preset: null };
+  }
+  const named = params.range as OverviewPreset | undefined;
+  if (named && PRESET_KEYS.includes(named)) return boardRangeForPreset(named);
+  return boardRangeForPreset(OVERVIEW_DEFAULT_PRESET);
+}
+
+/**
+ * Parse the team parameter. Anything unrecognised falls back to "all teams",
+ * because a filter must never be able to empty the page.
+ */
+export function parseOverviewTeam(raw: string | undefined): string | null {
+  if (!raw) return null;
+  if (raw.toLowerCase() === NO_TEAM) return NO_TEAM;
+  return teamKey(raw);
+}
+
+/** One selectable team on the filter bar, with the headcount behind it. */
+export type OverviewTeamOption = {
+  /** Stored team key, or NO_TEAM for the unassigned bucket. */
+  key: string;
+  label: string;
+  /** People on the roster carrying this team. */
+  people: number;
+};
+
+/**
+ * How much of the roster the active team filter actually covers.
+ *
+ * Stated on screen because only 5 of 19 people have a team recorded: without
+ * the denominator, filtering to Tech makes every figure collapse and looks
+ * exactly like a business emergency rather than like missing metadata.
+ */
+export type OverviewTeamCoverage = {
+  /** People on the roster (non-archived, excluding shared mailboxes). */
+  totalPeople: number;
+  /** Of those, how many carry any team at all. */
+  withTeam: number;
+  /** Of those, how many match the active filter. null when no filter. */
+  inSelected: number | null;
+};
+
+/**
+ * Which figures on the page could NOT be narrowed to the selected period, and
+ * therefore have to say so.
+ *
+ * The rule this encodes: a page may mix scopes, but it may never mix them
+ * SILENTLY. Every flag here has a visible label attached at the render site.
+ */
+export type OverviewScopeNotes = {
+  /** Per-person utilisation comes from time.member_utilisation: all time. */
+  utilisationAllTime: boolean;
+  /** The project ledger comes from time.project_summary: all time. */
+  projectsAllTime: boolean;
+  /** Header counts (projects, customers) are table counts, not period figures. */
+  countsAllTime: boolean;
+  /**
+   * True when the weekly figures were snapped out to whole ISO weeks because
+   * the requested range starts or ends mid-week. time.org_week aggregates by
+   * week, so a mid-week boundary cannot be honoured to the day.
+   */
+  snappedToWholeWeeks: boolean;
+};
 
 /**
  * A single KPI card.
@@ -83,6 +207,8 @@ export type TeamUtilisation = {
   hours: number;
   weeksActive: number;
   tone: "neutral" | "good" | "warning" | "critical";
+  /** The person's team, or null when nobody recorded one. */
+  team: string | null;
 };
 
 export type OverviewProject = {
@@ -109,6 +235,16 @@ export type OverviewData = {
   };
   /** People with a TrackingTime record but no Hub sign-in. */
   unlinkedPeople: number;
+  /** The period every weekly figure on the page covers. */
+  range: OverviewRange;
+  /** ISO week labels of the first and last week actually counted, or null. */
+  coveredWeeks: { first: string; last: string; count: number } | null;
+  /** The active team filter: a team key, NO_TEAM, or null for all teams. */
+  team: string | null;
+  /** Teams offered by the filter, including the no-team bucket. */
+  teamOptions: OverviewTeamOption[];
+  teamCoverage: OverviewTeamCoverage;
+  scopeNotes: OverviewScopeNotes;
 };
 
 /** One decimal, thousands-separated the way the rest of the app formats hours. */
@@ -152,12 +288,46 @@ function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
  * the old behaviour: empty now renders "n/a", where before it silently
  * substituted invented numbers.
  */
-export async function getLiveOverview(supabase: SupabaseTyped): Promise<OverviewData> {
-  const [weeks, projectRows, memberRows, customerCount, projectCount, roster] =
+export async function getLiveOverview(
+  supabase: SupabaseTyped,
+  opts: { range?: OverviewRange; team?: string | null } = {},
+): Promise<OverviewData> {
+  /*
+   * No range asked for means the historical window, expressed through the
+   * constant rather than a literal 12 so existing callers and the trend-window
+   * check keep reading the same source of truth.
+   */
+  const range = opts.range ?? boardRangeForPreset(OVERVIEW_DEFAULT_PRESET);
+  const team = opts.team ?? null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  // Whole ISO weeks: time.org_week aggregates by week, so a mid-week boundary
+  // cannot be honoured to the day. Snapping OUTWARDS (Monday of the start week
+  // to Sunday of the end week) rather than inwards, because dropping a partial
+  // week would silently discard logged hours the reader asked to see.
+  const firstMonday = isoWeekMonday(range.from);
+  const lastMonday = isoWeekMonday(range.to <= today ? range.to : today);
+  const snappedToWholeWeeks =
+    firstMonday !== range.from || !isSundayOfWeek(range.to <= today ? range.to : today);
+
+  const [rangedWeeks, projectRows, memberRows, memberMeta, customerCount, projectCount, roster] =
     await Promise.all([
-      getOrgWeeks(supabase, OVERVIEW_WEEKS),
+      /*
+       * The default window still goes through getOrgWeeks(supabase,
+       * OVERVIEW_WEEKS) -- the ordering contract (DESC + limit + reverse, see
+       * check-trend-window) lives there and a hand-rolled second query would
+       * not inherit it. A CHOSEN period cannot use a row limit at all, because
+       * "last month" is a date bound and not a count of the newest rows, so it
+       * takes the date-bounded read below, which reuses the same mapping.
+       */
+      isDefaultWindow(range)
+        ? getOrgWeeks(supabase, OVERVIEW_WEEKS)
+        : getOrgWeeksBetween(supabase, firstMonday, lastMonday),
       getProjectSummary(supabase, { limit: LEDGER_ROWS }),
       getMemberUtilisation(supabase),
+      // Team lives on time.member, not on the utilisation view, so the filter
+      // needs its own (small) read of the roster's team column.
+      getMemberTeams(supabase),
       countRows(supabase, "customer"),
       // The ledger's own length is NOT the project count. It is capped at
       // LEDGER_ROWS, so using it in the header claimed "8 ACTIVE PROJECTS" for an
@@ -170,15 +340,47 @@ export async function getLiveOverview(supabase: SupabaseTyped): Promise<Overview
       getRosterCounts(supabase),
     ]);
 
+  /*
+   * TEAM SCOPING OF THE WEEKLY FIGURES.
+   *
+   * time.org_week has no team column -- it groups entries by week and nothing
+   * else -- so a team-scoped weekly series has to be rebuilt from time.entry
+   * joined to the roster's team. That read only happens when a team filter is
+   * ACTIVE: with no filter the page keeps reading the same view it always did,
+   * so the unfiltered figures are byte-for-byte what production shows today.
+   *
+   * getTeamWeeks deliberately applies the SAME rules as the view (every entry
+   * with a duration, calendar events included, aggregated to the ISO week) so
+   * that switching the team filter on and off cannot change what "hours
+   * logged" means underneath the reader.
+   */
+  const teamMemberIds =
+    team === null ? null : memberIdsForTeam(memberMeta, team);
+
+  const weeks =
+    teamMemberIds === null
+      ? rangedWeeks
+      : await getTeamWeeks(supabase, firstMonday, lastMonday, teamMemberIds);
+
   const totals = summariseOrgWeeks(weeks);
+  const rangeWeekCount = Math.max(1, weeksBetween(firstMonday, lastMonday));
 
   // Contracted capacity across the window, from each person's own weekly_hours
   // rather than an assumed 40. Only weeks a person was ACTUALLY active count --
   // see getMemberUtilisation for why dividing by the full window misrepresents
   // anyone who joined partway through.
+  //
+  // Capped at the weeks in the SELECTED period rather than a constant 12: with
+  // a one-month filter, crediting somebody twelve weeks of capacity would make
+  // the tracked-over-contracted ratio a third of the truth.
+  const utilisationRows =
+    teamMemberIds === null
+      ? memberRows
+      : memberRows.filter((m) => teamMemberIds.has(m.memberId));
+
   let contractedHours = 0;
-  for (const m of memberRows) {
-    contractedHours += m.weeklyHours * Math.min(m.weeksActive, OVERVIEW_WEEKS);
+  for (const m of utilisationRows) {
+    contractedHours += m.weeklyHours * Math.min(m.weeksActive, rangeWeekCount);
   }
 
   const overBudget = projectRows.filter(
@@ -208,7 +410,11 @@ export async function getLiveOverview(supabase: SupabaseTyped): Promise<Overview
       subtext:
         totals.weeksCovered > 0
           ? `${totals.weeksCovered} WEEKS · ${totals.entryCount.toLocaleString("de-DE")} ENTRIES`
-          : "NO DATA IMPORTED YET",
+          : team === null
+            ? "NO DATA IMPORTED YET"
+            : // A team filter emptying a figure is a different fact from an
+              // empty database, and it must not read as one.
+              "NO HOURS FOR THIS TEAM IN PERIOD",
       tone: "neutral",
       progressPercent: null,
     },
@@ -221,7 +427,7 @@ export async function getLiveOverview(supabase: SupabaseTyped): Promise<Overview
           : null,
       subtext:
         contractedHours > 0
-          ? `${Math.round((totals.trackedSeconds / 3600 / contractedHours) * 100)}% OF CONTRACTED`
+          ? `${Math.round((totals.trackedSeconds / 3600 / contractedHours) * 100)}% OF ${rangeWeekCount} WEEKS NOMINAL`
           : "NO CONTRACTED HOURS ON RECORD",
       tone: "neutral",
       progressPercent:
@@ -255,18 +461,22 @@ export async function getLiveOverview(supabase: SupabaseTyped): Promise<Overview
           : // Naming the unbudgeted count matters: "0 over budget" sounds like
             // health, but it is meaningless if most projects have no budget to
             // exceed. The reader needs the denominator's caveat.
-            `OF TOP ${projectRows.length} BY HOURS · ${noBudget} WITH NO BUDGET`,
+            // "ALL TIME" is not decoration: project_summary is not period-bounded,
+            // so this count sits beside period figures and would otherwise be read
+            // as one of them.
+            `ALL TIME · TOP ${projectRows.length} BY HOURS · ${noBudget} WITH NO BUDGET`,
       tone: overBudget > 0 ? "critical" : "neutral",
       progressPercent: null,
     },
   ];
 
-  const teams: TeamUtilisation[] = memberRows.slice(0, 6).map((m) => ({
+  const teams: TeamUtilisation[] = utilisationRows.slice(0, 6).map((m) => ({
     name: m.displayName,
     percent: m.utilisationPercent,
     hours: m.totalHours,
     weeksActive: m.weeksActive,
     tone: utilisationTone(m.utilisationPercent),
+    team: memberMeta.get(m.memberId)?.team ?? null,
   }));
 
   const projects: OverviewProject[] = projectRows.map((p) => ({
@@ -283,11 +493,37 @@ export async function getLiveOverview(supabase: SupabaseTyped): Promise<Overview
   const now = new Date();
   const quarter = Math.ceil((now.getUTCMonth() + 1) / 3);
 
+  const rosterPeople = [...memberMeta.values()];
+  const withTeam = rosterPeople.filter((m) => m.team !== null).length;
+  const teamOptions = buildTeamOptions(rosterPeople);
+
   return {
     metrics,
     weeks,
     teams,
     projects,
+    range,
+    coveredWeeks:
+      weeks.length > 0
+        ? {
+            first: `W${isoWeekNumber(weeks[0].weekStart)}`,
+            last: `W${isoWeekNumber(weeks[weeks.length - 1].weekStart)}`,
+            count: weeks.length,
+          }
+        : null,
+    team,
+    teamOptions,
+    teamCoverage: {
+      totalPeople: rosterPeople.length,
+      withTeam,
+      inSelected: teamMemberIds === null ? null : teamMemberIds.size,
+    },
+    scopeNotes: {
+      utilisationAllTime: true,
+      projectsAllTime: true,
+      countsAllTime: true,
+      snappedToWholeWeeks,
+    },
     counts: {
       activeMembers: roster.activePeople,
       activeProjects: projectCount,
@@ -296,6 +532,264 @@ export async function getLiveOverview(supabase: SupabaseTyped): Promise<Overview
     },
     unlinkedPeople: roster.unlinkedPeople,
   };
+}
+
+/** True when `iso` is the Sunday closing its ISO week. */
+function isSundayOfWeek(iso: string): boolean {
+  return new Date(`${iso}T00:00:00Z`).getUTCDay() === 0;
+}
+
+/** Whole ISO weeks between two Mondays, inclusive. */
+function weeksBetween(firstMonday: string, lastMonday: string): number {
+  const a = new Date(`${firstMonday}T00:00:00Z`).getTime();
+  const b = new Date(`${lastMonday}T00:00:00Z`).getTime();
+  return Math.round((b - a) / 604_800_000) + 1;
+}
+
+/**
+ * Is this the window the page has always shown?
+ *
+ * Only then may the row-limited read be used. The check is on the RESOLVED
+ * dates, not on `preset`, so a hand-typed URL that happens to reproduce the
+ * default window behaves identically to clicking the default pill.
+ */
+function isDefaultWindow(range: OverviewRange): boolean {
+  const dflt = boardRangeForPreset(OVERVIEW_DEFAULT_PRESET);
+  return range.from === dflt.from && range.to === dflt.to;
+}
+
+/** The team of every person on the roster, keyed by TrackingTime member id. */
+type MemberTeam = { memberId: number; name: string; team: string | null };
+
+/**
+ * Read the roster's team column.
+ *
+ * Shared mailboxes (info@, jobs@) are dropped: they hold member records but are
+ * not colleagues, and counting them would inflate the "x of y people" coverage
+ * figure the team filter reports.
+ */
+async function getMemberTeams(
+  supabase: SupabaseTyped,
+): Promise<Map<number, MemberTeam>> {
+  const out = new Map<number, MemberTeam>();
+  try {
+    const { data, error } = await timeSchema(supabase)
+      .from("member")
+      .select("id, display_name, email, is_archived, team");
+    if (error || !data) return out;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const r of data as any[]) {
+      if (r.is_archived) continue;
+      if (isSharedMailbox(r.email ?? null)) continue;
+      out.set(Number(r.id), {
+        memberId: Number(r.id),
+        name: r.display_name ?? "Unknown",
+        // Normalised through teamKey so "Operations" and "OPERATIONS" are one
+        // team on the filter bar rather than two.
+        team: teamKey(r.team ?? null),
+      });
+    }
+    return out;
+  } catch {
+    return out;
+  }
+}
+
+/** The member ids matching a team selection (NO_TEAM = team is unrecorded). */
+function memberIdsForTeam(
+  roster: Map<number, MemberTeam>,
+  team: string,
+): Set<number> {
+  const ids = new Set<number>();
+  for (const m of roster.values()) {
+    if (team === NO_TEAM ? m.team === null : m.team === team) ids.add(m.memberId);
+  }
+  return ids;
+}
+
+/**
+ * The teams to offer, biggest first, with the no-team bucket always present.
+ *
+ * Built from the teams ACTUALLY STORED rather than from the canonical list in
+ * lib/teams.ts, because the live roster still carries legacy values and a
+ * filter offering a team nobody is in -- or hiding one somebody is in -- would
+ * misdescribe the data it filters.
+ */
+function buildTeamOptions(roster: MemberTeam[]): OverviewTeamOption[] {
+  const counts = new Map<string, number>();
+  let none = 0;
+  for (const m of roster) {
+    if (m.team === null) none += 1;
+    else counts.set(m.team, (counts.get(m.team) ?? 0) + 1);
+  }
+  const options: OverviewTeamOption[] = [...counts.entries()]
+    .map(([key, people]) => ({ key, label: teamLabel(key), people }))
+    .sort((a, b) => b.people - a.people || a.label.localeCompare(b.label));
+
+  // Always offered, even at zero: its absence would be indistinguishable from
+  // "everybody has a team", which is the opposite of what the data says.
+  options.push({ key: NO_TEAM, label: "No team recorded", people: none });
+  return options;
+}
+
+/**
+ * The weekly series for an arbitrary date range.
+ *
+ * A date bound, NOT a row limit: "last month" is a pair of dates, and
+ * `limit(n)` would return the n newest weeks regardless of the period asked
+ * for. Rows come back ascending here, so no reverse is needed -- the ordering
+ * hazard getOrgWeeks guards against belongs to limit+order, and there is no
+ * limit on this read.
+ */
+async function getOrgWeeksBetween(
+  supabase: SupabaseTyped,
+  firstMonday: string,
+  lastMonday: string,
+): Promise<OrgWeekRow[]> {
+  try {
+    const { data, error } = await timeSchema(supabase)
+      .from("org_week")
+      .select("*")
+      .gte("week_start", firstMonday)
+      .lte("week_start", lastMonday)
+      .order("week_start", { ascending: true });
+    if (error || !data) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any[]).map((r) => {
+      const totalSeconds = num(r.total_seconds);
+      const billableSeconds = num(r.billable_seconds);
+      return {
+        weekStart: String(r.week_start).slice(0, 10),
+        totalSeconds,
+        billableSeconds,
+        calendarSeconds: num(r.calendar_seconds),
+        trackedSeconds: num(r.tracked_seconds),
+        entryCount: num(r.entry_count),
+        activeMembers: num(r.active_members),
+        activeProjects: num(r.active_projects),
+        totalHours: secondsToHours(totalSeconds),
+        billableHours: secondsToHours(billableSeconds),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The weekly series restricted to one team, rebuilt from time.entry.
+ *
+ * Same aggregation rules as time.org_week -- every entry with a duration,
+ * calendar events INCLUDED, grouped by ISO week Monday -- so the team-scoped
+ * figures answer the same question as the org-wide ones. Excluding calendar
+ * entries here would make a team filter look like it halved the hours.
+ */
+async function getTeamWeeks(
+  supabase: SupabaseTyped,
+  firstMonday: string,
+  lastMonday: string,
+  memberIds: Set<number>,
+): Promise<OrgWeekRow[]> {
+  if (memberIds.size === 0) return [];
+
+  // The window's last day: the Sunday closing the final week, matching
+  // org_week's whole-week rows rather than clipping at today.
+  const lastDay = new Date(`${lastMonday}T00:00:00Z`);
+  lastDay.setUTCDate(lastDay.getUTCDate() + 6);
+  const to = lastDay.toISOString().slice(0, 10);
+
+  type EntryRow = {
+    member_id: number | null;
+    project_id: number | null;
+    duration_seconds: number | null;
+    started_at: string | null;
+    is_billable: boolean | null;
+    is_calendar: boolean | null;
+  };
+
+  let rows: EntryRow[];
+  try {
+    const paged = await fetchAllPaged<EntryRow>((from, upto) =>
+      timeSchema(supabase)
+        .from("entry")
+        .select(
+          "member_id, project_id, duration_seconds, started_at, is_billable, is_calendar",
+        )
+        .not("duration_seconds", "is", null)
+        .in("member_id", [...memberIds])
+        .gte("started_at", `${firstMonday}T00:00:00Z`)
+        .lte("started_at", `${to}T23:59:59Z`)
+        // Ordered so paging is deterministic: an unordered range() walk can
+        // repeat and skip rows (measured: 299 duplicates in a 5,299-row read).
+        .order("id", { ascending: true })
+        .range(from, upto),
+    );
+    rows = paged.rows;
+  } catch {
+    return [];
+  }
+
+  type Acc = {
+    total: number;
+    billable: number;
+    calendar: number;
+    tracked: number;
+    entries: number;
+    members: Set<number>;
+    projects: Set<number>;
+  };
+  const byWeek = new Map<string, Acc>();
+
+  for (const r of rows) {
+    const day = (r.started_at ?? "").slice(0, 10);
+    if (!day) continue;
+    const memberId = r.member_id === null ? null : Number(r.member_id);
+    if (memberId === null || !memberIds.has(memberId)) continue;
+
+    const week = isoWeekMonday(day);
+    let acc = byWeek.get(week);
+    if (!acc) {
+      acc = {
+        total: 0,
+        billable: 0,
+        calendar: 0,
+        tracked: 0,
+        entries: 0,
+        members: new Set(),
+        projects: new Set(),
+      };
+      byWeek.set(week, acc);
+    }
+    const seconds = Number(r.duration_seconds) || 0;
+    acc.total += seconds;
+    if (r.is_billable) acc.billable += seconds;
+    if (r.is_calendar) acc.calendar += seconds;
+    else acc.tracked += seconds;
+    acc.entries += 1;
+    acc.members.add(memberId);
+    if (r.project_id !== null) acc.projects.add(Number(r.project_id));
+  }
+
+  return [...byWeek.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([weekStart, a]) => ({
+      weekStart,
+      totalSeconds: a.total,
+      billableSeconds: a.billable,
+      calendarSeconds: a.calendar,
+      trackedSeconds: a.tracked,
+      entryCount: a.entries,
+      activeMembers: a.members.size,
+      activeProjects: a.projects.size,
+      totalHours: secondsToHours(a.total),
+      billableHours: secondsToHours(a.billable),
+    }));
+}
+
+/** Numeric coercion for PostgREST payloads, mirroring time-dashboard's `num`. */
+function num(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**

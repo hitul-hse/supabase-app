@@ -348,6 +348,9 @@ async function getAssignments(
         .from("entry")
         .select("member_id, project_id, duration_seconds, is_billable, project:project_id(name)")
         .not("duration_seconds", "is", null)
+        // Ordered so paging is deterministic (see paged.ts): without it,
+        // pages can repeat and skip rows and every per-person total drifts.
+        .order("id", { ascending: true })
         .range(from, to);
       if (memberIds !== null) q = q.in("member_id", memberIds);
       return q;

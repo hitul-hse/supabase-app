@@ -103,3 +103,4 @@ docs/discovery/
 # of somebody else's code, and regenerable with .v3code/sync-claude-skills.ps1.
 .v3code/
 .claude/settings.json.graphify-bak  
+.context-bridge/colleague-chatgpt-conversation.txt 

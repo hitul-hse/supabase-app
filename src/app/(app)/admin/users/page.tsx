@@ -20,6 +20,11 @@ export default async function AdminUsersPage() {
   // manager and watch the grant have no effect.
   await requirePermission("/admin/users", PERMISSIONS.ADMIN_USERS_READ);
   const canEdit = await userHasPermission(PERMISSIONS.ADMIN_USERS_WRITE);
+  // A SEPARATE key from the two above. The per-person record at
+  // /admin/users/[userId] is gated on admin:profiles:read, so the link to it is
+  // shown on exactly that basis -- reusing canEdit would offer a link that
+  // redirects straight back here, or hide it from an auditor entitled to it.
+  const canManageProfile = await userHasPermission(PERMISSIONS.ADMIN_PROFILES_READ);
   const supabase = await createClient();
 
   const [profiles, roles] = await Promise.all([
@@ -121,6 +126,7 @@ export default async function AdminUsersPage() {
                 createdAt={p.createdAt}
                 roles={roles}
                 canEdit={canEdit}
+                canManageProfile={canManageProfile}
                 hasSignedIn={signedInByUserId.has(p.userId) ? signedInByUserId.get(p.userId)! : null}
               />
             ))

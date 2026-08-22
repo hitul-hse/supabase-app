@@ -25,6 +25,17 @@ interface Props {
    * know -- so the control is hidden rather than shown on a guess.
    */
   hasSignedIn: boolean | null;
+  /**
+   * Whether the viewer holds admin:profiles:read, i.e. whether the per-person
+   * admin page is reachable for them at all.
+   *
+   * Separate from canEdit on purpose: this list's own writes are gated on
+   * admin:users:write, and the per-person record is a DIFFERENT key
+   * (admin:profiles:read for the page, two more for its writes). Reusing canEdit
+   * would either hide the link from an auditor who is entitled to it, or offer a
+   * link that redirects straight back here.
+   */
+  canManageProfile: boolean;
 }
 
 /**
@@ -34,7 +45,7 @@ interface Props {
  */
 export function UserRow({
   userId, email, roleKey, roleDisplayName, department, personName,
-  isActive, createdAt, roles, canEdit, hasSignedIn,
+  isActive, createdAt, roles, canEdit, hasSignedIn, canManageProfile,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [localActive, setLocalActive] = useState(isActive);
@@ -212,8 +223,27 @@ export function UserRow({
    */
   const showResend = canEdit && !deleted && hasSignedIn === false;
 
+  /*
+   * MANAGE -- the way into this person's own record.
+   *
+   * Discreet and text-weight rather than a button: it is navigation, not one of
+   * this row's actions, and it must not compete with REMOVE for the eye. Shown
+   * only with admin:profiles:read, and never for a removed account, whose page
+   * would 404 the moment the list re-renders.
+   */
+  const manageLink = canManageProfile && !deleted ? (
+    <a
+      href={`/admin/users/${userId}`}
+      aria-label={`Manage the record of ${email || "this account"}`}
+      className="rounded-[var(--radius-sm)] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.06em] text-[var(--text-muted)] underline decoration-[var(--border)] underline-offset-2 transition-colors hover:text-[var(--accent)] hover:decoration-[var(--accent)] pointer-coarse:min-h-[32px] pointer-coarse:px-3"
+    >
+      MANAGE
+    </a>
+  ) : null;
+
   const actionButtons = (
     <div className="flex flex-wrap items-center gap-1.5">
+      {manageLink}
       {showResend && (
         <button
           onClick={handleResend}
@@ -366,7 +396,7 @@ export function UserRow({
           </div>
         </div>
 
-        {canEdit && actionButtons}
+        {(canEdit || manageLink) && actionButtons}
       </div>
 
       {/* Desktop table row — shown from sm up */}
@@ -408,7 +438,9 @@ export function UserRow({
             </span>
           )}
           {linkPanel}
-          {canEdit ? actionButtons : new Date(createdAt).toLocaleDateString("de-DE")}
+          {canEdit || manageLink
+            ? actionButtons
+            : new Date(createdAt).toLocaleDateString("de-DE")}
         </span>
       </div>
     </>

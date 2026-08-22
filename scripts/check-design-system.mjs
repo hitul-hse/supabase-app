@@ -312,6 +312,12 @@ for (const [f, expected] of [
   // error branch silently unannounced — which is the branch that matters.
   ["src/app/(app)/admin/users/InviteUserForm.tsx", 2],
   ["src/app/(app)/admin/users/UserRow.tsx", 2],
+  // The per-person admin record (/admin/users/[userId]): two profile-level forms
+  // and a per-entry editor, each announcing its own result. Counted rather than
+  // merely present, because the failure branch -- a refused permission, an
+  // invoiced entry -- is the branch that must not be silent.
+  ["src/app/(app)/admin/users/[userId]/ProfileEditForms.tsx", 2],
+  ["src/app/(app)/admin/users/[userId]/EntryRow.tsx", 2],
   ["src/app/(app)/leave/MyLeavePanel.tsx", 2],
   ["src/components/AuthShell.tsx", 1],
 ]) {
@@ -328,6 +334,26 @@ check("admin status toggle carries aria-pressed", /aria-pressed=\{localActive\}/
 check("admin row shows the error text, not a title tooltip", !/title=\{error\}/.test(userRow));
 // Both branches must render the message itself. The desktop row previously
 // showed the literal word "Error" and hid the reason in a title= tooltip.
+/*
+ * A live-region role must be a literal, never swapped on a condition.
+ *
+ * role={error ? "alert" : "status"} looks like the careful version and is the
+ * regression: assistive tech classifies the node when it mounts, so the swapped
+ * role is announced as whatever it was first, or not at all. The fix is two
+ * elements with fixed roles, which is what these files do.
+ */
+for (const f of [
+  "src/app/(app)/admin/users/UserRow.tsx",
+  "src/app/(app)/admin/users/[userId]/ProfileEditForms.tsx",
+  "src/app/(app)/admin/users/[userId]/EntryRow.tsx",
+]) {
+  check(
+    `${f} keeps live-region roles static`,
+    !/role=\{/.test(readStripped(f)),
+    "a role computed at render time is not reliably announced",
+  );
+}
+
 check("admin row renders the error message itself", (userRow.match(/\{error\}/g) ?? []).length >= 2);
 
 // ---------------------------------------------------------------------------

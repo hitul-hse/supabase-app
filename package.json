@@ -140,7 +140,8 @@
     "test:deploy-skew": "node scripts/check-deploy-skew.mjs",
     "check:people-filters-ui": "node scripts/check-people-and-filters-ui.mjs",
     "test:profile-grants": "node scripts/check-profile-grants.mjs",
-    "test:admin-user-writes": "node scripts/check-admin-user-writes.mjs"
+    "test:admin-user-writes": "node scripts/check-admin-user-writes.mjs",
+    "check:contract-periods": "node scripts/check-contract-periods.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

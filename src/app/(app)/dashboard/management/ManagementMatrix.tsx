@@ -4,10 +4,12 @@ import { useState } from "react";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
 import type { ManagementContractHours, ManagementPerson } from "@/lib/queries/management-contract-hours";
 import { ANNUAL_PLAN_HOURS, PEOPLE } from "@/lib/queries/management-contract-hours";
+import type { EmployeeOwnershipRow } from "@/lib/queries/management-employee-ownership";
+import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 
-export function ManagementMatrix({ model }: { model: ManagementContractHours }) {
+export function ManagementMatrix({ model, ownershipRows }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[] }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   const totalByPerson = Object.fromEntries(
     PEOPLE.map((person) => [person, model.rows.reduce((sum, row) => sum + row.cells[person], 0)]),
@@ -24,6 +26,8 @@ export function ManagementMatrix({ model }: { model: ManagementContractHours }) 
         <StatTile label="PROJEKTE IM READ MODEL" value={model.projectCount} hint="public.projects · keine Dummy-Daten" />
         <StatTile label="AUSLASTUNGSAUSBLICK" value={fmt(overallUtilisation)} unit="%" hint="1.304 Planstunden/Jahr je Mitarbeiter" data-metric="management-utilisation-outlook" />
       </div>
+
+      <EmployeeOwnershipOverview rows={ownershipRows} />
 
       <Card className="overflow-hidden">
         <CardHeader title="Auslastungsausblick" qualifier={`GEBUNDENE VERTRAGSSTUNDEN / ${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} PLANSTUNDEN · 75% BILLABLE CAPACITY`} />

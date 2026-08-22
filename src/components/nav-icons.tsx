@@ -258,6 +258,16 @@ export function IconExpand({ className }: IconProps) {
   );
 }
 
+function IconAlerts({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M8 2.25 14.5 13.5h-13L8 2.25Z" />
+      <path d="M8 6.5v3.25" />
+      <path d="M8 11.5v.5" />
+    </Svg>
+  );
+}
+
 /** Registry keyed by nav href, so SidebarNav stays declarative. */
 export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,
@@ -269,4 +279,5 @@ export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/leave": IconLeave,
   "/admin/users": IconUsersRoles,
   "/admin/roles": IconPermissions,
+  "/admin/alerts": IconAlerts,
 };

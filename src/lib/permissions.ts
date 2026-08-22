@@ -33,6 +33,10 @@ export const PERMISSIONS = {
   // are a separate capability from editing a project record.
   PROJECTS_CONTRACTS_READ:  "projects:contracts:read",
   PROJECTS_CONTRACTS_WRITE: "projects:contracts:write",
+  // Budget alerts expose commercial pressure across the portfolio, and
+  // acknowledging one means taking responsibility for the overrun.
+  PROJECTS_ALERTS_READ:        "projects:alerts:read",
+  PROJECTS_ALERTS_ACKNOWLEDGE: "projects:alerts:acknowledge",
 
   // Timesheets
   TIMESHEETS_READ_OWN:     "timesheets:read_own",

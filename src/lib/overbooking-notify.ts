@@ -99,16 +99,44 @@ export async function notifyOverbooking(ctx: AlertContext): Promise<void> {
         reason: d.reason,
         source: ctx.source,
         notify_recipients: recipients,
+
+        /*
+         * The richer classification. Before this, the only recordable event was
+         * a refusal -- which meant the whole point of warning "we are near the
+         * limit" had nowhere to be recorded.
+         *
+         * The level maps straight through: approaching / outside_contract are
+         * ALLOWED events (the hours were recorded and somebody should know),
+         * over / already_over are refusals.
+         */
+        kind: d.level,
+        threshold_percent: d.warnAtPercent,
+        contract_period_id: d.contract?.periodId ?? null,
       })
       .select("id")
       .single();
 
     if (error) {
-      // The most likely cause is the migration not being applied yet. Name it,
-      // because a silent miss here would make the feature look like it works.
-      console.error(
-        `[overbooking] could not record alert (is add_overbooking_alerts.sql applied?): ${error.message}`,
-      );
+      /*
+       * 23505 here is EXPECTED and not a failure: a partial unique index allows
+       * only one OPEN alert per project, period, kind and threshold. Hitting it
+       * means the situation is already on somebody's list, which is the whole
+       * intent -- a project sitting at 85% must not raise an identical alert on
+       * every entry logged against it.
+       *
+       * Anything else is worth shouting about, and the most likely cause is a
+       * migration not being applied. Naming it beats a silent miss that makes
+       * the feature look like it works.
+       */
+      if (error.code === "23505") {
+        console.info(
+          `[overbooking] ${d.level} alert already open for ${ctx.projectName}; not duplicating it`,
+        );
+      } else {
+        console.error(
+          `[overbooking] could not record alert (are add_overbooking_alerts.sql and add_budget_alert_visibility.sql applied?): ${error.message}`,
+        );
+      }
     } else {
       alertId = data?.id ?? null;
     }

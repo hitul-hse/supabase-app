@@ -65,6 +65,9 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/users", label: "Users & Roles",    roles: ["exec", "dept_head"] },
       { href: "/admin/roles", label: "Role Permissions", roles: ["exec", "dept_head"] },
+      // Budget alerts. Deliberately in ADMIN rather than beside Projects: these
+      // are commercial exceptions somebody must act on, not a project record.
+      { href: "/admin/alerts", label: "Budget Alerts",    roles: ["exec", "dept_head", "project_manager", "hr"] },
     ],
   },
 ];

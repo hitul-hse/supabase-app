@@ -8,14 +8,16 @@ import type { EmployeeOwnershipRow } from "@/lib/queries/management-employee-own
 import type { ManagementDataQualityRow } from "@/lib/queries/management-data-quality";
 import type { ManagementProjectRiskRow } from "@/lib/queries/management-project-risks";
 import type { ManagementMultiServiceMatrix as ManagementMultiServiceMatrixModel } from "@/lib/queries/management-multi-service-matrix";
+import type { ManagementCustomerPortfolio } from "@/lib/queries/management-customer-portfolio";
 import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
 import { ManagementDataQuality } from "./ManagementDataQuality";
 import { ManagementProjectRisks } from "./ManagementProjectRisks";
 import { ManagementMultiServiceMatrix } from "./ManagementMultiServiceMatrix";
+import { ManagementCustomerPortfolio as ManagementCustomerPortfolioView } from "./ManagementCustomerPortfolio";
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 
-export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel }) {
+export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   const totalByPerson = Object.fromEntries(
     PEOPLE.map((person) => [person, model.rows.reduce((sum, row) => sum + row.cells[person], 0)]),
@@ -40,6 +42,8 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
       <ManagementProjectRisks rows={projectRiskRows} />
 
       <ManagementMultiServiceMatrix model={multiServiceModel} />
+
+      <ManagementCustomerPortfolioView model={customerPortfolio} />
 
       <Card className="overflow-hidden">
         <CardHeader title="Auslastungsausblick" qualifier={`GEBUNDENE VERTRAGSSTUNDEN / ${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} PLANSTUNDEN · 75% BILLABLE CAPACITY`} />

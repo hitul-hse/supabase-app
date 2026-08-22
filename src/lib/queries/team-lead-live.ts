@@ -41,9 +41,6 @@ type SupabaseTyped = SupabaseClient<Database>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const timeSchema = (s: SupabaseTyped) => (s as any).schema("time");
 
-/** PostgREST caps one response at 1000 rows; page rather than truncate. */
-const PAGE = 1000;
-
 /** The default window when nothing is asked for: the last four ISO weeks. */
 export const BOARD_WEEKS = 4;
 

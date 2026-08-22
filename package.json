@@ -146,7 +146,9 @@
     "check:budget-alerts": "node scripts/check-budget-alerts.mjs",
     "check:paste-sql": "node scripts/check-paste-sql.mjs",
     "verify:migrations": "node scripts/verify-migrations-applied.mjs",
-    "verify:contract-live": "node scripts/verify-contract-behaviour-live.mjs"
+    "verify:contract-live": "node scripts/verify-contract-behaviour-live.mjs",
+    "sandbox:seed": "node scripts/sandbox-seed.mjs",
+    "reconcile:masterdata": "node scripts/reconcile-masterdata.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

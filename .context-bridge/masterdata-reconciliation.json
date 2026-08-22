@@ -1,0 +1,1060 @@
+{
+  "generatedAt": "2026-08-22T22:14:00.450Z",
+  "excelOrders": 198,
+  "liveProjects": 334,
+  "matched": 53,
+  "readyForContractPeriods": [
+    {
+      "projectId": 121,
+      "projectName": "Boldyn / 26/27 SiFa",
+      "orderNo": "10712_00335_104_01",
+      "budgetHours": 30,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-03-31",
+      "responsible": "Hendryk",
+      "replacement": "",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 268,
+      "projectName": "Synopsys GmbH / 26/27 SiFa",
+      "orderNo": "10768_00317_104_01",
+      "budgetHours": 30,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-02-28",
+      "responsible": "Hendryk",
+      "replacement": "Mathias",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 266,
+      "projectName": "Swisspower Renewables GmbH / 26/27 SiFa",
+      "orderNo": "10758_00364_104_01",
+      "budgetHours": 20,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-01-31",
+      "responsible": "Hendryk",
+      "replacement": "Stephan",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 320,
+      "projectName": "YouLend GmbH / 26/27 SiFa ",
+      "orderNo": "10755_00296_104_01",
+      "budgetHours": 18,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-01-14",
+      "responsible": "Mustafa",
+      "replacement": "Hendryk",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 252,
+      "projectName": "Rasa Technologies GmbH / 26/27 SiFa",
+      "orderNo": "10765_00315_104_01",
+      "budgetHours": 12,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-02-28",
+      "responsible": "Mustafa",
+      "replacement": "Hendryk",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 255,
+      "projectName": "Reteach / 26/27 SiFa",
+      "orderNo": "10305_00327_104_01",
+      "budgetHours": 10,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-02-28",
+      "responsible": "Mustafa",
+      "replacement": "Hendryk",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 110,
+      "projectName": "Agilité / 26/27 FaSi",
+      "orderNo": "10821_00329_102_01",
+      "budgetHours": 4,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-03-31",
+      "responsible": "Mustafa",
+      "replacement": "Mathias",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 143,
+      "projectName": "Collectors / 26/27 SiFa",
+      "orderNo": "10724_00332_104_01",
+      "budgetHours": 3.125,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-04-01",
+      "responsible": "",
+      "replacement": "",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 233,
+      "projectName": "OneTrust / 26/27 SiFa",
+      "orderNo": "10463_00338_104_01",
+      "budgetHours": 0.4166666666666667,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-03-31",
+      "responsible": "",
+      "replacement": "Mustafa",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "projectId": 123,
+      "projectName": "Boldyn / Plus – Ramp up & Practical Support 8h per day",
+      "orderNo": "10712_00335_403_01",
+      "budgetHours": 8,
+      "startsOn": "2027-01-01",
+      "endsOn": "2027-03-31",
+      "responsible": "Hendryk",
+      "replacement": "",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "projectId": 89,
+      "projectName": "10766_CreativeDock BER GmbH / 26/27 BA",
+      "orderNo": "10766_00342_205_01",
+      "budgetHours": 8,
+      "startsOn": "2026-05-01",
+      "endsOn": "2027-04-30",
+      "responsible": "",
+      "replacement": "",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "projectId": 98,
+      "projectName": "10881_EFI / 26/27 BA",
+      "orderNo": "10881_00348_205_01",
+      "budgetHours": 5.5,
+      "startsOn": "2026-06-01",
+      "endsOn": "2027-05-31",
+      "responsible": "",
+      "replacement": "",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "projectId": 82,
+      "projectName": "10744_Closer Go Hamburg / 26/27 BA",
+      "orderNo": "10744_00352_205_01",
+      "budgetHours": 72,
+      "startsOn": "2026-06-01",
+      "endsOn": "2027-05-31",
+      "responsible": "",
+      "replacement": "",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "projectId": 101,
+      "projectName": "10905_Closer Go Stuttgart / 26/27 BA",
+      "orderNo": "10905_00357_205_01",
+      "budgetHours": 48,
+      "startsOn": "2026-06-01",
+      "endsOn": "2027-05-31",
+      "responsible": "",
+      "replacement": "",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    }
+  ],
+  "hoursDisagreements": [
+    {
+      "projectId": 266,
+      "projectName": "Swisspower Renewables GmbH / 26/27 SiFa",
+      "excelHours": 20,
+      "vendorEstimate": 47
+    },
+    {
+      "projectId": 143,
+      "projectName": "Collectors / 26/27 SiFa",
+      "excelHours": 3.125,
+      "vendorEstimate": 75
+    },
+    {
+      "projectId": 233,
+      "projectName": "OneTrust / 26/27 SiFa",
+      "excelHours": 0.4166666666666667,
+      "vendorEstimate": 10
+    },
+    {
+      "projectId": 17,
+      "projectName": "10190_Topographie des Terrors /  26 BSB",
+      "excelHours": 9,
+      "vendorEstimate": 4
+    }
+  ],
+  "manualReview": [
+    {
+      "orderNo": "10110_00358_104_01",
+      "orderName": "AWB: Aufgaben&Ziele 2026",
+      "customer": "AWB Aluminiumwerk Berlin GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10234_00103_104_01",
+      "orderName": "Mirantis Safety Engineer 2026/2027",
+      "customer": "Netto ApS & Co. KG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10235_00306_104_01",
+      "orderName": "Mbition / sicherheitstechnische Betreuung 2026",
+      "customer": "MBition GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10121_00359_104_01",
+      "orderName": "Caseking (Arbeitsschutz) 25/26",
+      "customer": "CaseKing GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10305_00212_104_01",
+      "orderName": "YPOG Berlin / 25-26 Sicherheitstechnische Betreuung",
+      "customer": "YPOG Partnerschaft von Rechtsanwälten",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10443_00253_104_01",
+      "orderName": "RISE FX GmbH / 25-26 SiFa Berlin",
+      "customer": "RISE FX GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10342_00171_104_01",
+      "orderName": "365FarmNet GmbH / sicherheitstechnische Betreuung 25/26",
+      "customer": "Claas 365FarmNet GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10344_00176_104_01",
+      "orderName": "Theion / Sicherheitstechnische Betreuung 2025/2026",
+      "customer": "theion GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10365_00211_104_01",
+      "orderName": "Inpacs GmbH / sicherheitstechnische Betreuung 25/26",
+      "customer": "Inpacs GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10428_00243_104_01",
+      "orderName": "Mieterberatung Prenzlauer Berg GmbH / Sifa 25/26",
+      "customer": "Mieterberatung Prenzlauer Berg GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10443_00253_104_01",
+      "orderName": "RISE FX GmbH / 25-26 SiFa Stuttgart",
+      "customer": "RISE FX GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10275_00123_104_01",
+      "orderName": "On Occupational Safety Support 2026",
+      "customer": "On Cloud Service GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10695_00322_104_01",
+      "orderName": "Nu Finanztechnologie GmbH / 26/27 SiFa",
+      "customer": "Nu Finanztechnologie GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10200_00057_104_01",
+      "orderName": "10200_DRIVE Beta GmbH / 26 SiFa",
+      "customer": "DRIVE Beta GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10747_00360_104_01",
+      "orderName": "Intel GmbH / SiFa",
+      "customer": "Intel Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10177_00014_104_01",
+      "orderName": "vitasyn medical/sicherheitstechnische Betreuung 2026",
+      "customer": "vitasyn medical GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10436_00232_104_01",
+      "orderName": "Globant Germany GmbH / safety support",
+      "customer": "Globant Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10417_00221_104_01",
+      "orderName": "asum GmbH / 26/27 sicherheitstechnische Betreuung",
+      "customer": "asum GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10378_00220_104_01",
+      "orderName": "Bund D. EinsatzVeteranen/sicherheitstechnische Betreuung 2026",
+      "customer": "Bund Deutscher EinsatzVeteranen e.V.",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10186_00085_104_01",
+      "orderName": "RTB House / Basic Technical Safety Supervision 2025 / 2026",
+      "customer": "RTB House GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10305_00263_104_01",
+      "orderName": "YPOG München / Sicherheitsbeauftrager",
+      "customer": "YPOG GmbH & Co. KG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10216_00209_104_01",
+      "orderName": "BerlinAnalytix GmbH / sicherheitstechnische Betreuung 25/26",
+      "customer": "BerlinAnalytix GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10233_00094_104_01",
+      "orderName": "dentalXrai GmbH / safety related support 25/26",
+      "customer": "dentalXrai GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10279_00361_104_01",
+      "orderName": "Mirantis Safety Engineer 2025/2026",
+      "customer": "Mirantis Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10361_00177_104_01",
+      "orderName": "Sage / sicherheitstechnische Betreuung 2025/2026",
+      "customer": "SAGE Automotive Interiors",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10419_00224_104_01",
+      "orderName": "Schloss Blankenburg / Betreuung Arbeitssicherheit  2026",
+      "customer": "Schlosshotel Blankenburg UG &Co.OHG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10192_00037_102_01",
+      "orderName": "Praxis Dr. Mungee: sicherheitstechnische Betreuung 2026",
+      "customer": "Dr. Aditya Mungee",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10809_00363_101_01",
+      "orderName": "Stern Nails 3 / DGUV V2",
+      "customer": "Stern Nails 3",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10210_00056_104_01",
+      "orderName": "TKS Sifa 2026",
+      "customer": "TKS Technischer Kundendienst",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10125_00003_104_01",
+      "orderName": "Operatec (2025 / 2026)",
+      "customer": "Operatec Service GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10305_00213_104_01",
+      "orderName": "YPOG Köln / 25-26 Sicherheitstechnische Betreuung",
+      "customer": "YPOG Partnerschaft von Rechtsanwälten",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10261_00131_104_01",
+      "orderName": "Addleshaw Goddard LLP Frankfurt / safety related support 25/26",
+      "customer": "Addleshaw Goddard (Germany) LLP",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10744_00352_104_01",
+      "orderName": "10744_Closer Go Hamburg / 26/27 SiFa",
+      "customer": "Closer Go Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10905_00357_104_01",
+      "orderName": "10905_Closer Go Stuttgart / 26/27 SiFa",
+      "customer": "Closer Go Germany Gmbh Stuttgart",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10897_00354_104_01",
+      "orderName": "10897_Auro / 26/27 SiFa",
+      "customer": "Auro New Transport Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10392_00205_104_01",
+      "orderName": "Hanseatic Delifood SiFa 2026",
+      "customer": "Hanseatic Delifood GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10305_00214_104_01",
+      "orderName": "YPOG Hamburg / 25-26 Sicherheitstechnische Betreuung",
+      "customer": "YPOG Partnerschaft von Rechtsanwälten",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10274_00117_104_01",
+      "orderName": "Clivet GmbH / sicherheitstechnische Betreuung 25/26",
+      "customer": "Clivet GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10406_00225_104_01",
+      "orderName": "Episode / Occupational Health & Safety Support 2026",
+      "customer": "Episode GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10381_00362_104_01",
+      "orderName": "Opodo GmbH DGUV V2 Safety Engineer 2026",
+      "customer": "Opodo GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10303_01091_104_01",
+      "orderName": "WorkMotion Software GmbH / Sicherheitstechnische Betreuung 25/26",
+      "customer": "WorkMotion Europe GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10296_00163_104_01",
+      "orderName": "Action / sicherheitstechnische Betreuung  2026/2027",
+      "customer": "Action Logistics Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10476_00265_104_01",
+      "orderName": "Ergotron Deutschland GmbH / 25/26 Safety Engineer",
+      "customer": "Ergotron Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10208_00059_104_01",
+      "orderName": "Circulum Vitae GmbH / Sifa 2025/2026",
+      "customer": "Circulum Vitae GmbH (Meine erde)",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10345_00196_104_01",
+      "orderName": "Adlook GmbH / Sicherheitstechnische Betreuung 25/26",
+      "customer": "Adlook GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10744_00284_104_01",
+      "orderName": "Closer Logistics S.L. / 25/26 SiFa",
+      "customer": "Closer Logistics S.L.",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10333_00367_104_01",
+      "orderName": "WGC Safety Engineer- 2026/2027",
+      "customer": "WGC GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10450_00236_104_01",
+      "orderName": "nGAGE / safety support",
+      "customer": "nGAGE Talent GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10738_00319_104_01",
+      "orderName": "Intel GmbH / SiFa",
+      "customer": "Unity Technologies GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10766_00341_104_01",
+      "orderName": "10766_CreativeDock BER GmbH / 26/27 SiFA",
+      "customer": "Creative Dock BER GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10881_00347_104_01",
+      "orderName": "10881_EFI / 26/27 SiFa",
+      "customer": "Electronics For Imaging, Inc.",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10565_00401_301_01",
+      "orderName": "Tous Jewelry / 26/27 SiFa",
+      "customer": "Tous Jewelry",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10869_00333_606_01",
+      "orderName": "smartUP Holding GmbH / SiGeKo_ Baispaket",
+      "customer": "smartUP Holding GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10764_00368_601_01",
+      "orderName": "Hochtief BER01",
+      "customer": "HOCHTIEF Infrastructure GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10511_00274_601_01",
+      "orderName": "JinkoSolar GmbH / Baustellenbegehung/ Remote Ramp Up support _Berchng- per Stunde",
+      "customer": "JinkoSolar GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10483_00298_601_01",
+      "orderName": "HEC Solar / construction site supervision",
+      "customer": "HEC Solar LTD",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10507_00286_403_01",
+      "orderName": "Goodwe GmbH / Ramp up",
+      "customer": "GoodWe Europe GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10747_00360_401_01",
+      "orderName": "Risk Assessment",
+      "customer": "Intel Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10511_00274_403_01",
+      "orderName": "JinkoSolar GmbH / Remote Ramp up",
+      "customer": "JinkoSolar GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10234_00103_402_01",
+      "orderName": "Netto (Markets Visits)",
+      "customer": "Netto ApS & Co. KG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10313_00154_403_01",
+      "orderName": "Spielbank Berlin / HSE Support",
+      "customer": "Spielbank Berlin GmbH & Co.KG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10758_00287_403_01",
+      "orderName": "Swisspower Renewables GmbH / ramp up support",
+      "customer": "Swisspower Renewables GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10151_00369_403_01",
+      "orderName": "NS Dokumentationszentrum / Notfallhandbuch",
+      "customer": "Stiftung Topographie des Terrors",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10634_00308_403_01",
+      "orderName": "VOI",
+      "customer": "VOI Technology Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10724_00330_401_01",
+      "orderName": "Collectors / Risk Assessment",
+      "customer": "Collectors Holdings, Inc",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10695_00356_401_01",
+      "orderName": "Nu Finanztechnologie GmbH Risk Assessment",
+      "customer": "Nu Finanztechnologie GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10765_00313_401_01",
+      "orderName": "Rasa Technologies GmbH Risk Assessment",
+      "customer": "Rasa Technologies GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10463_00337_401_01",
+      "orderName": "OneTrust / Risk Assessment",
+      "customer": "OneTrust GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10634_0_4_01",
+      "orderName": "VOI Safety",
+      "customer": "VOI Technology Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10766_00343_401_01",
+      "orderName": "10766_CreativeDock BER GmbH / GBU",
+      "customer": "Creative Dock BER GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10848_00345_405_01",
+      "orderName": "10848_Reganosa / HSE Legal Compliance Assessment",
+      "customer": "Reganosa Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10848_00345_402_01",
+      "orderName": "10848_Reganosa / HSE Legal Compliance Review",
+      "customer": "Reganosa Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10897_00353_401_01",
+      "orderName": "10897_Auro Berlin / 26 GBU",
+      "customer": "Auro New Transport Germany GmbH Berlin",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10905_00357__01",
+      "orderName": "10905_Closer Go Stuttgart / 26 GBU",
+      "customer": "Closer Go Germany Gmbh Stuttgart",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10216_00070_501_01",
+      "orderName": "BerlinAnalytix GmbH / Brandschutzbeauftragter 2025 / 2026",
+      "customer": "BerlinAnalytix GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10183_00047_501_01",
+      "orderName": "BGETEM / Externer Brandschutzbeauftragter 25/26",
+      "customer": "Berufsgenossenschaft Energie Textil Elektro Medienerzeugnisse",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10235_00307_501_01",
+      "orderName": "MBition GmbH / Brandschutbeauftragte 2026",
+      "customer": "MBition GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10190_00187_501_01",
+      "orderName": "Techspace BER GmbH / Externer Brandschutzbeauftragter Jahresvertrag 2025/2026",
+      "customer": "Techspace BER GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10198_00186_501_01",
+      "orderName": "Techspace EIS GmbH / Externer Brandschutzbeauftragter Jahresvertrag 2025/2026",
+      "customer": "Techspace EIS GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10175_00022_501_01",
+      "orderName": "10175_NS Dokumentation / 26 BSB",
+      "customer": "Dokumentationszentrum NS-Zwangsarbeit",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10710_00273_203_01",
+      "orderName": "Elbe Trockenbau / 2025 BA",
+      "customer": "Elbe Trockenbau Service GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10458_00249_2_01",
+      "orderName": "Globaldots DE GmbH / 25/26 BA",
+      "customer": "Globaldots DE GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10492_00269_205_01",
+      "orderName": "Lockheed / 25/26 Betriebsarzt",
+      "customer": "Lockheed Martin Overseas Services Corporation",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10192_00038_205_01",
+      "orderName": "Praxis Dr. Mungee: Betriebsärztliche Betreuung - 2026",
+      "customer": "Dr. Aditya Mungee",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10342_00170_205_01",
+      "orderName": "365FarmNet GmbH / betriebsärztliche Betreuung 25/26",
+      "customer": "Claas 365FarmNet GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10559_00262_205_01",
+      "orderName": "50five Charging Solutions / 25/26 Betriebsarzt",
+      "customer": "50five Charging Solutions Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10296_00164_205_01",
+      "orderName": "Action / betriebsärztliche Betreuung 2025/2026",
+      "customer": "Action Logistics Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10267_00134_205_01",
+      "orderName": "Addleshaw Goddard Berlin LLP  / 25/26 BA",
+      "customer": "Addleshaw Goddard (Germany) LLP Berlin",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10261_00132_205_01",
+      "orderName": "Addleshaw Goddard LLP Frankfurt / 25/26 BA",
+      "customer": "Addleshaw Goddard (Germany) LLP Frankfurt",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10203_00054_205_01",
+      "orderName": "Addleshaw Goddard LLP Hamburg Betriebsarzt 25/26",
+      "customer": "Addleshaw Goddard (Germany) LLP Hamburg",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10262_00133_205_01",
+      "orderName": "Addleshaw Goddard LLP München / 25/26 BA",
+      "customer": "Addleshaw Goddard (Germany) LLP München",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10345_00198_205_01",
+      "orderName": "Adlook GmbH / betriebsärztliche Betreuung 25/26",
+      "customer": "Adlook GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10821_00329_203_01",
+      "orderName": "Agilité / 26/27 BA",
+      "customer": "Agilité Solutions Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10259_00127_203_01",
+      "orderName": "Arden University / company doctor 25/26",
+      "customer": "Arden University (Berlin Campus)",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10135_00374_205_01",
+      "orderName": "Assecor (Betriebsarzt) 2026",
+      "customer": "Assecor GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10417_00221_205_01",
+      "orderName": "asum GmbH / 25/26 Betriebsarzt",
+      "customer": "asum GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10110_00375_205_01",
+      "orderName": "missing",
+      "customer": "AWB Aluminiumwerk Berlin GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10737_00280_205_01",
+      "orderName": "Backwell / 25/26 BA",
+      "customer": "Backwell Tech Corp. Europe GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10216_00208_203_01",
+      "orderName": "BerlinAnalytix GmbH / Betriebsarzt 25/26",
+      "customer": "BerlinAnalytix GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10712_00336_205_01",
+      "orderName": "Boldyn / 26/27 BA",
+      "customer": "Boldyn Networks Deutschland AG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10451_00241_205_01",
+      "orderName": "Bugatti Rimac GmbH / Betriebsarzt",
+      "customer": "Bugatti Rimac GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10121_00377_205_01",
+      "orderName": "Caseking (Betriebsarzt - Office) 25/26",
+      "customer": "CaseKing GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10121_00376_205_01",
+      "orderName": "Caseking (Betriebsarzt - Logistik) 25/26",
+      "customer": "CaseKing GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10208_00077_205_01",
+      "orderName": "Circulum Vitae GmbH / Betriebsarzt 2025/2026",
+      "customer": "Circulum Vitae GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10274_00116_205_01",
+      "orderName": "Clivet GmbH / Betriebsarzt 25/26",
+      "customer": "Clivet GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10744_00283_205_01",
+      "orderName": "Closer Logistics S.L. / 25/26 BA",
+      "customer": "Closer Go Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10724_00331_205_01",
+      "orderName": "Collectors / 26/27 BA",
+      "customer": "Collectors Holdings, Inc",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10233_00095_203_01",
+      "orderName": "dentalXrai GmbH / Basic occupational health care 25/26",
+      "customer": "dentalXrai GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10200_00057_205_01",
+      "orderName": "DRIVE beta GmbH / Betriebsärztliche Betreuung 2026",
+      "customer": "DRIVE beta GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10513_00288_205_01",
+      "orderName": "EcoVadis Germany GmbH / 26 BA",
+      "customer": "EcoVadis Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10406_00227_203_01",
+      "orderName": "Episode / Company Doctor",
+      "customer": "Episode GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10476_00266_203_01",
+      "orderName": "Ergotron Deutschland GmbH / 25/26 Betriebsarzt",
+      "customer": "Ergotron Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10795_00300_203_01",
+      "orderName": "GEPLAHN-T / 26 BA",
+      "customer": "GEPLAHN-T",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10793_00301_203_01",
+      "orderName": "GEPLAHN-T GmbH / 26 BA",
+      "customer": "GEPLAHN-T GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10436_00232_205_01",
+      "orderName": "Globant Germany GmbH / company doctor",
+      "customer": "Globant Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10522_00351_205_01",
+      "orderName": "GOhiring GmbH / 25-26 BA",
+      "customer": "GOhiring GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10392_00039_205_01",
+      "orderName": "Hanseatic Delifood GmbH / 26/27 BA",
+      "customer": "Hanseatic Delifood GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10747_00360_205_01",
+      "orderName": "",
+      "customer": "Intel Deutschland GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10221_00173_205_01",
+      "orderName": "Inuru GmbH / health care 25/26",
+      "customer": "Inuru GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10746_00293_205_01",
+      "orderName": "KIKO Germany GmbH / 26 BA",
+      "customer": "KIKO Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10428_00244_205_01",
+      "orderName": "Mieterberatung Prenzlauer Berg GmbH / Betriebsarzt 25/26",
+      "customer": "Mieterberatung Prenzlauer Berg GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10279_00181_203_01",
+      "orderName": "Mirantis Company Doctor 2025",
+      "customer": "Mirantis Germany GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10450_00235_205_01",
+      "orderName": "nGAGE / company doctor",
+      "customer": "nGAGE Talent GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10695_00323_205_01",
+      "orderName": "Nu Finanztechnologie GmbH / 26/27 BA",
+      "customer": "Nu Finanztechnologie GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10275_00124_205_01",
+      "orderName": "On / Occupational Health Care 2026",
+      "customer": "On Cloud Service GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10381_00378_203_01",
+      "orderName": "Opodo GmbH DGUV V2 Company Doctor",
+      "customer": "Opodo GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10765_00314_203_01",
+      "orderName": "Rasa Technologies GmbH / 26/27 BA",
+      "customer": "Rasa Technologies GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10822_00326_203_01",
+      "orderName": "Reteach / 26/27 BA",
+      "customer": "Susell GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10443_00253_205_01",
+      "orderName": "RISE FX GmbH / 25-26 BA Berlin",
+      "customer": "RISE FX GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10443_00252_205_01",
+      "orderName": "RISE FX GmbH / 25-26 BA Stuttgart",
+      "customer": "RISE FX GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10186_00085_203_01",
+      "orderName": "RTB House / occupational health care 2025/2026",
+      "customer": "RTB House GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10361_00178_205_01",
+      "orderName": "missing",
+      "customer": "SAGE Automotive Interiors",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10195_00036_205_01",
+      "orderName": "Shell: Betreuung Arbeitsmedizin 2026",
+      "customer": "Shell TapUp B.V. Zweigniederlassung Deutschland",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10768_00312_205_01",
+      "orderName": "Synopsys GmbH / 26/27 BA",
+      "customer": "Synopsys GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10344_00176_205_01",
+      "orderName": "Theion / Betriebsarzt  2025/2026",
+      "customer": "theion GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10378_00320_205_01",
+      "orderName": "Unity Technologies GmbH / 26/27 BA",
+      "customer": "Unity Technologies GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10172_00044_205_01",
+      "orderName": "W.W.S. Kurt Strube Betreuung: Arbeitsmedizin 2025/2026",
+      "customer": "Wach-und Werkschutz Kurt Strube GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10333_00379_205_01",
+      "orderName": "WGC - Company Doctor",
+      "customer": "WGC GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10303_00193_203_01",
+      "orderName": "WorkMotion Software GmbH / Company Doctor 25/26",
+      "customer": "WorkMotion Europe GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10755_00297_205_01",
+      "orderName": "YouLend GmbH / 26/27 BA",
+      "customer": "YouLend GmbH",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10305_00212_205_01",
+      "orderName": "YPOG Berlin / 25-26 Betriebsarzt",
+      "customer": "YPOG GmbH & Co. KG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10305_00214_205_01",
+      "orderName": "YPOG Hamburg / 25-26 Betriebsarzt",
+      "customer": "YPOG GmbH & Co. KG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10305_00213_205_01",
+      "orderName": "YPOG Köln / 25-26 Betriebsarzt",
+      "customer": "YPOG GmbH & Co. KG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10305_00263_205_01",
+      "orderName": "YPOG München / 25/26 BA",
+      "customer": "YPOG GmbH & Co. KG",
+      "ambiguous": false
+    },
+    {
+      "orderNo": "10897_00355_205_01",
+      "orderName": "10897_Auro / 26/27 BA",
+      "customer": "Auro New Transport Germany GmbH",
+      "ambiguous": false
+    }
+  ]
+}

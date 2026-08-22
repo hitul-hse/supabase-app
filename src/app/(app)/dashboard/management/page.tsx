@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/PageHeader";
 import PageTransition from "@/components/animations/PageTransition";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/Card";
-import { createClient } from "@/utils/supabase/server";
+import { createManagementReadClient } from "@/utils/supabase/management-read";
 import { requirePermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getManagementContractHours } from "@/lib/queries/management-contract-hours";
@@ -15,7 +15,7 @@ import { ManagementMatrix } from "./ManagementMatrix";
 
 export default async function ManagementPage() {
   await requirePermission("/dashboard/management", PERMISSIONS.HR_CONTRACT_READ);
-  const supabase = await createClient();
+  const supabase = await createManagementReadClient();
   const [model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio] = await Promise.all([
     getManagementContractHours(supabase),
     getEmployeeOwnershipOverview(supabase),

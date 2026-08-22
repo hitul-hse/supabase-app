@@ -3,8 +3,9 @@ import "server-only";
 import { Pool } from "pg";
 
 export type ReviewFilter = {
-  status: "all" | "review_required";
-  resolution: "all" | "unresolved";
+  priority: "all" | ReviewPriority;
+  caseType: "all" | ReviewCaseType;
+  status: "all" | ReviewStatus;
   sheet: string;
 };
 
@@ -45,20 +46,37 @@ export type ImportReviewData = {
     approved_count: number;
   };
   cases: ReviewCase[];
+  documentedCases: ReviewCase[];
   sheetCounts: { sheet_name: string; count: number }[];
   caseTypeCounts: { case_type: ReviewCase["case_type"]; count: number }[];
   error: string | null;
 };
 
+export type ReviewPriority = "P0" | "P1" | "P2";
+export type ReviewCaseType =
+  | "LEXWARE_REFERENCE_CONFLICT"
+  | "ALIAS_REVIEW"
+  | "LOCATION_REVIEW"
+  | "HISTORICAL_SOURCE_REVIEW"
+  | "CUSTOMER_MASTER_REVIEW";
+export type ReviewStatus = "OPEN" | "IN_REVIEW" | "RESOLVED" | "DEFERRED" | "REJECTED";
+export type ResolutionStatus = Lowercase<ReviewStatus>;
+
 export type ReviewCase = {
   case_key: string;
   case_name: string;
-  case_type:
-    | "Lexware Cleanup Pending"
-    | "Multiple Lexware References"
-    | "Location Review"
-    | "Source Review"
-    | "Customer Master Review";
+  priority: ReviewPriority;
+  resolution_state: "open" | "documented";
+  resolution_note: string | null;
+  case_type: ReviewCaseType;
+  status: ReviewStatus;
+  title: string;
+  description: string;
+  source_records: string[];
+  created_at: string;
+  updated_at: string;
+  resolution_status: ResolutionStatus;
+  review_reason: string;
   records: ImportRecord[];
   sheet_names: string[];
   review_statuses: string[];
@@ -111,20 +129,105 @@ function caseKey(record: ImportRecord) {
   return `${sheetName(record)}:${record.source_external_id ?? record.row_number}`;
 }
 
-function caseType(record: ImportRecord): ReviewCase["case_type"] {
-  const text = JSON.stringify(record.raw_payload).toUpperCase();
-  if (text.includes("MULTI_LOCATION_MULTI_LEXWARE") || text.includes("MULTIPLE LEXWARE")) {
-    return "Multiple Lexware References";
+function hasLexwareReferenceConflict(records: ImportRecord[]) {
+  const customerIdsByNumber = new Map<string, Set<string>>();
+  for (const record of records) {
+    if (!record.source_customer_number) continue;
+    const ids = customerIdsByNumber.get(record.source_customer_number) ?? new Set<string>();
+    ids.add(customerId(record) ?? `record:${record.id}`);
+    customerIdsByNumber.set(record.source_customer_number, ids);
   }
-  if (text.includes("LEXWARE_CLEANUP_PENDING") || text.includes("LEXWARE CLEANUP")) {
-    return "Lexware Cleanup Pending";
-  }
-  if (["locations", "location_review", "location_observations", "addresses"].includes(sheetName(record))) {
-    return "Location Review";
-  }
-  if (sheetName(record) === "source_review") return "Source Review";
-  return "Customer Master Review";
+  return [...customerIdsByNumber.values()].some((ids) => ids.size > 1);
 }
+
+function caseType(records: ImportRecord[]): ReviewCase["case_type"] {
+  const text = JSON.stringify(records).toUpperCase();
+  if (
+    hasLexwareReferenceConflict(records) ||
+    text.includes("LEXWARE_REFERENCE_CONFLICT") ||
+    text.includes("MULTIPLE LEGAL ENTITY") ||
+    text.includes("MULTIPLE_LEGAL_ENTITY")
+  ) return "LEXWARE_REFERENCE_CONFLICT";
+  if (records.some((record) => ["locations", "location_review", "location_observations", "addresses"].includes(sheetName(record)))) {
+    return "LOCATION_REVIEW";
+  }
+  if (records.some((record) => sheetName(record) === "source_review") || text.includes("HISTORICAL") || text.includes("UNMAPPED")) {
+    return "HISTORICAL_SOURCE_REVIEW";
+  }
+  if (records.some((record) => sheetName(record) === "customer_aliases") || text.includes("ALIAS") || text.includes("HISTORICAL_NAME")) {
+    return "ALIAS_REVIEW";
+  }
+  return "CUSTOMER_MASTER_REVIEW";
+}
+
+function hasUnclearLegalEntity(record: ImportRecord) {
+  const text = `${JSON.stringify(record.raw_payload)} ${record.review_reason ?? ""}`.toUpperCase();
+  return [
+    "LEGAL_ENTITY_UNCLEAR",
+    "LEGAL ENTITY UNCLEAR",
+    "LEGAL_ENTITY_AMBIGUOUS",
+    "LEGAL ENTITY AMBIGUOUS",
+    "LEGAL_ENTITY_REVIEW",
+    "LEGAL ENTITY REVIEW",
+  ].some((signal) => text.includes(signal));
+}
+
+function priorityFor(reviewCase: Pick<ReviewCase, "case_type" | "records">): ReviewPriority {
+  const text = JSON.stringify(reviewCase.records).toUpperCase();
+  if (
+    reviewCase.case_type === "LEXWARE_REFERENCE_CONFLICT" ||
+    reviewCase.records.some(hasUnclearLegalEntity) ||
+    text.includes("LEXWARE_CLEANUP_PENDING") ||
+    text.includes("LEXWARE CLEANUP") ||
+    text.includes("MULTIPLE LEGAL ENTITY") ||
+    text.includes("MULTIPLE_LEGAL_ENTITY")
+  ) return "P0";
+  if (reviewCase.case_type === "LOCATION_REVIEW" || reviewCase.case_type === "HISTORICAL_SOURCE_REVIEW") return "P2";
+  return "P1";
+}
+
+function statusFor(reviewCase: Pick<ReviewCase, "resolution_state" | "records" | "review_statuses">): ReviewStatus {
+  if (reviewCase.resolution_state === "documented") return "RESOLVED";
+  if (reviewCase.records.some((record) => record.resolution_status === "unresolved")) return "OPEN";
+  if (reviewCase.review_statuses.some((status) => status === "in_review")) return "IN_REVIEW";
+  return "OPEN";
+}
+
+function reviewReasonFor(reviewCase: Pick<ReviewCase, "case_type" | "resolution_state" | "resolution_note" | "records">) {
+  if (reviewCase.resolution_state === "documented" && reviewCase.resolution_note) return reviewCase.resolution_note;
+  if (reviewCase.case_type === "LEXWARE_REFERENCE_CONFLICT") return "Eine Lexware-Kundennummer verweist auf mehrere Legal-Entity-Kandidaten.";
+  if (reviewCase.case_type === "ALIAS_REVIEW") return "Namensvariante oder historische Firmierung fachlich prüfen.";
+  if (reviewCase.case_type === "CUSTOMER_MASTER_REVIEW") return "Allgemeine Legal-Entity-Prüfung fachlich abschließen.";
+  if (reviewCase.case_type === "LOCATION_REVIEW") return "Standortkandidat und Rechnungsadresse fachlich trennen.";
+  if (reviewCase.case_type === "HISTORICAL_SOURCE_REVIEW") return "Alte oder nicht zuordenbare Quelle fachlich prüfen.";
+  return reviewCase.records.map((record) => record.review_reason).filter(Boolean).join(" · ") || "Fachliche Resolution erforderlich.";
+}
+
+function documentedResolution(reviewCase: Pick<ReviewCase, "case_name" | "case_key" | "records">) {
+  const text = `${reviewCase.case_name} ${reviewCase.case_key} ${JSON.stringify(reviewCase.records)}`.toUpperCase();
+  if (text.includes("PBS GERMANY OPERATIONS") && (text.includes("10284") || text.includes("10285"))) {
+    return "PBS Germany Operations GmbH: eine Legal Entity; Lexware-Referenzen 10284 und 10285 bleiben erhalten.";
+  }
+  if (text.includes("YPOG") && (text.includes("10305") || text.includes("10938"))) {
+    return "YPOG GmbH & Co. KG: 10305 führend; 10938 als Cleanup/Historie dokumentiert.";
+  }
+  if (text.includes("10305") && (text.includes("INURU") || text.includes("SUSELL"))) {
+    return "Lexware-Referenz 10305: Inuru / Susell als dokumentierter Konflikt; keine neue Merge-Entscheidung.";
+  }
+  if (text.includes("YPOG") || text.includes("GEPLAHN-T")) {
+    if (text.includes("YPOG")) return "YPOG GmbH & Co. KG: Cleanup/Historie dokumentiert; keine neue Merge-Entscheidung.";
+    return "GEPLAHN-T GmbH: Legal Entity bleibt bestehen; Cleanup statt Merge.";
+  }
+  if (text.includes("CLOSER GO GERMANY") && text.includes("STUTTGART")) {
+    return "Closer Go Germany GmbH – Stuttgart: eigene Legal Entity; Unternehmensverbund separat.";
+  }
+  if (text.includes("ENERCON")) {
+    return "ENERCON GmbH: Rahmenvertragsthema; kein Customer Merge.";
+  }
+  return null;
+}
+
+const PRIORITY_RANK: Record<ReviewPriority, number> = { P0: 0, P1: 1, P2: 2 };
 
 function caseName(record: ImportRecord) {
   const values = payloadValues(record);
@@ -144,15 +247,22 @@ function buildCases(records: ImportRecord[]) {
       existing.sheet_names = [...new Set([...existing.sheet_names, sheetName(record)])];
       existing.review_statuses = [...new Set([...existing.review_statuses, record.review_status])];
       existing.resolution_statuses = [...new Set([...existing.resolution_statuses, record.resolution_status])];
-      if (existing.case_type === "Customer Master Review" || existing.case_type === "Location Review") {
-        const nextType = caseType(record);
-        if (nextType !== "Customer Master Review") existing.case_type = nextType;
-      }
     } else {
       grouped.set(key, {
         case_key: key,
         case_name: caseName(record),
-        case_type: caseType(record),
+        priority: "P1",
+        resolution_state: "open",
+        resolution_note: null,
+        status: "OPEN",
+        title: caseName(record),
+        description: "",
+        source_records: [record.id],
+        created_at: "",
+        updated_at: "",
+        resolution_status: "open",
+        review_reason: "",
+        case_type: "ALIAS_REVIEW",
         records: [record],
         sheet_names: [sheetName(record)],
         review_statuses: [record.review_status],
@@ -160,7 +270,36 @@ function buildCases(records: ImportRecord[]) {
       });
     }
   }
-  return [...grouped.values()].sort((a, b) => a.records[0].row_number - b.records[0].row_number);
+  return [...grouped.values()]
+    .map((reviewCase) => {
+      const resolution_note = documentedResolution(reviewCase);
+      const normalizedCaseType = caseType(reviewCase.records);
+      const normalizedCase = { ...reviewCase, case_type: normalizedCaseType };
+      const status = statusFor({ ...normalizedCase, resolution_state: resolution_note ? "documented" : "open" });
+      const review_reason = reviewReasonFor({ ...normalizedCase, resolution_state: resolution_note ? "documented" : "open", resolution_note });
+      return {
+        ...normalizedCase,
+        priority: priorityFor(normalizedCase),
+        resolution_state: resolution_note ? "documented" as const : "open" as const,
+        resolution_note,
+        status,
+        title: normalizedCase.case_name,
+        description: review_reason,
+        source_records: normalizedCase.records.map((record) => record.id),
+        resolution_status: status.toLowerCase() as ResolutionStatus,
+        review_reason,
+      };
+    })
+    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.records[0].row_number - b.records[0].row_number);
+}
+
+function matchesFilter(reviewCase: ReviewCase, filter: ReviewFilter) {
+  return (
+    (filter.priority === "all" || reviewCase.priority === filter.priority) &&
+    (filter.caseType === "all" || reviewCase.case_type === filter.caseType) &&
+    (filter.status === "all" || reviewCase.status === filter.status) &&
+    (filter.sheet === "all" || reviewCase.sheet_names.includes(filter.sheet))
+  );
 }
 
 export async function getCustomerMasterImportReview(
@@ -182,6 +321,7 @@ export async function getCustomerMasterImportReview(
         batch: null,
         metrics: { record_count: 0, review_required_count: 0, unresolved_count: 0, approved_count: 0 },
         cases: [],
+        documentedCases: [],
         sheetCounts: [],
         caseTypeCounts: [],
         error: null,
@@ -215,15 +355,19 @@ export async function getCustomerMasterImportReview(
                candidate_location_id, review_status, review_reason
         from stg.import_record
         where batch_id = $1
-          and ($2 = 'all' or review_status = $2)
-          and ($3 = 'all' or resolution_status = $3)
-          and ($4 = 'all' or raw_payload->>'sheet_name' = $4)
         order by row_number asc
         limit 1000
-      `, [batch.id, filter.status, filter.resolution, filter.sheet]),
+      `, [batch.id]),
     ]);
 
-    const cases = buildCases(recordsResult.rows);
+    const allCases = buildCases(recordsResult.rows).map((reviewCase) => ({
+      ...reviewCase,
+      created_at: batch.received_at,
+      updated_at: batch.finished_at ?? batch.received_at,
+    }));
+    const visibleCases = allCases.filter((reviewCase) => matchesFilter(reviewCase, filter));
+    const cases = visibleCases.filter((reviewCase) => reviewCase.resolution_state === "open");
+    const documentedCases = visibleCases.filter((reviewCase) => reviewCase.resolution_state === "documented");
     const caseTypeCounts = [...new Set(cases.map((reviewCase) => reviewCase.case_type))]
       .map((case_type) => ({ case_type, count: cases.filter((reviewCase) => reviewCase.case_type === case_type).length }))
       .sort((a, b) => b.count - a.count);
@@ -237,6 +381,7 @@ export async function getCustomerMasterImportReview(
         approved_count: 0,
       },
       cases,
+      documentedCases,
       sheetCounts: sheetResult.rows,
       caseTypeCounts,
       error: null,
@@ -246,6 +391,7 @@ export async function getCustomerMasterImportReview(
       batch: null,
       metrics: { record_count: 0, review_required_count: 0, unresolved_count: 0, approved_count: 0 },
       cases: [],
+      documentedCases: [],
       sheetCounts: [],
       caseTypeCounts: [],
       error: "Die Staging-Daten konnten nicht gelesen werden.",

@@ -261,6 +261,7 @@ export function IconExpand({ className }: IconProps) {
 /** Registry keyed by nav href, so SidebarNav stays declarative. */
 export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,
+  "/dashboard/management": IconTeamLead,
   "/team-lead": IconTeamLead,
   "/people": IconPeople,
   "/projects": IconProjects,

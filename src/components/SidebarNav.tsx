@@ -37,6 +37,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "ANALYSE",
     items: [
       { href: "/",          label: "Overview",       tourId: "tour-overview"  },
+      { href: "/dashboard/management", label: "Management", roles: ["exec"] },
       { href: "/team-lead", label: "Team Lead View", tourId: "tour-teamlead",
         badge: "7", badgeColor: "var(--critical)", roles: ["exec", "dept_head"] },
     ],

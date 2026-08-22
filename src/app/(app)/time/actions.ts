@@ -35,7 +35,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
-import { evaluateBudget, refusalMessage, type BudgetDecision } from "@/lib/budget-guard";
+import {
+  evaluateBudget,
+  refusalMessage,
+  warningMessage,
+  type BudgetDecision,
+  type ContractPeriodInput,
+} from "@/lib/budget-guard";
 import { notifyOverbooking } from "@/lib/overbooking-notify";
 
 /**
@@ -47,7 +53,17 @@ import { notifyOverbooking } from "@/lib/overbooking-notify";
  * log. `ok: false` with a sentence is the difference between a usable app and a
  * support ticket.
  */
-export type TimeActionResult = { ok: boolean; message?: string };
+export type TimeActionResult = {
+  ok: boolean;
+  message?: string;
+  /**
+   * A note about a write that SUCCEEDED -- "you are at 85% of this contract",
+   * "this date is outside any contract period". Separate from `message` so the
+   * UI can style it as a caution rather than a failure, and so a warning can
+   * never be mistaken for a refusal (which would block honest work).
+   */
+  warning?: string;
+};
 
 /** Longest a single entry may be: 24h in seconds. */
 const MAX_ENTRY_SECONDS = 24 * 3600;
@@ -179,10 +195,21 @@ function combineInstant(date: string, time: string): string | null {
 /**
  * Would these hours push the project past its budget?
  *
- * Reads the project's budget and everything already logged against it, then asks
- * the pure rule in budget-guard.ts to decide. Returns null when the booking may
- * proceed, or a refusal message when it may not -- and in that case it has
- * already recorded the alert and notified the sales team.
+ * Reads the CONTRACT PERIOD covering the entry's own date, sums the hours logged
+ * inside that period's window, then asks the pure rule in budget-guard.ts to
+ * decide. Returns null when the booking may proceed silently, a refusal message
+ * when it may not, or a warning when it proceeds but somebody should know.
+ *
+ * WHY THE PERIOD, AND WHY BY THE ENTRY'S DATE. A budget belongs to a contract
+ * term, so "how much is left?" only means something inside that term. Summing
+ * every hour ever logged on the project would make a renewal pointless: last
+ * year's hours would immediately eat this year's budget. Using the ENTRY's date
+ * rather than today's also means correcting an old timesheet is judged against
+ * the contract that was actually in force then.
+ *
+ * The fallback chain is deliberate: contract period -> the vendor's
+ * estimated_hours -> nothing. Projects with no contract recorded keep behaving
+ * exactly as they did before this feature, so nothing regresses on day one.
  *
  * WHY THE READS USE THE CALLER'S CLIENT. The user can already see this project's
  * hours (the guard only fires on a project they are booking against), so no
@@ -203,18 +230,21 @@ async function checkBudget(
     requestedSeconds,
     excludeEntryId,
     memberId,
+    entryDate,
     source,
   }: {
     projectId: number | null;
     requestedSeconds: number;
     excludeEntryId?: number | null;
     memberId: number;
+    entryDate?: string | null;
     source: "create_entry" | "update_entry" | "start_timer" | "stop_timer";
   },
-): Promise<string | null> {
+): Promise<{ refusal: string | null; warning: string | null }> {
+  const proceed = { refusal: null, warning: null };
   // No project means no budget to breach: unattributed time is a separate
   // problem (40% of live entries carry no project) and not this guard's job.
-  if (projectId === null) return null;
+  if (projectId === null) return proceed;
 
   const { data: project, error: projectError } = await timeSchema(supabase)
     .from("project")
@@ -224,19 +254,69 @@ async function checkBudget(
 
   // A read failure must not block a booking: failing closed here would stop
   // people logging real work because of an unrelated outage.
-  if (projectError || !project) return null;
+  if (projectError || !project) return proceed;
 
-  const budgetHours =
+  const fallbackBudget =
     project.estimated_hours === null ? null : Number(project.estimated_hours);
 
-  // Cheap exit before summing thousands of rows: an unbudgeted or placeholder
-  // project can never refuse, so do not pay for the scan.
+  /*
+   * The contract periods on this project. Read ALL of them rather than asking
+   * the database for the one covering the date, because the answer needs two
+   * facts, not one: which period applies, and whether the project has any
+   * contract at all. Without the second, "no contract recorded" and "the
+   * contract lapsed and nobody renewed it" are indistinguishable -- and the
+   * second is the case worth warning about.
+   *
+   * The row count here is tiny (one per contract term), so a single read is
+   * cheaper than two round trips.
+   */
+  const { data: periodRows } = await timeSchema(supabase)
+    .from("project_contract_period")
+    .select("id, period_no, budget_hours, starts_on, ends_on, warn_at_percent, contract_reference")
+    .eq("project_id", projectId)
+    // Ordered because it is paged-adjacent and because the newest period is the
+    // one a human reading a log wants first.
+    .order("period_no", { ascending: false });
+
+  const periods = periodRows ?? [];
+  // The entry's own date decides which contract judges it. Falls back to today
+  // for a timer being started now.
+  const onDate = (entryDate ?? new Date().toISOString()).slice(0, 10);
+
+  const active = periods.find(
+    (p: { starts_on: string; ends_on: string }) =>
+      p.starts_on <= onDate && onDate <= p.ends_on,
+  );
+
+  const period: ContractPeriodInput | null = active
+    ? {
+        id: Number(active.id),
+        periodNo: Number(active.period_no),
+        budgetHours: Number(active.budget_hours),
+        startsOn: active.starts_on,
+        endsOn: active.ends_on,
+        warnAtPercent:
+          active.warn_at_percent === null ? null : Number(active.warn_at_percent),
+        contractReference: active.contract_reference ?? null,
+        daysRemaining: daysBetween(onDate, active.ends_on),
+      }
+    : null;
+
+  /*
+   * Cheap exit before summing thousands of rows. Only safe when there is
+   * genuinely nothing to say: a project with no contract AND no estimate can
+   * neither refuse nor warn, so the scan would be wasted. A project whose
+   * contract has lapsed must NOT take this path -- that is the outside_contract
+   * warning, and skipping the scan would swallow it.
+   */
   const preflight = evaluateBudget({
-    budgetHours,
+    budgetHours: fallbackBudget,
     loggedHours: 0,
     requestedHours: 0,
+    period,
+    hasAnyPeriod: periods.length > 0,
   });
-  if (preflight.budgetHours === null) return null;
+  if (preflight.level === "unbudgeted" && !preflight.warn) return proceed;
 
   // Sum what is already logged. Paged because PostgREST truncates at 1000 rows
   // silently, which on a busy project would understate the total and let an
@@ -253,6 +333,22 @@ async function checkBudget(
       // over-counts would block honest work).
       .order("id", { ascending: true })
       .range(page * 1000, page * 1000 + 999);
+    /*
+     * Scope the sum to the contract period's window. This is what makes a
+     * renewal mean anything: without it, period 2's budget would be spent the
+     * moment it started because period 1's hours are still on the project.
+     *
+     * The window is compared on started_at as an instant. The database's own
+     * view (time.contract_period_status) compares the Europe/Berlin calendar
+     * date; the two agree except for entries within a couple of hours of
+     * midnight on a boundary day, and the bound here is deliberately
+     * inclusive-exclusive on the day after so no hour is dropped.
+     */
+    if (period) {
+      q = q
+        .gte("started_at", `${period.startsOn}T00:00:00+00:00`)
+        .lt("started_at", `${addDays(period.endsOn, 1)}T00:00:00+00:00`);
+    }
     const { data, error } = await q;
     if (error || !data) break;
     for (const row of data as { id: number; duration_seconds: number | null }[]) {
@@ -263,12 +359,15 @@ async function checkBudget(
   }
 
   const decision: BudgetDecision = evaluateBudget({
-    budgetHours,
+    budgetHours: fallbackBudget,
     loggedHours: loggedSeconds / 3600,
     requestedHours: requestedSeconds / 3600,
+    period,
+    hasAnyPeriod: periods.length > 0,
   });
 
-  if (decision.allowed) return null;
+  // Nothing to say: the overwhelmingly common path, and it costs nothing.
+  if (decision.allowed && !decision.warn) return proceed;
 
   const projectName = project.name ?? `Project ${projectId}`;
 
@@ -294,7 +393,32 @@ async function checkBudget(
     source,
   });
 
-  return refusalMessage(decision, projectName);
+  /*
+   * An allowed-but-warned booking returns a WARNING, not a refusal. Keeping the
+   * two apart in the return type is deliberate: a caller that treated a warning
+   * as a refusal would block honest work, and one that dropped it would restore
+   * the silence this feature exists to end.
+   */
+  if (decision.allowed) {
+    return { refusal: null, warning: warningMessage(decision, projectName) };
+  }
+
+  return { refusal: refusalMessage(decision, projectName), warning: null };
+}
+
+/** Whole days from one ISO date to another; negative once the end has passed. */
+function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
+/** An ISO date shifted by whole days, used for an exclusive upper bound. */
+function addDays(date: string, days: number): string {
+  const t = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(t)) return date;
+  return new Date(t + days * 86_400_000).toISOString().slice(0, 10);
 }
 
 // ─── Timer ───────────────────────────────────────────────────────────────────
@@ -355,14 +479,19 @@ export async function startTimer(formData: FormData): Promise<TimeActionResult> 
    * would trap the user with a timer they cannot close and work they cannot
    * save, which is worse than recording an overrun we can see and report.
    */
+  // Set by the budget guard when the write is allowed but worth flagging.
+  let startWarning: string | null | undefined;
   {
-    const refusal = await checkBudget(supabase, {
+    const { refusal, warning } = await checkBudget(supabase, {
       projectId,
       requestedSeconds: 0,
       memberId: auth.memberId,
       source: "start_timer",
     });
     if (refusal) return { ok: false, message: refusal };
+    // Carried to the end of the action: the timer still has to start, and the
+    // caution belongs on the successful result rather than replacing it.
+    startWarning = warning;
   }
 
   // customer_id is derived from the chosen project rather than accepted from the
@@ -407,7 +536,7 @@ export async function startTimer(formData: FormData): Promise<TimeActionResult> 
   }
 
   revalidateTime();
-  return { ok: true };
+  return startWarning ? { ok: true, warning: startWarning } : { ok: true };
 }
 
 /**
@@ -563,14 +692,20 @@ export async function createEntry(formData: FormData): Promise<TimeActionResult>
 
   // Budget guard: this path knows exactly how many hours are being added, so it
   // asks the full question and refuses the booking if it would breach.
+  // Set by the budget guard when the write is allowed but worth flagging.
+  let createWarning: string | null | undefined;
   {
-    const refusal = await checkBudget(supabase, {
+    const { refusal, warning } = await checkBudget(supabase, {
       projectId,
       requestedSeconds: durationSeconds,
       memberId: auth.memberId,
+      // The entry's OWN date picks the contract period, so backdating a
+      // timesheet is judged against the contract in force then, not today's.
+      entryDate: startedAt.slice(0, 10),
       source: "create_entry",
     });
     if (refusal) return { ok: false, message: refusal };
+    createWarning = warning;
   }
 
   // Same reasoning as startTimer: the customer follows the project so no rollup
@@ -606,7 +741,7 @@ export async function createEntry(formData: FormData): Promise<TimeActionResult>
   if (error) return { ok: false, message: error.message };
 
   revalidateTime();
-  return { ok: true };
+  return createWarning ? { ok: true, warning: createWarning } : { ok: true };
 }
 
 /**
@@ -683,15 +818,19 @@ export async function updateEntry(formData: FormData): Promise<TimeActionResult>
    * what makes shrinking an entry on an over-budget project possible, which is
    * exactly how somebody fixes an overrun.
    */
+  // Set by the budget guard when the write is allowed but worth flagging.
+  let updateWarning: string | null | undefined;
   {
-    const refusal = await checkBudget(supabase, {
+    const { refusal, warning } = await checkBudget(supabase, {
       projectId: existing.project_id === null ? null : Number(existing.project_id),
       requestedSeconds: durationSeconds,
       excludeEntryId: entryId,
       memberId: auth.memberId,
+      entryDate: startedAt.slice(0, 10),
       source: "update_entry",
     });
     if (refusal) return { ok: false, message: refusal };
+    updateWarning = warning;
   }
 
   const { error } = await timeSchema(supabase)
@@ -709,7 +848,7 @@ export async function updateEntry(formData: FormData): Promise<TimeActionResult>
   if (error) return { ok: false, message: error.message };
 
   revalidateTime();
-  return { ok: true };
+  return updateWarning ? { ok: true, warning: updateWarning } : { ok: true };
 }
 
 /**

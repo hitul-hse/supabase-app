@@ -92,7 +92,10 @@ export async function notifyOverbooking(ctx: AlertContext): Promise<void> {
         requested_hours: d.requestedHours,
         projected_hours: d.projectedHours,
         over_by_hours: d.overByHours,
-        already_over: d.alreadyOver,
+        // The level carries what alreadyOver used to, plus the states it could
+        // not express (approaching, outside_contract). Kept as a boolean here
+        // too so existing rows and readers of this column stay meaningful.
+        already_over: d.level === "already_over",
         reason: d.reason,
         source: ctx.source,
         notify_recipients: recipients,
@@ -134,7 +137,7 @@ export async function notifyOverbooking(ctx: AlertContext): Promise<void> {
     `Budget:     ${d.budgetHours}h`,
     `Logged:     ${d.loggedHours}h`,
     `Attempted:  ${d.requestedHours}h`,
-    `Would be:   ${d.projectedHours}h (${d.overByHours}h over${d.alreadyOver ? ", project was ALREADY over" : ""})`,
+    `Would be:   ${d.projectedHours}h (${d.overByHours}h over${d.level === "already_over" ? ", project was ALREADY over" : ""})`,
     ``,
     d.reason,
     ``,

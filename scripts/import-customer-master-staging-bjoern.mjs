@@ -21,10 +21,18 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process"; // still used by the git-context helper below
+import * as XLSX from "xlsx";
 import { resolve } from "node:path";
 
-const EXPECTED_PROJECT_REF = "zdknxlcvhcqkygiuqlbf";
+/*
+ * Retargeted from Bjoern's sandbox (zdknxlcvhcqkygiuqlbf) to production on
+ * 2026-08-23, after the crm/projects/stg foundation migration was applied and
+ * verified live. His ref-pinning is kept as the mechanism -- an importer that
+ * writes staging data must refuse every database except the one it was
+ * consciously aimed at.
+ */
+const EXPECTED_PROJECT_REF = "wdbedblvyrfqwypngghs";
 const DRY_RUN = process.argv.includes("--dry-run");
 const SOURCE_SYSTEM = "LEXWARE_HSE";
 const ENTITY_TYPE = "customer_masterdata";
@@ -163,18 +171,37 @@ with zipfile.ZipFile(path) as book:
 print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
 `;
 
+/*
+ * ADAPTED FOR THIS MACHINE (2026-08-23): the original shelled out to python3's
+ * standard library as the XLSX reader, which exists on Bjoern's Mac but not on
+ * this Windows host (the 'python3' alias opens the Microsoft Store). The repo
+ * already depends on the xlsx package, so this produces the SAME structure --
+ * [{sheet, headers, rows: [{row, values}]}] with 1-based row numbers counting
+ * the header -- from it instead. The Python source above is kept for reference
+ * and for anyone running the original on a machine that has python3.
+ */
 function readWorkbook(filePath) {
-  const parsed = spawnSync("python3", ["-c", PYTHON_XLSX_READER, filePath], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  if (parsed.error) fail(`Unable to read XLSX with python3: ${parsed.error.message}`);
-  if (parsed.status !== 0) fail(`Unable to parse XLSX: ${parsed.stderr.trim()}`);
-  try {
-    return JSON.parse(parsed.stdout);
-  } catch (error) {
-    fail(`XLSX reader returned invalid JSON: ${error.message}`);
+  const wb = XLSX.read(readFileSync(filePath));
+  const result = [];
+  for (const name of wb.SheetNames) {
+    const grid = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
+    const headers = (grid[0] ?? []).map((h) => String(h ?? "").trim());
+    const rows = [];
+    for (let i = 1; i < grid.length; i++) {
+      const cells = grid[i] ?? [];
+      // Skip fully empty rows the way the Python reader's zip/strip did.
+      if (cells.every((c) => String(c ?? "").trim() === "")) continue;
+      const values = {};
+      headers.forEach((h, j) => {
+        if (h) values[h] = String(cells[j] ?? "").trim();
+      });
+      // Field name matches the original Python reader: consumers read
+      // row.excel_row_number and value(row, key) reads row.values.
+      rows.push({ excel_row_number: i + 1, values });
+    }
+    result.push({ sheet: name, headers, rows });
   }
+  return result;
 }
 
 function value(row, key) {

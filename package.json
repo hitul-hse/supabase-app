@@ -150,7 +150,9 @@
     "sandbox:seed": "node scripts/sandbox-seed.mjs",
     "reconcile:masterdata": "node scripts/reconcile-masterdata.mjs",
     "check:change-control": "node scripts/check-change-control.mjs",
-    "import:masterdata": "node scripts/import-masterdata-projects.mjs"
+    "import:masterdata": "node scripts/import-masterdata-projects.mjs",
+    "check:customer-master-foundation": "node scripts/check-customer-master-foundation.mjs",
+    "link:tt-hub": "node scripts/link-tt-to-hub-projects.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

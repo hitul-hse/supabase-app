@@ -58,3 +58,22 @@ hierarchy, generous whitespace), not their marketing aesthetics.
 
 `src/app/(app)/customer-master/import-review/page.tsx` -- the Pager component
 and its hrefFor integration are the pattern to copy.
+
+## Cards vs controls (the judgment call)
+
+The app-wide language is separate rounded cards on a gap (see Card.tsx's
+header comment for why fused grids are banned). The call that decides whether
+something becomes a Card:
+
+- **Card**: a top-level panel -- contains a heading or aggregates content
+  (chart container, table wrapper, form section, approval list). Gets
+  radius-card, elevation, CardHeader.
+- **Not a card**: interactive chrome -- inputs, pills, tabs, dropdown items,
+  org-chart nodes, badges. These keep compact styling on surface-2 tokens
+  (see Segmented.tsx / Pill / IconButton for the reference treatment).
+- **Never** nest Card in Card (the design gate bans it): group with spacing
+  and CardDivider instead.
+- **Hero tone once per page** -- the card carrying the primary chart or
+  headline figure. Twice and the page flattens back to wallpaper.
+- Loading skeletons mirror the card geometry they stand in for, or the page
+  visibly jumps when data arrives.

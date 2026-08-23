@@ -44,6 +44,14 @@ export async function updateSession(request: NextRequest) {
     PUBLIC_ROUTES.has(request.nextUrl.pathname) ||
     PUBLIC_PREFIXES.some((p) => request.nextUrl.pathname.startsWith(p));
 
+  // Development-only exception for the read-only Customer Master review
+  // surface. This is intentionally an exact route match and is not added to
+  // PUBLIC_ROUTES: every other route keeps the normal middleware auth gate,
+  // and production never takes this branch.
+  const isDevelopmentReviewRoute =
+    process.env.NODE_ENV === "development" &&
+    request.nextUrl.pathname === "/customer-master/import-review";
+
   const redirectToLogin = () => {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/auth/login";
@@ -61,7 +69,7 @@ export async function updateSession(request: NextRequest) {
     console.error(
       "Supabase env vars missing (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY); denying protected routes.",
     );
-    return isPublicRoute ? supabaseResponse : redirectToLogin();
+    return isPublicRoute || isDevelopmentReviewRoute ? supabaseResponse : redirectToLogin();
   }
 
   try {
@@ -90,14 +98,14 @@ export async function updateSession(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user && !isPublicRoute) {
+    if (!user && !isPublicRoute && !isDevelopmentReviewRoute) {
       return redirectToLogin();
     }
   } catch (err) {
     // Also fail closed: an auth-server outage or a thrown fetch must not
     // degrade into "everyone is allowed through".
     console.error("Supabase auth middleware error:", err);
-    if (!isPublicRoute) {
+    if (!isPublicRoute && !isDevelopmentReviewRoute) {
       return redirectToLogin();
     }
   }

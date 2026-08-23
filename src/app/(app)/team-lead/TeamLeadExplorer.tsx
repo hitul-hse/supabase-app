@@ -322,15 +322,22 @@ export function TeamLeadExplorer({
   // "N of M" count would drift from what is on screen.
   useEffect(() => {
     const presentTeams = new Set(teamChoices.map((c) => c.key));
-    setSelectedTeams((prev) => {
-      const next = new Set([...prev].filter((k) => presentTeams.has(k)));
-      return next.size === prev.size ? prev : next;
-    });
     const presentIds = new Set(board.rows.map((r) => r.memberId));
-    setSelectedMembers((prev) => {
-      const next = prev.filter((id) => presentIds.has(id));
-      return next.length === prev.length ? prev : next;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSelectedTeams((prev) => {
+        const next = new Set([...prev].filter((k) => presentTeams.has(k)));
+        return next.size === prev.size ? prev : next;
+      });
+      setSelectedMembers((prev) => {
+        const next = prev.filter((id) => presentIds.has(id));
+        return next.length === prev.length ? prev : next;
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [teamChoices, board.rows]);
 
   const anyFilter = selectedTeams.size > 0 || selectedMembers.length > 0;

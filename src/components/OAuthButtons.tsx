@@ -266,7 +266,7 @@ export function OAuthButtons({
   // measured height was 37.3px — under the 44px minimum target on the one screen
   // nobody can skip. Relaxed at sm+, where a pointer is precise.
   const base =
-    "flex w-full min-h-11 items-center justify-center gap-2.5 border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] disabled:opacity-50 sm:min-h-0";
+    "flex w-full min-h-11 items-center justify-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] disabled:opacity-50 sm:min-h-0";
 
   return (
     <div className="space-y-2.5">

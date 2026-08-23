@@ -222,7 +222,7 @@ export function AuthNotice({ tone, children }: { tone: "error" | "success"; chil
 // 2. `min-h-11` (44px). The measured height was 37.3px, under both Apple's and
 //    WCAG 2.5.8's minimum target, on the one form nobody can skip.
 export const authInputClass =
-  "w-full min-h-11 border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:text-sm";
+  "w-full min-h-11 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:text-sm";
 
 export const authButtonClass =
   "w-full min-h-11 rounded-[var(--radius-sm)] bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)] active:translate-y-px disabled:cursor-not-allowed disabled:bg-[var(--surface-2)] disabled:text-[var(--text-faint)] disabled:active:translate-y-0 sm:min-h-0";

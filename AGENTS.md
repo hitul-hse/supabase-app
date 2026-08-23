@@ -46,3 +46,11 @@ Two things about the setup that are deliberate and should not be "fixed":
 `graph.json`, `GRAPH_REPORT.md` and `manifest.json` are committed on purpose so
 every session starts from the same map; `graph.html`, `cache/` and the
 per-machine pointers are gitignored.
+
+## UI work: read docs/UI-CONVENTIONS.md first
+
+Any list, table, queue or pager follows docs/UI-CONVENTIONS.md (pagination in
+the URL, 10 rows for worked queues, worst-first ordering, honest counts, the
+house tokens). The reference implementation is the Pager in
+src/app/(app)/customer-master/import-review/page.tsx. Sandbox contributors:
+docs/SANDBOX.md.

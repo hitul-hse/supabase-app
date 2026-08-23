@@ -18,7 +18,15 @@ import { requireProfile } from "@/utils/supabase/require-profile";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ priority?: string; case_type?: string; status?: string; sheet?: string; case?: string }>;
+type SearchParams = Promise<{ priority?: string; case_type?: string; status?: string; sheet?: string; case?: string; page?: string }>;
+
+/*
+ * Ten cases per page. The queue held every case in one endless column, so
+ * working through it meant scrolling past everything already handled. Ten is
+ * enough to keep context while the sticky detail panel stays within reach of
+ * every row on the page.
+ */
+const CASES_PER_PAGE = 10;
 
 const REVIEW_PRIORITIES: ReviewPriority[] = ["P0", "P1", "P2"];
 const REVIEW_CASE_TYPES: ReviewCaseType[] = ["LEXWARE_REFERENCE_CONFLICT", "ALIAS_REVIEW", "PROJECT_LOCATION_CANDIDATE", "MULTI_LOCATION_CUSTOMER", "HISTORICAL_SOURCE_REVIEW", "CUSTOMER_MASTER_REVIEW"];
@@ -33,7 +41,10 @@ function parseFilter(params: Awaited<SearchParams>): ReviewFilter {
   };
 }
 
-function hrefFor(filter: ReviewFilter, patch: Partial<ReviewFilter> & { case?: string | null } = {}) {
+function hrefFor(
+  filter: ReviewFilter,
+  patch: Partial<ReviewFilter> & { case?: string | null; page?: number } = {},
+) {
   const next = { ...filter, ...patch };
   const search = new URLSearchParams();
   if (next.priority !== "all") search.set("priority", next.priority);
@@ -41,6 +52,13 @@ function hrefFor(filter: ReviewFilter, patch: Partial<ReviewFilter> & { case?: s
   if (next.status !== "all") search.set("status", next.status);
   if (next.sheet !== "all") search.set("sheet", next.sheet);
   if ("case" in patch && patch.case) search.set("case", patch.case);
+  /*
+   * The page survives only when the patch carries it explicitly (pager links,
+   * case selection). A filter change omits it and lands on page 1: a filter
+   * defines a NEW list, and staying on page 4 of a different list would show
+   * arbitrary rows.
+   */
+  if (patch.page && patch.page > 1) search.set("page", String(patch.page));
   const query = search.toString();
   return `/customer-master/import-review${query ? `?${query}` : ""}`;
 }
@@ -85,6 +103,20 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
   const filter = parseFilter(params);
   const data = await getCustomerMasterImportReview(filter);
   const selected = [...data.cases, ...data.documentedCases].find((reviewCase) => reviewCase.case_key === params.case) ?? null;
+
+  /*
+   * Pagination over the FILTERED list. Clamped rather than 404ing: a stale
+   * bookmark to page 9 of a list that shrank should show the last page, not an
+   * error. When a case is selected, jump to ITS page so a shared ?case= link
+   * always shows its row highlighted in the visible slice.
+   */
+  const pageCount = Math.max(1, Math.ceil(data.cases.length / CASES_PER_PAGE));
+  let currentPage = Math.min(pageCount, Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1));
+  if (selected) {
+    const selectedIndex = data.cases.findIndex((reviewCase) => reviewCase.case_key === selected.case_key);
+    if (selectedIndex >= 0) currentPage = Math.floor(selectedIndex / CASES_PER_PAGE) + 1;
+  }
+  const pagedCases = data.cases.slice((currentPage - 1) * CASES_PER_PAGE, currentPage * CASES_PER_PAGE);
 
   const priorityLinks = [
     { href: hrefFor(filter, { priority: "all", case: null }), label: "Alle" },
@@ -159,7 +191,8 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
           <Card>
             <CardHeader title="Review cases" qualifier={`${data.cases.length} CASES · ${data.cases.reduce((sum, item) => sum + item.records.length, 0)} RECORDS`} />
             <CardDivider />
-            {data.cases.length === 0 ? <p className="px-4 py-8 text-sm text-[var(--text-muted)]">Keine fachlichen Review Cases für diesen Filter.</p> : <div className="divide-y divide-[var(--divider)]"><div className="hidden grid-cols-[minmax(180px,1.1fr)_minmax(90px,0.5fr)_minmax(120px,0.8fr)_70px_minmax(120px,0.8fr)_minmax(180px,1.2fr)] gap-3 bg-[var(--surface-2)] px-4 py-2 font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)] lg:grid"><span>CASE TYPE</span><span>PRIORITÄT</span><span>RESOLUTION STATUS</span><span>RECORDS</span><span>BETROFFENE QUELLE</span><span>REVIEW REASON</span></div>{data.cases.map((reviewCase) => <CaseRow key={reviewCase.case_key} reviewCase={reviewCase} active={selected?.case_key === reviewCase.case_key} href={hrefFor(filter, { case: reviewCase.case_key })} />)}</div>}
+            {data.cases.length === 0 ? <p className="px-4 py-8 text-sm text-[var(--text-muted)]">Keine fachlichen Review Cases für diesen Filter.</p> : <div className="divide-y divide-[var(--divider)]"><div className="hidden grid-cols-[minmax(180px,1.1fr)_minmax(90px,0.5fr)_minmax(120px,0.8fr)_70px_minmax(120px,0.8fr)_minmax(180px,1.2fr)] gap-3 bg-[var(--surface-2)] px-4 py-2 font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)] lg:grid"><span>CASE TYPE</span><span>PRIORITÄT</span><span>RESOLUTION STATUS</span><span>RECORDS</span><span>BETROFFENE QUELLE</span><span>REVIEW REASON</span></div>{pagedCases.map((reviewCase) => <CaseRow key={reviewCase.case_key} reviewCase={reviewCase} active={selected?.case_key === reviewCase.case_key} href={hrefFor(filter, { case: reviewCase.case_key, page: currentPage })} />)}</div>}
+            {pageCount > 1 && <Pager filter={filter} currentPage={currentPage} pageCount={pageCount} total={data.cases.length} />}
           </Card>
 
           {data.documentedCases.length > 0 && <Card>
@@ -176,6 +209,52 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
         </div>
       </div>
     </>
+  );
+}
+
+function Pager({ filter, currentPage, pageCount, total }: { filter: ReviewFilter; currentPage: number; pageCount: number; total: number }) {
+  /*
+   * Numbered links with an elided middle: first, last, and a window around the
+   * current page. Server-rendered <Link>s like every other control here, so
+   * back/forward and shareable URLs keep working.
+   */
+  const windowed: (number | "gap")[] = [];
+  for (let n = 1; n <= pageCount; n += 1) {
+    if (n === 1 || n === pageCount || Math.abs(n - currentPage) <= 1) windowed.push(n);
+    else if (windowed[windowed.length - 1] !== "gap") windowed.push("gap");
+  }
+  const pageLink = (n: number, label: string, disabled: boolean, current = false) =>
+    disabled ? (
+      <span key={`${label}-off`} className="border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] text-[var(--text-faint)] opacity-40">{label}</span>
+    ) : (
+      <Link
+        key={`${label}-${n}`}
+        href={hrefFor(filter, { page: n, case: null })}
+        scroll={false}
+        aria-current={current ? "page" : undefined}
+        className={`border px-2.5 py-1 font-mono text-[10px] transition-colors ${current ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+      >
+        {label}
+      </Link>
+    );
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--divider)] px-4 py-3">
+      <span className="font-mono text-[10px] text-[var(--text-faint)]">
+        SEITE {currentPage} VON {pageCount} · {total} CASES
+      </span>
+      <nav aria-label="Review-Cases Seiten" className="flex items-center gap-1.5">
+        {pageLink(currentPage - 1, "Zurück", currentPage === 1)}
+        {windowed.map((n, i) =>
+          n === "gap" ? (
+            <span key={`gap-${i}`} className="px-1 font-mono text-[10px] text-[var(--text-faint)]">…</span>
+          ) : (
+            pageLink(n, String(n), false, n === currentPage)
+          ),
+        )}
+        {pageLink(currentPage + 1, "Weiter", currentPage === pageCount)}
+      </nav>
+    </div>
   );
 }
 

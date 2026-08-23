@@ -149,7 +149,8 @@
     "verify:contract-live": "node scripts/verify-contract-behaviour-live.mjs",
     "sandbox:seed": "node scripts/sandbox-seed.mjs",
     "reconcile:masterdata": "node scripts/reconcile-masterdata.mjs",
-    "check:change-control": "node scripts/check-change-control.mjs"
+    "check:change-control": "node scripts/check-change-control.mjs",
+    "import:masterdata": "node scripts/import-masterdata-projects.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

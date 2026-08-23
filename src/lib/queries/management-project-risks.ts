@@ -236,6 +236,8 @@ export async function getManagementProjectRisks(
         schema(supabase, "time")
           .from("project")
           .select("hub_project_id, source_id, service:service_id(name)")
+          // Ordered: same paging defect as management-contract-hours.
+          .order("id", { ascending: true })
           .range(from, to),
       ),
       readCustomerMappings(supabase),

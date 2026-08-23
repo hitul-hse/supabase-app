@@ -117,6 +117,9 @@ export async function getManagementContractHours(
           .from("project")
           .select("hub_project_id, service:service_id(name)")
           .not("hub_project_id", "is", null)
+          // Ordered: unordered .range() paging repeats and skips rows
+          // (PostgREST has no stable default order). Measured on this repo.
+          .order("id", { ascending: true })
           .range(from, to),
       ),
     ]);

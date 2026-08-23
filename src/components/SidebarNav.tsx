@@ -37,6 +37,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "ANALYSE",
     items: [
       { href: "/",          label: "Overview",       tourId: "tour-overview"  },
+      { href: "/dashboard/management", label: "Management", roles: ["exec"] },
       { href: "/team-lead", label: "Team Lead View", tourId: "tour-teamlead",
         badge: "7", badgeColor: "var(--critical)", roles: ["exec", "dept_head"] },
     ],
@@ -63,6 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "ADMIN",
     items: [
+      { href: "/customer-master/import-review", label: "Customer Master", roles: ["exec"] },
       { href: "/admin/users", label: "Users & Roles",    roles: ["exec", "dept_head"] },
       { href: "/admin/roles", label: "Role Permissions", roles: ["exec", "dept_head"] },
       // Budget alerts. Deliberately in ADMIN rather than beside Projects: these

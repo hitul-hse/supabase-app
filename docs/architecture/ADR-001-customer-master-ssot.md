@@ -1,174 +1,187 @@
-# ADR-001: Single Source of Truth und Stammdatenlogik fuer den Customer Master
+# ADR-001: Single Source of Truth und Stammdatenlogik für Customer Master
 
-- **Status:** Accepted
-- **Datum:** 2026-08-22
-- **Autor:** Bjoern Schoenemann (erarbeitet im Customer-Dashboard-Sandbox-Projekt),
-  uebernommen in das Hub-Portal durch Review am 2026-08-22
-- **Gilt fuer:** alle zukuenftigen Aenderungen an Kunden-, Projekt-, Vertrags-
-  und Stammdatenstrukturen in diesem Repository
+- Status: Accepted
+- Datum: 2026-08-22
 
-> Provenance: Dieses ADR entstand in Bjoerns Sandbox-Fork
-> (`kerne1b1ueprint/supabase-app--customer-dashboard`) waehrend der Arbeit an
-> einem Customer-Master-Datenmodell gegen die HSE-Masterdata-Exceldatei
-> (`HSE_Masterdata_Uebersicht Kunden_verantwortlichkeiten_customer_responsible_2026_V2.xlsx`).
-> Es wird hier unveraendert in der Sache uebernommen, weil die Regeln fuer das
-> HAUPTPORTAL genauso gelten: auch unsere `time.customer`-Tabelle enthaelt
-> Vendor-Duplikate (z. B. "WorkMotion Software GmbH" vs "WorkMotion Europe
-> GmbH", ENERCON GmbH vs ENERCON PLM GmbH), und ohne diese Regeln wuerde jede
-> Bereinigung raten statt pruefen.
+## Kontext
 
-## 1. Lexware als SSOT fuer abrechnungsrelevante Kundendaten
+Kundeninformationen werden in Lexware und im HSE Customer Master benötigt, dort
+aber mit unterschiedlichen fachlichen Verantwortlichkeiten. Insbesondere sind
+Lexware-Kontakte, Legal Entities, Standorte, Unternehmensverbünde,
+Rahmenverträge und Projekte nicht dasselbe Konzept und dürfen nicht implizit
+gleichgesetzt werden.
 
-Lexware ist das fuehrende System fuer:
+## Entscheidung
+
+### 1. Lexware als SSOT für abrechnungsrelevante Kundendaten
+
+Lexware ist das führende System für:
 
 - rechtliche Kundenbezeichnung
 - Kundennummer
 - Rechnungsadressen
 - Ansprechpartner
 - Angebote
-- Auftragsbestaetigungen
+- Auftragsbestätigungen
 - abrechnungsrelevante Stammdaten
 
-Eine Lexware-Kundennummer entspricht jedoch **nicht automatisch** einer
-eindeutigen Legal Entity. Ein Unternehmen kann aufgrund verschiedener
-Standorte, historischer Prozesse oder anderer organisatorischer Gruende
-mehrfach in Lexware vorhanden sein.
+Eine Lexware-Kundennummer entspricht nicht automatisch einer eindeutigen Legal
+Entity. Ein Unternehmen kann aufgrund verschiedener Standorte, historischer
+Prozesse oder organisatorischer Gründe mehrfach in Lexware vorhanden sein.
 
-## 2. HSE Customer Master als SSOT fuer fachliche Kundenbeziehungen
+### 2. HSE Customer Master als SSOT für fachliche Kundenbeziehungen
 
-Der HSE Customer Master ist das fuehrende System fuer die fachlichen
-Beziehungen, die in Lexware nicht ausreichend modelliert werden:
+Der HSE Customer Master ist das führende System für:
 
 - eindeutige Legal Entities
 - Standorte
-- Unternehmensverbuende
-- Rahmenvertraege
+- Unternehmensverbünde
+- Rahmenverträge
 - Aliase und historische Bezeichnungen
-- Beziehungen zwischen Kunden, Standorten, Vertraegen und Projekten
+- Beziehungen zwischen Kunden, Standorten, Verträgen und Projekten
 
-Der Customer Master **ersetzt Lexware nicht**.
+Der Customer Master ergänzt Lexware und ersetzt Lexware nicht.
 
-## 3. Legal Entity und Lexware-Kontakt strikt trennen
+### 3. Legal Entity und Lexware-Kontakt strikt trennen
 
-Ein Lexware-Kontakt ist nicht automatisch ein eigenstaendiger Kunde bzw. eine
-eigenstaendige Legal Entity im HSE-Datenmodell.
+Ein Lexware-Kontakt ist nicht automatisch eine eigenständige Legal Entity im
+HSE-Datenmodell.
 
-Beispiel PBS: `PBS Germany Operations GmbH` ist voraussichtlich EINE Legal
-Entity mit zwei Standorten und zwei Lexware-Referenzen:
+Beispiel: `PBS Germany Operations GmbH` kann eine Legal Entity mit mehreren
+Standorten und Lexware-Referenzen sein:
 
-- Berlin -> Lexware-Kundennummer 10284
-- Neu-Isenburg -> Lexware-Kundennummer 10285
+- Berlin → Lexware-Kundennummer `10284`
+- Neu-Isenburg → Lexware-Kundennummer `10285`
 
-Vor einer Zusammenfuehrung muss die rechtliche Identitaet geprueft werden,
-z. B. anhand von USt-ID, Handelsregisterdaten oder vollstaendiger rechtlicher
-Firmierung. **Eine automatische Zusammenfuehrung ausschliesslich anhand
-aehnlicher Namen ist nicht zulaessig.**
+Vor Zusammenführungen muss die rechtliche Identität geprüft werden, zum
+Beispiel anhand von:
 
-## 4. Unternehmensverbuende separat modellieren
+- USt-ID
+- Handelsregisterdaten
+- vollständiger rechtlicher Firmierung
 
-Rechtlich eigenstaendige Gesellschaften bleiben eigenstaendige Legal Entities.
+Eine automatische Zusammenführung ausschließlich aufgrund ähnlicher Namen
+oder Adressen ist nicht zulässig.
 
-```
+### 4. Unternehmensverbünde separat modellieren
+
+Rechtlich eigenständige Gesellschaften bleiben eigenständige Legal Entities.
+Die Gruppenzugehörigkeit wird als eigene Beziehung im HSE Customer Master
+modelliert.
+
+```text
 Unternehmensverbund SolarPro
-+-- SolarPro Gesellschaft A  -> eigene Legal Entity
-+-- SolarPro Gesellschaft B  -> eigene Legal Entity
-+-- SolarPro Gesellschaft C  -> eigene Legal Entity
+├── SolarPro Gesellschaft A → eigene Legal Entity
+├── SolarPro Gesellschaft B → eigene Legal Entity
+└── SolarPro Gesellschaft C → eigene Legal Entity
 ```
 
-Die Konzern-/Gruppenzugehoerigkeit wird im HSE Customer Master als BEZIEHUNG
-modelliert, nicht durch Zusammenlegen der Gesellschaften.
+### 5. Standort ist keine Legal Entity
 
-## 5. Standort ist keine Legal Entity
+Die Grundlogik lautet:
 
-```
+```text
 gleicher Firmenname
-+ gleiche rechtliche Identitaet
++ gleiche rechtliche Identität
 + unterschiedliche Adresse
-= EINE Legal Entity mit mehreren Standorten
+= eine Legal Entity mit mehreren Standorten
 ```
 
 Eine abweichende Adresse allein erzeugt keine neue Legal Entity.
 
-## 6. Rahmenvertraege separat modellieren
+### 6. Rahmenverträge separat modellieren
 
-Ein Rahmenvertrag ist keine Legal Entity, kein Standort und kein
-Unternehmensverbund. Er ist eine eigene Vertragsbeziehung.
+Ein Rahmenvertrag ist weder Legal Entity noch Standort noch
+Unternehmensverbund. Rahmenverträge werden als eigene Vertragsbeziehung
+modelliert.
 
-```
+```text
 Rahmenvertrag ENERCON
-+-- Projekt A (z. B. W-12727 Bimolten, 320h)
-+-- Projekt B (z. B. W-13019 Duelmen, 195h)
-+-- Projekt C (z. B. W-13301 Wohlsdorf, 184h)
+├── Projekt A
+├── Projekt B
+├── Projekt C
+└── Projekt D
 ```
 
-Anmerkung fuer dieses Repository: die `time.project_contract_period`-Tabelle
-(Contract-Feature, 2026-08-22) modelliert Vertragszeitraeume PRO PROJEKT. Ein
-Rahmenvertrag umspannt mehrere Projekte und ist damit eine EIGENE, noch nicht
-gebaute Ebene DARUEBER -- nicht dasselbe Konzept.
+### 7. Verbindliche Entity-Resolution-Reihenfolge
 
-## 7. Verbindliche Reihenfolge bei Datenbereinigung und Entity Resolution
+Bei Konflikten, Dubletten oder unklaren Zuordnungen wird in dieser Reihenfolge
+geprüft:
 
-Bei Konflikten oder moeglichen Dubletten wird in dieser Reihenfolge geprueft:
-
-1. rechtliche Identitaet / Legal Entity
+1. rechtliche Identität / Legal Entity
 2. Lexware-Kontakt und Kundennummer
 3. Standort
 4. Unternehmensverbund
 5. Rahmenvertrag
 6. Projekt-/Auftragszuordnung
 
-Erst danach darf ein Datensatz klassifiziert werden als: Legal Entity /
-eigener Kunde, Standort, Alias, Verbund-Mitglied, historischer Datensatz,
-Dublette oder fehlerhafte Zuordnung.
+Erst danach darf ein Datensatz klassifiziert werden als:
 
-**Schutzregel:** Unsichere Zuordnungen duerfen nicht automatisch
-zusammengefuehrt werden. Sie werden fuer eine manuelle Pruefung markiert.
-(Diese Regel existiert, damit kein Werkzeug -- menschlich oder KI -- aus
-"aehnlicher Firmenname + aehnliche Adresse" eigenmaechtig eine Legal Entity
-macht.)
+- Legal Entity / eigener Kunde
+- Standort
+- Alias
+- Unternehmensverbund-Mitglied
+- historischer Datensatz
+- Dublette
+- fehlerhafte Zuordnung
 
-## 8. Integrationsprinzip
+Unsichere Zuordnungen dürfen niemals automatisch zusammengeführt werden und
+müssen für eine manuelle Prüfung markiert werden.
 
-Die Systeme werden ueber **stabile Referenzen** verbunden. Ziel ist
-ausdruecklich keine redundante Kopie der Lexware-Datenbank.
+### 8. Integrationsprinzip
 
-- Lexware ist SSOT fuer abrechnungsrelevante Kundendaten und Belege.
-- Der HSE Customer Master ist SSOT fuer die fachlichen Beziehungen zwischen
-  Legal Entities, Standorten, Unternehmensverbuenden, Rahmenvertraegen und
-  Projekten.
+> Lexware ist SSOT für abrechnungsrelevante Kundendaten und Belege.
 
-Daten aus Lexware duerfen im Customer Master fuer Suche, Darstellung,
-Zuordnung und technische Verarbeitung gespiegelt oder gecacht werden. Die
-fachliche Ownership der abrechnungsrelevanten Ursprungsdaten verbleibt bei
-Lexware.
+> Der HSE Customer Master ist SSOT für die fachlichen Beziehungen zwischen
+> Legal Entities, Standorten, Unternehmensverbünden, Rahmenverträgen und
+> Projekten.
 
-In DIESEM Repository gilt dieselbe Logik bereits fuer TrackingTime:
-`time.project.estimated_hours` gehoert dem Vendor-Sync (der Sync upsertet die
-Spalte bei jedem Lauf), waehrend vertragliche Budgets in
-`time.project_contract_period` leben, wo der Sync sie nicht erreicht. Das ist
-derselbe Grundsatz -- externe Systeme behalten ihre Spalten, fachliche
-Wahrheit lebt in eigenen Tabellen -- und ADR-001 erweitert ihn auf Lexware und
-den kommenden Customer Master.
+Beide Systeme werden über stabile Referenzen miteinander verbunden.
 
-## 9. Konsequenzen fuer das Datenmodell
+Lexware-Daten dürfen für Suche, Darstellung, Zuordnung und technische
+Verarbeitung gespiegelt oder gecacht werden. Die fachliche Ownership der
+abrechnungsrelevanten Ursprungsdaten verbleibt bei Lexware.
 
-Das zukuenftige Datenmodell darf diese Konzepte NICHT in einer einzigen
-`customer`-Tabelle vermischen. Mindestens konzeptionell getrennt:
+### 9. Konsequenzen für das Datenmodell
+
+Das zukünftige Datenmodell darf diese Konzepte nicht in einer einzigen
+Customer-Tabelle vermischen. Mindestens konzeptionell getrennt zu behandeln
+sind:
 
 - Legal Entity
-- External System Reference (Lexware-Kunde, TrackingTime-Customer, ...)
-- Location (Standort)
-- Corporate Group (Unternehmensverbund)
-- Framework Agreement (Rahmenvertrag)
+- External System Reference / Lexware Customer
+- Location
+- Corporate Group
+- Framework Agreement
 - Project / Order
 - Alias
 
-Die konkrete Tabellenstruktur wird separat entworfen und ist nicht Bestandteil
-dieses ADR.
+Die konkrete Tabellenstruktur ist nicht Bestandteil dieses ADR und wird
+anschließend separat entworfen.
 
-## 10. Schutzregel fuer zukuenftige Entwicklung
+### 10. Schutzregel für zukünftige Entwicklung
 
-Dieses ADR ist bei allen zukuenftigen Aenderungen an Kunden-, Projekt-,
-Vertrags- und Stammdatenstrukturen zu beruecksichtigen. Vor Schemaaenderungen
-oder automatischen Datenbereinigungen muss geprueft werden, ob die Aenderung
-mit ADR-001 vereinbar ist.
+Diese ADR ist bei allen zukünftigen Änderungen an Kunden-, Projekt-, Vertrags-
+und Stammdatenstrukturen verbindlich zu berücksichtigen.
+
+Vor Schemaänderungen, Imports, Synchronisationen oder automatischen
+Datenbereinigungen muss geprüft werden, ob die Änderung mit ADR-001 vereinbar
+ist.
+
+## Konsequenzen
+
+- Lexware und HSE Customer Master haben klar getrennte fachliche Ownerships.
+- Entity Resolution benötigt eine rechtliche Prüfung und darf nicht allein auf
+  Namens- oder Adressähnlichkeit beruhen.
+- Mehrere Lexware-Kontakte können auf eine Legal Entity referenzieren.
+- Rechtlich eigenständige Gesellschaften bleiben getrennt und werden über
+  Unternehmensverbund-Beziehungen gruppiert.
+- Die konkrete Tabellenstruktur und nachfolgende Integrationen müssen diese
+  Trennung abbilden.
+
+## Geltungsbereich
+
+Diese Entscheidung ist für alle zukünftigen Änderungen an Kunden-, Projekt-,
+Vertrags- und Stammdatenstrukturen verbindlich. Sie gilt insbesondere für
+Schemaänderungen, Imports, Synchronisationen und automatische
+Datenbereinigungen.

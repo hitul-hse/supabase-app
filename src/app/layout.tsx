@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -75,15 +76,17 @@ export default function RootLayout({
         suppressHydrationWarning is on <html> because this script legitimately makes
         the server-rendered attribute differ from the client's.
       */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html:
-            "try{var t=localStorage.getItem('hse-hub-theme');if(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)t='light';if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}",
-        }}
-      />
-      <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
-        {children}
-      </body>
+      <head>
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('hse-hub-theme');if(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)t='light';if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}",
+          }}
+        />
+      </head>
+      <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">{children}</body>
     </html>
   );
 }

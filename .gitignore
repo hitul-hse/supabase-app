@@ -107,3 +107,5 @@ docs/discovery/
 
 # Scratch output from agents and probe scripts: never repo content.
 tmp-*
+.local/
+.context-bridge/bjoern-files/

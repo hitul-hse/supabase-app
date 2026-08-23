@@ -1,5 +1,5 @@
 import { Card, CardHeader } from "@/components/ui/Card";
-import { MULTI_SERVICE_COLUMNS, type ManagementMultiServiceMatrix } from "@/lib/queries/management-multi-service-matrix";
+import { MULTI_SERVICE_COLUMNS, type ManagementMultiServiceMatrix } from "@/lib/queries/management-multi-service-matrix.types";
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 

@@ -9,6 +9,7 @@ import type { ManagementDataQualityRow } from "@/lib/queries/management-data-qua
 import type { ManagementProjectRiskRow } from "@/lib/queries/management-project-risks";
 import type { ManagementMultiServiceMatrix as ManagementMultiServiceMatrixModel } from "@/lib/queries/management-multi-service-matrix";
 import type { ManagementCustomerPortfolio } from "@/lib/queries/management-customer-portfolio";
+import type { ManagementChangeRequest } from "@/lib/queries/management-change-requests";
 import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
 import { ManagementDataQuality } from "./ManagementDataQuality";
 import { ManagementProjectRisks } from "./ManagementProjectRisks";
@@ -17,7 +18,7 @@ import { ManagementCustomerPortfolio as ManagementCustomerPortfolioView } from "
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 
-export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio }) {
+export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, people, changeRequests }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; people: { id: string; name: string }[]; changeRequests: ManagementChangeRequest[] }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   const totalByPerson = Object.fromEntries(
     PEOPLE.map((person) => [person, model.rows.reduce((sum, row) => sum + row.cells[person], 0)]),
@@ -43,7 +44,7 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
 
       <ManagementMultiServiceMatrix model={multiServiceModel} />
 
-      <ManagementCustomerPortfolioView model={customerPortfolio} />
+      <ManagementCustomerPortfolioView model={customerPortfolio} people={people} changeRequests={changeRequests} />
 
       <Card className="overflow-hidden">
         <CardHeader title="Auslastungsausblick" qualifier={`GEBUNDENE VERTRAGSSTUNDEN / ${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} PLANSTUNDEN · 75% BILLABLE CAPACITY`} />

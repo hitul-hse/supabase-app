@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { fetchAllPaged } from "@/lib/queries/paged";
+import { readManagementCustomerMappings, type ManagementCustomerEntity } from "@/lib/queries/management-customer-mapping";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -13,6 +14,7 @@ export type CustomerPortfolioService = {
 export type CustomerPortfolioProject = {
   projectId: string;
   project: string;
+  responsiblePersonId: string | null;
   service: string;
   contractHours: number | null;
   status: string | null;
@@ -49,13 +51,10 @@ export type ManagementCustomerPortfolio = {
   operationalLinksAvailable: boolean;
 };
 
-type Project = { id: string; name: string; contract_hours: number | null; status: string | null; owner_person_id: string | null };
+type Project = { id: string; code: string; name: string; contract_hours: number | null; status: string | null; owner_person_id: string | null };
 type Person = { id: string; name: string };
 type Assignment = { person_id: string; project_id: string | null };
 type TimeProject = { hub_project_id: string | null; source_id: string | null; service: { name: string } | null };
-type Order = { id: string; legal_entity_id: string | null };
-type ProjectReference = { external_id: string; project_id: string };
-type LegalEntity = { id: string; legal_name: string };
 
 // The generated types cover public only; these schemas are read through the same
 // typed server client and never receive writes from this query.
@@ -71,31 +70,12 @@ function canonicalService(value: string | null): string {
   const key = normalized(value ?? "");
   if (key.includes("enercon") && key.includes("sigeko")) return "ENERCON SiGeKo";
   if (key.includes("dguvv2") && key.includes("sifa")) return "DGUV V2 SiFa";
-  if (key.includes("healthandsafetyconsulting") || key.includes("hsconsulting")) return "H&S Consulting";
+  if (key.includes("healthandsafetyconsulting") || key.includes("healthsafetyconsulting") || key.includes("hsconsulting")) return "H&S Consulting";
   if (key.includes("brandschutz")) return "Brandschutzbeauftragter";
   if (key.includes("sigeko") && key.includes("constructioncoordination")) return "SiGeKo";
   if (key.includes("betriebsarzt") || key.includes("arbeitsmedizin") || key.includes("occupationalmedicine")) return "Betriebsarzt";
   if (key.includes("reteach") || key.includes("akademie") || key.includes("academy")) return "Reteach / Akademie";
   return "Nicht zugeordnet";
-}
-
-async function readCustomerMappings(supabase: SupabaseTyped): Promise<{ available: boolean; entityBySourceId: Map<string, LegalEntity> }> {
-  try {
-    const [{ data: references, error: referenceError }, { data: orders, error: orderError }, { data: legalEntities, error: entityError }] = await Promise.all([
-      schema(supabase, "crm").from("trackingtime_project_reference").select("external_id, project_id").eq("is_active", true),
-      schema(supabase, "projects").from("project_order").select("id, legal_entity_id"),
-      schema(supabase, "crm").from("legal_entity").select("id, legal_name"),
-    ]);
-    if (referenceError || orderError || entityError || !references || !orders || !legalEntities) return { available: false, entityBySourceId: new Map() };
-    const entities = new Map((legalEntities as LegalEntity[]).map((entity) => [entity.id, entity]));
-    const entityByOrder = new Map((orders as Order[]).filter((order) => order.legal_entity_id && entities.has(order.legal_entity_id)).map((order) => [order.id, entities.get(order.legal_entity_id!)!] as const));
-    return {
-      available: true,
-      entityBySourceId: new Map((references as ProjectReference[]).map((reference) => [reference.external_id, entityByOrder.get(reference.project_id)] as const).filter((entry): entry is readonly [string, LegalEntity] => Boolean(entry[1]))),
-    };
-  } catch {
-    return { available: false, entityBySourceId: new Map() };
-  }
 }
 
 function emptyModel(): ManagementCustomerPortfolio {
@@ -106,11 +86,11 @@ function emptyModel(): ManagementCustomerPortfolio {
 export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): Promise<ManagementCustomerPortfolio> {
   try {
     const [{ data: projects }, { data: people }, { data: assignments }, timeProjects, customerMappings] = await Promise.all([
-      supabase.from("projects").select("id, name, contract_hours, status, owner_person_id"),
+      supabase.from("projects").select("id, code, name, contract_hours, status, owner_person_id"),
       supabase.from("people").select("id, name"),
       supabase.from("person_assignments").select("person_id, project_id"),
       fetchAllPaged<Record<string, unknown>>((from, to) => schema(supabase, "time").from("project").select("hub_project_id, source_id, service:service_id(name)").range(from, to)),
-      readCustomerMappings(supabase),
+      readManagementCustomerMappings(),
     ]);
     if (!projects || !people || !assignments || timeProjects.truncated) return emptyModel();
 
@@ -132,19 +112,18 @@ export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): P
       timeByProject.set(timeProject.hub_project_id, rows);
     }
 
-    const rowsByEntity = new Map<string, { entity: LegalEntity; projects: Project[] }>();
+    const rowsByEntity = new Map<string, { entity: ManagementCustomerEntity; projects: Project[] }>();
     let projectsWithoutCustomerMapping = 0;
     let projectsWithoutServiceMapping = 0;
     for (const project of activeProjects) {
       const timeRows = timeByProject.get(project.id) ?? [];
-      const entities = new Set(timeRows.map((row) => row.source_id ? customerMappings.entityBySourceId.get(row.source_id) : undefined).filter((entity): entity is LegalEntity => Boolean(entity)));
+      const entity = customerMappings.entityByOrderNumber.get(project.code);
       const services = unique(timeRows.map((row) => canonicalService(row.service?.name ?? null))).filter((service) => service !== "Nicht zugeordnet");
-      if (!customerMappings.available || entities.size !== 1) {
+      if (!customerMappings.available || !entity) {
         projectsWithoutCustomerMapping += 1;
         continue;
       }
       if (services.length === 0) projectsWithoutServiceMapping += 1;
-      const entity = [...entities][0];
       const row = rowsByEntity.get(entity.id) ?? { entity, projects: [] };
       row.projects.push(project);
       rowsByEntity.set(entity.id, row);
@@ -167,7 +146,7 @@ export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): P
           services.forEach((service) => serviceProjects.set(service, [...(serviceProjects.get(service) ?? []), project]));
           if (services.length > 1) serviceHoursIncomplete = true;
         }
-        return { projectId: project.id, project: project.name, service: services.join(", ") || "Nicht zugeordnet", contractHours: project.contract_hours, status: project.status, responsible: projectResponsible, links: { asana: null, chat: null, trackingTime: null, drive: null, microsoftTeams: null } };
+        return { projectId: project.id, project: project.name, responsiblePersonId: project.owner_person_id, service: services.join(", ") || "Nicht zugeordnet", contractHours: project.contract_hours, status: project.status, responsible: projectResponsible, links: { asana: null, chat: null, trackingTime: null, drive: null, microsoftTeams: null } };
       });
       const services = [...serviceProjects.entries()].map(([service, serviceRows]) => ({
         service,
@@ -178,8 +157,8 @@ export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): P
       if (projectDetails.some((project) => project.contractHours === null)) risks.add("Vertragsstunden unvollständig");
       return {
         legalEntityId: entity.id,
-        customer: entity.legal_name,
-        legalEntity: entity.legal_name,
+        customer: entity.legalName,
+        legalEntity: entity.legalName,
         locations: [],
         locationsAvailable: false,
         activeServices: services.map((service) => service.service),

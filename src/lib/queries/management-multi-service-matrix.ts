@@ -1,42 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { fetchAllPaged } from "@/lib/queries/paged";
+import { readManagementCustomerMappings } from "@/lib/queries/management-customer-mapping";
+import { MULTI_SERVICE_COLUMNS, type ManagementMultiServiceMatrix, type ManagementMultiServiceRow, type MultiServiceKey, type MultiServiceUsage } from "@/lib/queries/management-multi-service-matrix.types";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
-export const MULTI_SERVICE_COLUMNS = [
-  { key: "DGUV_V2_SIFA", label: "DGUV V2 SiFa" },
-  { key: "HS_CONSULTING", label: "H&S Consulting" },
-  { key: "BRANDSCHUTZ", label: "Brandschutzbeauftragter" },
-  { key: "SIGEKO", label: "SiGeKo" },
-  { key: "ENERCON_SIGEKO", label: "ENERCON SiGeKo" },
-  { key: "BETRIEBSARZT", label: "Betriebsarzt" },
-  { key: "RETEACH_AKADEMIE", label: "Reteach / Akademie" },
-] as const;
-
-export type MultiServiceKey = (typeof MULTI_SERVICE_COLUMNS)[number]["key"];
-export type MultiServiceUsage = Record<MultiServiceKey, number>;
-
-export type ManagementMultiServiceRow = {
-  legalEntityId: string;
-  customer: string;
-  services: MultiServiceUsage;
-  activeServiceCount: number;
-  contractHours: number | null;
-  projectCount: number;
-  possibleMissingServices: MultiServiceKey[];
-};
-
-export type ManagementMultiServiceMatrix = {
-  rows: ManagementMultiServiceRow[];
-  customerMappingAvailable: boolean;
-  activeProjectsWithoutCustomerMapping: number | null;
-  activeProjectsWithoutServiceMapping: number | null;
-  unmappedContractHours: number | null;
-};
+export type { ManagementMultiServiceMatrix, ManagementMultiServiceRow, MultiServiceKey, MultiServiceUsage } from "@/lib/queries/management-multi-service-matrix.types";
 
 type Project = {
   id: string;
+  code: string;
   contract_hours: number | null;
   status: string | null;
 };
@@ -45,9 +19,6 @@ type TimeProject = {
   source_id: string | null;
   service: { name: string } | null;
 };
-type Order = { id: string; legal_entity_id: string | null };
-type ProjectReference = { external_id: string; project_id: string };
-type LegalEntity = { id: string; legal_name: string };
 
 // The generated types cover public only; these schemas are read through the same
 // typed server client and never receive writes from this query.
@@ -76,7 +47,7 @@ function canonicalService(value: string | null): MultiServiceKey | null {
   const key = normalized(value ?? "");
   if (key.includes("enercon") && key.includes("sigeko")) return "ENERCON_SIGEKO";
   if (key.includes("dguvv2") && key.includes("sifa")) return "DGUV_V2_SIFA";
-  if (key.includes("healthandsafetyconsulting") || key.includes("hsconsulting")) return "HS_CONSULTING";
+  if (key.includes("healthandsafetyconsulting") || key.includes("healthsafetyconsulting") || key.includes("hsconsulting")) return "HS_CONSULTING";
   if (key.includes("brandschutz")) return "BRANDSCHUTZ";
   if (key.includes("sigeko") && key.includes("constructioncoordination")) return "SIGEKO";
   if (key.includes("betriebsarzt") || key.includes("arbeitsmedizin") || key.includes("occupationalmedicine")) return "BETRIEBSARZT";
@@ -91,41 +62,6 @@ const aggregateHours = (projects: Project[]): number | null => {
   if (projects.some((project) => project.contract_hours === null)) return null;
   return projects.reduce((sum, project) => sum + (project.contract_hours ?? 0), 0);
 };
-
-async function readCustomerMappings(supabase: SupabaseTyped): Promise<{
-  available: boolean;
-  entityBySourceId: Map<string, string>;
-  entities: Map<string, string>;
-}> {
-  try {
-    const [{ data: references, error: referenceError }, { data: orders, error: orderError }, { data: legalEntities, error: entityError }] = await Promise.all([
-      schema(supabase, "crm")
-        .from("trackingtime_project_reference")
-        .select("external_id, project_id")
-        .eq("is_active", true),
-      schema(supabase, "projects").from("project_order").select("id, legal_entity_id"),
-      schema(supabase, "crm").from("legal_entity").select("id, legal_name"),
-    ]);
-    if (referenceError || orderError || entityError || !references || !orders || !legalEntities) {
-      return { available: false, entityBySourceId: new Map(), entities: new Map() };
-    }
-
-    const entities = new Map((legalEntities as LegalEntity[]).map((entity) => [entity.id, entity.legal_name]));
-    const entityByOrder = new Map(
-      (orders as Order[])
-        .filter((order) => order.legal_entity_id && entities.has(order.legal_entity_id))
-        .map((order) => [order.id, order.legal_entity_id!] as const),
-    );
-    const entityBySourceId = new Map(
-      (references as ProjectReference[])
-        .map((reference) => [reference.external_id, entityByOrder.get(reference.project_id)] as const)
-        .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
-    );
-    return { available: true, entityBySourceId, entities };
-  } catch {
-    return { available: false, entityBySourceId: new Map(), entities: new Map() };
-  }
-}
 
 function emptyModel(): ManagementMultiServiceMatrix {
   return {
@@ -143,14 +79,14 @@ export async function getManagementMultiServiceMatrix(
 ): Promise<ManagementMultiServiceMatrix> {
   try {
     const [{ data: projects }, timeProjects, customerMappings] = await Promise.all([
-      supabase.from("projects").select("id, contract_hours, status"),
+      supabase.from("projects").select("id, code, contract_hours, status"),
       fetchAllPaged<Record<string, unknown>>((from, to) =>
         schema(supabase, "time")
           .from("project")
           .select("hub_project_id, source_id, service:service_id(name)")
           .range(from, to),
       ),
-      readCustomerMappings(supabase),
+      readManagementCustomerMappings(),
     ]);
     if (!projects || timeProjects.truncated) return emptyModel();
 
@@ -172,9 +108,7 @@ export async function getManagementMultiServiceMatrix(
     for (const project of activeProjects) {
       const timeRows = timeByProject.get(project.id) ?? [];
       const entityIds = new Set(
-        timeRows
-          .map((timeRow) => timeRow.source_id ? customerMappings.entityBySourceId.get(timeRow.source_id) : undefined)
-          .filter((entityId): entityId is string => Boolean(entityId)),
+        [customerMappings.entityByOrderNumber.get(project.code)?.id].filter((entityId): entityId is string => Boolean(entityId)),
       );
       const serviceKeys = new Set(
         timeRows
@@ -209,7 +143,7 @@ export async function getManagementMultiServiceMatrix(
           .filter((key) => value.services[key] > 0);
         return {
           legalEntityId,
-          customer: customerMappings.entities.get(legalEntityId) ?? "Nicht aufgelöst",
+          customer: customerMappings.entities.get(legalEntityId)?.legalName ?? "Nicht aufgelöst",
           services: value.services,
           activeServiceCount: activeServiceKeys.length,
           contractHours: aggregateHours(value.projects),

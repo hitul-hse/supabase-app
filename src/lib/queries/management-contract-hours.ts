@@ -71,7 +71,7 @@ function canonicalService(value: string): ManagementService | null {
   const key = normalized(value).replace("engeineer", "engineer");
   if (key.includes("enercon") && key.includes("sigeko")) return "ENERCON SiGeKo / construction coordination";
   if (key.includes("dguvv2") && key.includes("sifa")) return "DGUV V2: SiFa / Safety Engineer";
-  if (key.includes("healthandsafetyconsulting")) return "Health & Safety Consulting";
+  if (key.includes("healthandsafetyconsulting") || key.includes("healthsafetyconsulting")) return "Health & Safety Consulting";
   if (key.includes("brandschutzbeauftragter")) return "Brandschutzbeauftragter";
   if (key.includes("sigeko") && key.includes("constructioncoordination")) return "SiGeKo / construction coordination";
   return null;

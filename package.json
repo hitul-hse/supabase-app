@@ -153,7 +153,10 @@
     "import:masterdata": "node scripts/import-masterdata-projects.mjs",
     "check:customer-master-foundation": "node scripts/check-customer-master-foundation.mjs",
     "link:tt-hub": "node scripts/link-tt-to-hub-projects.mjs",
-    "promote:customer-master": "node scripts/promote-customer-master.mjs"
+    "promote:customer-master": "node scripts/promote-customer-master.mjs",
+    "check:management-data": "node scripts/check-management-data.mjs",
+    "link:tt-round2": "node scripts/link-tt-round2.mjs",
+    "refresh:order-hours": "node scripts/refresh-order-hours.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

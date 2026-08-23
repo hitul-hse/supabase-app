@@ -1,0 +1,408 @@
+{
+  "generatedAt": "2026-08-23T19:46:22.444Z",
+  "linked": [
+    {
+      "order": "10110_00375_205_01",
+      "tt": "10110_AWB / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10135_00374_205_01",
+      "tt": "10135_Assecor / 26 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10172_00044_205_01",
+      "tt": "10172_W.W.S. Kurt Strube / 26/27 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10175_00022_501_01",
+      "tt": "10175_NS Dokumentation / 26 Brandschutzhelfer Ausbildung",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10175_00022_501_01",
+      "tt": "10175_NS Dokumentation / 26 Evakuierungsübung",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10175_00022_501_01",
+      "tt": "10175_NS Dokumentation / Notfallhandbuch",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10183_00047_501_01",
+      "tt": "10183_BGETEM / 26/27 BSB",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10190_00042_701_01",
+      "tt": "10190_Topographie des Terrors / 25/26 GU",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10190_00042_701_01",
+      "tt": "10190_Topographie des Terrors / 26 Ausbildung Brandschutzhelfer",
+      "rule": "C: prefix+service(Brandschutzhelfer)"
+    },
+    {
+      "order": "10190_00187_501_01",
+      "tt": "10190_Topographie des Terrors / 26 Evakuierungsübung",
+      "rule": "C: prefix+service(Brandschutzbeauftragter )"
+    },
+    {
+      "order": "10192_00038_205_01",
+      "tt": "10192_Praxis Dr. Mungee / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10195_00036_205_01",
+      "tt": "10195_Shell / 26 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10200_00057_205_01",
+      "tt": "10200_DRIVE beta GmbH / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10203_00054_205_01",
+      "tt": "10203_Addleshaw Goddard LLP Hamburg / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10208_00136_701_01",
+      "tt": "10208_Circulum Vitae GmbH / 25/26 Grundunterweisung",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10208_00077_205_01",
+      "tt": "10208_Circulum Vitae GmbH / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10216_00208_203_01",
+      "tt": "10216_BerlinAnalytix GmbH / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10221_00173_205_01",
+      "tt": "10221_Inuru GmbH / 26/27 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10235_00307_501_01",
+      "tt": "10235_MBition GmbH / 26 BSB",
+      "rule": "C: prefix+service(Brandschutzbeauftragter )"
+    },
+    {
+      "order": "10262_00133_205_01",
+      "tt": "10262_Addleshaw Goddard LLP München / 25/26 BA ",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10267_00134_205_01",
+      "tt": "10267_Addleshaw Goddard Berlin LLP  / 25/26 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10274_00116_205_01",
+      "tt": "10274_Clivet GmbH / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10275_00124_205_01",
+      "tt": "10275_On / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10279_00181_203_01",
+      "tt": "10279_Mirantis Company / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10296_00164_205_01",
+      "tt": "10296_Action / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10303_00193_203_01",
+      "tt": "10303_WorkMotion Software GmbH / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10303_00193_701_01",
+      "tt": "10303_WorkMotion Software GmbH / 25/26 GU",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10333_00379_205_01",
+      "tt": "10333_WGC / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10342_00170_205_01",
+      "tt": "10342_365FarmNet GmbH / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10345_00198_205_01",
+      "tt": "10345_Adlook GmbH / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10345_00199_701_01",
+      "tt": "10345_Adlook GmbH / 25/26 Grundunterweisung ",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10378_00219_701_01",
+      "tt": "10378_Bund D. EinsatzVeteranen / 25/26 Grundunterweisung 2026",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10381_00378_203_01",
+      "tt": "10381_Opodo / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10392_00039_205_01",
+      "tt": "10392_Hanseatic Delifood GmbH / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10406_00227_203_01",
+      "tt": "10406_Episode / 25/26 extra Stunden BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10406_00227_203_01",
+      "tt": "10406_Episode / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10406_00225_701_01",
+      "tt": "10406_Episode / 26/27 GU",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10406_00225_701_01",
+      "tt": "10406_Episode / Hybrid Fire Safety & Evacuation Assistant Training",
+      "rule": "C: prefix+service(Schulungen / Trainings /)"
+    },
+    {
+      "order": "10417_00221_205_01",
+      "tt": "10417_asum GmbH / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10436_00232_205_01",
+      "tt": "10436_Globant Germany GmbH / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10436_00231_701_01",
+      "tt": "10436_Globant Germany GmbH / 26/27 Basic Instruction",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10458_00249_2_01",
+      "tt": "10458_Globaldots DE GmbH / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10458_00248_701_01",
+      "tt": "10458_Globaldots DE GmbH / 25/26 Grundunterweisung",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10483_00298_601_01",
+      "tt": "10483_HEC Solar / Health, Safety, and Fire Protection Consulting",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10483_00298_601_01",
+      "tt": "10483_HEC Solar / construction site supervision ",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10492_00269_205_01",
+      "tt": "10492_Lockheed / 25/26 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10511_00274_403_01",
+      "tt": "10511_JinkoSolar GmbH / 26 Baustellenbegehungen",
+      "rule": "C: prefix+service(Projekt: Health & Safety)"
+    },
+    {
+      "order": "10511_00274_403_01",
+      "tt": "10511_JinkoSolar GmbH / 26 Remote Ramp up",
+      "rule": "C: prefix+service(Projekt: Health & Safety)"
+    },
+    {
+      "order": "10513_00288_205_01",
+      "tt": "10513_EcoVadis Germany GmbH / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10522_00351_205_01",
+      "tt": "10522_GOhiring GmbH / 25-26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10522_00380_701_01",
+      "tt": "10522_GOhiring GmbH / 25-26 Grundunterweisung",
+      "rule": "C: prefix+service(Grundunterweisung / Trai)"
+    },
+    {
+      "order": "10559_00262_205_01",
+      "tt": "10559_50five Charging Solutions / 25/26 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10695_00323_205_01",
+      "tt": "10695_Nu Finanztechnologie / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10710_00273_203_01",
+      "tt": "10710_Elbe Trockenbau / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10712_00336_205_01",
+      "tt": "10712_Boldyn / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10724_00331_205_01",
+      "tt": "10724_Collectors / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10737_00280_205_01",
+      "tt": "10737_Backwell / 25/26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10738_00319_104_01",
+      "tt": "10738_Unity Technologies GmbH / 26/27 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10746_00293_205_01",
+      "tt": "10746_KIKO Germany GmbH / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10747_00360_205_01",
+      "tt": "10747_Intel / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10755_00297_205_01",
+      "tt": "10755_YouLend GmbH / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10764_00368_601_01",
+      "tt": "10764_Hochtief / 26 SiGeKo",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10765_00314_203_01",
+      "tt": "10765_Rasa Technologies GmbH / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10768_00312_205_01",
+      "tt": "10768_Synopsys GmbH / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10793_00301_203_01",
+      "tt": "10793_GEPLAHN-T GmbH / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10795_00300_203_01",
+      "tt": "10795_GEPLAHN-T / 26 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10821_00329_203_01",
+      "tt": "10821_Agilité / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    },
+    {
+      "order": "10822_00326_203_01",
+      "tt": "10822_Reteach / 26/27 BA",
+      "rule": "B: unique prefix"
+    },
+    {
+      "order": "10897_00355_205_01",
+      "tt": "10897_Auro Berlin / 26/27 BA",
+      "rule": "C: prefix+service(DGUV V2: Betriebsarzt / )"
+    }
+  ],
+  "ambiguous": [
+    {
+      "tt": "10121_Caseking Logistik / 26/27 BA",
+      "why": "2 orders match service family"
+    },
+    {
+      "tt": "10121_Caseking Office / 26/27 BA",
+      "why": "2 orders match service family"
+    },
+    {
+      "tt": "10259_Arden University / 25/26 BA",
+      "why": "no service family for 'none'"
+    },
+    {
+      "tt": "10261_Addleshaw Goddard LLP Frankfurt / 25/26 BA",
+      "why": "no service family for 'none'"
+    },
+    {
+      "tt": "10279_Mirantis Inc. / 25/26 GU",
+      "why": "no service family for 'none'"
+    },
+    {
+      "tt": "10305_YPOG Berlin / 25 / 26 BA",
+      "why": "4 orders match service family"
+    },
+    {
+      "tt": "10305_YPOG Hamburg / 25/26 BA",
+      "why": "4 orders match service family"
+    },
+    {
+      "tt": "10305_YPOG Köln / 25/26 BA",
+      "why": "4 orders match service family"
+    },
+    {
+      "tt": "10305_YPOG München / 25/26 BA",
+      "why": "4 orders match service family"
+    },
+    {
+      "tt": "10744_Closer Logistics S.L. Berlin / 25/26 BA",
+      "why": "2 orders match service family"
+    },
+    {
+      "tt": "10766_CreativeDock BER GmbH / Fahrzeit",
+      "why": "no service family for 'Anfahrt & Abfahrt / Travelltime (unpayed)'"
+    },
+    {
+      "tt": "10768_Synopsys GmbH / 26 Hybride Branschutzhelfer Training",
+      "why": "0 orders match service family"
+    },
+    {
+      "tt": "10848_Reganosa / Fahrzeit",
+      "why": "no service family for 'Anfahrt & Abfahrt / Travelltime (unpayed)'"
+    },
+    {
+      "tt": "10881_EFI / Fahrzeit ",
+      "why": "no service family for 'Anfahrt & Abfahrt / Travelltime (unpayed)'"
+    }
+  ]
+}

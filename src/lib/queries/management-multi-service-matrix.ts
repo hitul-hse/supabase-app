@@ -153,7 +153,15 @@ export async function getManagementMultiServiceMatrix(
             .filter((key) => value.services[key] === 0),
         } satisfies ManagementMultiServiceRow;
       })
-      .sort((left, right) => left.customer.localeCompare(right.customer, "de"));
+      .sort(
+        (left, right) =>
+          // Fewest active services first: a customer with ONE service and large
+          // contract volume is the cross-selling case this matrix exists to
+          // surface. Alphabetical order buried those under the As and Bs.
+          left.activeServiceCount - right.activeServiceCount ||
+          (right.contractHours ?? 0) - (left.contractHours ?? 0) ||
+          left.customer.localeCompare(right.customer, "de"),
+      );
 
     return {
       rows,

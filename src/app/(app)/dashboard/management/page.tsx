@@ -31,7 +31,12 @@ export default async function ManagementPage() {
   return (
     <PageTransition>
       <div className="flex flex-col">
-        <PageHeader title="Vertragsstunden" meta="MANAGEMENT · READ MODEL" />
+        {/* The page grew from one panel to seven; the header names the page,
+            the panels name themselves. */}
+        <PageHeader
+          title="Management"
+          meta="VERTRAGSSTUNDEN · SERVICES · PORTFOLIO · RISIKEN · READ MODEL"
+        />
         <main className="flex flex-col gap-4 p-4 sm:p-6">
           {model.projectCount === 0 ? (
             <Card><EmptyState title="Keine Vertragsstunden verfügbar" description="Das Read Model liefert aktuell keine sichtbaren Projekte aus public.projects." /></Card>

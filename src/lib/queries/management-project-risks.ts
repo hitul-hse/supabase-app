@@ -5,6 +5,7 @@ import { fetchAllPaged } from "@/lib/queries/paged";
 type SupabaseTyped = SupabaseClient<Database>;
 
 export type ProjectRiskCategory =
+  | "BUDGET_OVERRUN"
   | "PROJECT_WITHOUT_OWNER"
   | "PROJECT_WITHOUT_STATUS"
   | "PROJECT_WITHOUT_CUSTOMER_MAPPING"
@@ -45,6 +46,8 @@ type Project = {
   name: string;
   customer: string;
   contract_hours: number | null;
+  logged_hours: number | null;
+  consumed_percent: number | null;
   status: string | null;
   owner_person_id: string | null;
 };
@@ -91,6 +94,18 @@ const unique = (values: (string | null)[]): string[] => [...new Set(values.filte
 
 function emptyRiskRows(): ManagementProjectRiskRow[] {
   return [
+    {
+      category: "BUDGET_OVERRUN",
+      risk: "Vertragsstunden ueberschritten",
+      count: null,
+      rating: "Kritisch",
+      affectedProjects: [],
+      responsible: [],
+      services: [],
+      contractHours: null,
+      available: false,
+      meaning: "Gebuchte Stunden konnten nicht gegen Vertragsstunden geprueft werden.",
+    },
     {
       category: "PROJECT_WITHOUT_OWNER",
       risk: "Projekt ohne Verantwortlichen",
@@ -229,7 +244,7 @@ export async function getManagementProjectRisks(
 ): Promise<ManagementProjectRiskRow[]> {
   try {
     const [{ data: projects }, { data: people }, { data: assignments }, timeProjects, customerMappings] = await Promise.all([
-      supabase.from("projects").select("id, name, customer, contract_hours, status, owner_person_id"),
+      supabase.from("projects").select("id, name, customer, contract_hours, logged_hours, consumed_percent, status, owner_person_id"),
       supabase.from("people").select("id, name"),
       supabase.from("person_assignments").select("person_id, project_id, share_percent"),
       fetchAllPaged<Record<string, unknown>>((from, to) =>
@@ -285,6 +300,25 @@ export async function getManagementProjectRisks(
     });
 
     const detailById = new Map(details.map((detail) => [detail.projectId, detail]));
+
+    /*
+     * BUDGET OVERRUN: logged hours exceed the contract hours sales agreed.
+     * Only orders with a real contract (> 0h) and real logged hours are
+     * judged -- an order whose hours never linked shows 0h and must not be
+     * called healthy OR overrun on that basis. 100%+ is the risk; the
+     * approaching band (>=80%) is deliberately NOT flagged here because the
+     * budget guard already warns the person booking -- this panel is for
+     * money already burnt.
+     */
+    const overBudget = projectRows
+      .filter(
+        (project) =>
+          (project.contract_hours ?? 0) > 0 &&
+          (project.logged_hours ?? 0) > 0 &&
+          (project.consumed_percent ?? 0) > 100,
+      )
+      .sort((a, b) => (b.consumed_percent ?? 0) - (a.consumed_percent ?? 0))
+      .map((project) => detailById.get(project.id)!);
     const openWithoutOwner = projectRows
       .filter((project) => isOpen(project.status) && !project.owner_person_id)
       .map((project) => detailById.get(project.id)!);
@@ -302,6 +336,13 @@ export async function getManagementProjectRisks(
     void assignmentHoursByPerson;
 
     return [
+      createRiskRow(
+        "BUDGET_OVERRUN",
+        "Vertragsstunden ueberschritten",
+        "Kritisch",
+        overBudget,
+        "Gebuchte Stunden liegen ueber den vertraglich vereinbarten Stunden. Budget nachverhandeln, Vertrag verlaengern oder Leistung stoppen.",
+      ),
       createRiskRow(
         "PROJECT_WITHOUT_OWNER",
         "Projekt ohne Verantwortlichen",
@@ -324,7 +365,7 @@ export async function getManagementProjectRisks(
             withoutCustomerMapping,
             "Projekt besitzt keine stabile Customer-Master-Legal-Entity-Referenz.",
           )
-        : emptyRiskRows()[2],
+        : emptyRiskRows()[3],
       createRiskRow(
         "PROJECT_WITHOUT_SERVICE_MAPPING",
         "Projekt ohne Service Mapping",
@@ -332,8 +373,8 @@ export async function getManagementProjectRisks(
         withoutServiceMapping,
         "Projekt ist keiner belastbaren time.service-Zuordnung zugeordnet.",
       ),
-      emptyRiskRows()[4],
       emptyRiskRows()[5],
+      emptyRiskRows()[6],
     ];
   } catch {
     return emptyRiskRows();

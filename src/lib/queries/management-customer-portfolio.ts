@@ -169,7 +169,14 @@ export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): P
         services,
         projects: projectDetails,
       };
-    }).sort((left, right) => left.customer.localeCompare(right.customer, "de"));
+    }).sort(
+      (left, right) =>
+        // Customers with flagged risks lead, then by contract volume. The
+        // portfolio is a management attention list, not a phone book.
+        (right.risks.length > 0 ? 1 : 0) - (left.risks.length > 0 ? 1 : 0) ||
+        (right.contractHours ?? 0) - (left.contractHours ?? 0) ||
+        left.customer.localeCompare(right.customer, "de"),
+    );
 
     return { rows, customerMappingAvailable: customerMappings.available, projectsWithoutCustomerMapping: customerMappings.available ? projectsWithoutCustomerMapping : null, projectsWithoutServiceMapping, operationalLinksAvailable: false };
   } catch {

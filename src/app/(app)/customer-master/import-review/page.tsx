@@ -18,7 +18,7 @@ import { requireProfile } from "@/utils/supabase/require-profile";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ priority?: string; case_type?: string; status?: string; sheet?: string; case?: string; page?: string }>;
+type SearchParams = Promise<{ priority?: string; case_type?: string; status?: string; sheet?: string; case?: string; page?: string; dpage?: string }>;
 
 /*
  * Ten cases per page. The queue held every case in one endless column, so
@@ -43,7 +43,7 @@ function parseFilter(params: Awaited<SearchParams>): ReviewFilter {
 
 function hrefFor(
   filter: ReviewFilter,
-  patch: Partial<ReviewFilter> & { case?: string | null; page?: number } = {},
+  patch: Partial<ReviewFilter> & { case?: string | null; page?: number; dpage?: number } = {},
 ) {
   const next = { ...filter, ...patch };
   const search = new URLSearchParams();
@@ -59,6 +59,9 @@ function hrefFor(
    * arbitrary rows.
    */
   if (patch.page && patch.page > 1) search.set("page", String(patch.page));
+  // The documented archive pages independently of the open queue: advancing
+  // one must not move the other, so each carries its own param.
+  if (patch.dpage && patch.dpage > 1) search.set("dpage", String(patch.dpage));
   const query = search.toString();
   return `/customer-master/import-review${query ? `?${query}` : ""}`;
 }
@@ -117,6 +120,15 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
     if (selectedIndex >= 0) currentPage = Math.floor(selectedIndex / CASES_PER_PAGE) + 1;
   }
   const pagedCases = data.cases.slice((currentPage - 1) * CASES_PER_PAGE, currentPage * CASES_PER_PAGE);
+
+  // The documented archive gets the same treatment on its own param.
+  const dPageCount = Math.max(1, Math.ceil(data.documentedCases.length / CASES_PER_PAGE));
+  let dCurrentPage = Math.min(dPageCount, Math.max(1, Number.parseInt(params.dpage ?? "1", 10) || 1));
+  if (selected) {
+    const dIndex = data.documentedCases.findIndex((reviewCase) => reviewCase.case_key === selected.case_key);
+    if (dIndex >= 0) dCurrentPage = Math.floor(dIndex / CASES_PER_PAGE) + 1;
+  }
+  const pagedDocumented = data.documentedCases.slice((dCurrentPage - 1) * CASES_PER_PAGE, dCurrentPage * CASES_PER_PAGE);
 
   const priorityLinks = [
     { href: hrefFor(filter, { priority: "all", case: null }), label: "Alle" },
@@ -192,13 +204,14 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
             <CardHeader title="Review cases" qualifier={`${data.cases.length} CASES · ${data.cases.reduce((sum, item) => sum + item.records.length, 0)} RECORDS`} />
             <CardDivider />
             {data.cases.length === 0 ? <p className="px-4 py-8 text-sm text-[var(--text-muted)]">Keine fachlichen Review Cases für diesen Filter.</p> : <div className="divide-y divide-[var(--divider)]"><div className="hidden grid-cols-[minmax(180px,1.1fr)_minmax(90px,0.5fr)_minmax(120px,0.8fr)_70px_minmax(120px,0.8fr)_minmax(180px,1.2fr)] gap-3 bg-[var(--surface-2)] px-4 py-2 font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)] lg:grid"><span>CASE TYPE</span><span>PRIORITÄT</span><span>RESOLUTION STATUS</span><span>RECORDS</span><span>BETROFFENE QUELLE</span><span>REVIEW REASON</span></div>{pagedCases.map((reviewCase) => <CaseRow key={reviewCase.case_key} reviewCase={reviewCase} active={selected?.case_key === reviewCase.case_key} href={hrefFor(filter, { case: reviewCase.case_key, page: currentPage })} />)}</div>}
-            {pageCount > 1 && <Pager filter={filter} currentPage={currentPage} pageCount={pageCount} total={data.cases.length} />}
+            {pageCount > 1 && <Pager filter={filter} currentPage={currentPage} pageCount={pageCount} total={data.cases.length} pageKey="page" otherPage={dCurrentPage} />}
           </Card>
 
           {data.documentedCases.length > 0 && <Card>
             <CardHeader title="Dokumentierte Entscheidungen" qualifier={`${data.documentedCases.length} CASES · READ ONLY`} />
             <CardDivider />
-            <div className="divide-y divide-[var(--divider)]">{data.documentedCases.map((reviewCase) => <DocumentedCaseRow key={reviewCase.case_key} reviewCase={reviewCase} active={selected?.case_key === reviewCase.case_key} href={hrefFor(filter, { case: reviewCase.case_key })} />)}</div>
+            <div className="divide-y divide-[var(--divider)]">{pagedDocumented.map((reviewCase) => <DocumentedCaseRow key={reviewCase.case_key} reviewCase={reviewCase} active={selected?.case_key === reviewCase.case_key} href={hrefFor(filter, { case: reviewCase.case_key, page: currentPage, dpage: dCurrentPage })} />)}</div>
+            {dPageCount > 1 && <Pager filter={filter} currentPage={dCurrentPage} pageCount={dPageCount} total={data.documentedCases.length} pageKey="dpage" otherPage={currentPage} />}
           </Card>}
 
           <Card className="lg:sticky lg:top-4">
@@ -212,7 +225,23 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
   );
 }
 
-function Pager({ filter, currentPage, pageCount, total }: { filter: ReviewFilter; currentPage: number; pageCount: number; total: number }) {
+function Pager({
+  filter,
+  currentPage,
+  pageCount,
+  total,
+  pageKey,
+  otherPage,
+}: {
+  filter: ReviewFilter;
+  currentPage: number;
+  pageCount: number;
+  total: number;
+  /** Which URL param this pager drives. The two lists page independently. */
+  pageKey: "page" | "dpage";
+  /** The OTHER list's current page, preserved while this one moves. */
+  otherPage: number;
+}) {
   /*
    * Numbered links with an elided middle: first, last, and a window around the
    * current page. Server-rendered <Link>s like every other control here, so
@@ -229,7 +258,11 @@ function Pager({ filter, currentPage, pageCount, total }: { filter: ReviewFilter
     ) : (
       <Link
         key={`${label}-${n}`}
-        href={hrefFor(filter, { page: n, case: null })}
+        href={hrefFor(filter, {
+          case: null,
+          page: pageKey === "page" ? n : otherPage,
+          dpage: pageKey === "dpage" ? n : otherPage,
+        })}
         scroll={false}
         aria-current={current ? "page" : undefined}
         className={`border px-2.5 py-1 font-mono text-[10px] transition-colors ${current ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}

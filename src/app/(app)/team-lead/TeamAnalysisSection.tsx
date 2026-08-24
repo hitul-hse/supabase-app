@@ -211,9 +211,16 @@ export function TeamAnalysisSection({
         </span>
       </div>
 
-      {visible.map((block) => (
-        <TeamAnalysis key={block.key} block={block} board={board} />
-      ))}
+      {/* Two abreast from lg up. Stacked, three teams cost 1,011px of the
+          page's 3-screen budget for three cards that are read by comparison
+          anyway, and side by side is both shorter AND the arrangement the
+          comparison wants. Below lg they stack: a 132px gauge beside a trend
+          line does not survive a narrow column. */}
+      <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-2">
+        {visible.map((block) => (
+          <TeamAnalysis key={block.key} block={block} board={board} />
+        ))}
+      </div>
     </div>
   );
 }

@@ -115,6 +115,17 @@ const ROUTE_BUDGETS = {
   "/projects": 6,
   // Two chart rows plus the grouped breakdown; the same 6 that gate uses.
   "/time/dashboard": 6,
+  /**
+   * Four stacked ANALYSIS panels, measured on production at 3.67 screens:
+   * "Analysis by team" 1,011px, an 8-row board 933px, "Month over month" 749px,
+   * "Team hours per week" 334px. Its single table is 8 rows with a sticky
+   * header, so nothing here is a long table -- the height is four charts a team
+   * lead reads top to bottom, which is what the page is for.
+   *
+   * Raised to 4 rather than 6: enough for the four panels that exist, tight
+   * enough that a fifth panel or a 60-row table has to justify itself.
+   */
+  "/team-lead": 4,
 };
 /** More rows than any offered page size below "all" -- see header comment. */
 const MAX_ROWS = 60;
@@ -228,6 +239,57 @@ try {
     { waitUntil: "networkidle", timeout: 120_000 },
   );
   console.log(`signed in as ${EMAIL}, landed on ${page.url()}\n`);
+
+  /**
+   * FAIL LOUDLY IF THE SESSION DID NOT TAKE.
+   *
+   * Without this the gate is worse than useless: an expired or already-consumed
+   * magic link lands on /auth/login, and every subsequent measurement is of the
+   * LOGIN PAGE -- one 900px screen with no <table> in it. That reports
+   * "0 table(s), biggest 0 rows" and passes all twenty routes, which is exactly
+   * how a table regression would ship behind a wall of green. Observed for real:
+   * "landed on .../auth/login?error=Email%20link%20is%20invalid%20or%20has%20expired"
+   * followed by 60 PASS lines.
+   *
+   * `generate_link` invalidates any previous link for that address, so two runs
+   * racing each other is enough to cause it. Retry once with a freshly minted
+   * token before giving up.
+   */
+  const landed = page.url();
+  if (/\/auth\/login|\/auth\/callback|error=/.test(landed)) {
+    console.log("sign-in did not take; minting a second link and retrying once");
+    const retry = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/generate_link`, {
+      method: "POST",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: "magiclink",
+        email: EMAIL,
+        options: { redirect_to: `${SITE}/auth/callback` },
+      }),
+    });
+    const retryBody = await retry.json();
+    const retryHash = retryBody?.properties?.hashed_token ?? retryBody?.hashed_token;
+    if (retryHash) {
+      await page.goto(`${SITE}/auth/callback?token_hash=${retryHash}&type=magiclink&next=%2F`, {
+        waitUntil: "networkidle",
+        timeout: 120_000,
+      });
+      console.log(`retry landed on ${page.url()}\n`);
+    }
+  }
+
+  if (/\/auth\/login|error=/.test(page.url())) {
+    console.log(
+      `FAIL: never signed in -- stuck on ${page.url()}\n` +
+        "        Every measurement below would be of the login page, so the run is void.",
+    );
+    await browser.close();
+    process.exit(1);
+  }
 
   // A first-run tour overlay covers the content and makes every table read as
   // empty (learned the hard way in inspect-page-shape.mjs).

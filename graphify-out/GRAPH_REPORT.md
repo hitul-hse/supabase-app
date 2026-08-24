@@ -1,81 +1,81 @@
-# Graph Report - Supabase  (2026-08-22)
+# Graph Report - Supabase  (2026-08-24)
 
 ## Corpus Check
-- 435 files · ~486,459 words
+- 478 files · ~569,380 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2910 nodes · 4590 edges · 246 communities (206 shown, 40 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 64 edges (avg confidence: 0.85)
+- 3286 nodes · 5228 edges · 263 communities (222 shown, 41 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 66 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2864677b`
+- Built from commit: `6dee6fb3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - scripts
 - Standalone Runtime Bootstrap
-- Roles & Permissions Schema
-- users/page.tsx
-- AuthShell.tsx
-- org-actions.ts
-- dependencies
+- schema.sql
+- createAdminClient
+- hse.ts
+- import-customer-master-staging-bjoern.mjs
+- import-masterdata-projects.mjs
 - check-time-integration.mjs
 - Design System Check
 - TypeScript Config Includes
-- trackingtime-report.ts
+- dashboard/page.tsx
 - devDependencies
-- people-live.ts
+- OrgChartView.tsx
 - Schema Apply Checks
-- team-lead-live.ts
+- profile/actions.ts
 - Brand Mark Verifier
 - Inventory Generation
 - Org Chart Edit Check
-- import-trackingtime.mjs
-- time/page.tsx
 - InsightPanels.tsx
+- time/page.tsx
+- AnalyticsCharts.tsx
 - Vendor Parity Check
 - Dashboard Claims Recheck
 - time/actions.ts
-- TeamLeadBoard.tsx
-- profile/actions.ts
+- [id]/page.tsx
+- profile-actions.ts
 - projects-live.ts
 - People Overview Agreement Check
-- OrgChartView.tsx
+- import-review/page.tsx
 - ReportTables.tsx
 - check-overview-range-narrows.mjs
-- MyLeavePanel.tsx
-- (app)/page.tsx
-- createClient
+- check-team-select.mjs
+- run-ui-gates.mjs
+- TimesheetGrid.tsx
 - Sidebar Collapse Check
 - Time Page Render Check
 - Missing Events Diagnosis
 - overview-live.ts
 - Paging & RLS Recheck
-- PeopleDirectory.tsx
+- team-lead-live.ts
 - Asana Backlog Check
 - check-time-acceptance.mjs
-- time-transform.ts
-- projects/actions.ts
+- people-live.ts
+- types.ts
 - Dashboard Tables Check
 - TrackingTime Parity Check
-- Charts.tsx
-- Sidebar.tsx
+- management-project-risks.ts
+- ProjectsExplorer.tsx
 - OAuth Success Path Check
-- People Live Source Check
+- check-people-live-source.mjs
 - check-overview-filters.mjs
 - nav-icons.tsx
-- No Mock People Check
+- check-no-mockup-people.mjs
 - check-server-action-auth.mjs
-- dashboard/page.tsx
+- AlertList.tsx
 - Marketing Demo Page
-- [userId]/page.tsx
+- (app)/page.tsx
 - Identity Linking Check
 - No Mock Data Check
 - TrackingTime Sync Script
-- TimerBar.tsx
+- [userId]/page.tsx
 - Invite OAuth Model Check
 - OAuth Callback Check
 - Time Member Linking
@@ -92,9 +92,9 @@
 - check-people-filters-live.mjs
 - try-policy-verification-paths.mjs
 - Entry Policy Equivalence Check
-- TaskBoardView.tsx
+- management-customer-portfolio.ts
 - Profile Actions Check
-- Card.tsx
+- ProjectsLedger.tsx
 - Stale Total Tracing
 - apply-rls-hoisting.mjs
 - Agent File References Check
@@ -103,7 +103,7 @@
 - Schema Execution Check
 - Time Write Path Check
 - Member Provisioning Script
-- formatSeconds
+- ThemeToggle.tsx
 - Google Client Check
 - Schema Order Check
 - SSO Provider Check
@@ -116,9 +116,9 @@
 - Economics Scope Check
 - Lint Scope Check
 - Login Redirect Safety Checks
-- check-duration-parsing.mjs
+- Project Risk Resolution Actions
 - Page Length Render Check
-- Parallel Paging Performance Test
+- check-content-width.mjs
 - Permissions RLS Parity Check
 - Provisioned Access Verification
 - Remote Deploy State Check
@@ -138,7 +138,7 @@
 - Theme And Figures Check
 - Google OAuth Error Diagnosis
 - check-trackingtime-report.mjs
-- check-team-select.mjs
+- Card.tsx
 - Auth Session Middleware
 - Live Database Audit
 - Profile Grants Check
@@ -156,7 +156,7 @@
 - Sync Secrets Setup
 - Yearly Screenshot Capture
 - Policy Gate Failure Verification
-- projects/page.tsx
+- align-profile-teams.mjs
 - CI Workflow Check
 - Deploy Skew Check
 - Modules RLS Check
@@ -169,7 +169,7 @@
 - Testing Agent Grading
 - Live RLS Probe
 - Anonymous Write Verification
-- team-lead/page.tsx
+- createClient
 - Next.js Build Config
 - Profile Column Guard Trigger
 - Middleware Bypass Check
@@ -195,92 +195,111 @@
 - Org Chart Schema
 - ESLint Configuration
 - MCP Server Config
-- Pager Build Package Manifest
-- Skew Check Build Manifest
-- Tabs Build Package Manifest
-- UM Check Build Manifest
+- Project Risks Modell
+- AuthShell.tsx
+- management-employee-ownership.ts
+- Charts.tsx
 - PostCSS Configuration
 - Eval Rerun Grading Script
+- management-multi-service-matrix.ts
+- Review: feature/customer-dashboard-development (Bjoern, 27 commits, +6,330)
+- check-customer-master-foundation.mjs
+- check-management-data.mjs
 - Project Timeline Model
 - User Profile Table
 - time-dashboard.ts
 - Time Member Model
 - check-people-module.mjs
 - check-oauth-success-path-live.mjs
-- measure-latency-variance.mjs
+- TeamLeadBoard.tsx
 - read-prod-total.mjs
 - AGENTS.md
-- database.types.ts
-- SecurityCard.tsx
-- check-hr-role-migration.mjs
-- types.ts
-- label
-- profile-actions.ts
-- public.overbooking_alert
-- people/actions.ts
 - TeamLeadExplorer.tsx
-- Avatar.tsx
+- check-paste-sql-2.mjs
+- check-hr-role-migration.mjs
+- propagate-people-departments.mjs
+- PeopleDirectory.tsx
+- APPLY-IN-SQL-EDITOR-2.sql
+- ProjectPanels.tsx
+- check-employee-ownership-live.mjs
 - check-profile-admin.mjs
-- ThemeToggle.tsx
-- TimeViewTabs.tsx
-- LogoutButton.tsx
+- check-projects-module.mjs
+- link-tt-round2.mjs
+- build-paste-sql-2.mjs
+- raw.vendor_record
+- Button.tsx
+- import-contract-periods.mjs
+- refresh-order-hours.mjs
+- portal/page.tsx
+- measure-latency-variance.mjs
+- database.types.ts
+- check-parallel-paging.mjs
+- UI conventions: long lists, tables, and review queues
+- patch-source.mjs
+- check-duration-parsing.mjs
+- ContractPanel.tsx
+- ReportFilters.tsx
+- label
+- check-masterdata-source-migration.mjs
+- normalise-member-teams.mjs
+- relabel-masterdata-people.mjs
 
 ## God Nodes (most connected - your core abstractions)
-1. `scripts` - 139 edges
-2. `createClient()` - 90 edges
-3. `secondsToHours()` - 35 edges
-4. `get()` - 23 edges
-5. `getLiveOverview()` - 23 edges
-6. `createRuntime()` - 22 edges
-7. `TrackingTimeDashboardPage()` - 20 edges
-8. `userHasPermission()` - 20 edges
-9. `createAdminClient()` - 20 edges
-10. `PERMISSIONS` - 19 edges
+1. `scripts` - 155 edges
+2. `createClient()` - 92 edges
+3. `Card()` - 40 edges
+4. `secondsToHours()` - 35 edges
+5. `get()` - 23 edges
+6. `CardHeader()` - 23 edges
+7. `getLiveOverview()` - 23 edges
+8. `createRuntime()` - 22 edges
+9. `userHasPermission()` - 22 edges
+10. `PERMISSIONS` - 21 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `render()` --indirect_call--> `UserRow()`  [INFERRED]
   scripts/check-team-select.mjs → src/app/(app)/admin/users/UserRow.tsx
-- `main()` --calls--> `classifyService()`  [EXTRACTED]
-  scripts/import-trackingtime.mjs → src/lib/time-transform.ts
-- `main()` --calls--> `toEntryDraft()`  [EXTRACTED]
-  scripts/import-trackingtime.mjs → src/lib/time-transform.ts
 - `app_user_role_v2()` --reads_from--> `app_user_profile`  [EXTRACTED]
   scripts/eval/reports-module.sql → supabase/schema.sql
 - `CustomerPortfolio` --calls--> `secondsToHours()`  [EXTRACTED]
   src/lib/queries/projects-live.ts → src/lib/time-transform.ts
+- `CustomerRankByMonth` --calls--> `secondsToHours()`  [EXTRACTED]
+  src/lib/queries/projects-live.ts → src/lib/time-transform.ts
+- `main()` --calls--> `classifyService()`  [EXTRACTED]
+  scripts/import-trackingtime.mjs → src/lib/time-transform.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (246 total, 40 thin omitted)
+## Communities (263 total, 41 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.01
-Nodes (139): scripts, apply-modules, asana:backlog, build, check:acceptance, check:action-auth, check:admin-user-writes, check:avatar (+131 more)
+Nodes (155): scripts, apply-modules, asana:backlog, build, check:acceptance, check:action-auth, check:admin-user-writes, check:avatar (+147 more)
 
 ### Community 1 - "Standalone Runtime Bootstrap"
 Cohesion: 0.06
 Nodes (75): boot(), bundledBlob(), cdnScriptFor(), collectProps(), compileAttr(), compileTemplate(), contentKey(), createComponentFactory() (+67 more)
 
-### Community 2 - "Roles & Permissions Schema"
+### Community 2 - "schema.sql"
+Cohesion: 0.06
+Nodes (54): app_user_role_v2(), can_view_report(), people, reports, app_module, app_permission, app_role_permission, app_user_has_permission() (+46 more)
+
+### Community 3 - "createAdminClient"
+Cohesion: 0.18
+Nodes (21): render(), assertCanManageUsers(), changeUserDepartment(), changeUserRole(), deleteUser(), InviteState, inviteUser(), resendInvite() (+13 more)
+
+### Community 4 - "hse.ts"
+Cohesion: 0.09
+Nodes (18): LeavePage(), setBillableRate(), SetBillableRateResult, BillableRatePanel(), handleSubmit(), TimerBarSlot(), getLeaveBalance(), getLeaveRequests() (+10 more)
+
+### Community 5 - "import-customer-master-staging-bjoern.mjs"
+Cohesion: 0.11
+Nodes (23): assertPayloads(), assertWorkbook(), buildRecords(), candidateResolution(), client, DRY_RUN, env, EXPECTED_SHEET_COUNTS (+15 more)
+
+### Community 6 - "import-masterdata-projects.mjs"
 Cohesion: 0.05
-Nodes (55): auth, app_user_role_v2(), can_view_report(), people, reports, app_module, app_permission, app_role_permission (+47 more)
-
-### Community 3 - "users/page.tsx"
-Cohesion: 0.16
-Nodes (24): render(), assertCanManageUsers(), changeUserDepartment(), changeUserRole(), deleteUser(), InviteState, inviteUser(), resendInvite() (+16 more)
-
-### Community 4 - "AuthShell.tsx"
-Cohesion: 0.19
-Nodes (14): ForgotPasswordPage(), LoginForm(), safeRedirect(), SetPasswordForm(), authButtonClass, AuthHeading(), authInputClass, authLabelClass (+6 more)
-
-### Community 5 - "org-actions.ts"
-Cohesion: 0.21
-Nodes (13): ProfileFieldsForm(), assertCanEditPeople(), OrgEditState, setMemberDetails(), setSupervisor(), timeSchema(), wouldCreateCycle(), OrgChartView() (+5 more)
-
-### Community 6 - "dependencies"
-Cohesion: 0.12
-Nodes (16): framer-motion, next, dependencies, framer-motion, next, react, react-dom, @supabase/ssr (+8 more)
+Nodes (33): ADR-0001, assignmentRows, byOrder, db, DRY, firstName(), ids, newPeople (+25 more)
 
 ### Community 7 - "check-time-integration.mjs"
 Cohesion: 0.11
@@ -294,25 +313,25 @@ Nodes (43): APP_SHELL, authInput, authShell, buttonSrc, card, chartsSrc, check()
 Cohesion: 0.05
 Nodes (40): dom, dom.iterable, esnext, **/*.mts, .next/dev/types/**/*.ts, next-env.d.ts, .next-flake-probe/dev/types/**/*.ts, .next-flake-probe/types/**/*.ts (+32 more)
 
-### Community 10 - "trackingtime-report.ts"
-Cohesion: 0.13
-Nodes (19): Option, ReportFilters(), DEFAULT_FILTERS, fetchAllEntries(), fetchExcludedCalendarSeconds(), FetchResult, FilterOptions, getFilterOptions() (+11 more)
+### Community 10 - "dashboard/page.tsx"
+Cohesion: 0.15
+Nodes (30): bucketRange(), BUCKETS, GROUPS, one(), TrackingTimeDashboardPage(), capacityByMember(), customerConcentration(), serviceMixByMonth() (+22 more)
 
 ### Community 11 - "devDependencies"
-Cohesion: 0.10
-Nodes (21): @electric-sql/pglite, eslint, eslint-config-next, devDependencies, @electric-sql/pglite, eslint, eslint-config-next, @playwright/test (+13 more)
+Cohesion: 0.05
+Nodes (39): @electric-sql/pglite, eslint, eslint-config-next, framer-motion, next, dependencies, framer-motion, next (+31 more)
 
-### Community 12 - "people-live.ts"
-Cohesion: 0.23
-Nodes (14): getMemberTeams(), getAssignments(), getLivePeople(), getMemberMeta(), getRosterCounts(), isSharedMailbox(), MemberMeta, PeopleDirectoryData (+6 more)
+### Community 12 - "OrgChartView.tsx"
+Cohesion: 0.35
+Nodes (9): assertCanEditPeople(), OrgEditState, setMemberDetails(), setSupervisor(), timeSchema(), wouldCreateCycle(), initialsOf(), NodeRow() (+1 more)
 
 ### Community 13 - "Schema Apply Checks"
 Cohesion: 0.06
 Nodes (28): committed, cut, publicOnly, regenerated, schema, admin, DELIBERATELY_READABLE, env (+20 more)
 
-### Community 14 - "team-lead-live.ts"
-Cohesion: 0.11
-Nodes (27): BoardRangeFilter(), PRESETS, isDefaultWindow(), fetchAllPaged(), PAGE, PagedResult, BOARD_WEEKS, BoardCellStatus (+19 more)
+### Community 14 - "profile/actions.ts"
+Cohesion: 0.21
+Nodes (15): EXT, removeAvatar(), updateDisplayName(), updatePreferences(), uploadAvatar(), ALLOWED_AVATAR_TYPES, LANDING_PAGES, LOCALES (+7 more)
 
 ### Community 15 - "Brand Mark Verifier"
 Cohesion: 0.06
@@ -326,17 +345,17 @@ Nodes (25): empty, inv, md, records, secrets, buildInventory(), classify(), coll
 Cohesion: 0.10
 Nodes (21): admin, anon, cookies, env, errors, subordinate, time, member_clear_supervisor_source (+13 more)
 
-### Community 18 - "import-trackingtime.mjs"
-Cohesion: 0.17
-Nodes (15): args, DRY_RUN, ENV, get(), getAllPaged(), getEventsByMonth(), HEADERS, idMap() (+7 more)
+### Community 18 - "InsightPanels.tsx"
+Cohesion: 0.19
+Nodes (13): BAND, CapacityPanel(), h(), h(), InsightPanels(), SERIES, CapacityRow, CapacityView (+5 more)
 
 ### Community 19 - "time/page.tsx"
-Cohesion: 0.18
-Nodes (24): RecordsTabKey, RecordsTabs(), parseScopeParam(), parseViewParam(), parseWeekParam(), TimePage(), TimeTracker(), currentTimeWeek() (+16 more)
+Cohesion: 0.06
+Nodes (60): args, DRY_RUN, ENV, get(), getAllPaged(), getEventsByMonth(), HEADERS, idMap() (+52 more)
 
-### Community 20 - "InsightPanels.tsx"
-Cohesion: 0.11
-Nodes (19): h(), InsightPanels(), SERIES, BumpSeries, DivergingBars(), DivergingItem, HeatCell, HeatmapMatrix() (+11 more)
+### Community 20 - "AnalyticsCharts.tsx"
+Cohesion: 0.13
+Nodes (13): h(), TeamDeepAnalysis(), BumpSeries, DivergingBars(), DivergingItem, HeatCell, HeatmapMatrix(), LineSeries (+5 more)
 
 ### Community 21 - "Vendor Parity Check"
 Cohesion: 0.08
@@ -347,28 +366,28 @@ Cohesion: 0.08
 Nodes (20): admin, corrected, distinctProjects, env, estimatedIds, gates, hasUnattributed, lastRef (+12 more)
 
 ### Community 23 - "time/actions.ts"
-Cohesion: 0.10
-Nodes (37): already, atFloor, crossing, justOver, msg, onBudget, placeholder, rounding (+29 more)
+Cohesion: 0.09
+Nodes (40): already, atFloor, crossing, justOver, msg, onBudget, placeholder, rounding (+32 more)
 
-### Community 24 - "TeamLeadBoard.tsx"
-Cohesion: 0.27
-Nodes (12): ApprovalResult, approveAllPending(), approveDecision(), approveTimesheetWeek(), rejectTimesheetWeek(), requireApprover(), setTimesheetWeekStatus(), PendingTimesheetApprovals() (+4 more)
+### Community 24 - "[id]/page.tsx"
+Cohesion: 0.15
+Nodes (18): ManagementPage(), EmploymentCard(), metadata, ProfilePage(), h(), ProjectDetailPage(), one(), ProjectsPage() (+10 more)
 
-### Community 25 - "profile/actions.ts"
-Cohesion: 0.22
-Nodes (15): EXT, removeAvatar(), updateDisplayName(), updatePreferences(), uploadAvatar(), ALLOWED_AVATAR_TYPES, LANDING_PAGES, LOCALES (+7 more)
+### Community 25 - "profile-actions.ts"
+Cohesion: 0.26
+Nodes (15): AdminActionResult, adminDeleteEntry(), adminUpdateEntry(), adminUpdateProfile(), adminUpdateWeeklyHours(), authorise(), Authorised, Refused (+7 more)
 
 ### Community 26 - "projects-live.ts"
-Cohesion: 0.18
-Nodes (19): allTimeFilters(), burndown(), contributors(), CustomerPortfolio, CustomerPortfolioRow, CustomerRankByMonth, CustomerRankSeries, fetchAllProjects() (+11 more)
+Cohesion: 0.16
+Nodes (21): allTimeFilters(), burndown(), contributors(), CustomerPortfolio, CustomerPortfolioRow, CustomerRankByMonth, CustomerRankSeries, fetchAllProjects() (+13 more)
 
 ### Community 27 - "People Overview Agreement Check"
 Cohesion: 0.09
 Nodes (18): admin, completedByMember, currentByMember, currentMonday, drift, env, futureActivity, futureMembers (+10 more)
 
-### Community 28 - "OrgChartView.tsx"
-Cohesion: 0.20
-Nodes (12): initialsOf(), NodeRow(), PeoplePage(), PeopleSection(), SearchableSelect(), getOrgChart(), OrgChartData, OrgMember (+4 more)
+### Community 28 - "import-review/page.tsx"
+Cohesion: 0.11
+Nodes (21): CaseRow(), CustomerMasterImportReviewPage(), display(), dynamic, hrefFor(), Pager(), parseFilter(), priorityTone() (+13 more)
 
 ### Community 29 - "ReportTables.tsx"
 Cohesion: 0.16
@@ -378,17 +397,13 @@ Nodes (20): Align, cmpNum(), cmpText(), Column, csvCell(), DataTable(), PAGE_SIZ
 Cohesion: 0.13
 Nodes (17): admin, biggest, byTeam, env, first12, iso(), lastDay12, lastMonday12 (+9 more)
 
-### Community 31 - "MyLeavePanel.tsx"
+### Community 31 - "check-team-select.mjs"
 Cohesion: 0.12
-Nodes (20): ApprovalResult, approveLeaveRequestAction(), cancelLeaveRequest(), rejectLeaveRequestAction(), requestLeave(), RequestLeaveState, setLeaveRequestStatus(), MyLeavePanel() (+12 more)
+Nodes (13): actionsStub, dir, editable, legacyOptions, legacyRow, React, readOnly, readOnlyLegacy (+5 more)
 
-### Community 32 - "(app)/page.tsx"
-Cohesion: 0.19
-Nodes (11): OverviewFilters(), formatWeekLabel(), OverviewPage(), thursdayOf(), IconSearch(), IconWarning(), TopBarChrome(), IconButtonLink() (+3 more)
-
-### Community 33 - "createClient"
-Cohesion: 0.18
-Nodes (21): AddEntryState, addTimesheetEntry(), copyLastWeek(), currentPersonId(), deleteTimesheetRow(), submitWeek(), updateDayHours(), withdrawWeek() (+13 more)
+### Community 33 - "TimesheetGrid.tsx"
+Cohesion: 0.25
+Nodes (14): AddEntryState, addTimesheetEntry(), copyLastWeek(), currentPersonId(), deleteTimesheetRow(), submitWeek(), updateDayHours(), withdrawWeek() (+6 more)
 
 ### Community 34 - "Sidebar Collapse Check"
 Cohesion: 0.10
@@ -403,16 +418,16 @@ Cohesion: 0.10
 Nodes (17): admin, byMonth, daysDecl, dupes, earliest, env, headers, memberSourceIds (+9 more)
 
 ### Community 37 - "overview-live.ts"
-Cohesion: 0.10
-Nodes (29): PRESETS, burnTone(), countRows(), fmtHours(), getLiveOverview(), getOrgWeeksBetween(), getTeamWeeks(), isSundayOfWeek() (+21 more)
+Cohesion: 0.09
+Nodes (34): OverviewFilters(), PRESETS, buildTeamOptions(), burnTone(), countRows(), fmtHours(), getLiveOverview(), getMemberTeams() (+26 more)
 
 ### Community 38 - "Paging & RLS Recheck"
 Cohesion: 0.10
 Nodes (15): admin, anon, app, asExec, bad, env, parRls, parSvc (+7 more)
 
-### Community 39 - "PeopleDirectory.tsx"
-Cohesion: 0.06
-Nodes (55): bandOf(), CAPACITY_BANDS, CapacityBand, initialsOf(), PeopleDirectory(), SortKey, sortPeople(), CustomerMultiSelect() (+47 more)
+### Community 39 - "team-lead-live.ts"
+Cohesion: 0.13
+Nodes (24): BoardRangeFilter(), PRESETS, BOARD_WEEKS, BoardCell, BoardCellStatus, BoardPreset, BoardRange, boardRangeForPreset() (+16 more)
 
 ### Community 40 - "Asana Backlog Check"
 Cohesion: 0.14
@@ -422,13 +437,13 @@ Nodes (16): backwards, body, col(), controlBad, dupes, missingGate, RFC-4180, na
 Cohesion: 0.12
 Nodes (16): app, cleanup(), cleanupBuild(), customers, entries, monday, PROFILE, projects (+8 more)
 
-### Community 42 - "time-transform.ts"
-Cohesion: 0.24
-Nodes (9): weekStartFor(), classifyService(), EntryDraft, FlatEvent, isCalendarSourced(), isoWeekStart(), parseVendorTimestamp(), resolveDurationSeconds() (+1 more)
+### Community 42 - "people-live.ts"
+Cohesion: 0.14
+Nodes (21): PeopleSection(), Database, getOrgChart(), OrgChartData, OrgMember, OrgNode, SupabaseTyped, timeSchema() (+13 more)
 
-### Community 43 - "projects/actions.ts"
-Cohesion: 0.17
-Nodes (17): addComment(), addSubtask(), CreateTaskState, deleteComment(), deleteTask(), insertTask(), moveTaskToSection(), readParent() (+9 more)
+### Community 43 - "types.ts"
+Cohesion: 0.05
+Nodes (58): addComment(), addSubtask(), createSection(), createTask(), CreateTaskState, deleteComment(), deleteTask(), insertTask() (+50 more)
 
 ### Community 44 - "Dashboard Tables Check"
 Cohesion: 0.12
@@ -438,49 +453,49 @@ Nodes (15): app, cleanup(), customers, entries, members, monthStart, PROFILE, pr
 Cohesion: 0.12
 Nodes (13): admin, env, evSeconds(), extra, extraSeconds, headers, missing, missingSeconds (+5 more)
 
-### Community 46 - "Charts.tsx"
-Cohesion: 0.17
-Nodes (13): h(), TeamLeadCharts(), BillableDonut(), hrs(), AreaPoint, chartKindListeners, chartKindSubscribe(), Donut() (+5 more)
+### Community 46 - "management-project-risks.ts"
+Cohesion: 0.13
+Nodes (21): aggregateHours(), Assignment, CLOSED_STATUSES, createRiskRow(), CustomerMappingStatus, emptyRiskRows(), getManagementProjectRisks(), isOpen() (+13 more)
 
-### Community 47 - "Sidebar.tsx"
-Cohesion: 0.17
-Nodes (9): EmploymentCard(), BrandMark(), BrandMarkProps, PIECES, getUserInfo(), Sidebar(), TourReplayButton(), effectiveNameOf() (+1 more)
+### Community 47 - "ProjectsExplorer.tsx"
+Cohesion: 0.22
+Nodes (13): CustomerMultiSelect(), h(), customerPortfolioFromRows(), CustomerShareRow, EMPTY_PROJECT_FILTERS, filterProjectRows(), hasActiveProjectFilters(), matchesProjectFacet() (+5 more)
 
 ### Community 48 - "OAuth Success Path Check"
 Cohesion: 0.18
 Nodes (15): accessTokenFor(), app, arriveFromProvider(), arriveFromProviderStable(), b64(), build, cleanup(), currentUser (+7 more)
 
-### Community 49 - "People Live Source Check"
-Cohesion: 0.12
-Nodes (14): active, activeWithTime, admin, archivedWithTime, distinctWeekly, env, future, linked (+6 more)
+### Community 49 - "check-people-live-source.mjs"
+Cohesion: 0.10
+Nodes (17): active, activeWithTime, admin, archivedWithTime, distinctWeekly, env, future, linked (+9 more)
 
 ### Community 50 - "check-overview-filters.mjs"
 Cohesion: 0.12
 Nodes (11): board, boardPresets, boardQueries, filters, filtersCode, minePresets, page, pageCode (+3 more)
 
 ### Community 51 - "nav-icons.tsx"
-Cohesion: 0.06
-Nodes (28): DesktopSidebarShell(), MobileSidebarDrawer(), MobileSidebarProps, IconDot(), IconPanelCollapse(), IconPanelExpand(), IconProps, NAV_ICONS (+20 more)
+Cohesion: 0.05
+Nodes (30): DesktopSidebarShell(), MobileSidebarDrawer(), MobileSidebarProps, IconCheck(), IconDot(), IconPanelCollapse(), IconPanelExpand(), IconProps (+22 more)
 
-### Community 52 - "No Mock People Check"
-Cohesion: 0.13
-Nodes (13): codeOnly(), files, invite, inviteAction, MOCK_TABLES, MOCKUP_NAMES, nameHits, read() (+5 more)
+### Community 52 - "check-no-mockup-people.mjs"
+Cohesion: 0.12
+Nodes (14): codeOnly(), files, invite, inviteAction, MOCK_TABLES, MOCKUP_NAMES, nameHits, pagedHelper (+6 more)
 
 ### Community 53 - "check-server-action-auth.mjs"
-Cohesion: 0.13
+Cohesion: 0.14
 Nodes (11): app, authCookie, build, cleanup(), now, restoreTsconfig(), server, session (+3 more)
 
-### Community 54 - "dashboard/page.tsx"
-Cohesion: 0.25
-Nodes (16): bucketRange(), BUCKETS, GROUPS, one(), TrackingTimeDashboardPage(), capacityByMember(), customerConcentration(), serviceMixByMonth() (+8 more)
+### Community 54 - "AlertList.tsx"
+Cohesion: 0.53
+Nodes (5): AlertCard(), AlertList(), h(), tone(), when()
 
 ### Community 55 - "Marketing Demo Page"
 Cohesion: 0.12
 Nodes (6): EASE, FEATURES, NOTE: preload must stay "none". With preload="metadata" Chrome starts a, STACK, STATS, T
 
-### Community 56 - "[userId]/page.tsx"
-Cohesion: 0.14
-Nodes (21): AdminUserDetailPage(), orNa(), Params, IDLE, WeeklyHoursForm(), Database, ADMIN_ENTRY_LIMIT, AdminEntryRow (+13 more)
+### Community 56 - "(app)/page.tsx"
+Cohesion: 0.10
+Nodes (21): formatWeekLabel(), OverviewPage(), thursdayOf(), Avatar(), IconArrowRight(), IconWarning(), getUserInfo(), Sidebar() (+13 more)
 
 ### Community 57 - "Identity Linking Check"
 Cohesion: 0.13
@@ -494,9 +509,9 @@ Nodes (7): dash, hse, live, MOCK_TABLES, page, REPORTING_FILES, syncBar
 Cohesion: 0.14
 Nodes (7): args, DRY_RUN, ENV, FULL, NO_LINK, SINCE_LAST, YEAR
 
-### Community 60 - "TimerBar.tsx"
-Cohesion: 0.29
-Nodes (11): TimerBarSlot(), currentPersonId(), discardTimer(), startTimer(), stopTimer(), TimerResult, formatElapsed(), TimerBar() (+3 more)
+### Community 60 - "[userId]/page.tsx"
+Cohesion: 0.16
+Nodes (19): AdminUserDetailPage(), orNa(), Params, IDLE, WeeklyHoursForm(), ADMIN_ENTRY_LIMIT, AdminMemberLink, AdminProfileTarget (+11 more)
 
 ### Community 61 - "Invite OAuth Model Check"
 Cohesion: 0.15
@@ -562,17 +577,17 @@ Nodes (7): anyWorks, cli, credPath, env, logDir, results, tokens
 Cohesion: 0.18
 Nodes (7): after, before, ROLES, schemaSrc, shippedMatch, text, wide
 
-### Community 77 - "TaskBoardView.tsx"
-Cohesion: 0.23
-Nodes (11): createSection(), createTask(), AddTaskForm(), AddSectionForm(), TaskBoardView(), TaskListView(), usePager(), BoardParent (+3 more)
+### Community 77 - "management-customer-portfolio.ts"
+Cohesion: 0.15
+Nodes (17): Assignment, canonicalService(), CLOSED_STATUSES, CustomerPortfolioProject, CustomerPortfolioRow, CustomerPortfolioService, emptyModel(), getManagementCustomerPortfolio() (+9 more)
 
 ### Community 78 - "Profile Actions Check"
 Cohesion: 0.20
 Nodes (8): ACTIONS, bodies, changePasswordBody, constants, functionBody(), rawConstants, rawSrc, src
 
-### Community 79 - "Card.tsx"
-Cohesion: 0.15
-Nodes (14): CustomerPortfolioCharts(), h(), SLICE_COLORS, CustomerPortfolioView, BAND, CapacityPanel(), h(), Card() (+6 more)
+### Community 79 - "ProjectsLedger.tsx"
+Cohesion: 0.28
+Nodes (11): BurnDonutRow(), h(), PortfolioCharts(), SLICE_TO_FACET, burnColor(), Facet, h(), LedgerSort (+3 more)
 
 ### Community 80 - "Stale Total Tracing"
 Cohesion: 0.18
@@ -606,9 +621,9 @@ Nodes (5): ACTIONS, here, PAGE, root, TRACKER
 Cohesion: 0.20
 Nodes (9): admin, APPLY, eligible, env, INVITE, profiledUserIds, ROLE_MAP, skipped (+1 more)
 
-### Community 88 - "formatSeconds"
-Cohesion: 0.17
-Nodes (10): clock(), EntryRow(), formatDayHeading(), TimeEntryList(), TimeTotalsStrip(), WeekSummaryTable(), TimeEntryRow, TimeTotals (+2 more)
+### Community 88 - "ThemeToggle.tsx"
+Cohesion: 0.43
+Nodes (4): getServerSnapshot(), getSnapshot(), subscribe(), ThemeToggle()
 
 ### Community 89 - "Google Client Check"
 Cohesion: 0.22
@@ -631,8 +646,8 @@ Cohesion: 0.22
 Nodes (6): { execFileSync }, files, fs, graders, rerunExists, untested
 
 ### Community 95 - "ReportPanels.tsx"
-Cohesion: 0.36
-Nodes (6): age(), FreshnessBanner(), hrs(), stamp(), TotalsStrip(), SyncFreshness
+Cohesion: 0.31
+Nodes (7): age(), FreshnessBanner(), hrs(), stamp(), TotalsStrip(), SyncFreshness, Totals
 
 ### Community 96 - "Agent Claims Check"
 Cohesion: 0.25
@@ -654,17 +669,17 @@ Nodes (6): eslintCfg, eslintCfgRaw, fs, gitignore, gitNextDirs, globCoversAll
 Cohesion: 0.29
 Nodes (6): fn, hostile, naive(), naiveLeaks, safeRedirect, src
 
-### Community 101 - "check-duration-parsing.mjs"
-Cohesion: 0.39
-Nodes (6): check(), eq(), fmt(), rejects, formatDuration(), parseDuration()
+### Community 101 - "Project Risk Resolution Actions"
+Cohesion: 0.12
+Nodes (16): 10. Offene Voraussetzungen, 1. Ziel, 2.1 Responsible Person, 2.2 Replacement, 2.3 Contract Status, 2. Editierbare Felder, 3. Nicht direkt editierbare Felder, 4. Berechtigungen (+8 more)
 
 ### Community 102 - "Page Length Render Check"
 Cohesion: 0.25
 Nodes (4): admin, anon, cookies, env
 
-### Community 103 - "Parallel Paging Performance Test"
-Cohesion: 0.25
-Nodes (4): CASES, env, root, supabase
+### Community 103 - "check-content-width.mjs"
+Cohesion: 0.29
+Nodes (4): appFiles, css, shellUsers, stragglers
 
 ### Community 104 - "Permissions RLS Parity Check"
 Cohesion: 0.29
@@ -742,9 +757,9 @@ Nodes (6): env, g, googleUrl, SIGNS, state, text
 Cohesion: 0.15
 Nodes (9): CODE, ENV, here, NAV_SRC, NOW, PAGE_SRC, PROJECTS, root (+1 more)
 
-### Community 124 - "check-team-select.mjs"
-Cohesion: 0.12
-Nodes (13): actionsStub, dir, editable, legacyOptions, legacyRow, React, readOnly, readOnlyLegacy (+5 more)
+### Community 124 - "Card.tsx"
+Cohesion: 0.10
+Nodes (31): ContractWatchlist(), KIND_LABEL, tone(), InviteUserForm(), EmployeeOwnershipOverview(), fmt(), fmt(), ManagementMatrix() (+23 more)
 
 ### Community 125 - "Auth Session Middleware"
 Cohesion: 0.38
@@ -802,10 +817,6 @@ Nodes (4): admin, anon, app, env
 Cohesion: 0.33
 Nodes (3): final, original, originalHash
 
-### Community 142 - "projects/page.tsx"
-Cohesion: 0.15
-Nodes (23): LeavePage(), metadata, ProfilePage(), h(), ProjectDetailPage(), one(), ProjectsPage(), SORT_KEYS (+15 more)
-
 ### Community 144 - "Deploy Skew Check"
 Cohesion: 0.40
 Nodes (3): config, layout, stripped
@@ -834,9 +845,9 @@ Nodes (4): control, KEY, missedByControl, treatment
 Cohesion: 0.40
 Nodes (3): after, env, rows
 
-### Community 155 - "team-lead/page.tsx"
-Cohesion: 0.12
-Nodes (26): toggleRolePermission(), AdminRolesPage(), PermissionToggle(), handleToggle(), Props, TeamLeadPage(), metadata, PortalPage() (+18 more)
+### Community 155 - "createClient"
+Cohesion: 0.13
+Nodes (33): AlertsPage(), toggleRolePermission(), AdminRolesPage(), PermissionToggle(), handleToggle(), Props, AdminUsersPage(), PeoplePage() (+25 more)
 
 ### Community 156 - "Next.js Build Config"
 Cohesion: 0.50
@@ -866,6 +877,38 @@ Nodes (3): time.member, time.member_utilisation, time.entry
 Cohesion: 0.67
 Nodes (3): public.project_sections, public.project_tasks, time.project
 
+### Community 201 - "Project Risks Modell"
+Cohesion: 0.12
+Nodes (16): 1. Ziel, 2.1 `PROJECT_WITHOUT_OWNER`, 2.2 `PROJECT_WITHOUT_CUSTOMER_MAPPING`, 2.3 `PROJECT_WITHOUT_ORDER_NUMBER`, 2.4 `PROJECT_WITHOUT_STATUS`, 2.5 `PROJECT_WITHOUT_SERVICE_MAPPING`, 2.6 `REPLACEMENT_RISK`, 2. Risk Types (+8 more)
+
+### Community 202 - "AuthShell.tsx"
+Cohesion: 0.12
+Nodes (17): ForgotPasswordPage(), LoginForm(), safeRedirect(), SetPasswordForm(), authButtonClass, AuthHeading(), authInputClass, authLabelClass (+9 more)
+
+### Community 203 - "management-employee-ownership.ts"
+Cohesion: 0.18
+Nodes (14): Assignment, EmployeeOwnershipProject, emptyRows(), getEmployeeOwnershipOverview(), isOpen(), numberOrZero(), Project, schema() (+6 more)
+
+### Community 204 - "Charts.tsx"
+Cohesion: 0.14
+Nodes (16): CustomerPortfolioCharts(), h(), SLICE_COLORS, CustomerPortfolioView, h(), TeamLeadCharts(), BillableDonut(), hrs() (+8 more)
+
+### Community 208 - "management-multi-service-matrix.ts"
+Cohesion: 0.24
+Nodes (12): aggregateHours(), canonicalService(), CLOSED_STATUSES, emptyModel(), emptyUsage(), getManagementMultiServiceMatrix(), isOpen(), normalized() (+4 more)
+
+### Community 209 - "Review: feature/customer-dashboard-development (Bjoern, 27 commits, +6,330)"
+Cohesion: 0.25
+Nodes (7): DO NOT MERGE (he says so himself, and he is right), MERGE AS-IS (high quality, fits our conventions), MERGE WITH ADAPTATION, Order of operations, Review: feature/customer-dashboard-development (Bjoern, 27 commits, +6,330), Verdict by area, What we still need from his machine
+
+### Community 210 - "check-customer-master-foundation.mjs"
+Cohesion: 0.20
+Nodes (5): cols, foundation, legalFields, schema, stgPolicies
+
+### Community 211 - "check-management-data.mjs"
+Cohesion: 0.18
+Nodes (10): dangling, db, ADR-0001, norm(), orderIds, orderNames, timeDb, ttLinks (+2 more)
+
 ### Community 214 - "time-dashboard.ts"
 Cohesion: 0.13
 Nodes (28): CustomerTable(), EconomicsTable(), eur(), hrs(), MemberTable(), OrgTotalsStrip(), ProjectTable(), relativeDays() (+20 more)
@@ -874,81 +917,129 @@ Nodes (28): CustomerTable(), EconomicsTable(), eur(), hrs(), MemberTable(), OrgT
 Cohesion: 0.25
 Nodes (4): admin, app, env, stamp
 
-### Community 227 - "measure-latency-variance.mjs"
-Cohesion: 0.29
-Nodes (4): admin, anon, app, env
+### Community 227 - "TeamLeadBoard.tsx"
+Cohesion: 0.30
+Nodes (11): ApprovalResult, approveAllPending(), approveDecision(), approveTimesheetWeek(), rejectTimesheetWeek(), requireApprover(), setTimesheetWeekStatus(), PendingTimesheetApprovals() (+3 more)
 
 ### Community 228 - "read-prod-total.mjs"
 Cohesion: 0.50
 Nodes (3): admin, anon, env
 
-### Community 231 - "database.types.ts"
-Cohesion: 0.20
-Nodes (9): CompositeTypes, Constants, DatabaseWithoutInternals, DefaultSchema, Enums, Json, Tables, TablesInsert (+1 more)
+### Community 229 - "AGENTS.md"
+Cohesion: 0.50
+Nodes (3): This is NOT the Next.js you know, UI work: read docs/UI-CONVENTIONS.md first, Use the knowledge graph first
 
-### Community 232 - "SecurityCard.tsx"
-Cohesion: 0.31
-Nodes (6): changePassword(), IDLE, SecurityCard(), PasswordStrengthBar(), getPasswordStrength(), MIN_PASSWORD_LENGTH
+### Community 231 - "TeamLeadExplorer.tsx"
+Cohesion: 0.15
+Nodes (18): ProfileFieldsForm(), groupByTeam(), h(), TeamAnalysis(), TeamAnalysisSection(), TeamBlock, TeamChoice, TeamLeadExplorer() (+10 more)
 
 ### Community 233 - "check-hr-role-migration.mjs"
 Cohesion: 0.33
 Nodes (4): execKeys, hrKeys, migration, names
 
-### Community 234 - "types.ts"
-Cohesion: 0.08
-Nodes (24): BudgetPanel(), euro(), getProjectDetail(), nestTasks(), ApprovalDecisionRow, BillableTrend, BillableTrendPoint, ExecutiveMetricRow (+16 more)
+### Community 235 - "PeopleDirectory.tsx"
+Cohesion: 0.23
+Nodes (13): bandOf(), CAPACITY_BANDS, CapacityBand, initialsOf(), PeopleDirectory(), SortKey, sortPeople(), FilterChip() (+5 more)
 
-### Community 235 - "label"
-Cohesion: 0.20
-Nodes (9): dir, require, hrs(), label(), labelWithDate(), TrendChart(), TrendPoint, isoWeekNumber() (+1 more)
+### Community 237 - "APPLY-IN-SQL-EDITOR-2.sql"
+Cohesion: 0.15
+Nodes (27): auth, auth.users, crm, public.people, public.projects, stg, crm.asana_project_reference, crm.corporate_group (+19 more)
 
-### Community 236 - "profile-actions.ts"
-Cohesion: 0.28
-Nodes (14): AdminActionResult, adminDeleteEntry(), adminUpdateEntry(), adminUpdateProfile(), adminUpdateWeeklyHours(), authorise(), Authorised, Refused (+6 more)
+### Community 239 - "ProjectPanels.tsx"
+Cohesion: 0.31
+Nodes (8): BurnChart(), ContributorTable(), h(), ProjectTotalsStrip(), TaskTable(), BurnPoint, ProjectContributor, ProjectTaskRow
 
-### Community 238 - "people/actions.ts"
-Cohesion: 0.38
-Nodes (5): setBillableRate(), SetBillableRateResult, BillableRatePanel(), handleSubmit(), BillableValueRow
-
-### Community 239 - "TeamLeadExplorer.tsx"
-Cohesion: 0.18
-Nodes (14): groupByTeam(), h(), TeamAnalysis(), TeamAnalysisSection(), TeamBlock, h(), TeamDeepAnalysis(), TeamChoice (+6 more)
-
-### Community 240 - "Avatar.tsx"
-Cohesion: 0.46
-Nodes (4): Avatar(), colorForName(), initialsOf(), PALETTE
+### Community 240 - "check-employee-ownership-live.mjs"
+Cohesion: 0.17
+Nodes (8): dir, { getEmployeeOwnershipOverview }, require, serverOnly, supabase, totalMappingIssues, totalOpen, withProjects
 
 ### Community 241 - "check-profile-admin.mjs"
 Cohesion: 0.25
 Nodes (6): actions, code, deleteBody, entryBody, profileBody, src
 
-### Community 243 - "ThemeToggle.tsx"
-Cohesion: 0.43
-Nodes (4): getServerSnapshot(), getSnapshot(), subscribe(), ThemeToggle()
+### Community 244 - "link-tt-round2.mjs"
+Cohesion: 0.17
+Nodes (8): ambiguous, db, DRY, links, ADR-0001, ordersByLexware, SERVICE_FAMILIES, timeDb
 
-### Community 244 - "TimeViewTabs.tsx"
-Cohesion: 0.47
-Nodes (4): formatDay(), TimeViewTabs(), shiftDay(), shiftWeek()
+### Community 248 - "Button.tsx"
+Cohesion: 0.32
+Nodes (7): Button(), buttonClass(), ButtonLink(), Size, SIZES, Variant, VARIANTS
+
+### Community 249 - "import-contract-periods.mjs"
+Cohesion: 0.29
+Nodes (7): coherent, DRY, report, spanDays(), suspicious, timeDb, today
+
+### Community 250 - "refresh-order-hours.mjs"
+Cohesion: 0.25
+Nodes (6): db, DRY, orderByTT, previews, sums, timeDb
+
+### Community 251 - "portal/page.tsx"
+Cohesion: 0.24
+Nodes (9): metadata, PortalPage(), BrandMark(), BrandMarkProps, PIECES, ModuleKey, ModuleTile, getUserModules() (+1 more)
+
+### Community 252 - "measure-latency-variance.mjs"
+Cohesion: 0.29
+Nodes (4): admin, anon, app, env
+
+### Community 253 - "database.types.ts"
+Cohesion: 0.20
+Nodes (9): CompositeTypes, Constants, DatabaseWithoutInternals, DefaultSchema, Enums, Json, Tables, TablesInsert (+1 more)
+
+### Community 254 - "check-parallel-paging.mjs"
+Cohesion: 0.25
+Nodes (4): CASES, env, root, supabase
+
+### Community 255 - "UI conventions: long lists, tables, and review queues"
+Cohesion: 0.33
+Nodes (5): Cards vs controls (the judgment call), Reference implementation, The house tokens, for any new list UI, The rules, UI conventions: long lists, tables, and review queues
+
+### Community 256 - "patch-source.mjs"
+Cohesion: 0.60
+Nodes (3): insertImport(), patchFile(), readNormalised()
+
+### Community 257 - "check-duration-parsing.mjs"
+Cohesion: 0.39
+Nodes (6): check(), eq(), fmt(), rejects, formatDuration(), parseDuration()
+
+### Community 258 - "ContractPanel.tsx"
+Cohesion: 0.39
+Nodes (5): BurnBar(), burnTone(), ContractPanel(), h(), nextDay()
+
+### Community 259 - "ReportFilters.tsx"
+Cohesion: 0.29
+Nodes (4): Option, ReportFilters(), PresetKey, PRESETS
+
+### Community 260 - "label"
+Cohesion: 0.43
+Nodes (7): hrs(), label(), labelWithDate(), TrendChart(), TrendPoint, isoWeekNumber(), thursdayOf()
+
+### Community 263 - "check-masterdata-source-migration.mjs"
+Cohesion: 0.40
+Nodes (3): db, paste, sql
+
+### Community 264 - "normalise-member-teams.mjs"
+Cohesion: 0.40
+Nodes (4): CANONICAL, client, folded, keys
 
 ## Knowledge Gaps
-- **1237 isolated node(s):** `writes`, `server`, `stubEnv`, `build`, `app` (+1232 more)
+- **1426 isolated node(s):** `client`, `MOCK_TABLES`, `REPORTING_FILES`, `page`, `hse` (+1421 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **40 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **41 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createClient()` connect `createClient` to `users/page.tsx`, `org-actions.ts`, `projects/page.tsx`, `time/page.tsx`, `time/actions.ts`, `TeamLeadBoard.tsx`, `profile/actions.ts`, `team-lead/page.tsx`, `OrgChartView.tsx`, `MyLeavePanel.tsx`, `(app)/page.tsx`, `projects/actions.ts`, `Sidebar.tsx`, `dashboard/page.tsx`, `[userId]/page.tsx`, `TimerBar.tsx`, `SecurityCard.tsx`, `profile-actions.ts`, `people/actions.ts`?**
-  _High betweenness centrality (0.023) - this node is a cross-community bridge._
-- **Why does `label()` connect `label` to `check-dashboard-acceptance.mjs`, `check-oauth-success-path-live.mjs`, `measure-latency-variance.mjs`, `check-time-acceptance.mjs`, `SSO Provider Check`?**
+- **Why does `label()` connect `label` to `check-dashboard-acceptance.mjs`, `check-oauth-success-path-live.mjs`, `import-masterdata-projects.mjs`, `check-time-acceptance.mjs`, `check-projects-module.mjs`, `SSO Provider Check`, `measure-latency-variance.mjs`?**
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Why does `createClient()` connect `createClient` to `TimesheetGrid.tsx`, `createAdminClient`, `hse.ts`, `TeamLeadBoard.tsx`, `dashboard/page.tsx`, `types.ts`, `OrgChartView.tsx`, `[userId]/page.tsx`, `profile/actions.ts`, `time/page.tsx`, `time/actions.ts`, `(app)/page.tsx`, `profile-actions.ts`, `portal/page.tsx`, `Card.tsx`, `[id]/page.tsx`?**
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Why does `Database` connect `people-live.ts` to `createAdminClient`, `overview-live.ts`, `team-lead-live.ts`, `dashboard/page.tsx`, `management-employee-ownership.ts`, `types.ts`, `management-customer-portfolio.ts`, `management-project-risks.ts`, `AuthShell.tsx`, `management-multi-service-matrix.ts`, `time/page.tsx`, `time-dashboard.ts`, `projects-live.ts`, `createClient`, `[userId]/page.tsx`, `database.types.ts`?**
   _High betweenness centrality (0.010) - this node is a cross-community bridge._
-- **Why does `Database` connect `[userId]/page.tsx` to `createClient`, `users/page.tsx`, `AuthShell.tsx`, `overview-live.ts`, `database.types.ts`, `trackingtime-report.ts`, `types.ts`, `people-live.ts`, `team-lead-live.ts`, `time/page.tsx`, `time-dashboard.ts`, `projects-live.ts`, `OrgChartView.tsx`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
-- **What connects `writes`, `server`, `stubEnv` to the rest of the system?**
-  _1237 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `client`, `MOCK_TABLES`, `REPORTING_FILES` to the rest of the system?**
+  _1426 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `scripts` be split into smaller, more focused modules?**
-  _Cohesion score 0.014388489208633094 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.012903225806451613 - nodes in this community are weakly interconnected._
 - **Should `Standalone Runtime Bootstrap` be split into smaller, more focused modules?**
   _Cohesion score 0.060678962844159315 - nodes in this community are weakly interconnected._
-- **Should `Roles & Permissions Schema` be split into smaller, more focused modules?**
-  _Cohesion score 0.05384615384615385 - nodes in this community are weakly interconnected._
+- **Should `schema.sql` be split into smaller, more focused modules?**
+  _Cohesion score 0.05505952380952381 - nodes in this community are weakly interconnected._

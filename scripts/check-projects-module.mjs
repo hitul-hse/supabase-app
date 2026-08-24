@@ -141,6 +141,9 @@ module.exports = {
       "@/components/EmptyState": posix(emptyStateFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/Pager": posix(pagerStub),
+      // The ledger table is a Card now, so the gate needs the real module here
+      // too -- an unmapped alias kills the whole gate rather than one check.
+      "@/components/ui/Card": posix(cardFile),
     }),
   );
 

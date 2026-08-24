@@ -1,4 +1,5 @@
 import type { ProjectBudgetStatusRow } from "@/lib/queries/types";
+import { Card } from "@/components/ui/Card";
 
 const euro = (value: number) => `€${Math.round(value).toLocaleString("de-DE")}`;
 
@@ -30,7 +31,7 @@ export function BudgetPanel({ status }: { status: ProjectBudgetStatusRow | null 
     : "var(--accent)";
 
   return (
-    <section className="flex flex-col gap-4 border border-[var(--border)] bg-[var(--surface)] p-5">
+    <Card as="section" className="flex flex-col gap-4 p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-2.5">
           <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Budget &amp; margin</h2>
@@ -93,7 +94,7 @@ export function BudgetPanel({ status }: { status: ProjectBudgetStatusRow | null 
           color={margin < 0 ? "var(--critical)" : "var(--good)"}
         />
       </div>
-    </section>
+    </Card>
   );
 }
 

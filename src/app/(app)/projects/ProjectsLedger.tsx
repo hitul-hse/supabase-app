@@ -9,6 +9,7 @@ import { Pager, usePager } from "@/components/Pager";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
 // and the detail page end up disagreeing about whether a project is "at risk".
 import { burnColor } from "./ProjectPanels";
+import { Card } from "@/components/ui/Card";
 
 /**
  * The projects ledger — 334 real projects, made reachable without scrolling.
@@ -190,7 +191,7 @@ export function ProjectsLedger({
         </span>
       </div>
 
-      <div className="border border-[var(--border)] bg-[var(--surface)]">
+      <Card className="overflow-hidden">
         {/* Mobile cards — a 7-column grid is unreadable under ~640px. */}
         <div className="flex flex-col divide-y divide-[var(--divider)] sm:hidden">
           {visible.map((p) => (
@@ -340,7 +341,7 @@ export function ProjectsLedger({
         </div>
 
         <Pager state={pager} total={sorted.length} noun="projects" anchorRef={tableRef} />
-      </div>
+      </Card>
     </div>
   );
 }

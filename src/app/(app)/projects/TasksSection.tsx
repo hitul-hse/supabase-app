@@ -5,6 +5,7 @@ import { AddTaskForm } from "./AddTaskForm";
 import { TaskListView } from "./TaskListView";
 import { TaskBoardView } from "./TaskBoardView";
 import type { TaskComment, TaskWithSubtasks, ProjectSectionRow, BoardParent } from "@/lib/queries/types";
+import { Card } from "@/components/ui/Card";
 
 export function TasksSection({
   parent,
@@ -23,8 +24,8 @@ export function TasksSection({
   const openCount = tasks.filter((t) => t.status !== "DONE").length;
 
   return (
-    <div className="flex flex-col border border-[var(--border)] bg-[var(--surface)] lg:col-span-7">
-      <div className="flex items-baseline justify-between border-b border-[var(--border)] p-4">
+    <Card className="flex flex-col lg:col-span-7">
+      <div className="flex items-baseline justify-between border-b border-[var(--divider)] p-4">
         <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">Tasks &amp; hours</span>
         <div className="flex items-center gap-3">
           <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
@@ -67,6 +68,6 @@ export function TasksSection({
       ) : (
         <TaskBoardView parent={parent} tasks={tasks} sections={sections} />
       )}
-    </div>
+    </Card>
   );
 }

@@ -13,6 +13,7 @@ import { useActionState } from "react";
 import { deleteTask, moveTaskToSection, createSection } from "./actions";
 import type { ProjectSectionRow, TaskWithSubtasks, BoardParent } from "@/lib/queries/types";
 import { EmptyState } from "@/components/EmptyState";
+import { Card } from "@/components/ui/Card";
 
 /** Tasks with no section yet -- e.g. after their column was deleted. */
 const UNFILED = "unfiled";
@@ -29,7 +30,10 @@ function TaskCard({
     task.due_on !== null && task.status !== "DONE" && task.due_on < new Date().toISOString().slice(0, 10);
 
   return (
-    <article className="flex flex-col gap-2 border border-[var(--border)] bg-[var(--surface)] p-3 transition-colors hover:border-[var(--border-strong)]">
+    // A board card is an independent record, so it takes card geometry. Its
+    // COLUMN stays a plain container: Card-in-Card is banned, and a board is
+    // columns of cards, not cards of cards.
+    <Card as="article" className="flex flex-col gap-2 p-3 transition-colors hover:border-[var(--border-strong)]">
       <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{task.name}</span>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10.5px]">
@@ -82,7 +86,7 @@ function TaskCard({
           </button>
         </form>
       </div>
-    </article>
+    </Card>
   );
 }
 

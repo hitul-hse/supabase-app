@@ -23,6 +23,26 @@ export function burnColor(percent: number | null): string {
   return "var(--accent)";
 }
 
+/**
+ * The same thresholds as `burnColor`, expressed as a StatTile tone.
+ *
+ * StatTile takes a tone name, not a colour, on purpose: a `color` prop lets any
+ * caller paint any figure any colour, which is how "tone means something" dies.
+ * So the mapping lives HERE, next to burnColor, where the two sets of
+ * thresholds cannot drift apart unnoticed.
+ *
+ * Note "good" for healthy but NOT for unbudgeted: 83 of 334 live projects have
+ * estimated_hours = 0, and green on those would be a confident false claim
+ * about a quarter of the portfolio. Unbudgeted is neutral, and the value itself
+ * says "not set".
+ */
+export function burnTone(percent: number | null): "neutral" | "good" | "warning" | "critical" {
+  if (percent === null) return "neutral";
+  if (percent > 100) return "critical";
+  if (percent >= 85) return "warning";
+  return "good";
+}
+
 /* ------------------------------------------------------------------ list */
 
 export function ProjectTotalsStrip({

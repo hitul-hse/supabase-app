@@ -26,12 +26,14 @@ import { createClient } from "@/utils/supabase/server";
 import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getProjectOverview } from "@/lib/queries/projects-live";
-import { BurnChart, ContributorTable, TaskTable, burnColor } from "../ProjectPanels";
+import { BurnChart, ContributorTable, TaskTable, burnTone } from "../ProjectPanels";
 import { TasksSection } from "../TasksSection";
 import { getTimeProjectBoard } from "@/lib/queries/hse";
 import { getProjectContractPeriods } from "@/lib/queries/contract-periods";
 import { permissionKeyExists } from "@/lib/queries/budget-alerts";
 import { ContractPanel } from "../ContractPanel";
+import { StatTile } from "@/components/ui/Card";
+import { Pill } from "@/components/ui/Segmented";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
@@ -113,24 +115,49 @@ export default async function ProjectDetailPage({
   );
   const hasBudget = project.estimatedHours !== null && project.estimatedHours > 0;
 
-  const stats = [
+  /*
+   * Value and unit are SEPARATE fields, not one glued string. StatTile sets the
+   * unit smaller and on the figure's baseline; "12.5 h" as a single string sets
+   * the unit as loud as the number it qualifies.
+   *
+   * `value: null` is how an unknown is stated -- StatTile renders "n/a" in the
+   * faint colour and suppresses the unit, because "n/a h" is nonsense. Never a
+   * plausible substitute like 0.
+   */
+  const stats: {
+    label: string;
+    value: string | null;
+    unit?: string;
+    hint: string;
+    tone?: "neutral" | "good" | "warning" | "critical";
+  }[] = [
     {
       label: "BUDGET",
-      value: hasBudget ? `${h(project.estimatedHours!)} h` : "not set",
-      color: hasBudget ? undefined : "var(--text-faint)",
+      value: hasBudget ? h(project.estimatedHours!) : null,
+      unit: "h",
+      hint: hasBudget ? "agreed" : "not set",
     },
-    { label: "LOGGED", value: `${h(totals.actualHours)} h` },
+    { label: "LOGGED", value: h(totals.actualHours), unit: "h", hint: "to date" },
     {
       label: "REMAINING",
-      value: totals.remainingHours === null ? "—" : `${h(totals.remainingHours)} h`,
-      color: totals.isOver ? "var(--critical)" : undefined,
+      value: totals.remainingHours === null ? null : h(totals.remainingHours),
+      unit: "h",
+      hint: totals.isOver ? "over budget" : hasBudget ? "left" : "no budget set",
+      tone: totals.isOver ? "critical" : "neutral",
     },
     {
       label: "CONSUMED",
-      value: totals.burnPercent === null ? "n/a" : `${totals.burnPercent}%`,
-      color: burnColor(totals.burnPercent),
+      value: totals.burnPercent === null ? null : String(totals.burnPercent),
+      unit: "%",
+      hint: totals.burnPercent === null ? "burn unknowable" : "of budget",
+      tone: burnTone(totals.burnPercent),
     },
-    { label: "BILLABLE", value: `${h(totals.billableHours)} h` },
+    {
+      label: "BILLABLE",
+      value: h(totals.billableHours),
+      unit: "h",
+      hint: "of logged hours",
+    },
   ];
 
   return (
@@ -152,51 +179,38 @@ export default async function ProjectDetailPage({
 
         <div className="flex flex-col gap-5 p-4 sm:p-6">
           <div className="flex flex-wrap gap-2">
-            {project.isArchived && (
-              <span className="bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--text-secondary)]">
-                ARCHIVED
-              </span>
-            )}
-            <span className="bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--text-secondary)]">
-              {project.isBillable ? "BILLABLE" : "NON-BILLABLE"}
-            </span>
-            {project.serviceName && (
-              <span className="bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--text-secondary)]">
-                {project.serviceName.toUpperCase()}
-              </span>
-            )}
+            {project.isArchived && <Pill>ARCHIVED</Pill>}
+            <Pill>{project.isBillable ? "BILLABLE" : "NON-BILLABLE"}</Pill>
+            {project.serviceName && <Pill>{project.serviceName.toUpperCase()}</Pill>}
             {totals.firstEntry && (
-              <span className="bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--text-secondary)]">
+              <Pill>
                 {totals.firstEntry} → {totals.lastEntry}
-              </span>
+              </Pill>
             )}
           </div>
 
-          <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-3 lg:grid-cols-5">
-            {stats.map((s, i) => (
-              <div
+          {/*
+           * Five separate cards on the gap token. The fused version computed its
+           * separators from the index -- `i < length - 1 ? border-b lg:border-r`
+           * -- which is wrong at the 2- and 3-column breakpoints, where the last
+           * cell of a ROW is not the last cell of the ARRAY: interior cells lost
+           * their rule and row-ending cells kept a trailing one.
+           */}
+          <div className="grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-5">
+            {stats.map((s) => (
+              <StatTile
                 key={s.label}
-                className={`flex flex-col gap-1.5 p-3 sm:p-3.5 ${
-                  i < stats.length - 1
-                    ? "border-b border-[var(--border)] lg:border-b-0 lg:border-r"
-                    : ""
-                }`}
-              >
-                <span className="font-mono text-[9.5px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-                  {s.label}
-                </span>
-                <span
-                  className="font-mono text-[20px] font-semibold tracking-[-0.02em] sm:text-[24px]"
-                  style={{ color: s.color ?? "var(--text-primary)" }}
-                >
-                  {s.value}
-                </span>
-              </div>
+                label={s.label}
+                value={s.value}
+                unit={s.unit}
+                hint={s.hint}
+                tone={s.tone ?? "neutral"}
+              />
             ))}
           </div>
 
           {truncated && (
-            <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+            <p className="card-elev rounded-[var(--radius-card)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
               This project has more entries than the reporting ceiling, so the figures above cover
               only the most recent ones.
             </p>

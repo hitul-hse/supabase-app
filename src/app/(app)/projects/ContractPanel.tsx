@@ -24,6 +24,7 @@ import {
   correctContractPeriod,
   type ContractActionResult,
 } from "./contract-actions";
+import { Card } from "@/components/ui/Card";
 
 const LABEL =
   "block font-mono text-[9.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]";
@@ -228,8 +229,8 @@ export function ContractPanel({
     });
 
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)]">
-      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
+    <Card as="section">
+      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--divider)] px-4 py-3">
         <div>
           <h2 className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
             Contract
@@ -527,7 +528,7 @@ export function ContractPanel({
           )}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 

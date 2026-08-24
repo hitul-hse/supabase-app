@@ -58,6 +58,8 @@
     "test:oauth-callback": "node scripts/check-oauth-callback.mjs",
     "test:oauth-access": "node scripts/check-oauth-access-model.mjs",
     "test:identity-linking": "node scripts/check-identity-linking.mjs",
+    "test:profile-person-link": "node scripts/check-profile-person-link.mjs",
+    "check:profile-person-link": "node scripts/check-profile-person-link.mjs",
     "check:acceptance": "node scripts/check-time-acceptance.mjs",
     "check:dashboard-tables": "node scripts/check-dashboard-tables.mjs",
     "check:parallel-paging": "node --experimental-strip-types scripts/check-parallel-paging.mjs",

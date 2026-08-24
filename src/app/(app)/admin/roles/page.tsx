@@ -55,13 +55,16 @@ export default async function AdminRolesPage() {
           </div>
         )}
 
-        // Permission matrix is the primary admin panel — aggregates every
-        // role × permission cell. Qualifier names the scale.
+        {/* The permission matrix is the page's primary panel: every
+            role × permission cell. The qualifier names the scale. */}
         <Card>
           <CardHeader title="Role Permissions" qualifier={`${roles.length} ROLES · ${permissions.length} PERMISSIONS`} />
           <CardDivider />
           <div className="overflow-x-auto p-0">
-          <table className="w-full min-w-[680px] border-collapse border border-[var(--border)] bg-[var(--surface)]">
+          {/* No own border or surface: the Card provides both. The CELL rules
+              stay -- a matrix is genuinely fused cells of one record, the one
+              shape where shared hairlines say the true thing. */}
+          <table className="w-full min-w-[680px] border-collapse">
             {/* Header row: roles */}
             <thead>
               <tr className="bg-[var(--surface-2)]">

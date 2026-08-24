@@ -162,10 +162,35 @@ check(
   /weekIndex\.get\(isoWeekMonday\(/.test(tlQuery),
   "fixed labels or coarser buckets put hours in the wrong column",
 );
+/*
+ * The paging moved into the shared fetchAllPaged() helper, so the literal
+ * "PAGE" constant left this file while the behaviour improved. What must hold:
+ * every entry read goes THROUGH that helper (which owns the page size and the
+ * ordering), and the helper still actually pages.
+ */
+const entryReads = (tlQuery.match(/\.from\("entry"\)/g) ?? []).length;
+const pagedReads = (tlQuery.match(/fetchAllPaged<[^>]*>\(/g) ?? []).length;
 check(
-  "entries are paged, not truncated at PostgREST's cap",
-  tlQuery.includes(".range(") && tlQuery.includes("PAGE"),
-  "a single request stops at 1000 rows and silently under-reports every person",
+  "every entry read goes through the shared pager",
+  entryReads > 0 && pagedReads >= entryReads,
+  `${entryReads} entry read(s), ${pagedReads} paged wrapper(s) -- a bare request stops at 1000 rows and silently under-reports every person`,
+);
+const pagedHelper = codeOnly("src/lib/queries/paged.ts");
+/*
+ * NOT `.range(` -- the helper deliberately does not call it. Callers pass a
+ * range-shaped query factory and the helper supplies the offsets, so what must
+ * hold is that it iterates pages, derives offsets from PostgREST's silent cap,
+ * and reports truncation instead of returning a short total that looks whole.
+ */
+check(
+  "the shared pager iterates pages rather than issuing one request",
+  /for\s*\([^)]*base/.test(pagedHelper) && /queryForRange\(page \* PAGE/.test(pagedHelper),
+  "if the helper stops paging, every caller silently truncates at once",
+);
+check(
+  "the pager reports truncation instead of returning a short total",
+  /truncated:\s*true/.test(pagedHelper) && /PAGE\s*=\s*1000/.test(pagedHelper),
+  "a partial total presented as complete is the failure this module exists to prevent",
 );
 check(
   "shared mailboxes are excluded from the board",

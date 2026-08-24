@@ -205,10 +205,25 @@ if (live) {
 
 if (page) {
   const pageCode = stripComments(page);
+  /*
+   * The n/a rule lives in StatTile now (card migration), which renders "n/a"
+   * for a null value AND suppresses the unit -- strictly better than the
+   * inline `?? "n/a"` this used to grep for. So assert the two halves that
+   * together guarantee the behaviour: the page must not launder the null, and
+   * the primitive must still honour it. Either alone can pass while the page
+   * lies.
+   */
   check(
-    'the page renders "n/a" for a null metric',
-    /metric\.value\s*\?\?\s*["']n\/a["']/.test(pageCode),
+    "the page hands the raw nullable metric to StatTile (no ?? 0 laundering)",
+    /value=\{metric\.value\}/.test(pageCode) &&
+      !/metric\.value\s*(\?\?|\|\|)\s*0/.test(pageCode),
     "?? 0 would turn 'unknown' into a measurement",
+  );
+  const statTile = read("src/components/ui/Card.tsx") ?? "";
+  check(
+    'StatTile renders "n/a" for a null value, and no unit beside it',
+    /isMissing\s*\?\s*["']n\/a["']/.test(statTile) && /unit && !isMissing/.test(statTile),
+    "the rule moved into the primitive; if it leaves there, every figure in the app regresses at once",
   );
   // Asserted on stripped source: the file explains this rule in a comment, and
   // matching that comment would let the JSX beneath it regress unnoticed.

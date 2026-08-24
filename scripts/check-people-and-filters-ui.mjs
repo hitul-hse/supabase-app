@@ -83,23 +83,72 @@ try {
     .locator('span:text-matches("^\\\\d+ OF \\\\d+")').first().innerText().catch(() => "(not found)");
   check("the count states what is visible over the total", /^10 OF 19/.test(countLabel), `label reads "${countLabel}"`);
 
-  const more = page.locator('button:has-text("SHOW ")').filter({ hasText: "MORE" }).first();
-  check("a SHOW n MORE control is offered", (await more.count()) > 0, await more.innerText().catch(() => "absent"));
+  /*
+   * PAGED, NOT APPENDED -- and this check used to demand the opposite.
+   *
+   * The roster's first fix WAS a SHOW n MORE control. The user reported that
+   * shape as the problem on Projects (clicking it grows the document, so the
+   * control moves away from you), so it was replaced by the shared fixed-height
+   * Pager, and check-page-length.mjs now asserts that no appending "Show N
+   * more" survives anywhere. This check kept demanding the deleted control, so
+   * two gates contradicted each other and this one failed on correct
+   * behaviour.
+   *
+   * The property is the same as before: the reader must be able to reach the
+   * rest of the roster, and the column must not grow while they do it.
+   */
+  const appending = page.locator('button:has-text("SHOW ")').filter({ hasText: "MORE" });
+  check(
+    "no appending SHOW n MORE control survives (it grows the document)",
+    (await appending.count()) === 0,
+    await appending.first().innerText().catch(() => "absent"),
+  );
 
-  await more.click();
+  const next = page.locator('button:text-is("NEXT →")').first();
+  check("a NEXT control is offered to reach the rest of the roster", (await next.count()) > 0);
+
+  const columnHeightBefore = await page.evaluate(() => {
+    const input = document.querySelector('input[placeholder*="Search name"]');
+    let column = input?.parentElement ?? null;
+    while (column && column !== document.body && column.clientHeight < 200) column = column.parentElement;
+    return column?.clientHeight ?? -1;
+  });
+
+  await next.click();
+  await page.waitForTimeout(700);
+
+  const afterPage = await rosterCount();
+  check(
+    "advancing shows the remaining people (19 total, so page 2 holds 9)",
+    afterPage === 9,
+    `rendered ${afterPage} rows on page 2`,
+  );
+  const columnHeightAfter = await page.evaluate(() => {
+    const input = document.querySelector('input[placeholder*="Search name"]');
+    let column = input?.parentElement ?? null;
+    while (column && column !== document.body && column.clientHeight < 200) column = column.parentElement;
+    return column?.clientHeight ?? -1;
+  });
+  check(
+    "paging does not grow the roster column",
+    columnHeightAfter <= columnHeightBefore + 40,
+    `${columnHeightBefore}px -> ${columnHeightAfter}px`,
+  );
+
+  const prev = page.locator('button:text-is("← PREV")').first();
+  check("PREV is offered once past page 1", (await prev.count()) > 0);
+  await prev.click();
   await page.waitForTimeout(600);
-  const expanded = await rosterCount();
-  check("expanding reveals the rest of the roster", expanded === 19, `rendered ${expanded} rows after expanding`);
+  check("returning to page 1 shows ten again", (await rosterCount()) === 10);
 
-  const fewer = page.locator('button:has-text("SHOW FEWER")').first();
-  check("SHOW FEWER is offered once expanded", (await fewer.count()) > 0);
-  await fewer.click();
-  await page.waitForTimeout(500);
-  check("collapsing returns to ten", (await rosterCount()) === 10);
-
-  // Searching must reset the page, or a match could sit outside the first ten.
-  await more.click();
-  await page.waitForTimeout(400);
+  /*
+   * Searching must RESET TO PAGE ONE. Driven from page 2 deliberately: that is
+   * the case PeopleDirectory's pager reset key exists for ("searching while on
+   * page 2 could leave you looking at an empty column when the match is on
+   * page 1"), and it is the only arrangement where a missing reset is visible.
+   */
+  await next.click();
+  await page.waitForTimeout(600);
   await page.getByPlaceholder(/Search name/i).fill("stephan");
   await page.waitForTimeout(700);
   const searched = await rosterCount();

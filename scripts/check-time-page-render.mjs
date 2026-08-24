@@ -69,7 +69,14 @@ async function compile(srcPath, outName, rewrites = {}) {
 const transformFile = await compile("src/lib/time-transform.ts", "time-transform.cjs");
 // Types-only imports vanish at compile time, so pointing "@/lib/queries/time"
 // at the same module is harmless and avoids pulling in the Supabase client.
-const alias = { "@/lib/time-transform": posix(transformFile), "@/lib/queries/time": posix(transformFile) };
+// The card vocabulary is compiled for real: the strip renders StatTiles and
+// the assertions below run against their markup.
+const cardFile = await compile("src/components/ui/Card.tsx", "card.cjs");
+const alias = {
+  "@/lib/time-transform": posix(transformFile),
+  "@/lib/queries/time": posix(transformFile),
+  "@/components/ui/Card": posix(cardFile),
+};
 
 const { TimeTotalsStrip } = require(
   await compile("src/app/(app)/time/TimeTotalsStrip.tsx", "TimeTotalsStrip.cjs", alias),

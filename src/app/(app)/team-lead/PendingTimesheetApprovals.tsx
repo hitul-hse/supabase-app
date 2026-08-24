@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { PendingTimesheetWeek } from "@/lib/queries/types";
 import { approveTimesheetWeek, rejectTimesheetWeek } from "./actions";
+import { Card } from "@/components/ui/Card";
 
 export function PendingTimesheetApprovals({ initialWeeks }: { initialWeeks: PendingTimesheetWeek[] }) {
   const [weeks, setWeeks] = useState(initialWeeks);
@@ -50,7 +51,7 @@ export function PendingTimesheetApprovals({ initialWeeks }: { initialWeeks: Pend
   if (weeks.length === 0 && !error) return null;
 
   return (
-    <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
+    <Card className="flex flex-col gap-3 p-4">
       <div className="flex items-baseline justify-between">
         <span className="text-[12px] font-semibold text-[var(--text-primary)]">
           Pending timesheet approvals
@@ -126,6 +127,6 @@ export function PendingTimesheetApprovals({ initialWeeks }: { initialWeeks: Pend
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

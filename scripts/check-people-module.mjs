@@ -382,6 +382,11 @@ module.exports = {
   // can see at all.
   const pagerFile = await compile("src/components/Pager.tsx", "pager.cjs");
 
+  // The card vocabulary, compiled for real: the directory's KPI tiles are
+  // StatTiles now, and the n/a-never-0 assertions below run against StatTile's
+  // rendered markup. A stub would let them pass while rendering nothing.
+  const cardFile = await compile("src/components/ui/Card.tsx", "card.cjs");
+
   const view = require(
     await compile(VIEW, "people-view.cjs", {
       "@/components/ui/Field": posix(fieldStub),
@@ -392,6 +397,7 @@ module.exports = {
       "@/components/PageHeader": posix(headerStub),
       "@/components/EmptyState": posix(emptyStub),
       "@/lib/queries/people-live": posix(join(dir, "people-live.cjs")),
+      "@/components/ui/Card": posix(cardFile),
       "next/link": posix(linkStub),
     }),
   );

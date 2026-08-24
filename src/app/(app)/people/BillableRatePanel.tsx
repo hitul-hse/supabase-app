@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { setBillableRate } from "./actions";
 import type { BillableValueRow } from "@/lib/queries/types";
+import { Card } from "@/components/ui/Card";
 
 export function BillableRatePanel({
   personId,
@@ -34,7 +35,7 @@ export function BillableRatePanel({
   }
 
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
+    <Card className="mb-5 flex flex-wrap items-center justify-between gap-3 p-4">
       <div className="flex flex-wrap items-center gap-6">
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
@@ -98,6 +99,6 @@ export function BillableRatePanel({
       </div>
 
       {error && <p className="text-[11px] text-[var(--critical)]">{error}</p>}
-    </div>
+    </Card>
   );
 }

@@ -16,6 +16,7 @@ import {
 import { capacityLabel, type LivePerson } from "@/lib/queries/people-live";
 import { teamLabel } from "@/lib/teams";
 import { Pager, usePager } from "@/components/Pager";
+import { Card, StatTile } from "@/components/ui/Card";
 
 /**
  * The people directory, rendering the real TrackingTime roster.
@@ -602,8 +603,8 @@ export function PeopleDirectory({
           </div>
 
           {/* Measured figures only */}
-          <div className="my-5 grid grid-cols-1 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi
+          <div className="my-5 grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-4">
+            <StatTile
               label="HOURS LOGGED"
               value={
                 selectedPerson.totalHours > 0
@@ -612,48 +613,38 @@ export function PeopleDirectory({
                     })
                   : null
               }
-              suffix={`${selectedPerson.entryCount.toLocaleString("de-DE")} ENTRIES`}
-              border="sm:border-r lg:border-b-0"
+              unit="h"
+              hint={`${selectedPerson.entryCount.toLocaleString("de-DE")} ENTRIES`}
             />
-            <Kpi
+            <StatTile
               label="BILLABLE SHARE"
-              value={
-                selectedPerson.billablePercent !== null
-                  ? `${selectedPerson.billablePercent}%`
-                  : null
-              }
-              suffix={`${selectedPerson.billableHours.toLocaleString("de-DE", {
+              value={selectedPerson.billablePercent}
+              unit="%"
+              hint={`${selectedPerson.billableHours.toLocaleString("de-DE", {
                 maximumFractionDigits: 0,
               })} H BILLABLE`}
-              accent
-              border="lg:border-r"
             />
-            <Kpi
+            <StatTile
               label="UTILISATION"
-              value={
-                selectedPerson.utilisationPercent !== null
-                  ? `${selectedPerson.utilisationPercent}%`
-                  : null
-              }
+              value={selectedPerson.utilisationPercent}
+              unit="%"
               // Not "OF CONTRACTED": the 40h basis is a TrackingTime default,
               // and calling it contracted would dress a default as a fact.
-              suffix="OF NOMINAL 40 H, WEEKS ACTIVE"
-              border="sm:border-r"
+              hint="OF NOMINAL 40 H, WEEKS ACTIVE"
             />
-            <Kpi
+            <StatTile
               label="WEEKS ACTIVE"
-              value={selectedPerson.weeksActive > 0 ? String(selectedPerson.weeksActive) : null}
-              suffix={
+              value={selectedPerson.weeksActive > 0 ? selectedPerson.weeksActive : null}
+              hint={
                 selectedPerson.lastActivityAt
                   ? `LAST ${selectedPerson.lastActivityAt.slice(0, 10)}`
                   : "NO ACTIVITY"
               }
-              border=""
             />
           </div>
 
           {/* Assignments — real projects this person logged against */}
-          <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
+          <Card className="flex flex-col gap-3 p-4">
             <div className="flex items-baseline gap-2.5">
               <span className="text-[12px] font-semibold text-[var(--text-primary)]">
                 Projects
@@ -707,10 +698,10 @@ export function PeopleDirectory({
                 ))}
               </div>
             )}
-          </div>
+          </Card>
 
           {unlinkedCount > 0 && (
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
+            <Card className="mt-5 flex flex-wrap items-center justify-between gap-3 p-4">
               <span className="text-[12px] text-[var(--text-secondary)]">
                 {unlinkedCount} of the {people.length} people listed have no Hub sign-in yet, so
                 they cannot see their own hours.
@@ -718,7 +709,7 @@ export function PeopleDirectory({
               <ButtonLink variant="primary" href="/admin/users" className="whitespace-nowrap">
                 Manage users
               </ButtonLink>
-            </div>
+            </Card>
           )}
         </div>
       </div>
@@ -786,42 +777,14 @@ function sortPeople(rows: LivePerson[], key: SortKey, dir: SortDirection): LiveP
   });
 }
 
-/** One measured figure. Renders "n/a" — never 0 — when there is no value. */
-function Kpi({
-  label,
-  value,
-  suffix,
-  accent = false,
-  border,
-}: {
-  label: string;
-  value: string | null;
-  suffix: string;
-  accent?: boolean;
-  border: string;
-}) {
-  return (
-    <div className={`flex flex-col gap-1 border-b border-[var(--border)] p-3.5 ${border}`}>
-      <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
-        {label}
-      </span>
-      <span
-        className="font-mono text-[22px] font-semibold"
-        style={{
-          color:
-            value === null
-              ? "var(--text-faint)"
-              : accent
-                ? "var(--accent)"
-                : "var(--text-primary)",
-        }}
-      >
-        {value ?? "n/a"}
-      </span>
-      <span className="font-mono text-[10px] text-[var(--text-faint)]">{suffix}</span>
-    </div>
-  );
-}
+/*
+ * The local `Kpi` used to live here. It reimplemented StatTile -- including
+ * StatTile's own "n/a, never 0" rule -- and took a `border` prop carrying
+ * strings like "sm:border-r lg:border-b-0", which is the fused grid's separator
+ * arithmetic hoisted into a component API: four call sites each hand-deriving
+ * which edges they own at which breakpoint. Deleted rather than restyled,
+ * because a second figure vocabulary is what let the two drift apart.
+ */
 
 /**
  * "Björn Schönemann" -> "BS". Falls back to one initial for mononyms like

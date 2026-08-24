@@ -1,0 +1,318 @@
+{
+  "generatedAt": "2026-08-24T14:59:33.812Z",
+  "mode": "apply",
+  "excelOrders": 198,
+  "plannedRows": 288,
+  "responsibleRows": 148,
+  "replacementRows": 140,
+  "perPerson": {
+    "md-bjrn|responsible": 3,
+    "md-hendryk|replacement": 21,
+    "md-hendryk|responsible": 28,
+    "md-mathias|replacement": 36,
+    "md-stephan|replacement": 6,
+    "md-mathias|responsible": 4,
+    "md-mustafa|responsible": 28,
+    "md-thorsten|replacement": 10,
+    "md-ousmane|responsible": 4,
+    "md-stephan|responsible": 15,
+    "md-mustafa|replacement": 4,
+    "md-thorsten|responsible": 3,
+    "md-serhii|responsible": 1,
+    "md-ousmane|replacement": 1,
+    "md-rency|responsible": 62,
+    "md-rency|replacement": 62
+  },
+  "unmatchedOrders": [
+    {
+      "orderNo": "10443_00253_104_01",
+      "orderName": "RISE FX GmbH / 25-26 SiFa Stuttgart",
+      "customer": "RISE FX GmbH",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer",
+      "reason": "no_match",
+      "candidates": [],
+      "responsible": "Hendryk",
+      "replacement": "Mustafa"
+    },
+    {
+      "orderNo": "10747_00360_104_01",
+      "orderName": "Intel GmbH / SiFa",
+      "customer": "Intel Deutschland GmbH",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer",
+      "reason": "ambiguous",
+      "candidates": [
+        "10747_00360_104_01",
+        "10738_00319_104_01"
+      ],
+      "responsible": "Mustafa",
+      "replacement": "Stephan"
+    },
+    {
+      "orderNo": "10738_00319_104_01",
+      "orderName": "Intel GmbH / SiFa",
+      "customer": "Unity Technologies GmbH",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer",
+      "reason": "ambiguous",
+      "candidates": [
+        "10747_00360_104_01",
+        "10738_00319_104_01"
+      ],
+      "responsible": "Thorsten",
+      "replacement": "Stephan"
+    },
+    {
+      "orderNo": "10110_00375_205_01",
+      "orderName": "missing",
+      "customer": "AWB Aluminiumwerk Berlin GmbH",
+      "sheet": "DGUV V2 Betriebsarzt  Company d",
+      "reason": "ambiguous",
+      "candidates": [
+        "10110_00375_205_01",
+        "10361_00178_205_01"
+      ],
+      "responsible": "Rency Sebastian",
+      "replacement": "Rency Sebastian"
+    },
+    {
+      "orderNo": "10747_00360_205_01",
+      "orderName": "",
+      "customer": "Intel Deutschland GmbH",
+      "sheet": "DGUV V2 Betriebsarzt  Company d",
+      "reason": "no_match",
+      "candidates": [],
+      "responsible": "Rency Sebastian",
+      "replacement": "Rency Sebastian"
+    },
+    {
+      "orderNo": "10361_00178_205_01",
+      "orderName": "missing",
+      "customer": "SAGE Automotive Interiors",
+      "sheet": "DGUV V2 Betriebsarzt  Company d",
+      "reason": "ambiguous",
+      "candidates": [
+        "10110_00375_205_01",
+        "10361_00178_205_01"
+      ],
+      "responsible": "Rency Sebastian",
+      "replacement": "Rency Sebastian"
+    }
+  ],
+  "unresolvedNames": [],
+  "ordersNamingNobody": [
+    {
+      "orderNo": "10878_00394_104_01",
+      "orderName": "Rail Care / 26/27 SiFa",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10880_00393_111_01",
+      "orderName": "RCS Milling / 26/27 Österreich",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10766_00341_104_01",
+      "orderName": "10766_CreativeDock BER GmbH / 26/27 SiFA",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10881_00347_104_01",
+      "orderName": "10881_EFI / 26/27 SiFa",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10932_00400_104_01",
+      "orderName": "Exus renewables / 26/27 SiFa",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10872_00386_301_01",
+      "orderName": "CORPORACIÓN (Airzone) / 26/27 KK",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10818_00391_301_01",
+      "orderName": "Cloudpay / 26/27 KK",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10919_00397_301_01",
+      "orderName": "Dare Beauty / 26/27 KK",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10565_00401_301_01",
+      "orderName": "Tous Jewelry / 26/27 SiFa",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10724_00332_104_01",
+      "orderName": "Collectors / 26/27 SiFa",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10203_00053_104_01",
+      "orderName": "Addleshaw Goddard  LLP Hamburg / 26/27 SiFa",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10940_00407_104_01",
+      "orderName": "Kirby Group / 26/27 SiFa",
+      "sheet": "DGUV V2 Sifa  Safety Engeineer"
+    },
+    {
+      "orderNo": "10869_00333_606_01",
+      "orderName": "smartUP Holding GmbH / SiGeKo_ Baispaket",
+      "sheet": "SiGeKo  construction coordinati"
+    },
+    {
+      "orderNo": "10811_00318_601_01",
+      "orderName": "Advanced Interior Solutions Ltd / on site inspection",
+      "sheet": "SiGeKo  construction coordinati"
+    },
+    {
+      "orderNo": "10511_00274_601_01",
+      "orderName": "JinkoSolar GmbH / Baustellenbegehung/ Remote Ramp Up support _Berchng- per Stunde",
+      "sheet": "SiGeKo  construction coordinati"
+    },
+    {
+      "orderNo": "10940_00407_605_01",
+      "orderName": "Kirby Group / 4x 5 Stunden On Site visit",
+      "sheet": "SiGeKo  construction coordinati"
+    },
+    {
+      "orderNo": "10463_00337_401_01",
+      "orderName": "OneTrust / Risk Assessment",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10634_0_4_01",
+      "orderName": "VOI Safety",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10766_00343_401_01",
+      "orderName": "10766_CreativeDock BER GmbH / GBU",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10848_00345_405_01",
+      "orderName": "10848_Reganosa / HSE Legal Compliance Assessment",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10848_00345_402_01",
+      "orderName": "10848_Reganosa / HSE Legal Compliance Review",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10897_00353_401_01",
+      "orderName": "10897_Auro Berlin / 26 GBU",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10905_00357__01",
+      "orderName": "10905_Closer Go Stuttgart / 26 GBU",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10872_00387_401_01",
+      "orderName": "CORPORACIÓN (Airzone) / 26/27 GBU",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10818_00390_401_01",
+      "orderName": "Cloudpay / 26 GBU",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10878_00392_401_01",
+      "orderName": "Rail Care / 26 GBU",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10929_00398_412_01",
+      "orderName": "EL-Cell / 26 GB-Psysch",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10932_00399_403_01",
+      "orderName": "Exus renewables / ramp up support",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10565_00402_401_01",
+      "orderName": "Tous Jewelry / 26 GBU",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10899_00406_403_01",
+      "orderName": "Easyship / ramp up support",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10940_00407_403_01",
+      "orderName": "Kirby Group / 26 ramp up supprt",
+      "sheet": "Projekt Health & Safety Consult"
+    },
+    {
+      "orderNo": "10175_00022_501_01",
+      "orderName": "10175_NS Dokumentation / 26 BSB",
+      "sheet": "Brandschutzbeauftragter (Fire S"
+    },
+    {
+      "orderNo": "10305_00404_501_01",
+      "orderName": "YPOG Berlin / 26 Brandschutz & Räumungshelfer",
+      "sheet": "Brandschutzbeauftragter (Fire S"
+    },
+    {
+      "orderNo": "10940_00407_501_01",
+      "orderName": "Kirby Group / 26 Brandschutzhelfer Ausbildung",
+      "sheet": "Brandschutzbeauftragter (Fire S"
+    },
+    {
+      "orderNo": "10787_00373_203_01",
+      "orderName": "Action Wallersdorf / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "orderNo": "10766_00342_205_01",
+      "orderName": "10766_CreativeDock BER GmbH / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "orderNo": "10881_00348_205_01",
+      "orderName": "10881_EFI / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "orderNo": "10744_00352_205_01",
+      "orderName": "10744_Closer Go Hamburg / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "orderNo": "10897_00355_205_01",
+      "orderName": "10897_Auro / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "orderNo": "10905_00357_205_01",
+      "orderName": "10905_Closer Go Stuttgart / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "orderNo": "10932_00405_205_01",
+      "orderName": "Exus renewables / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "orderNo": "10940_00408_205_01",
+      "orderName": "Kirby Group / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    },
+    {
+      "orderNo": "10927_00409_205_01",
+      "orderName": "DSW / 26/27 BA",
+      "sheet": "DGUV V2 Betriebsarzt  Company d"
+    }
+  ]
+}

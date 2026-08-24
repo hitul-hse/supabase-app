@@ -1,4 +1,5 @@
 import type { ProfileView } from "@/lib/queries/profile";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 
 /**
  * HR data, deliberately inert.
@@ -25,12 +26,13 @@ export function EmploymentCard({ profile }: { profile: ProfileView }) {
   const dash = (v: string | number | null) => (v === null || v === "" ? "—" : String(v));
 
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)] p-5">
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Employment</h2>
-        <span className="text-[11px] text-[var(--text-faint)]">Managed by HR — read only</span>
-      </div>
+    // Employment is a top-level profile section — aggregates HR data.
+    // Qualifier names the source so readers know editing here is futile.
+    <Card>
+      <CardHeader title="Employment" qualifier="MANAGED BY HR · READ ONLY" />
+      <CardDivider />
 
+      <div className="p-5">
       {profile.personId === null && (
         <p className="mb-4 border-b border-[var(--border)] pb-4 text-[12px] text-[var(--text-muted)]">
           No HR record is linked to your account yet, so the fields below are unavailable. This
@@ -55,6 +57,7 @@ export function EmploymentCard({ profile }: { profile: ProfileView }) {
         <Field label="With HSE since" value={dash(profile.since)} />
         <Field label="Sign-in email" value={dash(profile.email)} mono />
       </div>
-    </section>
+      </div>
+    </Card>
   );
 }

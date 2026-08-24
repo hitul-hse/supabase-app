@@ -26,10 +26,12 @@ export function SkeletonBlock({
   );
 }
 
-/** A stat tile skeleton — matches the 5-column metric strip on the Overview page. */
+/** A stat tile skeleton — mirrors StatTile's rounded card geometry. */
 export function SkeletonStatTile() {
   return (
-    <div className="flex flex-col gap-2 p-3.5">
+    // card-elev mirrors StatTile's own elevation so skeleton geometry matches;
+    // without it the tile appears flat until data arrives.
+    <div className="card-elev flex flex-col gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3.5">
       <SkeletonBlock className="h-2.5 w-20" />
       <SkeletonBlock className="h-7 w-16" />
       <SkeletonBlock className="h-1 w-full" />
@@ -70,15 +72,15 @@ export function PageLoadingSkeleton({ rows = 5 }: { rows?: number }) {
 
       {/* Content skeleton */}
       <div className="flex flex-col gap-4 p-6">
-        {/* Metric strip */}
-        <div className="grid grid-cols-5 border border-[var(--border)] bg-[var(--surface)]">
+        {/* Metric strip: separate gap, matching real card layout (not a fused grid). */}
+        <div className="grid grid-cols-5 gap-[var(--card-gap)]">
           {Array.from({ length: 5 }, (_, i) => (
             <SkeletonStatTile key={i} />
           ))}
         </div>
 
-        {/* Table skeleton */}
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
+        {/* Table skeleton: card geometry matches the real panel the rows land in. */}
+        <div className="card-elev overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]">
           <div className="h-9 border-b border-[var(--border)] bg-[var(--surface-2)] animate-pulse" />
           {Array.from({ length: rows }, (_, i) => (
             <div key={i} className="border-b border-[var(--border)]">

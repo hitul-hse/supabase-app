@@ -5,6 +5,7 @@ import { requireProfile, userHasPermission } from "@/utils/supabase/require-prof
 import { PERMISSIONS } from "@/lib/permissions";
 import { getLeaveBalance, getLeaveRequests, getPendingLeaveApprovals } from "@/lib/queries/hse";
 import { MyLeavePanel } from "./MyLeavePanel";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 import { PendingLeaveApprovals } from "./PendingLeaveApprovals";
 import PageTransition from "@/components/animations/PageTransition";
 
@@ -47,19 +48,22 @@ export default async function LeavePage() {
              * it by linking a record, and it stops someone chasing a permissions
              * problem that does not exist.
              */
-            <div className="flex flex-col gap-2 border border-[var(--border)] bg-[var(--surface)] p-5">
-              <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                Leave tracking isn&apos;t connected yet
-              </span>
-              <p className="text-[12px] text-[var(--text-secondary)]">
-                Holiday balances and requests need a source system, and none is
-                linked to the Hub yet — so there is nothing to show here for anyone.
-                TrackingTime records hours worked, not absence.
-              </p>
-              <p className="font-mono text-[10px] text-[var(--text-faint)]">
-                NOTHING IS WRONG WITH YOUR ACCOUNT
-              </p>
-            </div>
+            // No-source-system panel: top-level informational card with heading
+            // and explanatory content — not an inline note.
+            <Card>
+              <CardHeader title="Leave tracking isn't connected yet" />
+              <CardDivider />
+              <div className="flex flex-col gap-2 p-5">
+                <p className="text-[12px] text-[var(--text-secondary)]">
+                  Holiday balances and requests need a source system, and none is
+                  linked to the Hub yet — so there is nothing to show here for anyone.
+                  TrackingTime records hours worked, not absence.
+                </p>
+                <p className="font-mono text-[10px] text-[var(--text-faint)]">
+                  NOTHING IS WRONG WITH YOUR ACCOUNT
+                </p>
+              </div>
+            </Card>
           )}
 
           {isLead && <PendingLeaveApprovals initialRequests={pendingApprovals} />}

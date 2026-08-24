@@ -8,6 +8,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { listUserProfiles, getRoles } from "@/lib/queries/auth";
 import { InviteUserForm } from "./InviteUserForm";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 import { UserRow } from "./UserRow";
 
 export type AppRoleRow = { role_key: string; display_name: string; seniority: number };
@@ -93,7 +94,11 @@ export default async function AdminUsersPage() {
 
         {canEdit && <InviteUserForm roles={roles} />}
 
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
+        // User table is the primary admin panel — aggregates column headers
+        // and all account rows; qualifies itself with active/total count.
+        <Card>
+          <CardHeader title="User accounts" />
+          <CardDivider />
           {/* Table header */}
           <div className="hidden grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)] sm:grid">
             <span className="col-span-3">EMAIL</span>
@@ -131,7 +136,7 @@ export default async function AdminUsersPage() {
               />
             ))
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

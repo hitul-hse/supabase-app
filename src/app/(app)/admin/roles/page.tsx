@@ -5,6 +5,7 @@ import { requirePermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getRoles, getRolePermissionMatrix } from "@/lib/queries/auth";
 import { PermissionToggle } from "./PermissionToggle";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 
 /**
  * Role Permission Editor — /admin/roles
@@ -54,7 +55,12 @@ export default async function AdminRolesPage() {
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        // Permission matrix is the primary admin panel — aggregates every
+        // role × permission cell. Qualifier names the scale.
+        <Card>
+          <CardHeader title="Role Permissions" qualifier={`${roles.length} ROLES · ${permissions.length} PERMISSIONS`} />
+          <CardDivider />
+          <div className="overflow-x-auto p-0">
           <table className="w-full min-w-[680px] border-collapse border border-[var(--border)] bg-[var(--surface)]">
             {/* Header row: roles */}
             <thead>
@@ -122,7 +128,8 @@ export default async function AdminRolesPage() {
               })}
             </tbody>
           </table>
-        </div>
+          </div>
+        </Card>
 
         <p className="font-mono text-[10px] text-[var(--text-faint)]">
           Changes take effect immediately. RLS on the database enforces data-level access independently.

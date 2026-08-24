@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 import type { ProfileView } from "@/lib/queries/profile";
 import { ALLOWED_AVATAR_TYPES, MAX_AVATAR_BYTES, type ProfileActionState } from "./constants";
 import { updateDisplayName, uploadAvatar, removeAvatar } from "./actions";
@@ -101,8 +102,11 @@ export function IdentityCard({
   const isError = !!localError || lastResult?.status === "error";
 
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)] p-5">
-      <h2 className="mb-4 text-[13px] font-semibold text-[var(--text-primary)]">Identity</h2>
+    // Identity is a top-level profile section: avatar upload + display name.
+    <Card>
+      <CardHeader title="Identity" />
+      <CardDivider />
+      <div className="p-5">
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
         <div className="flex flex-col items-center gap-2">
@@ -196,6 +200,7 @@ export function IdentityCard({
           {message}
         </p>
       )}
-    </section>
+      </div>
+    </Card>
   );
 }

@@ -6,6 +6,7 @@ import type { LeaveRequestRow, LeaveBalanceRow } from "@/lib/queries/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/Button";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 import { TextInput } from "@/components/ui/Field";
 import { IconArrowRight, IconCross } from "@/components/nav-icons";
 
@@ -19,8 +20,10 @@ export function MyLeavePanel({
   const [state, formAction, isPending] = useActionState(requestLeave, { status: "idle" });
 
   return (
-    <div className="flex flex-col gap-4 border border-[var(--border)] bg-[var(--surface)] p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--border)] pb-4">
+    // MyLeavePanel is a top-level leave section — aggregates balance, request
+    // form, and history list; all belong to one logical card boundary.
+    <Card className="flex flex-col">
+      <div className="flex flex-wrap items-baseline justify-between gap-3 px-5 pt-5 pb-4">
         <div className="flex flex-col gap-1">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">My leave balance</span>
           <span className="font-mono text-[10px] text-[var(--text-muted)]">FACTORIALHR-EQUIVALENT</span>
@@ -33,7 +36,8 @@ export function MyLeavePanel({
         </span>
       </div>
 
-      <form action={formAction} className="flex flex-col gap-2 border-b border-[var(--border)] pb-4">
+      <CardDivider />
+      <form action={formAction} className="flex flex-col gap-2 px-5 pt-4 pb-4">
         <span className="text-[12px] font-semibold text-[var(--text-primary)]">Request leave</span>
         <div className="flex flex-wrap items-center gap-2">
           <TextInput label="Leave start date" name="start_date" type="date" required disabled={isPending} />
@@ -78,7 +82,8 @@ export function MyLeavePanel({
         )}
       </form>
 
-      <div className="flex flex-col gap-2">
+      <CardDivider />
+      <div className="flex flex-col gap-2 px-5 pt-4 pb-5">
         <span className="text-[12px] font-semibold text-[var(--text-primary)]">My requests</span>
         {requests.length === 0 && (
           <EmptyState
@@ -122,6 +127,6 @@ export function MyLeavePanel({
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

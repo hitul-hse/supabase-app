@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 import type { ProfileView } from "@/lib/queries/profile";
 import { updatePreferences } from "./actions";
 import { LANDING_PAGES, LOCALES, type ProfileActionState } from "./constants";
@@ -16,8 +17,11 @@ export function PreferencesCard({ profile }: { profile: ProfileView }) {
   const [state, action, pending] = useActionState(updatePreferences, IDLE);
 
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)] p-5">
-      <h2 className="mb-4 text-[13px] font-semibold text-[var(--text-primary)]">Preferences</h2>
+    // Preferences is a top-level profile section — aggregates per-user settings.
+    <Card>
+      <CardHeader title="Preferences" />
+      <CardDivider />
+      <div className="p-5">
       <p className="mb-4 text-[11px] text-[var(--text-faint)]">
         These are saved to your profile now, but nothing in the app reads them yet — they will
         take effect in a later release.
@@ -86,6 +90,7 @@ export function PreferencesCard({ profile }: { profile: ProfileView }) {
           </p>
         )}
       </form>
-    </section>
+      </div>
+    </Card>
   );
 }

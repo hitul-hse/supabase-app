@@ -5,16 +5,21 @@ import { inviteUser } from "./actions";
 import type { AppRoleRow } from "./page";
 import { TEAMS } from "@/lib/teams";
 import { Button } from "@/components/ui/Button";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 import { IconCheck, IconCross } from "@/components/nav-icons";
 
 export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
   const [state, formAction, isPending] = useActionState(inviteUser, { status: "idle" });
 
   return (
-    <form
-      action={formAction}
-      className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4"
-    >
+    // InviteUserForm is a top-level admin panel — aggregates invite fields.
+    <Card>
+      <CardHeader title="Invite user" />
+      <CardDivider />
+      <form
+        action={formAction}
+        className="flex flex-col gap-3 p-4"
+      >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
@@ -120,6 +125,7 @@ export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
           <p className="text-[var(--text-primary)]">{state.message}</p>
         </div>
       )}
-    </form>
+      </form>
+    </Card>
   );
 }

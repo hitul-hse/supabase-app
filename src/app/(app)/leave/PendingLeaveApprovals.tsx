@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 import type { LeaveRequestWithPerson } from "@/lib/queries/types";
 import { approveLeaveRequestAction, rejectLeaveRequestAction } from "./actions";
 
@@ -27,14 +28,15 @@ export function PendingLeaveApprovals({ initialRequests }: { initialRequests: Le
   if (requests.length === 0 && !error) return null;
 
   return (
-    <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
-      <div className="flex items-baseline justify-between">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">
-          Pending leave approvals
-        </span>
-        <span className="font-mono text-[10px] text-[var(--text-muted)]">{requests.length} REQUESTS</span>
-      </div>
+    // PendingLeaveApprovals is a top-level panel — aggregates approval rows.
+    <Card className="flex flex-col">
+      <CardHeader
+        title="Pending leave approvals"
+        qualifier={`${requests.length} REQUESTS`}
+      />
 
+      <CardDivider />
+      <div className="px-4 pb-4 pt-3 flex flex-col gap-3">
       {error && <p className="text-[11px] text-[var(--critical)]">{error}</p>}
 
       {requests.length === 0 ? (
@@ -68,6 +70,7 @@ export function PendingLeaveApprovals({ initialRequests }: { initialRequests: Le
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </Card>
   );
 }

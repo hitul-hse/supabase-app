@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
 import { MIN_PASSWORD_LENGTH } from "@/lib/password-strength";
 import { PasswordStrengthBar } from "@/components/PasswordStrengthBar";
 import { changePassword } from "./actions";
@@ -17,13 +18,13 @@ export function SecurityCard() {
   const [next, setNext] = useState("");
 
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)] p-5">
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Security</h2>
-        <span className="text-[11px] text-[var(--text-faint)]">
-          Your current password is required
-        </span>
-      </div>
+    // Security is a top-level profile section: password change form.
+    // Qualifier carries the "current password required" note at header level
+    // so readers see it before reaching the form fields.
+    <Card>
+      <CardHeader title="Security" qualifier="YOUR CURRENT PASSWORD IS REQUIRED" />
+      <CardDivider />
+      <div className="p-5">
 
       <form action={action} className="flex max-w-sm flex-col gap-3">
         <div className="flex flex-col gap-1.5">
@@ -89,6 +90,7 @@ export function SecurityCard() {
           </p>
         )}
       </form>
-    </section>
+      </div>
+    </Card>
   );
 }

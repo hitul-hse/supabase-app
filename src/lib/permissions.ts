@@ -18,6 +18,15 @@ export const PERMISSIONS = {
   OVERVIEW_READ:           "overview:read",
   OVERVIEW_EXPORT:         "overview:export",
 
+  // My Work
+  //
+  // Held by every role including employee, because /my-work is the one page
+  // that is always about the person asking. Declared here rather than left
+  // implicit so the admin Role Permissions screen can show and manage it:
+  // that screen renders from THIS list, so a permission the database enforces
+  // but this file does not name is real power nobody can see or revoke.
+  MY_WORK_READ_OWN:        "my_work:read_own",
+
   // People
   PEOPLE_READ_OWN:         "people:read_own",
   PEOPLE_READ_DEPT:        "people:read_dept",

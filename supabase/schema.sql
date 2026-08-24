@@ -1203,7 +1203,15 @@ insert into app_module (module_key, display_name, tagline, href, accent, is_live
   ('projects', 'Project Management', 'Projects, tasks, boards, milestones',    '/projects',   '#F0A868', true,  20),
   ('time',     'Time Tracking',      'Tracked intervals, billable hours, services', '/time',  '#7FB5D5', true,  30),
   ('hr',       'HSE HR',             'Leave, absences, contracts, clocking',   null,          '#C08FD0', false, 40),
-  ('crm',      'CRM',                'Deals, pipeline, companies',             null,          '#D08F8F', false, 50)
+  ('crm',      'CRM',                'Deals, pipeline, companies',             null,          '#D08F8F', false, 50),
+  -- Owns my_work:read_own, seeded further down. The module row has to exist or
+  -- that permission surfaces no tile: app_user_modules() joins
+  -- app_permission.module_key to app_module.module_key, and
+  -- app_permission.module_key is a plain text column with a 'hub' default, not
+  -- a foreign key. A permission naming a module that does not exist therefore
+  -- inserts perfectly happily and then goes missing from the portal for every
+  -- role including exec, with no error anywhere.
+  ('my_work',  'My Work',            'Your customers, projects and assignments', '/my-work',  '#91C2B7', true,  15)
 on conflict (module_key) do nothing;
 
 -- The tile's route is the one field that legitimately changes after a module is
@@ -1234,7 +1242,7 @@ update app_module
        tagline      = 'Company hours, projects, customers, budgets'
  where module_key = 'time' and href = '/time';
 
--- Canonical permission catalogue. These 22 keys are the ones src/lib/permissions.ts
+-- Canonical permission catalogue. These keys are the ones src/lib/permissions.ts
 -- checks, and check-permissions-rls.mjs asserts the two lists stay in step --
 -- adding a key to one without the other fails that gate.
 insert into app_permission
@@ -1338,6 +1346,91 @@ insert into app_role_permission (role_key, permission_key) values
   ('project_manager', 'hr:leave:read'), ('project_manager', 'hr:leave:write'),
   ('project_manager', 'hr:clocking:write'),
   ('employee', 'hr:leave:write'), ('employee', 'hr:clocking:write')
+on conflict (role_key, permission_key) do nothing;
+
+-- Keys that reached production through later migrations and were never folded
+-- back into this file. That is a rebuild-from-source landmine rather than a
+-- cosmetic gap: six live RLS policies call app_user_has_permission() with keys
+-- from this list --
+--
+--   projects:contracts:read / :write  -> time.project_contract_period
+--   projects:alerts:read / :acknowledge -> public.overbooking_alert
+--   admin:profiles:read / :write      -> public.app_user_profile
+--
+-- and app_user_has_permission() simply returns false for a key nobody holds. A
+-- database built from schema.sql alone therefore came up with contract periods,
+-- budget alerts and profile administration silently unreachable: no error, no
+-- failed query, just empty tables and screens that look like there is no data
+-- yet. scripts/check-permissions-rls.mjs has been red on exactly this, which is
+-- the gate doing its job -- it loads THIS FILE into PGlite, so the "DB" in its
+-- failure message is schema.sql, not production. Production is correct.
+--
+-- Values are mirrored from production row for row rather than reconstructed, so
+-- a rebuild lands on the catalogue the running system actually has. See
+-- scripts/audit-permission-catalogue.mjs, which executes this file into PGlite
+-- and diffs the result against live.
+--
+-- PLACEMENT IS LOAD-BEARING, twice, which is why this is a separate block
+-- rather than extra rows in the INSERTs above:
+--
+--   * The module retag further up runs
+--       update app_permission set module_key='hub' where resource in (...'admin'...)
+--     which would rewrite admin:entries:write to 'hub'. It is deliberately
+--     'time' in production, because it edits time entries and belongs on the
+--     Time tile. Seeding after the retag leaves that value intact.
+--   * app_role_permission.permission_key is a real foreign key into
+--     app_permission, so these grants must follow the catalogue rows.
+insert into app_permission
+  (permission_key, display_name, resource, action, description, module_key, sort_order) values
+  ('my_work:read_own',            'See your own book of work', 'my_work',  'read_own',           'View the customers and projects you own or are assigned to.',               'my_work',  10),
+
+  ('projects:contracts:read',     'View Contract Terms',       'projects', 'contracts:read',     'See contract periods: agreed budgets, contract dates and renewal history.', 'projects', 34),
+  ('projects:contracts:write',    'Manage Contract Terms',     'projects', 'contracts:write',    'Record and renew contract periods after sales confirm the terms.',          'projects', 35),
+  ('projects:alerts:read',        'View Budget Alerts',        'projects', 'alerts:read',        'See open budget and contract alerts across the portfolio.',                 'projects', 36),
+  ('projects:alerts:acknowledge', 'Acknowledge Budget Alerts', 'projects', 'alerts:acknowledge', 'Mark a budget or contract alert as handled.',                               'projects', 37),
+
+  ('admin:profiles:read',         'View Any Profile',          'admin',    'profiles:read',      'Open another person''s profile record: their name, role, department and linked accounts.',    'hub',  64),
+  ('admin:profiles:write',        'Edit Any Profile',          'admin',    'profiles:write',     'Change another person''s profile: display name, job title, department and contracted hours.', 'hub',  65),
+  -- module_key 'time', not 'hub'. See the placement note above.
+  ('admin:entries:write',         'Edit Any Time Entry',       'admin',    'entries:write',      'Correct or remove another person''s time entries. The most dangerous key in the system: it rewrites the hours invoices are based on.', 'time', 66)
+on conflict (permission_key) do nothing;
+
+-- Grants for the keys above, mirrored from live. Two shapes are worth reading
+-- rather than skimming:
+--
+--   employee and project_manager get projects:contracts:READ but not write, and
+--   no alerts:acknowledge. Seeing the budget you are working against is not the
+--   same authority as changing it, or as taking responsibility for an overrun.
+--
+--   admin:profiles:write and admin:entries:write go to exec only here. Neither
+--   is implied by the other and neither implies admin:roles:write, so no role
+--   gaining them can grant itself more permission. exec remains the only role
+--   that can edit the permission matrix, which is the property
+--   check-permissions-rls.mjs pins down.
+--
+-- NOTE: production also grants every key below to an 'hr' role, which this file
+-- does not seed at all. That is a second, larger drift, deliberately NOT fixed
+-- here -- see the report accompanying this change. Adding the role is a
+-- one-line insert, but scripts/check-schema-executes.mjs asserts
+-- "app_role seeded with 4 roles" against a hardcoded 4, so the role and that
+-- assertion have to move together or a green gate turns red for bookkeeping.
+insert into app_role_permission (role_key, permission_key) values
+  ('exec', 'my_work:read_own'),
+  ('exec', 'projects:contracts:read'), ('exec', 'projects:contracts:write'),
+  ('exec', 'projects:alerts:read'), ('exec', 'projects:alerts:acknowledge'),
+  ('exec', 'admin:profiles:read'), ('exec', 'admin:profiles:write'),
+  ('exec', 'admin:entries:write'),
+
+  ('dept_head', 'my_work:read_own'),
+  ('dept_head', 'projects:contracts:read'), ('dept_head', 'projects:contracts:write'),
+  ('dept_head', 'projects:alerts:read'), ('dept_head', 'projects:alerts:acknowledge'),
+
+  ('project_manager', 'my_work:read_own'),
+  ('project_manager', 'projects:contracts:read'),
+  ('project_manager', 'projects:alerts:read'),
+
+  ('employee', 'my_work:read_own'),
+  ('employee', 'projects:contracts:read')
 on conflict (role_key, permission_key) do nothing;
 
 -- ---------------------------------------------------------------------------

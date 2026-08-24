@@ -180,8 +180,15 @@ await db.exec(`
 // than think about it. Counting the code's own keys means the only way to fail
 // is a genuine mismatch between code and database, which is what the next two
 // checks then name precisely.
+//
+// The module segment allows an underscore. It did not, and `my_work:read_own`
+// was therefore invisible to this regex: the gate counted 36 keys where the
+// file declares 37, then reported the database as holding one the code "does
+// not know about" -- a real permission, granted to all four roles, hidden by
+// the gate's own pattern. A scanner that silently skips what it cannot parse
+// states a falsehood confidently, which is worse than failing.
 const codeKeys = new Set(
-  [...readFileSync("src/lib/permissions.ts", "utf8").matchAll(/"([a-z]+:[a-z_:]+)"/g)].map(
+  [...readFileSync("src/lib/permissions.ts", "utf8").matchAll(/"([a-z_]+:[a-z_:]+)"/g)].map(
     (m) => m[1],
   ),
 );

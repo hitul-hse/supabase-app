@@ -197,6 +197,7 @@ export function ProjectsLedger({
           {visible.map((p) => (
             <Link
               key={p.id}
+              data-ledger-row
               href={`/projects/${p.id}`}
               className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-[var(--surface-hover)]"
             >
@@ -295,6 +296,7 @@ export function ProjectsLedger({
           {visible.map((p) => (
             <div
               key={p.id}
+              data-ledger-row
               className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1 text-[12.5px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
             >
               <Link

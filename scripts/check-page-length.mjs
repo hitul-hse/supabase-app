@@ -85,11 +85,26 @@ const docHeight = () => page.evaluate(() => document.documentElement.scrollHeigh
  */
 const rowFingerprint = () =>
   page.evaluate(() => {
-    const candidates = [
-      ...document.querySelectorAll(
-        'a[href^="/projects/"], a[href^="/time/dashboard?"], tbody tr, [data-task-row], button[class*="border-l-2"]',
-      ),
-    ];
+    /*
+     * PREFER AN EXPLICIT ROW HOOK. The generic selector below matches every
+     * link to a project route -- and on /projects the FIRST TEN of those are
+     * inside the "Where the hours go" insight card, five panels above the
+     * ledger, whose content correctly does not change when the ledger pages.
+     * Measured against production: the readout advanced from "1-30 OF 334" to
+     * "31-60 OF 334" while this fingerprint stayed byte-identical, so the check
+     * reported an inert pager on a working one.
+     *
+     * Surfaces that mark their paged rows (data-ledger-row) are fingerprinted
+     * on those alone. The others keep the generic selector.
+     */
+    const hooked = [...document.querySelectorAll("[data-ledger-row]")];
+    const candidates = hooked.length
+      ? hooked
+      : [
+          ...document.querySelectorAll(
+            'a[href^="/projects/"], a[href^="/time/dashboard?"], tbody tr, [data-task-row], button[class*="border-l-2"]',
+          ),
+        ];
     return candidates
       .slice(0, 10)
       .map((el) => (el.textContent ?? "").trim().slice(0, 60))

@@ -1,5 +1,6 @@
 import type { WeekSummaryRow } from "@/lib/queries/time";
 import { formatSeconds } from "@/lib/time-transform";
+import { Card } from "@/components/ui/Card";
 
 /**
  * Per-member weekly figures from `time.week_summary`.
@@ -51,8 +52,8 @@ export function WeekSummaryTable({
   weekStart: string;
 }) {
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)]">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2.5">
+    <Card as="section" className="overflow-hidden">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--divider)] px-4 py-2.5">
         <h2 className="text-[12px] font-medium text-[var(--text-primary)]">
           Week summary
         </h2>
@@ -64,7 +65,7 @@ export function WeekSummaryTable({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse">
           <thead>
-            <tr className="border-b border-[var(--border)] text-left">
+            <tr className="border-b border-[var(--divider)] text-left">
               {["Member", "Logged", "Billable", "Calendar", "Contracted", "Utilisation"].map(
                 (h, i) => (
                   <th
@@ -85,7 +86,7 @@ export function WeekSummaryTable({
             {rows.map((r) => (
               <tr
                 key={r.memberId}
-                className="border-b border-[var(--border)] transition-colors last:border-b-0 hover:bg-[var(--surface-hover)]"
+                className="border-b border-[var(--divider)] transition-colors last:border-b-0 hover:bg-[var(--surface-hover)]"
               >
                 <td className="px-4 py-2.5 text-[12px] text-[var(--text-primary)]">
                   {r.memberName}
@@ -111,11 +112,11 @@ export function WeekSummaryTable({
         </table>
       </div>
 
-      <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
+      <p className="border-t border-[var(--divider)] px-4 py-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
         Calendar time is shown separately because it is mostly synced placeholders
         rather than deliberate work, and folding it into the total would inflate
         every utilisation figure here.
       </p>
-    </section>
+    </Card>
   );
 }

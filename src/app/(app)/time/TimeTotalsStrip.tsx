@@ -1,5 +1,6 @@
 import type { TimeTotals } from "@/lib/queries/time";
 import { formatSeconds } from "@/lib/time-transform";
+import { StatTile } from "@/components/ui/Card";
 
 /**
  * The totals strip.
@@ -10,59 +11,35 @@ import { formatSeconds } from "@/lib/time-transform";
  * (docs/architecture/DISCOVERY-trackingtime.md). Presenting those hours as
  * ordinary tracked work would inflate every utilisation number on the page.
  */
-function Tile({
-  label,
-  value,
-  sub,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-1 border-r border-[var(--border)] px-4 py-3 last:border-r-0">
-      <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-        {label}
-      </span>
-      <span
-        className={`font-mono text-[19px] font-semibold tabular-nums ${
-          accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
-        }`}
-      >
-        {value}
-      </span>
-      {sub && <span className="text-[11px] text-[var(--text-muted)]">{sub}</span>}
-    </div>
-  );
-}
-
 export function TimeTotalsStrip({ totals }: { totals: TimeTotals }) {
   return (
-    <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-4">
-      <Tile
+    /*
+     * Four separate cards on the shared gap token, not a fused grid. These are
+     * four independent facts; a shared border would claim they are columns of
+     * one record.
+     */
+    <div className="grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-4">
+      <StatTile
         label="LOGGED"
         value={formatSeconds(totals.totalSeconds)}
-        sub={`${totals.entryCount} ${totals.entryCount === 1 ? "entry" : "entries"}`}
+        hint={`${totals.entryCount} ${totals.entryCount === 1 ? "entry" : "entries"}`}
       />
-      <Tile
+      <StatTile
         label="BILLABLE"
         value={formatSeconds(totals.billableSeconds)}
         // Null, not 0%, when nothing is logged: 0% billable of nothing is a
         // statement about the data that isn't true.
-        sub={totals.billablePercent === null ? "—" : `${totals.billablePercent}% of logged`}
-        accent
+        hint={totals.billablePercent === null ? "—" : `${totals.billablePercent}% of logged`}
       />
-      <Tile
+      <StatTile
         label="CALENDAR"
         value={formatSeconds(totals.calendarSeconds)}
-        sub="placeholders, excluded from work"
+        hint="placeholders, excluded from work"
       />
-      <Tile
+      <StatTile
         label="DECIMAL"
         value={totals.totalHours.toFixed(2)}
-        sub="hours, for invoicing"
+        hint="hours, for invoicing"
       />
     </div>
   );

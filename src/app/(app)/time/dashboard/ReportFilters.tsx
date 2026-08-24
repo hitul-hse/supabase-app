@@ -194,7 +194,7 @@ function MultiSelect({
         <div
           className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev-raised"
         >
-          <div className="border-b border-[var(--border)] p-2">
+          <div className="border-b border-[var(--divider)] p-2">
             <input
               autoFocus
               value={query}
@@ -284,7 +284,7 @@ function MultiSelect({
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-[var(--border)] px-3 py-1.5">
+          <div className="flex items-center justify-between border-t border-[var(--divider)] px-3 py-1.5">
             {/* "Select these" applies to the SEARCH RESULT, not to all 334
                 options. Selecting everything is identical to selecting nothing
                 (both mean "no constraint"), so an unfiltered select-all would be
@@ -522,7 +522,7 @@ export function ReportFilters({
       </div>
 
       {/* Row 3 — presentation */}
-      <div className="flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-3">
+      <div className="flex flex-wrap items-center gap-3 border-t border-[var(--divider)] pt-3">
         <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
           GROUP BY
         </span>

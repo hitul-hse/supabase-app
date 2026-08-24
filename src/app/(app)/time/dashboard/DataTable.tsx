@@ -219,7 +219,7 @@ export function DataTable<T>({
 
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
-      <header className="flex flex-col gap-2 border-b border-[var(--border)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-2 border-b border-[var(--divider)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
         {(() => {
           const heading = (
             <>
@@ -403,7 +403,7 @@ export function DataTable<T>({
                 {visible.map((r) => (
                   <tr
                     key={rowKey(r)}
-                    className="border-b border-[var(--border)] transition-colors last:border-0 hover:bg-[var(--surface-hover)]"
+                    className="border-b border-[var(--divider)] transition-colors last:border-0 hover:bg-[var(--surface-hover)]"
                   >
                     {columns.map((c) => (
                       <td
@@ -422,7 +422,7 @@ export function DataTable<T>({
           </div>
 
           {(pageCount > 1 || footnote) && (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] px-4 py-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--divider)] px-4 py-1.5">
               <span className="text-[10px] text-[var(--text-faint)]">{footnote}</span>
               {pageCount > 1 && (
                 <div className="flex items-center gap-1">

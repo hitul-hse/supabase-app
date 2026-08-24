@@ -32,6 +32,7 @@ import {
   type TimeActionResult,
 } from "./actions";
 import { SearchableSelect } from "@/components/ui/Field";
+import { Card } from "@/components/ui/Card";
 
 /** Seconds → "1:02:03". Distinct from formatSeconds(), which is "H:MM". */
 function formatElapsed(totalSeconds: number): string {
@@ -75,11 +76,11 @@ function Feedback({ result }: { result: TimeActionResult | null }) {
 }
 
 const FIELD =
-  "w-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent)]";
+  "w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent)]";
 const LABEL =
   "mb-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]";
 const BUTTON =
-  "border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-[var(--radius-sm)] border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * The project / task / service pickers, shared by the timer and the manual form.
@@ -283,7 +284,7 @@ function TimerPanel({
       // A plain action, not onSubmit: the form still posts if the JS bundle has
       // not hydrated yet, so the timer is usable on a slow first load.
       action={(fd) => run(() => startTimer(fd))}
-      className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4"
+      className="card-elev flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4"
     >
       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
         Start a timer
@@ -383,7 +384,7 @@ function ManualPanel({
           }
         })
       }
-      className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4"
+      className="card-elev flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4"
     >
       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
         Log time manually
@@ -507,20 +508,20 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
 
   if (entries.length === 0) {
     return (
-      <div className="border border-[var(--border)] bg-[var(--surface)] p-4">
+      <Card className="p-4">
         <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
           Today
         </span>
         <p className="mt-2 text-[12px] text-[var(--text-muted)]">
           Nothing tracked today yet.
         </p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="border border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2">
+    <Card>
+      <div className="flex items-center justify-between border-b border-[var(--divider)] px-4 py-2">
         <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
           Today
         </span>
@@ -529,7 +530,7 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
         </span>
       </div>
 
-      <ul className="divide-y divide-[var(--border)]">
+      <ul className="divide-y divide-[var(--divider)]">
         {entries.map((e) => (
           <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
             <div className="flex min-w-0 flex-1 flex-col">
@@ -574,11 +575,11 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
       </ul>
 
       {result && !result.ok && (
-        <div className="border-t border-[var(--border)] p-3">
+        <div className="border-t border-[var(--divider)] p-3">
           <Feedback result={result} />
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

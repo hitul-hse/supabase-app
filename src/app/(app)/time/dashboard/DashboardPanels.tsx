@@ -19,6 +19,7 @@ import type {
   ProjectSummaryRow,
   ServiceSummaryRow,
 } from "@/lib/queries/time-dashboard";
+import { Card, CardDivider, CardHeader, StatTile } from "@/components/ui/Card";
 
 /* ------------------------------------------------------------------ shared */
 
@@ -62,19 +63,17 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)]">
-      <header className="flex items-baseline justify-between gap-3 border-b border-[var(--border)] px-4 py-2.5">
-        <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
-          {title}
-        </h2>
-        {hint && (
-          <span className="text-right text-[10px] leading-tight text-[var(--text-faint)]">
-            {hint}
-          </span>
-        )}
-      </header>
+    /*
+     * CardHeader rather than the mono-uppercase header this used to hand-roll.
+     * `hint` maps onto `qualifier`, which is what it always was: the
+     * "over what period, from where" line the reader needs before the figures
+     * mean anything.
+     */
+    <Card as="section" className="overflow-hidden">
+      <CardHeader title={title} qualifier={hint} />
+      <CardDivider />
       {children}
-    </section>
+    </Card>
   );
 }
 
@@ -139,24 +138,9 @@ export function OrgTotalsStrip({ totals }: { totals: OrgTotals }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-6">
       {tiles.map((t) => (
-        <div
-          key={t.label}
-          className="flex flex-col gap-1 border-b border-r border-[var(--border)] px-4 py-3 last:border-r-0 lg:border-b-0"
-        >
-          <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-            {t.label}
-          </span>
-          <span
-            className={`font-mono text-[19px] font-semibold tabular-nums ${
-              t.accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
-            }`}
-          >
-            {t.value}
-          </span>
-          <span className="text-[11px] text-[var(--text-muted)]">{t.sub}</span>
-        </div>
+        <StatTile key={t.label} label={t.label} value={t.value} hint={t.sub} />
       ))}
     </div>
   );

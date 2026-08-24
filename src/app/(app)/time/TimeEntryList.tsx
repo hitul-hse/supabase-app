@@ -1,5 +1,6 @@
 import type { TimeEntryRow } from "@/lib/queries/time";
 import { formatSeconds } from "@/lib/time-transform";
+import { Card } from "@/components/ui/Card";
 
 /**
  * The tracked-interval list — TrackingTime's day view, one section per day.
@@ -123,7 +124,7 @@ export function TimeEntryList({
   const populated = days.filter((d) => d.entries.length > 0);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[var(--card-gap)]">
       {populated.map((day) => {
         // A day whose only entry is a running timer has a total of zero finished
         // seconds. Rendering "0:00" there says "you logged nothing today" while
@@ -132,8 +133,11 @@ export function TimeEntryList({
         const onlyRunning = day.totalSeconds === 0 && day.entries.some((e) => e.isRunning);
 
         return (
-          <div key={day.date} className="border border-[var(--border)] bg-[var(--surface)]">
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2">
+          // A day is an aggregate with its own heading and its own total, so
+          // each day is its own card. The rows inside are rows, not cards --
+          // nesting is banned and would double every border.
+          <Card key={day.date}>
+            <div className="flex items-center justify-between border-b border-[var(--divider)] px-4 py-2">
               <span className="text-[12px] font-medium text-[var(--text-primary)]">
                 {formatDayHeading(day.date)}
               </span>
@@ -142,12 +146,12 @@ export function TimeEntryList({
               </span>
             </div>
 
-            <ul className="divide-y divide-[var(--border)]">
+            <ul className="divide-y divide-[var(--divider)]">
               {day.entries.map((e) => (
                 <EntryRow key={e.id} e={e} showMember={showMember} />
               ))}
             </ul>
-          </div>
+          </Card>
         );
       })}
     </div>

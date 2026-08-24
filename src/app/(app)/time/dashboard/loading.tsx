@@ -17,6 +17,14 @@ import { SkeletonBlock } from "@/components/LoadingSkeleton";
  * collapsed headers, which is exactly what the page renders by default. The point
  * is that nothing MOVES when the data arrives; only the grey turns into numbers.
  */
+/*
+ * The card geometry, once. Mirrors Card.tsx: --radius-card, --border,
+ * --surface, and the real `card-elev` class (NOT shadow-[var(--shadow-card)],
+ * which Tailwind 4 compiles to nothing -- see globals.css).
+ */
+const SKELETON_PANEL =
+  "card-elev rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]";
+
 export default function Loading() {
   return (
     <div className="flex flex-col">
@@ -29,7 +37,7 @@ export default function Loading() {
 
       <div className="flex flex-col gap-5 p-4 sm:p-6">
         {/* Filter bar: three rows of controls, same height as the real one. */}
-        <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-3">
+        <div className={`flex flex-col gap-3 p-3 ${SKELETON_PANEL}`}>
           <div className="flex flex-wrap gap-2">
             <SkeletonBlock className="h-8 w-[26rem]" />
             <SkeletonBlock className="h-8 w-[15rem]" />
@@ -45,18 +53,19 @@ export default function Loading() {
             <SkeletonBlock className="h-8 w-[11rem]" />
             <SkeletonBlock className="h-8 w-[8rem]" />
           </div>
-          <div className="flex flex-wrap gap-3 border-t border-[var(--border)] pt-3">
+          <div className="flex flex-wrap gap-3 border-t border-[var(--divider)] pt-3">
             <SkeletonBlock className="h-7 w-[19rem]" />
             <SkeletonBlock className="h-7 w-[12rem]" />
           </div>
         </div>
 
         {/* KPI strip — six tiles, the same grid as TotalsStrip. */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-6">
           {Array.from({ length: 6 }, (_, i) => (
             <div
               key={i}
-              className="flex flex-col gap-1.5 border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+              // p-3.5, matching StatTile's own padding rather than px-4 py-3.
+              className={`flex flex-col gap-1.5 p-3.5 ${SKELETON_PANEL}`}
             >
               <SkeletonBlock className="h-2 w-16" />
               <SkeletonBlock className="h-6 w-20" />
@@ -67,8 +76,8 @@ export default function Loading() {
 
         {/* Trend chart. Bars of varying height rather than one flat block, so the
             shape reads as a chart and not as a missing panel. */}
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2.5">
+        <div className={`overflow-hidden ${SKELETON_PANEL}`}>
+          <div className="flex items-center justify-between border-b border-[var(--divider)] px-4 py-2.5">
             <SkeletonBlock className="h-2 w-28" />
             <SkeletonBlock className="h-2 w-56" />
           </div>
@@ -87,8 +96,8 @@ export default function Loading() {
         </div>
 
         {/* One open table… */}
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2.5">
+        <div className={`overflow-hidden ${SKELETON_PANEL}`}>
+          <div className="flex items-center justify-between border-b border-[var(--divider)] px-4 py-2.5">
             <div className="flex flex-col gap-1">
               <SkeletonBlock className="h-2 w-24" />
               <SkeletonBlock className="h-2 w-44" />
@@ -101,7 +110,7 @@ export default function Loading() {
           {Array.from({ length: 10 }, (_, i) => (
             <div
               key={i}
-              className="grid grid-cols-12 items-center gap-3 border-b border-[var(--border)] px-4 py-3 last:border-0"
+              className="grid grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-4 py-3 last:border-0"
             >
               <SkeletonBlock className="col-span-4 h-3" />
               <SkeletonBlock className="col-span-2 h-3" />
@@ -117,7 +126,7 @@ export default function Loading() {
         {Array.from({ length: 3 }, (_, i) => (
           <div
             key={i}
-            className="flex flex-col gap-1 border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5"
+            className={`flex flex-col gap-1 px-4 py-2.5 ${SKELETON_PANEL}`}
           >
             <SkeletonBlock className="h-2 w-32" />
             <SkeletonBlock className="h-2 w-64" />

@@ -30,7 +30,7 @@ export function BillableDonut({
 
   return (
     <section className="flex flex-col rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
-      <header className="flex items-baseline justify-between border-b border-[var(--border)] px-4 py-2.5">
+      <header className="flex items-baseline justify-between border-b border-[var(--divider)] px-4 py-2.5">
         <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
           BILLABLE SPLIT
         </h2>

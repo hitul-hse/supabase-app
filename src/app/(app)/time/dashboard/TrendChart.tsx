@@ -93,7 +93,7 @@ export function TrendChart({
 
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-[var(--border)] px-4 py-2.5">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-[var(--divider)] px-4 py-2.5">
         <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
           {bucketLabel} TREND
         </h2>
@@ -285,7 +285,7 @@ export function TrendChart({
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-1.5 font-mono text-[9.5px] text-[var(--text-faint)]">
+      <div className="flex items-center justify-between border-t border-[var(--divider)] px-4 py-1.5 font-mono text-[9.5px] text-[var(--text-faint)]">
         <span>{label(shown[0].bucket, bucket)}</span>
         <span>
           peak {label(peak.bucket, bucket)} · {hrs(peak.totalHours)}

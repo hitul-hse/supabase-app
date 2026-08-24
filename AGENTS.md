@@ -47,6 +47,116 @@ Two things about the setup that are deliberate and should not be "fixed":
 every session starts from the same map; `graph.html`, `cache/` and the
 per-machine pointers are gitignored.
 
+## Installed agent toolkits: gstack, everything-claude-code, graphify
+
+Three toolkits are installed and available in every session here. **106 skills
+resolve** in total; `read_skill <name>` loads any of them.
+
+Where each one physically lives matters, because it decides what a fresh clone
+gets:
+
+| Source | Installed at | Committed? |
+| --- | --- | --- |
+| gstack (54 skills) | `~/.claude/skills` — user-level | No, deliberately |
+| everything-claude-code (11 skills, 9 agents) | `.claude/skills`, `.claude/agents` | Yes |
+| graphify (1 skill + CLI 0.9.48) | `.claude/skills/graphify` | Yes |
+| emilkowalski / Leonxlnx / impeccable (25) | `.claude/skills` | Yes |
+
+**V3Code's loader only scans `.v3code/skills`** — it does not follow
+`.claude/skills`. So a skill can sit on disk with perfect frontmatter and still
+be unloadable, with `read_skill` reporting "no skill named X" while the file is
+right there. `scripts/machine/sync-agent-skills.ps1` mirrors both sources into
+that directory (repo copies win on a name collision). **Run it after any skill
+install or update**, and once during new-machine bootstrap.
+
+gstack stays user-level on purpose: it is 6.3 MB of markdown plus 79 bash/bun
+scripts, its `SKILL.md` preamble shells out to `~/.claude/skills/gstack/bin/*`
+on every single invocation, and its own docs call vendoring deprecated. A repo
+copy would be ~25 MB that silently drifts from the copy actually executing.
+Its bash layer is verified working here via git bash (`bin/gstack-config`,
+`bin/gstack-repo-mode`, `bin/gstack-session-kind` all exit 0); `jq` is absent,
+which only disables its optional gbrain detection.
+
+**gstack** (`~/.claude/skills/gstack`, v1.68.3.0, 50+ slash commands) turns the
+session into a review/QA/release team. The ones that fit this repo:
+
+| Command | Use it for |
+| --- | --- |
+| `/investigate` | Any bug. Its Iron Law -- no fix without investigation, stop after 3 failed attempts -- is the discipline that found the dept_head RLS chain rather than guessing at it. |
+| `/review` | Before pushing a branch. Reads the diff for SQL safety, trust boundaries, conditional side effects. |
+| `/cso` | Anything touching RLS, policies, service-role keys, or the `raw` schema. OWASP + STRIDE. |
+| `/qa` | Verifying a deployed change end to end in a real browser. |
+| `/plan-eng-review` | Before a migration or a schema change: forces data flow, failure modes and the test matrix into the open. |
+| `/office-hours`, `/plan-ceo-review` | New features, before writing code. |
+| `/design-review`, `/plan-design-review` | UI work, alongside docs/UI-CONVENTIONS.md. |
+| `/retro` | Weekly, to catch drift. |
+
+**everything-claude-code** (vendored into `.claude/skills`, MIT) contributes
+`coding-standards`, `backend-patterns`, `frontend-patterns`, `security-review`,
+`tdd-workflow`, `verification-loop`, `eval-harness`, `continuous-learning`,
+`strategic-compact`, `clickhouse-io` and `project-guidelines-example`. Reach for
+`verification-loop` and `eval-harness` when building a new gate;
+`security-review` alongside `/cso`. It also adds nine subagents — `architect`,
+`build-error-resolver`, `code-reviewer`, `doc-updater`, `e2e-runner`, `planner`,
+`refactor-cleaner`, `security-reviewer`, `tdd-guide` — beside the nine existing
+project agents in `.claude/agents`.
+
+Three of its skills (`eval-harness`, `project-guidelines-example`,
+`verification-loop`) shipped with **no YAML frontmatter at all**, just an H1, so
+the loader could never register them. Local copies carry an added `name:` and
+`description:`; `skills-lock.json` still records the upstream hash. Audit
+frontmatter after any third-party skill install — a missing `name:` fails
+silently, which is the worst way for it to fail.
+
+`project-guidelines-example` is a **template for authoring** a project skill,
+not guidance for this repo. Its examples describe an unrelated product.
+
+### Skill routing: reach for these by default, not on request
+
+These are installed to be used, so scan for a matching skill BEFORE starting work
+rather than after. When one clearly fits, `read_skill` it first — loading a skill
+costs one call and changes the shape of the work; skipping it is how you rediscover
+something the skill already knows.
+
+| Doing this | Load first |
+| --- | --- |
+| Any bug, or a fix that already failed once | `/investigate` — no fix without investigation, stop after 3 attempts |
+| RLS, policies, service-role keys, the `raw` schema | `/cso` + `security-review` |
+| UI, layout, motion, visual polish | `impeccable`, `/design-review`, plus docs/UI-CONVENTIONS.md |
+| Writing a new `check-*.mjs` gate | `verification-loop`, `eval-harness` |
+| A migration or schema change | `/plan-eng-review` |
+| Verifying a deployed change | `/qa` |
+| A new feature, before writing code | `/office-hours`, `/plan-ceo-review` |
+| "Where is X / how does Y work" in this codebase | `graphify query` (see the top of this file) |
+| Server actions, Supabase reads, paged queries | `backend-patterns` |
+| React components, client/server boundaries | `frontend-patterns` |
+| Before pushing a branch | `/review` |
+
+Skip it for plain conversation, a one-line answer, or a surgical typo fix. Do not
+load six skills speculatively — one or two that actually fit beats a stack that
+does not.
+
+### These sit ON TOP of this repo's checks, never instead of them
+
+The 120+ `scripts/check-*.mjs` gates are the acceptance criteria here, because
+they run against the LIVE database and the DEPLOYED site. A toolkit's opinion is
+input; the gate result is the verdict. Concretely:
+
+- `/review` and `/cso` findings still have to survive `node scripts/run-ui-gates.mjs`
+  and the relevant `check-*.mjs`. A clean review with a red gate is a red build.
+- Nothing from either toolkit may relax the house rules that were paid for in
+  incidents: ADR-001 exact-key matching (never name similarity), migrations
+  executed in PGlite twice before the user pastes them, `.order()` before
+  `.range()` on every paged read, and honest nulls (`n/a`, never a plausible 0).
+- `/ship` and `/land-and-deploy` assume a PR flow. This repo commits to master
+  and deploys with `npx vercel --prod --yes` because GitHub auto-deploy is
+  flaky here. Use them for their review and changelog work, not to change how
+  we release.
+- gstack's `/browse` wants its own browser binary. The existing Playwright
+  gates already drive production with a real magic-link session
+  (`check-page-length.mjs` is the reference); prefer those for verification, and
+  use `/browse` for exploration.
+
 ## UI work: read docs/UI-CONVENTIONS.md first
 
 Any list, table, queue or pager follows docs/UI-CONVENTIONS.md (pagination in

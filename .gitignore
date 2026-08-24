@@ -102,6 +102,17 @@ docs/discovery/
 # directory and does not follow the .claude ones). Machine-specific, ~150 files
 # of somebody else's code, and regenerable with .v3code/sync-claude-skills.ps1.
 .v3code/
+
+# gstack (garrytan/gstack, MIT) is deliberately NOT vendored here. It is 6.3 MB of
+# markdown plus 79 bash/bun scripts across 54 skill dirs, already installed
+# user-level at ~/.claude/skills (identical v1.68.3.0), and its own SKILL.md calls
+# vendoring deprecated in favour of `./setup --team`. Its preamble resolves
+# ~/.claude/skills/gstack/bin/... on EVERY invocation, so the user-level copy is
+# the one that actually executes -- a repo copy would be ~25 MB of dead weight
+# drifting silently out of sync with the one doing the work. It still loads in
+# V3Code because scripts/machine/sync-agent-skills.ps1 mirrors the user-level
+# install into .v3code/skills (gitignored above), which is what the loader scans.
+/.claude/skills/gstack-source-list.txt
 .claude/settings.json.graphify-bak  
 .context-bridge/colleague-chatgpt-conversation.txt
 

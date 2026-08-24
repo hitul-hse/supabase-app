@@ -25,11 +25,35 @@
       "skillPath": "skills/ask-sonner/SKILL.md",
       "computedHash": "f971641be0de21b2bb5dae38bc8ef5e0ee963844e71b7fae464ec9274d2507eb"
     },
+    "backend-patterns": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/backend-patterns/SKILL.md",
+      "computedHash": "8e737fa42d4da02a13d86a3377cbafb053ba1c2d0bd21728d1325b1bc20e199b"
+    },
     "brandkit": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",
       "skillPath": "skills/brandkit/SKILL.md",
       "computedHash": "735007879f5110aeae1e981a53fe74a12afde70347f9773dacd50e4697a091bf"
+    },
+    "clickhouse-io": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/clickhouse-io/SKILL.md",
+      "computedHash": "ef083d804c0724c642f4e28bfb7d64f6b310cde934ef9e92e5ac4062efe2f24e"
+    },
+    "coding-standards": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/coding-standards/SKILL.md",
+      "computedHash": "ec78aec0d88b887c8bdb62bd2811c3b646fdd1f5d0a08016893c8a0613d0d23a"
+    },
+    "continuous-learning": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/continuous-learning/SKILL.md",
+      "computedHash": "ac8936f701e0ff85e2dc73451515de8fb4adb29a1a69e75dacff80470518d0ac"
     },
     "design-taste-frontend": {
       "source": "Leonxlnx/taste-skill",
@@ -49,11 +73,23 @@
       "skillPath": "skills/emil-design-eng/SKILL.md",
       "computedHash": "87067d79205fdedc6d682891027dd9c7335486c4b4dc2e785638941a9d2e6061"
     },
+    "eval-harness": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/eval-harness/SKILL.md",
+      "computedHash": "a89ef77a2a31cf1d17461d98ae62f897b8cae1ee41cdde6f6da6bbf80a83bd6e"
+    },
     "find-animation-opportunities": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
       "skillPath": "skills/find-animation-opportunities/SKILL.md",
       "computedHash": "c6b1d0f6d03a11f8772b1cef4ca5cc88301ae8641ac2697c85ffa87eb458e40a"
+    },
+    "frontend-patterns": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-patterns/SKILL.md",
+      "computedHash": "9ccfa4011d22938d875e955b37758bf70c2a02ebdfb0fe0e1e784bde7d2dd43b"
     },
     "full-output-enforcement": {
       "source": "Leonxlnx/taste-skill",
@@ -115,6 +151,12 @@
       "skillPath": "skills/pick-ui-library/SKILL.md",
       "computedHash": "1a0a6819d13fb5361cf5cdc923f46a1effc37cb61ecb908419eedb0e11f428fe"
     },
+    "project-guidelines-example": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/project-guidelines-example/SKILL.md",
+      "computedHash": "7731ded0bd954435d94224f85db93fdbf8fee8132499bab98c6050ca6ec13514"
+    },
     "prototype": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
@@ -133,11 +175,35 @@
       "skillPath": "skills/review-animations/SKILL.md",
       "computedHash": "6f8d633d7884c1390eff7af4bfaf7a450e798f117e1d49a555e00819dc877f64"
     },
+    "security-review": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/security-review/SKILL.md",
+      "computedHash": "5d3f7a82cf6f9030bedff19f7fb18c42a1e7a8fa413bf068854cae03adf256ae"
+    },
     "stitch-design-taste": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",
       "skillPath": "skills/stitch-skill/SKILL.md",
       "computedHash": "c96b580192b34167efa01f460bbc669ff4315cf97f3cf6ff85ded8029aa720b8"
+    },
+    "strategic-compact": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/strategic-compact/SKILL.md",
+      "computedHash": "86183873c7dab388bca950f778046e6a2557f046b7e9d2731d8d2b87a50463da"
+    },
+    "tdd-workflow": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/tdd-workflow/SKILL.md",
+      "computedHash": "2452577bf62c5109f31bf68ca2562e444bd4f402e6cf69e8f54e0b89663b2f0d"
+    },
+    "verification-loop": {
+      "source": "WorldFlowAI/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/verification-loop/SKILL.md",
+      "computedHash": "d371e554e1cce8a2f640e354e6541ac7743c7daea2a14fe43c7fa0dc84d6afaf"
     }
   }
 }

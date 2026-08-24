@@ -55,22 +55,30 @@ const TONES: Record<Tone, string> = {
 
 export function Card({
   tone = "default",
+  as: Element = "div",
   className = "",
   children,
   ...rest
 }: {
   tone?: Tone;
+  /*
+   * The element to render. Defaults to a div, because most cards are just
+   * panels. Pass "li" inside a list (a div between <ul> and its items is
+   * invalid and silently costs the list semantics assistive tech announces)
+   * or "section" where the card is a landmark with a heading.
+   */
+  as?: "div" | "li" | "section" | "article";
   className?: string;
   children: ReactNode;
-} & Omit<React.HTMLAttributes<HTMLDivElement>, "children">) {
+} & Omit<React.HTMLAttributes<HTMLElement>, "children">) {
   return (
-    <div
+    <Element
       {...rest}
       data-card={tone}
       className={`rounded-[var(--radius-card)] border ${TONES[tone]} ${className}`}
     >
       {children}
-    </div>
+    </Element>
   );
 }
 

@@ -13,6 +13,7 @@
  */
 
 import Link from "next/link";
+import { Card } from "@/components/ui/Card";
 import type { ContractAttentionRow } from "@/lib/queries/contract-periods";
 
 const KIND_LABEL: Record<ContractAttentionRow["kind"], string> = {
@@ -43,7 +44,7 @@ export function ContractWatchlist({ rows }: { rows: ContractAttentionRow[] }) {
      * are recorded, so say which it is rather than implying all is well.
      */
     return (
-      <section className="border border-[var(--border)] bg-[var(--surface)] px-4 py-4">
+      <Card as="section" className="px-4 py-4">
         <h2 className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
           Contract watchlist
         </h2>
@@ -52,13 +53,13 @@ export function ContractWatchlist({ rows }: { rows: ContractAttentionRow[] }) {
           terms are recorded on projects, so it is also what you see before sales
           have entered any agreements.
         </p>
-      </section>
+      </Card>
     );
   }
 
   return (
-    <section className="border border-[var(--border)] bg-[var(--surface)]">
-      <header className="border-b border-[var(--border)] px-4 py-3">
+    <Card as="section">
+      <header className="border-b border-[var(--divider)] px-4 py-3">
         <h2 className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
           Contract watchlist ({rows.length})
         </h2>
@@ -72,7 +73,7 @@ export function ContractWatchlist({ rows }: { rows: ContractAttentionRow[] }) {
         {rows.map((r) => (
           <li
             key={r.id}
-            className="flex flex-col gap-1 border-b border-[var(--border)] px-4 py-2.5 last:border-0"
+            className="flex flex-col gap-1 border-b border-[var(--divider)] px-4 py-2.5 last:border-0"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -106,6 +107,6 @@ export function ContractWatchlist({ rows }: { rows: ContractAttentionRow[] }) {
           </li>
         ))}
       </ul>
-    </section>
+    </Card>
   );
 }

@@ -16,6 +16,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { Card } from "@/components/ui/Card";
 import {
   alertKindLabel,
   emailStateLabel,
@@ -58,8 +59,8 @@ function AlertCard({ row, canAck }: { row: BudgetAlertRow; canAck: boolean }) {
   const colour = tone(row);
 
   return (
-    <li className="border border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-[var(--border)] px-4 py-2.5">
+    <Card as="li">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-[var(--divider)] px-4 py-2.5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span
             className="font-mono text-[10px] uppercase tracking-[0.1em]"
@@ -182,7 +183,7 @@ function AlertCard({ row, canAck }: { row: BudgetAlertRow; canAck: boolean }) {
           </p>
         )}
       </div>
-    </li>
+    </Card>
   );
 }
 
@@ -197,11 +198,11 @@ export function AlertList({
 }) {
   if (alerts.length === 0) {
     return (
-      <p className="border border-[var(--border)] bg-[var(--surface)] px-4 py-6 text-center text-[12px] text-[var(--text-secondary)]">
+      <Card className="px-4 py-6 text-center text-[12px] text-[var(--text-secondary)]">
         {showingOpenOnly
           ? "No open budget alerts. Bookings that approach or exceed an agreed budget appear here."
           : "No budget alerts recorded yet."}
-      </p>
+      </Card>
     );
   }
 

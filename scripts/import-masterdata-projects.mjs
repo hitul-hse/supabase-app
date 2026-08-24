@@ -195,7 +195,11 @@ for (const label of [...responsibles].sort()) {
   // same key twice (Postgres: "cannot affect row a second time").
   if (seenIds.has(id)) continue;
   seenIds.add(id);
-  newPeople.push({ id, name: label.trim(), is_active: true, source: "seed", role: "Consultant" });
+  // source='masterdata', as this script's header states. It wrote "seed" --
+  // the same label the eight mockup rows carry -- so real colleagues from the
+  // Excel were indistinguishable from fiction by the one column that exists to
+  // separate them, and every gate reasoning about "mockup rows" swept them in.
+  newPeople.push({ id, name: label.trim(), is_active: true, source: "masterdata", role: "Consultant" });
 }
 
 /* ------------------------------------------------------------ build rows */

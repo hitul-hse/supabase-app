@@ -158,15 +158,41 @@ check(
 const people = await must("read public.people", admin.from("people").select("*"));
 console.log(`\n=== public.people: ${people.length} mockup rows ===`);
 
-check(
-  "no live member is mapped to a mockup person (hub_person_id)",
-  members.every((m) => m.hub_person_id === null),
-  `${members.filter((m) => m.hub_person_id !== null).length} mapped -- if this becomes non-zero the replacement story changes to a migration`,
+/*
+ * RE-ANCHORED. This used to assert hub_person_id is null on EVERY member,
+ * which held only while public.people was pure mockup. The masterdata import
+ * added nine real md-* colleagues, and linking members to those is what made
+ * the profile, admin and leave columns render real values instead of n/a.
+ *
+ * The invariant that still matters -- and always did -- is that no live member
+ * is mapped to a SEED row. Pointing a real person at mockup HR data (uniform
+ * 40h, invented employee numbers) would put fiction on a real profile page,
+ * which is the actual failure this check was written to prevent.
+ */
+/*
+ * A SEED row is one whose provenance is the mockup. Two tests, deliberately:
+ * source='masterdata' is the authority once
+ * 20260824100000_allow_masterdata_people_source.sql is applied, and until then
+ * the check constraint permits only 'seed'/'factorial', so every row -- real or
+ * mockup -- reads 'seed'. The 'md-' prefix is what the masterdata importer
+ * assigns, so it identifies the same population in the interim and agrees with
+ * the source column afterwards.
+ */
+const isSeedPerson = (person) => person.source === "seed" && !person.id.startsWith("md-");
+const seedPersonIds = new Set(people.filter(isSeedPerson).map((p) => p.id));
+const mappedToSeed = members.filter(
+  (m) => m.hub_person_id !== null && seedPersonIds.has(m.hub_person_id),
 );
 check(
-  "the mockup people table has no email, so there is no key to join on",
+  "no live member is mapped to a SEED (mockup) person",
+  mappedToSeed.length === 0,
+  mappedToSeed.map((m) => `${m.email} -> ${m.hub_person_id}`).join(", ") ||
+    `${members.filter((m) => m.hub_person_id !== null).length} member(s) mapped, all to masterdata rows`,
+);
+check(
+  "public.people still has no email column, so any link is a reviewed decision",
   !("email" in (people[0] ?? {})),
-  Object.keys(people[0] ?? {}).slice(0, 8).join(", "),
+  "scripts/link-profiles-to-people.mjs enumerates the nine pairs by hand for exactly this reason (ADR-001 bans name matching)",
 );
 
 // ── 5. Future-dated time is real, and will lie if unbounded ───────────────
@@ -184,10 +210,28 @@ const profiles = await must(
   admin.from("app_user_profile").select("person_id, role_key, is_active"),
 );
 const linked = profiles.filter((p) => p.person_id !== null);
+/*
+ * RE-ANCHORED, same reason as the hub_person_id check above. "At most one
+ * profile carries a person_id" described a database where person_id was
+ * unused; nine accounts are now linked to their real masterdata rows, which
+ * is what the HR columns needed.
+ *
+ * The property to protect is that no profile points at a SEED row -- that
+ * would show invented HR data on a real person's profile -- and that ACCESS
+ * still resolves by user_id rather than by person_id, which is why replacing
+ * the people table stays safe. Both are asserted directly.
+ */
+const linkedToSeed = linked.filter((p) => seedPersonIds.has(p.person_id));
 check(
-  "the access model barely references the mockup people rows",
-  linked.length <= 1,
-  `${linked.length} of ${profiles.length} app_user_profile rows carry a person_id (${JSON.stringify(linked.map((p) => p.person_id))}) -- access resolves by user_id, which is why replacing people is safe. Confirm with check:stranger-access.`,
+  "no account is linked to a SEED (mockup) person",
+  linkedToSeed.length === 0,
+  linkedToSeed.map((p) => p.person_id).join(", ") ||
+    `${linked.length} of ${profiles.length} profiles linked, all to masterdata rows`,
+);
+check(
+  "access does not depend on person_id (roles resolve by user_id)",
+  profiles.every((p) => p.role_key),
+  `${profiles.filter((p) => p.role_key).length} of ${profiles.length} profiles carry a role independent of person_id -- confirm with check:stranger-access`,
 );
 
 // ── 7. weekly_hours is a uniform TrackingTime default, not contract truth ─

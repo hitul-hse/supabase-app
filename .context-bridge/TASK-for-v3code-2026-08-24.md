@@ -64,6 +64,57 @@ Still running: identity linker, ops portal.
 
 ---
 
+## STATUS UPDATE 2026-08-24 ~17:45Z — data layer done, PROVEN END TO END
+
+`8e58a5d` is the milestone commit. **Mathias can sign in and see his customers.**
+Proved with `scripts/check-my-work-as-mathias.mjs`, which mints a real user JWT
+and reads over PostgREST exactly as the browser does — not service-role, not a
+superuser connection:
+
+```
+projects visible 54 · owns 6 · assigned 54 · responsible for 4 customers
+replacement on 35 · department populated 54/54 · entity FK 54/54
+anonymous caller on the same endpoint: 0
+```
+
+`scripts/check-profile-person-link.mjs` now passes all six assertions.
+
+### Everything that landed
+| Fix | Result |
+|---|---|
+| Accounts → person | 9/20 → **all real accounts** |
+| masterdata responsible/replacement | nowhere → **288 rows / 149 projects** |
+| projects → canonical customer | 208 → **228 of 231** |
+| `projects.department` | **NULL on all 231** → 176 populated |
+| `crm.legal_entity` duplicates | Addleshaw ×4 → superseded |
+| `/my-work` route | did not exist → **built, builds clean** |
+
+Thorsten (dept_head) went from 20 visible projects to **111** once
+`projects.department` existed — the dept_head arm of `can_view_project()` had
+been inert the whole time.
+
+### Two findings that are now the open work
+
+**1. `public.timesheet_entries` is MOCKUP DATA.** All 28 rows belong to `emp-1`
+"Anna Brandt" — `is_active=false`, `source='seed'` — with `project_id` NULL and
+project names matching nothing real ("NEEDS PROJECT ASSIGNMENT", "NON-BILLABLE").
+The `/timesheets` route reads it. The real data is `time.entry`: 5,322 rows,
+8,458.7 hours. An agent is on this now.
+
+**2. The hub bridge is the real integrity gap.** All three documented mapping
+tables are **empty** (`crm.trackingtime_project_reference`,
+`crm.factorial_person_reference`, `crm.trackingtime_customer_reference`).
+Bridging happens through inline columns that are only part-filled:
+`time.member.hub_person_id` 9/49, `time.project.hub_project_id` 123/334. So only
+**1,897 of 8,458 hours can reach a hub project**. Nothing dangles, so what is
+linked is trustworthy; the problem is coverage. An agent is on this too.
+
+Five people (Yasemin, Hannes, Kurt, Simone, Hitul) have real tracked hours that
+cannot reach them because of this. My gate currently mislabels them as "no work
+in data".
+
+---
+
 ## What would help most from you (non-overlapping)
 
 Pick whichever you can verify, and **claim it in this file before you start** so

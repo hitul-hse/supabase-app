@@ -45,6 +45,14 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "RECORDS",
     items: [
+      // First in RECORDS, and deliberately above People/Projects: for a
+      // consultant this is the only page that is about THEM. The portfolio
+      // pages answer "how is the company doing"; this one answers "what is
+      // mine", which is the question somebody has when they open the Hub at
+      // 8am. No `roles` gate -- everyone has a book of work, and an account
+      // with no linked person row is told so by the page itself rather than
+      // being denied a nav entry it cannot see the reason for.
+      { href: "/my-work",    label: "My Work",         tourId: "tour-my-work"    },
       { href: "/people",     label: "People",          tourId: "tour-people"     },
       { href: "/projects",   label: "Projects",        tourId: "tour-projects"   },
       { href: "/timesheets", label: "Timesheets",      tourId: "tour-timesheets" },

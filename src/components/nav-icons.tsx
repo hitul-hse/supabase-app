@@ -73,6 +73,23 @@ export function IconPeople({ className }: IconProps) {
   );
 }
 
+/**
+ * My Work — a briefcase, i.e. one person's book of work.
+ *
+ * Deliberately NOT a person glyph: /people already owns the figure, and two
+ * near-identical outlines in the same nav group are indistinguishable at 16px
+ * in the collapsed rail, where the icon is the only label there is.
+ */
+export function IconMyWork({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="1.75" y="5.25" width="12.5" height="8.5" rx="1.5" />
+      <path d="M5.75 5.25V3.75a1 1 0 0 1 1-1h2.5a1 1 0 0 1 1 1v1.5" />
+      <path d="M1.75 8.75h12.5" />
+    </Svg>
+  );
+}
+
 /** Projects — stacked layers. */
 export function IconProjects({ className }: IconProps) {
   return (
@@ -273,6 +290,7 @@ export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,
   "/dashboard/management": IconTeamLead,
   "/team-lead": IconTeamLead,
+  "/my-work": IconMyWork,
   "/people": IconPeople,
   "/projects": IconProjects,
   "/timesheets": IconTimesheets,

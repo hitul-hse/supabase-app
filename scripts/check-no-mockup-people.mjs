@@ -192,7 +192,12 @@ check(
 );
 check(
   "a missing utilisation renders n/a rather than 0%",
-  /teamUtilisationPercent === null \? "n\/a"/.test(tlBoard),
+  // The rule moved INTO StatTile (value === null renders "n/a"; the design
+  // gate asserts that branch). What this file must guarantee is that the
+  // nullable reaches StatTile unlaundered: `?? 0` or `|| 0` here would turn
+  // "no basis to judge" into "team sitting idle" before the rule can apply.
+  /value=\{teamUtilisationPercent\}/.test(tlBoard) &&
+    !/teamUtilisationPercent (\?\?|\|\|) 0/.test(tlBoard),
   "0% reads as a team sitting idle; n/a reads as no basis to judge",
 );
 check(

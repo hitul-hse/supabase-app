@@ -47,7 +47,9 @@ export function EmployeeOwnershipOverview({ rows }: { rows: EmployeeOwnershipRow
           </table>
         </div>
         <p className="border-t border-[var(--divider)] px-4 py-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
-          Replacement wird servicebezogen bewertet: Service → Verantwortlicher → Replacement. Im aktuellen Read Model existiert keine bestätigte Replacement-Zuordnung; deshalb werden Abdeckung und Fehlmenge als n/a dargestellt.
+          {rows.some((row) => row.replacementRelationAvailable)
+            ? "Replacement aus den Masterdaten: eine Zuordnung mit 0% Anteil ist die benannte Vertretung (zugewiesen, trägt keine Stunden). Abdeckung = Projekte mit benannter Vertretung / offene Projekte."
+            : "Im aktuellen Read Model existiert keine Replacement-Zuordnung; Abdeckung und Fehlmenge werden als n/a dargestellt."}
         </p>
       </Card>
 

@@ -42,7 +42,7 @@ export default async function AdminRolesPage() {
         meta={`${roles.length} ROLES · ${permissions.length} PERMISSIONS`}
       />
 
-      <div className="flex flex-col gap-5 p-6">
+      <div className="flex flex-col gap-5 page-shell">
         {!canEdit && (
           <div
             className="flex items-start gap-3 border border-[var(--border)] p-3 text-sm"

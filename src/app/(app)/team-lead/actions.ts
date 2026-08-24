@@ -2,17 +2,42 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export type ApprovalResult = { ok: boolean; message?: string };
 
+const DENIED = "You do not have permission to approve this.";
+
+/**
+ * Approving is gated on workload:approve, in the action itself.
+ *
+ * This became necessary when /team-lead moved from a hardcoded
+ * ["exec", "dept_head"] list to requirePermission(WORKLOAD_READ). That key is
+ * also held by project_manager, so the board — and its approve buttons — is now
+ * reachable by a role that does NOT hold workload:approve. Before the widening,
+ * the page gate was the only thing standing between a project manager and these
+ * writes: there was no identity or permission check here at all, only RLS.
+ *
+ * Leaving it to RLS would repeat the mistake fixed in projects/actions.ts —
+ * gating a WRITE on READ visibility. workload:approve is the key that names this
+ * act, so it is the key that decides it.
+ */
+async function requireApprover() {
+  const supabase = await createClient();
+  const { data: allowed } = await supabase.rpc("app_user_has_permission", {
+    p_key: PERMISSIONS.WORKLOAD_APPROVE,
+  });
+  return allowed ? supabase : null;
+}
+
 /**
  * Both actions report failures back to the caller instead of swallowing them.
- * RLS denies these updates for anyone who isn't exec/dept_head, and that
- * denial used to surface as a successful-looking no-op because the error was
+ * A denial used to surface as a successful-looking no-op because the error was
  * never checked and revalidatePath ran unconditionally.
  */
 export async function approveDecision(id: string): Promise<ApprovalResult> {
-  const supabase = await createClient();
+  const supabase = await requireApprover();
+  if (!supabase) return { ok: false, message: DENIED };
   const { error, count } = await supabase
     .from("approval_decisions")
     .update({ status: "approved" }, { count: "exact" })
@@ -32,7 +57,8 @@ export async function approveDecision(id: string): Promise<ApprovalResult> {
 }
 
 export async function approveAllPending(): Promise<ApprovalResult> {
-  const supabase = await createClient();
+  const supabase = await requireApprover();
+  if (!supabase) return { ok: false, message: DENIED };
   const { error, count } = await supabase
     .from("approval_decisions")
     .update({ status: "approved" }, { count: "exact" })
@@ -49,10 +75,13 @@ export async function approveAllPending(): Promise<ApprovalResult> {
 
 /**
  * Bulk-transitions every submitted timesheet_entries row for one person's
- * week to approved/rejected. RLS ("lead can approve or reject visible
- * timesheet_entries") is what actually enforces that only a dept_head/exec
- * who can_view_person() this employee can do this -- the .eq("status",
- * "submitted") guard here just avoids touching rows in an unexpected state.
+ * week to approved/rejected.
+ *
+ * Gated on workload:approve here, and RLS ("lead can approve or reject visible
+ * timesheet_entries") narrows it further to employees this caller may see. The
+ * permission answers "may you approve at all", the policy answers "whose" — the
+ * .eq("status", "submitted") guard is neither, it just avoids touching rows in
+ * an unexpected state.
  */
 async function setTimesheetWeekStatus(
   personId: string,
@@ -60,7 +89,8 @@ async function setTimesheetWeekStatus(
   status: "approved" | "rejected",
   rejectionNote?: string,
 ): Promise<ApprovalResult> {
-  const supabase = await createClient();
+  const supabase = await requireApprover();
+  if (!supabase) return { ok: false, message: DENIED };
   const { error, count } = await supabase
     .from("timesheet_entries")
     .update(

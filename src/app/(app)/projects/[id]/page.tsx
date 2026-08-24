@@ -177,7 +177,7 @@ export default async function ProjectDetailPage({
           }
         />
 
-        <div className="flex flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-col gap-5 page-shell">
           <div className="flex flex-wrap gap-2">
             {project.isArchived && <Pill>ARCHIVED</Pill>}
             <Pill>{project.isBillable ? "BILLABLE" : "NON-BILLABLE"}</Pill>

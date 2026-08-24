@@ -370,7 +370,7 @@ export default async function TrackingTimeDashboardPage({
             also the better shape -- it is in the same place on every surface. */}
         <RecordsTabs canReadAll />
 
-        <div className="flex flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-col gap-5 page-shell">
           <ReportFilters
             members={options.members.map((m) => ({ id: m.id, name: m.name }))}
             projects={options.projects.map((p) => ({

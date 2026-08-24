@@ -96,7 +96,7 @@ export function TeamLeadBoard({
         }
       />
 
-      <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:gap-5 page-shell">
         {/* Measured KPIs. Each renders "n/a" rather than 0 when there is no
             basis: "nobody logged anything" and "the value is zero" are
             different claims, and 0% reads as a team sitting idle. */}

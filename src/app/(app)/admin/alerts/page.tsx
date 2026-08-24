@@ -55,7 +55,7 @@ export default async function AlertsPage({
             title="Budget alerts"
             meta={registered ? "ACCESS RESTRICTED" : "SETUP INCOMPLETE"}
           />
-          <div className="p-4 sm:p-6">
+          <div className="page-shell">
             {registered ? (
               <p className="border border-[var(--border-strong)] px-4 py-3 text-[12px] leading-relaxed text-[var(--text-muted)]">
                 Your role does not include reading budget alerts. They expose commercial
@@ -111,7 +111,7 @@ export default async function AlertsPage({
           meta={`${alerts.length} ${openOnly ? "OPEN" : "TOTAL"}${blocking ? ` · ${blocking} BLOCKED A BOOKING` : ""}${watchlist.length ? ` · ${watchlist.length} CONTRACTS NEED ATTENTION` : ""}`}
         />
 
-        <div className="flex flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-col gap-5 page-shell">
           <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">
             Every budget event is recorded here whether or not an email goes out. Each
             row states its own delivery state, so a missing mail transport can never

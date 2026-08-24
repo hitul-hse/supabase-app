@@ -67,7 +67,7 @@ export default async function ProfilePage() {
           meta="WHAT THE HUB KNOWS · WHAT YOU CONTROL"
         />
 
-        <div className="flex flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-col gap-5 page-shell">
           <IdentityCard profile={profile} signedAvatarUrl={signedAvatarUrl} />
           <EmploymentCard profile={profile} />
           <SecurityCard />

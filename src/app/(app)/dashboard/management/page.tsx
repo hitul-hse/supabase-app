@@ -37,7 +37,7 @@ export default async function ManagementPage() {
           title="Management"
           meta="VERTRAGSSTUNDEN · SERVICES · PORTFOLIO · RISIKEN · READ MODEL"
         />
-        <main className="flex flex-col gap-4 p-4 sm:p-6">
+        <main className="flex flex-col gap-4 page-shell">
           {model.projectCount === 0 ? (
             <Card><EmptyState title="Keine Vertragsstunden verfügbar" description="Das Read Model liefert aktuell keine sichtbaren Projekte aus public.projects." /></Card>
           ) : <ManagementMatrix model={model} ownershipRows={ownershipRows} dataQualityRows={dataQualityRows} projectRiskRows={projectRiskRows} multiServiceModel={multiServiceModel} customerPortfolio={customerPortfolio} people={(peopleResult.data ?? []).map((person) => ({ id: person.id, name: person.name }))} changeRequests={changeRequests} />}

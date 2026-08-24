@@ -116,7 +116,7 @@ export default async function AdminUserDetailPage({ params }: Params) {
         actions={<ButtonLink href="/admin/users">Back to users</ButtonLink>}
       />
 
-      <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:gap-5 page-shell">
         {isSelf && (
           // Stated once, at the top, rather than as four identical refusals after
           // four failed submits. Self-service exists and exposes a deliberately

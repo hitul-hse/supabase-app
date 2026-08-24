@@ -33,7 +33,7 @@ export default async function LeavePage() {
           meta="FACTORIALHR-EQUIVALENT · REQUEST · APPROVE · BALANCE"
         />
 
-        <div className="flex flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-col gap-5 page-shell">
           {profile.personId ? (
             <MyLeavePanel balance={balance} requests={requests} />
           ) : (

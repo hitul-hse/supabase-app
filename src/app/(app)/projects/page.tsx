@@ -113,7 +113,7 @@ export default async function ProjectsPage({
           meta={`${rows.length.toLocaleString("en-GB")} PROJECTS · ${totalHours.toLocaleString("en-GB", { maximumFractionDigits: 0 })}H TRACKED`}
         />
 
-        <div className="flex flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-col gap-5 page-shell">
           {/* Same reasoning as the dashboard: "no projects match" and "the
               import stopped running three weeks ago" look identical, and the
               second explains the first. */}

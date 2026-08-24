@@ -161,7 +161,7 @@ export default async function TimePage({
             it to them would be a tab that returns you to where you already are. */}
         <RecordsTabs canReadAll={canReadAll === true} />
 
-        <div className="flex flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-col gap-5 page-shell">
           <TimeViewTabs
             weekStart={weekStart}
             scope={scope}

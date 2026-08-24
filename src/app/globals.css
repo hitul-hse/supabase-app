@@ -117,6 +117,21 @@
   --card-gap: 12px;
 
   /*
+   * CONTENT WIDTH
+   *
+   * The reference dashboards put their content in a measured column. Without a
+   * cap, a 5-tile KPI strip on a 2560px monitor spreads each tile over 500px
+   * and a table's columns drift until a row cannot be read across -- the app
+   * looked like a spreadsheet rather than a dashboard for exactly this reason.
+   *
+   * 1600px holds the widest real layout (a 12-column grid, a 5-tile strip at
+   * the reference's ~300px per tile). The two wide matrices (900px and 980px
+   * minimums) scroll inside their own cards, so nothing is clipped. Under
+   * 1600px this is inert.
+   */
+  --content-max: 1600px;
+
+  /*
    * Card elevation. An OFFSET and a soft blur, deliberately: a zero-offset
    * halo is decoration, not depth -- light comes from somewhere. Kept very low
    * contrast because this is a dark UI where a heavy shadow reads as grime
@@ -237,6 +252,30 @@ body {
  */
 body {
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * THE PAGE SHELL: content padding and the width cap, in one class.
+ *
+ * Every page container used to spell out `p-4 sm:p-6` and none capped its
+ * width. Both facts belong to the page frame rather than to each page, and a
+ * class means a new page cannot disagree about either.
+ *
+ * `margin-inline: auto` centres the column once the viewport exceeds the cap.
+ * Left-aligning instead would leave a growing void on the right of a wide
+ * screen, which reads as a rendering fault.
+ */
+.page-shell {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .page-shell {
+    padding: 1.5rem;
+  }
 }
 
 /* Keyboard focus must stay visible everywhere -- accessibility, not optional. */

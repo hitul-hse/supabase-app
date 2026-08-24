@@ -138,7 +138,7 @@ export function TimesheetGrid({
         }
       />
 
-      <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:gap-5 page-shell">
         {/* Why the week came back.
             The note is mandatory when a lead rejects, and it reached the
             database, but nothing read it -- the employee saw the grid become

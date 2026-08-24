@@ -78,7 +78,7 @@ export default async function AdminUsersPage() {
         }
       />
 
-      <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:gap-5 page-shell">
         {adminUnavailable && (
           <div
             role="alert"

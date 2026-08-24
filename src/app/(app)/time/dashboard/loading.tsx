@@ -35,7 +35,7 @@ export default function Loading() {
         <SkeletonBlock className="h-2 w-52" />
       </div>
 
-      <div className="flex flex-col gap-5 p-4 sm:p-6">
+      <div className="flex flex-col gap-5 page-shell">
         {/* Filter bar: three rows of controls, same height as the real one. */}
         <div className={`flex flex-col gap-3 p-3 ${SKELETON_PANEL}`}>
           <div className="flex flex-wrap gap-2">

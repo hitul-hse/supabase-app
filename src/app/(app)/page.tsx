@@ -167,7 +167,7 @@ export default async function OverviewPage({
         }
       />
 
-      <div className="flex flex-col gap-[var(--card-gap)] p-4 sm:p-6">
+      <div className="flex flex-col gap-[var(--card-gap)] page-shell">
         {/*
           The filter surface. Every weekly figure below derives from the period
           it resolves; the figures that CANNOT be period-scoped say "all time"

@@ -151,7 +151,7 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
         actions={<span className="border border-[var(--accent)] bg-[var(--accent-wash)] px-2 py-1 font-mono text-[10px] font-medium tracking-[0.08em] text-[var(--accent)]">STAGING ONLY</span>}
       />
 
-      <div className="flex flex-col gap-5 p-4 sm:p-6">
+      <div className="flex flex-col gap-5 page-shell">
         {developmentAuthBypass && (
           <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border border-[var(--warning)] bg-[var(--warning-wash)] px-4 py-2.5 text-xs text-[var(--warning)]">
             <span className="font-mono text-[10px] font-semibold tracking-[0.1em]">DEVELOPMENT MODE</span>

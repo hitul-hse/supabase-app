@@ -169,7 +169,7 @@ export function OrgChartView({
 
   if (totalPeople === 0) {
     return (
-      <div className="p-4 sm:p-6">
+      <div className="page-shell">
         <Card className="p-8 text-center">
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">No active people</p>
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
@@ -181,7 +181,7 @@ export function OrgChartView({
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:p-6">
+    <div className="flex flex-col gap-4 page-shell">
       {/* Completeness, stated up front. A chart is only as good as its coverage,
           and hiding that number is how a mostly-empty chart passes for finished. */}
       <Card className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">

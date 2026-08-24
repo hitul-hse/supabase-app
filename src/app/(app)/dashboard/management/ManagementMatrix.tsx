@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
+import { Segmented } from "@/components/ui/Segmented";
 import type { ManagementContractHours, ManagementPerson } from "@/lib/queries/management-contract-hours";
 import { ANNUAL_PLAN_HOURS, PEOPLE } from "@/lib/queries/management-contract-hours";
 import type { EmployeeOwnershipRow } from "@/lib/queries/management-employee-ownership";
@@ -20,6 +22,21 @@ const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionD
 
 export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, people, changeRequests }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; people: { id: string; name: string }[]; changeRequests: ManagementChangeRequest[] }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
+  /*
+   * The active tab lives in the URL (?tab=), not in useState: a management
+   * reader shares "the risk view" as a link, and a reload must not dump them
+   * back at the first tab. Unknown values fall back to the overview rather
+   * than rendering nothing.
+   */
+  const TABS = [
+    { key: "overview", label: "Auslastung" },
+    { key: "employees", label: "Mitarbeiter" },
+    { key: "customers", label: "Kunden" },
+    { key: "risks", label: "Risiken & Qualität" },
+  ] as const;
+  const params = useSearchParams();
+  const requested = params.get("tab");
+  const tab = TABS.some((candidate) => candidate.key === requested) ? requested : "overview";
   const totalByPerson = Object.fromEntries(
     PEOPLE.map((person) => [person, model.rows.reduce((sum, row) => sum + row.cells[person], 0)]),
   ) as Record<ManagementPerson, number>;
@@ -36,16 +53,25 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
         <StatTile label="AUSLASTUNGSAUSBLICK" value={fmt(overallUtilisation)} unit="%" hint="1.304 Planstunden/Jahr je Mitarbeiter" data-metric="management-utilisation-outlook" />
       </div>
 
-      <EmployeeOwnershipOverview rows={ownershipRows} />
+      <Segmented
+        ariaLabel="Management-Bereiche"
+        current={`/dashboard/management?tab=${tab}`}
+        options={TABS.map(({ key, label }) => ({ href: `/dashboard/management?tab=${key}`, label }))}
+      />
 
-      <ManagementDataQuality rows={dataQualityRows} />
+      {tab === "employees" && <EmployeeOwnershipOverview rows={ownershipRows} />}
 
-      <ManagementProjectRisks rows={projectRiskRows} />
+      {/* Risks and data quality answer the same question ("what needs my
+          attention"), so they share a tab. */}
+      {tab === "risks" && <ManagementProjectRisks rows={projectRiskRows} />}
 
-      <ManagementMultiServiceMatrix model={multiServiceModel} />
+      {tab === "risks" && <ManagementDataQuality rows={dataQualityRows} />}
 
-      <ManagementCustomerPortfolioView model={customerPortfolio} people={people} changeRequests={changeRequests} />
+      {tab === "customers" && <ManagementMultiServiceMatrix model={multiServiceModel} />}
 
+      {tab === "customers" && <ManagementCustomerPortfolioView model={customerPortfolio} people={people} changeRequests={changeRequests} />}
+
+      {tab === "overview" && (<>
       <Card className="overflow-hidden">
         <CardHeader title="Auslastungsausblick" qualifier={`GEBUNDENE VERTRAGSSTUNDEN / ${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} PLANSTUNDEN · 75% BILLABLE CAPACITY`} />
         <div className="overflow-x-auto">
@@ -122,6 +148,9 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
         </p>
       </Card>
 
+      </>)}
+
+      {tab === "employees" && (
       <Card>
         <CardHeader title="Drilldown" qualifier="MITARBEITER → PROJEKTE → KUNDEN" />
         <div className="divide-y divide-[var(--divider)]">
@@ -149,6 +178,7 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
           })}
         </div>
       </Card>
+      )}
 
       {model.unmappedContractHours > 0 && <p className="text-[11px] text-[var(--warning)]">{fmt(model.unmappedContractHours)} h sind aktuell nicht über `time.project.hub_project_id` einem Service zugeordnet.</p>}
     </div>

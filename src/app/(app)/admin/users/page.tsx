@@ -94,8 +94,10 @@ export default async function AdminUsersPage() {
 
         {canEdit && <InviteUserForm roles={roles} />}
 
-        // User table is the primary admin panel — aggregates column headers
-        // and all account rows; qualifies itself with active/total count.
+        {/* User table is the primary admin panel — aggregates column headers
+            and all account rows; qualifies itself with active/total count.
+            These lines MUST stay inside braces: a bare `//` in JSX children is
+            a text node, so the comment renders on the page as literal text. */}
         <Card>
           <CardHeader title="User accounts" />
           <CardDivider />

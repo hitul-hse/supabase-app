@@ -25,7 +25,7 @@
 import Link from "next/link";
 import type { BudgetRow, GroupRow } from "@/lib/queries/trackingtime-report";
 import type { ProjectEconomicsRow } from "@/lib/queries/time-dashboard";
-import { cmpNum, cmpText, DataTable, type Column } from "./DataTable";
+import { cmpNum, cmpText, DataTable, type Column } from "@/components/data-table/DataTable";
 
 /* ------------------------------------------------------------------ shared */
 

@@ -122,6 +122,65 @@ safety professionals: confident, data-rich, human.
 - Grid texture: rgba(145,194,183,0.08) hairlines
 - Glow blobs: teal radial gradients, heavily blurred
 
+## Data tables
+
+Measured against production at 1440×900, `/dashboard/management?tab=customers` was
+**17.7 screens** tall (177 rows in one unpaged table); `?tab=risks` 4.3, `/team-lead`
+3.7, `/admin/roles` 2.6. A reader looking for one row scrolled past a hundred to get
+there, and the column headers left the screen on the way. These eight rules exist to
+make that shape impossible to ship again. Enforced by
+`npm run check:table-scroll-budget`.
+
+1. **Any table whose row count is not fixed by the schema renders through
+   `src/components/data-table/DataTable.tsx`.** A table over a query result has no
+   ceiling — 17 rows in staging is 177 in production — and paging, sorting, search,
+   sticky headers and honest counts are five separate things every author would
+   otherwise re-decide. Hand-rolled `<table>` is fine only for a genuinely bounded
+   matrix (roles × permissions, a 7-row rating legend), and that table still owes
+   rules 3, 5, 6 and 8.
+
+2. **Default page size 25.** Twenty-five 12px rows plus a header is roughly one
+   screen, so the first page is the whole answer and the pager is the exception
+   rather than the routine. `ALL` stays offered — some readers want one long list
+   deliberately, and taking that away just moves the complaint.
+
+3. **Sticky header, always.** A column of bare numbers with the header scrolled off
+   is unreadable, and this is the failure that survives paging: even 25 rows outscroll
+   a header inside a bounded body. The sticky cell needs an opaque background
+   (`bg-[var(--surface)]`), because translucency over moving digits is worse than no
+   header at all.
+
+4. **A crosstab wider than ~8 columns freezes its first column**
+   (`freezeFirstColumn`). Past eight columns the table scrolls sideways, and a row of
+   numbers whose label has slid off the left edge cannot be attributed to anyone. Only
+   opt in when the first column IS the label — a frozen number column is noise, and
+   the pinned cell pays for an opaque background with its hover tint.
+
+5. **The body scrolls inside a bounded card; the page does not grow.**
+   `maxBodyHeight` (house default ~60vh) keeps the surrounding page navigable, so the
+   filter above and the footnote below stay reachable while the rows move. The
+   opposite pattern — an appending "Show 30 more" — pushes its own control further
+   away with every click, which is the specific bug `check-page-length.mjs` locks
+   down. Skip the cap under ~15 rows: a scrollbar inside a five-row table reads as
+   broken.
+
+6. **A missing number renders as an em dash, never as zero.** `0 h` is a claim that
+   somebody logged nothing; `—` says we do not know. They lead to opposite decisions,
+   and the ones that matter here are staffing ones. Corollary for sorting: nulls sort
+   last in **both** directions (`cmpNum`), or reversing a "worst first" column floats
+   the rows with no data to the top of the first screen.
+
+7. **A collapsed or paged table still states its total.** `"1–25 of 177"`,
+   `"all 177 rows"`, or a `summary` line while shut. A fixed-height list with no count
+   is indistinguishable from a truncated one, and a collapsed panel with no count is
+   indistinguishable from an empty one — so the reader stops trusting every other
+   number on the page.
+
+8. **No page exceeds 3 screens on first load.** The gate's budget. Header, filters,
+   KPI tiles and a chart fit comfortably in two; the third is slack. Anything past
+   that is a table that failed rules 2 or 5, and the number is the only assertion the
+   user's actual complaint ("too much scrolling") can be tested by.
+
 ## Anti-patterns (never do)
 - No gold/amber (#d4a843) — that was the previous placeholder palette, not the real brand
 - No pure white backgrounds — always teal-dark bg

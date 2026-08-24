@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import type { TimesheetDayEntry } from "@/lib/queries/types";
 import { updateDayHours, deleteTimesheetRow, submitWeek, withdrawWeek, copyLastWeek } from "./actions";
 import { AddEntryForm } from "./AddEntryForm";
-import { shiftWeekStart, currentWeekStart } from "@/lib/queries/hse";
+import { shiftWeekStart, currentWeekStart } from "@/lib/queries/timesheets";
 
 const DAY_NAMES = ["MO", "TU", "WE", "TH", "FR", "SA"];
 

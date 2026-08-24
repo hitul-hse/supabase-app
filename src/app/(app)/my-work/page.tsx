@@ -64,7 +64,7 @@ import { createClient } from "@/utils/supabase/server";
 import { requireProfile } from "@/utils/supabase/require-profile";
 import { getMyWork } from "@/lib/queries/my-work";
 import { MyWorkSummary } from "@/components/my-work/MyWorkSummary";
-import { CustomerGroup } from "@/components/my-work/CustomerGroup";
+import { MyWorkTables } from "@/components/my-work/MyWorkTables";
 
 export const metadata = {
   title: "My Work",
@@ -147,46 +147,89 @@ export default async function MyWorkPage() {
               />
 
               {/*
-                The ladder, stated in words once at the top. The badges in every
-                row carry it thereafter, but "responsible for 4, cover on 36" is
-                the sentence that makes the strip above mean something, and a
-                legend is cheaper than making each reader infer it.
-              */}
-              <p className="border-l-2 border-[var(--accent)] bg-[var(--accent-wash)] px-4 py-2.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
-                You are the{" "}
-                <strong className="text-[var(--text-primary)]">responsible lead</strong> on{" "}
-                {work.totals.roleCounts.responsible} of these {work.totals.projects}{" "}
-                projects and the recorded owner of{" "}
-                {work.totals.roleCounts.owner} more — those are yours to answer for. You
-                are the named <strong className="text-[var(--text-primary)]">replacement</strong>{" "}
-                on {work.totals.roleCounts.replacement}, which is cover rather than
-                accountability, and on the assignment list only for{" "}
-                {work.totals.roleCounts.assigned}. Every project sits on exactly one of
-                those four rungs, so the counts add up to {work.totals.projects}.
-              </p>
+                THE LADDER IN WORDS — kept, but folded.
 
-              {/*
-                Stated, not hidden. person_assignments.logged_hours was never
-                backfilled — Mathias's 54 rows sum to ONE hour against thousands
-                of team hours on the same projects. Printing that beside the
-                team figure without comment invites the reader to conclude he
-                did nothing all year. The column is suppressed and the reason
-                given instead.
-              */}
-              {work.myHoursUnpopulated ? (
-                <p className="border border-[var(--border-strong)] bg-[var(--surface-2)] px-4 py-2.5 text-[12px] leading-relaxed text-[var(--text-muted)]">
-                  Per-person hours are not shown: your assignment records carry no
-                  logged time (they were never backfilled from the time data), so a
-                  &ldquo;mine&rdquo; column here would report near-zero against real team
-                  hours. The hours below are the <strong>whole team&rsquo;s</strong> time on
-                  each project. Your own tracked time is under{" "}
-                  <Link href="/time" className="text-[var(--accent)] hover:underline">
-                    Time
-                  </Link>
-                  .
-                </p>
-              ) : null}
+                This paragraph is what makes the strip above mean something:
+                "responsible for 4, cover on 36" is the sentence a reader needs
+                ONCE, and never again on the same visit. Rendered open it cost
+                ~90px of the first screen on every load, which is why it now
+                sits behind a `<details>` whose summary states the shape of the
+                answer ("4 responsible · 2 owner · 36 replacement · 12
+                assigned") rather than hiding it. Nothing is lost: the counts
+                are in the summary line, the strip, the filter chips and the
+                badges, and the reasoning is one click away.
 
+                A `<details>`, not React state, because the page is a server
+                component and one disclosure triangle is not worth a client
+                boundary.
+              */}
+              <details className="group border-l-2 border-[var(--accent)] bg-[var(--accent-wash)]">
+                <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                  <span
+                    aria-hidden
+                    className="flex-none font-mono text-[10px] text-[var(--text-faint)] transition-transform duration-150 group-open:rotate-90"
+                  >
+                    ▶
+                  </span>
+                  <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+                    HOW YOUR {work.totals.projects} PROJECTS SPLIT
+                  </span>
+                  <span className="font-mono text-[11px] text-[var(--text-muted)]">
+                    {work.totals.roleCounts.responsible} responsible ·{" "}
+                    {work.totals.roleCounts.owner} owner ·{" "}
+                    {work.totals.roleCounts.replacement} replacement ·{" "}
+                    {work.totals.roleCounts.assigned} assigned
+                  </span>
+                </summary>
+
+                <div className="flex flex-col gap-2 px-4 pb-3 pt-0.5">
+                  <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">
+                    You are the{" "}
+                    <strong className="text-[var(--text-primary)]">responsible lead</strong>{" "}
+                    on {work.totals.roleCounts.responsible} of these{" "}
+                    {work.totals.projects} projects and the recorded owner of{" "}
+                    {work.totals.roleCounts.owner} more — those are yours to answer
+                    for. You are the named{" "}
+                    <strong className="text-[var(--text-primary)]">replacement</strong> on{" "}
+                    {work.totals.roleCounts.replacement}, which is cover rather than
+                    accountability, and on the assignment list only for{" "}
+                    {work.totals.roleCounts.assigned}. Every project sits on exactly
+                    one of those four rungs, so the counts add up to{" "}
+                    {work.totals.projects}. Use the{" "}
+                    <strong className="text-[var(--text-primary)]">MY ROLE</strong>{" "}
+                    filter below to see one rung at a time, and the{" "}
+                    <strong className="text-[var(--text-primary)]">CUSTOMERS</strong>{" "}
+                    view for per-customer totals.
+                  </p>
+
+                  {/*
+                    Stated, not hidden. person_assignments.logged_hours was never
+                    backfilled — Mathias's 54 rows sum to ONE hour against
+                    thousands of team hours on the same projects. Printing that
+                    beside the team figure without comment invites the reader to
+                    conclude he did nothing all year. The column is suppressed
+                    and the reason given instead.
+                  */}
+                  {work.myHoursUnpopulated ? (
+                    <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
+                      Per-person hours are not shown: your assignment records carry no
+                      logged time (they were never backfilled from the time data), so a
+                      &ldquo;mine&rdquo; column here would report near-zero against real
+                      team hours. The hours in these tables are the{" "}
+                      <strong>whole team&rsquo;s</strong> time on each project. Your own
+                      tracked time is under{" "}
+                      <Link href="/time" className="text-[var(--accent)] hover:underline">
+                        Time
+                      </Link>
+                      .
+                    </p>
+                  ) : null}
+                </div>
+              </details>
+
+              {/* A truncated read stays OUTSIDE the disclosure: it says the
+                  numbers on screen may be wrong, and that cannot be one click
+                  away. */}
               {work.truncated ? (
                 <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
                   This list hit the reporting ceiling, so it may be incomplete and the
@@ -194,15 +237,17 @@ export default async function MyWorkPage() {
                 </p>
               ) : null}
 
-              <div className="flex flex-col gap-2">
-                {work.customers.map((c) => (
-                  <CustomerGroup
-                    key={c.customer}
-                    customer={c}
-                    showMyHours={!work.myHoursUnpopulated}
-                  />
-                ))}
-              </div>
+              <MyWorkTables
+                projects={work.projects}
+                customers={work.customers}
+                showMyHours={!work.myHoursUnpopulated}
+                roleCounts={work.totals.roleCounts}
+                footnote={
+                  work.myHoursUnpopulated
+                    ? "Hours are the whole team's time on each project, not yours alone."
+                    : undefined
+                }
+              />
             </>
           )}
         </div>

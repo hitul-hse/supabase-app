@@ -1,7 +1,9 @@
 import { SyncBar } from "@/components/SyncBar";
+import { EmptyState } from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
 import { createClient } from "@/utils/supabase/server";
 import { requireUser } from "@/utils/supabase/require-user";
-import { getTimesheetEntries, currentWeekStart } from "@/lib/queries/hse";
+import { getTimesheetWeek, currentWeekStart } from "@/lib/queries/timesheets";
 import { TimesheetGrid } from "./TimesheetGrid";
 import PageTransition from "@/components/animations/PageTransition";
 import { RecordsTabs } from "../RecordsTabs";
@@ -14,6 +16,14 @@ function parseWeekParam(raw: string | undefined): string {
   return currentWeekStart();
 }
 
+/**
+ * The Hub's editable weekly grid over public.timesheet_entries, in hours.
+ *
+ * Distinct from /time, which reads the `time` schema in seconds and shows the
+ * intervals TrackingTime imported. Both tabs are offered by RecordsTabs above the
+ * grid; see src/lib/queries/timesheets.ts for why this page was NOT repointed at
+ * time.entry when the 28 seeded mockup rows were removed from this table.
+ */
 export default async function TimesheetsPage({
   searchParams,
 }: {
@@ -25,7 +35,7 @@ export default async function TimesheetsPage({
   const canReadAll = await userHasPermission(PERMISSIONS.TIMESHEETS_READ_ALL);
   const supabase = await createClient();
   const weekStart = parseWeekParam((await searchParams).week);
-  const entries = await getTimesheetEntries(supabase, weekStart);
+  const week = await getTimesheetWeek(supabase, weekStart);
 
   return (
     <PageTransition>
@@ -35,7 +45,23 @@ export default async function TimesheetsPage({
             below -- keeping them in the same position relative to the page title as
             on the two TrackingTime surfaces. */}
         <RecordsTabs canReadAll={canReadAll} />
-        <TimesheetGrid initialEntries={entries} weekStart={weekStart} />
+        {/* An account with no linked person cannot log time at all: every write
+            action here resolves the person first and returns "No linked person
+            profile" without it. Rendering the grid would offer an Add-entry
+            button that can only ever fail, so the state is named instead. */}
+        {week.state === "no-person" ? (
+          <>
+            <PageHeader category="HSE HUB / RECORDS" title="Timesheets" meta="NOT LINKED" />
+            <div className="page-shell">
+              <EmptyState
+                title="Your account is not linked to a person record"
+                description="Timesheet rows are stored against a person, so nothing can be logged here until an administrator links your account. Your tracked time in TrackingTime is unaffected — see the TrackingTime tab above."
+              />
+            </div>
+          </>
+        ) : (
+          <TimesheetGrid initialEntries={week.entries} weekStart={weekStart} />
+        )}
       </div>
     </PageTransition>
   );

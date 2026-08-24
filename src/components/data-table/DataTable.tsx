@@ -1,6 +1,11 @@
 "use client";
 /**
- * The table shell every dashboard breakdown renders through.
+ * The shared table shell every dashboard breakdown renders through.
+ *
+ * It grew up inside time/dashboard and lives here now because it is the house
+ * standard, not one route's helper: sort with explicit null placement, in-table
+ * search, paging, CSV export of exactly what is on screen, a collapsible panel
+ * that still states its row count while shut, and a sticky header.
  *
  * WHY THIS EXISTS
  * ---------------
@@ -72,7 +77,31 @@ type Props<T> = {
   defaultOpen?: boolean;
   /** One line shown in the collapsed header, e.g. "305h across 60 projects". */
   summary?: string;
+  /**
+   * Freeze the FIRST column so the row label stays readable while a wide table
+   * scrolls sideways. Opt-in, because a pinned cell must carry an opaque
+   * background of its own — which costs it the row-hover tint an ordinary cell
+   * inherits for free (restored here via group-hover) — and a table narrow
+   * enough to fit gains nothing from either.
+   *
+   * The first column has to BE the label column for this to make sense; that is
+   * the caller's arrangement, not something this component can verify.
+   */
+  freezeFirstColumn?: boolean;
+  /**
+   * Bound the table BODY rather than letting it grow the page: rows scroll
+   * inside the card and the sticky header stays put. `true` takes the house
+   * default of ~60vh; a string is any CSS length ("32rem"), a number is px.
+   *
+   * Opt-in for the same reason the existing internal scroller is conditional —
+   * a scrollbar inside a five-row table looks broken. Left unset, behaviour is
+   * exactly as before: a 70vh scroller appears by itself past 25 visible rows.
+   */
+  maxBodyHeight?: string | number | true;
 };
+
+/** The house cap for an opted-in bounded body: roughly 60% of the viewport. */
+export const DEFAULT_MAX_BODY_HEIGHT = "60vh";
 
 const PAGE_SIZES = [25, 50, 100, "all"] as const;
 export type PageSize = (typeof PAGE_SIZES)[number];
@@ -118,6 +147,8 @@ export function DataTable<T>({
   collapsible = false,
   defaultOpen = true,
   summary,
+  freezeFirstColumn = false,
+  maxBodyHeight,
 }: Props<T>) {
   const [sortKey, setSortKey] = useState<string | null>(initialSort ?? null);
   const [desc, setDesc] = useState(initialDesc);
@@ -216,6 +247,34 @@ export function DataTable<T>({
   // Only tall pages get an internal scroller. Applying max-height unconditionally
   // would put a scrollbar inside a five-row table, which looks broken.
   const scrolls = visible.length > 25;
+
+  // An explicit cap overrides that heuristic, and is applied as a real inline
+  // style rather than an arbitrary-value Tailwind class: the value comes from
+  // the caller at runtime, and Tailwind can only generate classes it saw in the
+  // source at build time.
+  const capped = maxBodyHeight !== undefined;
+  const bodyMaxHeight = !capped
+    ? undefined
+    : maxBodyHeight === true
+      ? DEFAULT_MAX_BODY_HEIGHT
+      : typeof maxBodyHeight === "number"
+        ? `${maxBodyHeight}px`
+        : maxBodyHeight;
+
+  /**
+   * Sticky classes for the first cell of a row when the label column is frozen.
+   * `left-0` pins it to the scroller's edge; the opaque background stops the
+   * columns sliding underneath from showing through; the `after` hairline gives
+   * the frozen edge a visible seam so it reads as pinned rather than misaligned.
+   * The header cell sits a layer above the body cells so the two stickies do not
+   * fight where they cross.
+   */
+  const frozenCell = (index: number, isHeader: boolean) =>
+    freezeFirstColumn && index === 0
+      ? `sticky left-0 ${isHeader ? "z-20" : "z-10"} bg-[var(--surface)] ${
+          isHeader ? "" : "group-hover:bg-[var(--surface-hover)]"
+        } after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-[var(--border)]`
+      : "";
 
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
@@ -352,7 +411,10 @@ export function DataTable<T>({
         <>
           <div
             ref={scrollRef}
-            className={`overflow-x-auto ${scrolls ? "max-h-[70vh] overflow-y-auto" : ""}`}
+            className={`overflow-x-auto ${
+              capped ? "overflow-y-auto" : scrolls ? "max-h-[70vh] overflow-y-auto" : ""
+            }`}
+            style={bodyMaxHeight ? { maxHeight: bodyMaxHeight } : undefined}
           >
             <table className="w-full border-collapse">
               <thead
@@ -362,7 +424,7 @@ export function DataTable<T>({
                 className="sticky top-0 z-10 bg-[var(--surface)] shadow-[0_1px_0_var(--border)]"
               >
                 <tr>
-                  {columns.map((c) => {
+                  {columns.map((c, i) => {
                     const active = sortKey === c.key;
                     const sortable = Boolean(c.compare);
                     return (
@@ -372,7 +434,7 @@ export function DataTable<T>({
                         aria-sort={active ? (desc ? "descending" : "ascending") : "none"}
                         className={`whitespace-nowrap px-4 py-2 font-mono text-[10px] font-medium tracking-[0.1em] ${
                           c.align === "right" ? "text-right" : "text-left"
-                        } ${active ? "text-[var(--accent)]" : "text-[var(--text-faint)]"} ${c.className ?? ""}`}
+                        } ${active ? "text-[var(--accent)]" : "text-[var(--text-faint)]"} ${frozenCell(i, true)} ${c.className ?? ""}`}
                       >
                         {sortable ? (
                           <button
@@ -403,14 +465,14 @@ export function DataTable<T>({
                 {visible.map((r) => (
                   <tr
                     key={rowKey(r)}
-                    className="border-b border-[var(--divider)] transition-colors last:border-0 hover:bg-[var(--surface-hover)]"
+                    className="group border-b border-[var(--divider)] transition-colors last:border-0 hover:bg-[var(--surface-hover)]"
                   >
-                    {columns.map((c) => (
+                    {columns.map((c, i) => (
                       <td
                         key={c.key}
                         className={`px-4 py-2 text-[12px] ${
                           c.align === "right" ? "text-right" : "text-left"
-                        } ${c.className ?? ""}`}
+                        } ${frozenCell(i, false)} ${c.className ?? ""}`}
                       >
                         {c.cell(r)}
                       </td>

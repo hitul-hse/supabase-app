@@ -1,0 +1,328 @@
+/**
+ * No page in this app is taller than three screens, and no table dumps its whole
+ * result set into the document.
+ *
+ * THE REPORTED BUG. "Fix long-scrolling tables for all the tables in the whole app
+ * and for future reference as well." Measured in a real browser at 1440x900 against
+ * production before this work:
+ *
+ *   /dashboard/management?tab=customers   17.7 screens   177 rows in ONE unpaged table
+ *   /dashboard/management?tab=risks         4.3 screens    17 rows
+ *   /team-lead                              3.7 screens     8 rows (49 people in prod)
+ *   /time/dashboard                         2.9 screens     8 rows
+ *   /admin/roles                            2.6 screens    37 rows
+ *
+ * The static audit (scripts/audit-tables.mjs) found 7 tables with nothing bounding
+ * their row count and 9 with no sticky header. The row counts above are what today's
+ * data happens to be; the defect is that NOTHING CAPS THEM. 17 rows in the risks tab
+ * is 170 the month a service is onboarded, and no code change is needed for that.
+ *
+ * WHY THIS IS MEASURED IN THE BROWSER, in pixels and in <tr> elements. The complaint
+ * is about the height of a document, so the assertion has to be the height of a
+ * document. Every one of these tables is a client component, so server HTML
+ * undercounts the rows badly -- a fetch-and-regex gate would report the risks tab as
+ * clean. And a source check ("does it import DataTable?") passes on a page that
+ * imports the primitive and then renders `pageSize="all"`.
+ *
+ * WHY 3 SCREENS
+ * -------------
+ * Not a round number picked to be safe. At 1440x900 these pages spend roughly:
+ *   ~0.35 screen  SyncBar + PageHeader + tab or filter row
+ *   ~0.30 screen  the KPI tile strip
+ *   ~0.60 screen  a chart, where the page has one
+ *   ~1.00 screen  the first page of a 25-row table (rule 2 in DESIGN.md)
+ * which is about 2.25. Three leaves a third of a screen of slack for a second panel
+ * or a footnote without licensing a second unbounded table. It is deliberately
+ * TIGHTER than check-page-length.mjs's 6: that gate was catching an appending pager
+ * on three specific surfaces, this one sets the house ceiling for every route.
+ *
+ * The two /projects-family routes are pinned at a wider budget, documented at
+ * ROUTE_BUDGETS below, because they carry a genuinely different amount of furniture
+ * above the rows -- and they are pinned per route rather than raising the default,
+ * so the exception is visible and countable rather than a weaker rule for everyone.
+ *
+ * WHY 60 ROWS
+ * -----------
+ * The page size is 25 and the largest offered page is 100, so a table rendering more
+ * than 60 <tr> is not on a default page and not on a 25/50 page either: it is either
+ * unpaged or someone shipped `defaultPageSize: "all"`. 60 sits in the dead zone
+ * between those, which makes the assertion unambiguous. A reader who picks ALL
+ * themselves is fine -- this is measured ON FIRST LOAD only.
+ *
+ * WHAT IS ASSERTED, per route
+ *   1. The document opens within its budget.
+ *   2. No single table renders more than MAX_ROWS rows on first load.
+ *   3. Every table with more than 15 rows has a sticky header -- past ~15 rows the
+ *      header leaves the screen, so the columns become unlabelled numbers.
+ *   4. Any table that IS paged states its total ("1-25 of 177"), so a bounded list
+ *      is not misread as a truncated one.
+ *
+ * SKIPS CLEANLY WITHOUT CREDENTIALS. Every route here is behind auth, so with no
+ * .env.local there is nothing to measure and the gate exits 0 with a stated reason.
+ * CI without secrets stays green; CI with them gets the real verdict. Silence would
+ * be worse than either.
+ *
+ * Run: npm run check:table-scroll-budget
+ */
+import { existsSync, readFileSync } from "node:fs";
+
+const ENV_PATH = "C:/Supabase/.env.local";
+
+/* ── skip path: no credentials, nothing to measure ─────────────────────── */
+if (!existsSync(".env.local") && !existsSync(ENV_PATH)) {
+  console.log("SKIP: no .env.local, so no session can be minted for these authed routes");
+  process.exit(0);
+}
+
+const env = Object.fromEntries(
+  readFileSync(existsSync(".env.local") ? ".env.local" : ENV_PATH, "utf8")
+    .split(/\r?\n/)
+    .filter((l) => l && !l.startsWith("#") && l.includes("="))
+    .map((l) => {
+      const i = l.indexOf("=");
+      return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, "")];
+    }),
+);
+
+if (!env.SUPABASE_SERVICE_ROLE_KEY || !env.NEXT_PUBLIC_SUPABASE_URL) {
+  console.log("SKIP: no service-role key in .env.local, so no session can be minted");
+  process.exit(0);
+}
+
+let chromium;
+try {
+  ({ chromium } = await import("playwright"));
+} catch {
+  console.log("SKIP: playwright is not installed in this environment");
+  process.exit(0);
+}
+
+const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
+const EMAIL = process.env.GATE_EMAIL ?? "bjoern.schoenemann@hs-experts.com";
+
+const VIEWPORT_H = 900;
+/** The house ceiling, in screens. Justified in the header comment. */
+const MAX_SCREENS = 3;
+/**
+ * Pinned exceptions, per route, each with the reason it earns one.
+ *
+ * A route is listed here only when the furniture ABOVE its rows is genuinely
+ * bigger, never because its table is long -- a long table is the bug.
+ */
+const ROUTE_BUDGETS = {
+  // Insight cards ("where the hours go"), a filter bar and a KPI strip sit above
+  // the 334-row ledger, and check-page-length.mjs already owns its pager.
+  "/projects": 6,
+  // Two chart rows plus the grouped breakdown; the same 6 that gate uses.
+  "/time/dashboard": 6,
+};
+/** More rows than any offered page size below "all" -- see header comment. */
+const MAX_ROWS = 60;
+/** Past this many rows the header scrolls away, so it has to be sticky. */
+const STICKY_FLOOR = 15;
+
+/**
+ * Every authed route with a page.tsx, plus the Management tabs, which are separate
+ * documents behind ?tab= and were the worst offender by a factor of four. Dynamic
+ * segments are excluded: they need a real id, and the shape they render is the
+ * detail-page shape rather than a ledger.
+ */
+const ROUTES = [
+  "/",
+  "/my-work",
+  "/projects",
+  "/people",
+  "/leave",
+  "/profile",
+  "/timesheets",
+  "/time",
+  "/time/dashboard",
+  "/team-lead",
+  "/admin/roles",
+  "/admin/users",
+  "/admin/alerts",
+  "/customer-master/import-review",
+  "/dashboard/management?tab=overview",
+  "/dashboard/management?tab=employees",
+  "/dashboard/management?tab=customers",
+  "/dashboard/management?tab=risks",
+];
+
+let failed = 0;
+const check = (name, ok, detail = "") => {
+  if (!ok) failed += 1;
+  console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
+};
+
+/* ── sign in exactly the way measure-management-tabs.mjs does ───────────── */
+const gen = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/generate_link`, {
+  method: "POST",
+  headers: {
+    apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    type: "magiclink",
+    email: EMAIL,
+    options: { redirect_to: `${SITE}/auth/callback` },
+  }),
+});
+const linkBody = await gen.json();
+const hashed = linkBody?.properties?.hashed_token ?? linkBody?.hashed_token;
+if (!hashed) {
+  console.log(`SKIP: could not mint a magic link for ${EMAIL} (${gen.status})`);
+  process.exit(0);
+}
+
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 1440, height: VIEWPORT_H } });
+const page = await ctx.newPage();
+
+/**
+ * Measure the document and every table in it.
+ *
+ * `rows` counts <tr> in tbody, which is what the reader scrolls past. `sticky` is
+ * read from computed style rather than from a class name, because the class can be
+ * present on a th whose ancestor has `overflow: hidden` and pins nothing.
+ */
+const shapeOf = () => {
+  const vh = window.innerHeight;
+  const sh = document.documentElement.scrollHeight;
+  return {
+    screens: +(sh / vh).toFixed(2),
+    px: sh,
+    // The count line, wherever it is on the page.
+    statesTotal:
+      /\d+\s*[–-]\s*\d+\s+of\s+[\d.,]+|all\s+[\d.,]+\s+rows|\d+\s*\/\s*\d+/i.test(
+        document.body.innerText,
+      ),
+    tables: [...document.querySelectorAll("table")].map((t) => {
+      // Nearest enclosing card heading names the table in the failure message.
+      let n = t;
+      let title = "";
+      while (n && !title) {
+        n = n.parentElement;
+        const h = n?.querySelector?.("h2,h3,h4");
+        if (h) title = (h.textContent ?? "").trim().slice(0, 44);
+        if (n === document.body) break;
+      }
+      const head = [...t.querySelectorAll("thead th")];
+      return {
+        title: title || "(untitled)",
+        rows: t.querySelectorAll("tbody tr").length,
+        cols: head.length,
+        sticky:
+          head.some((th) => getComputedStyle(th).position === "sticky") ||
+          [...t.querySelectorAll("thead")].some(
+            (th) => getComputedStyle(th).position === "sticky",
+          ),
+      };
+    }),
+  };
+};
+
+try {
+  await page.goto(
+    `${SITE}/auth/callback?token_hash=${hashed}&type=magiclink&next=%2F`,
+    { waitUntil: "networkidle", timeout: 120_000 },
+  );
+  console.log(`signed in as ${EMAIL}, landed on ${page.url()}\n`);
+
+  // A first-run tour overlay covers the content and makes every table read as
+  // empty (learned the hard way in inspect-page-shape.mjs).
+  for (const label of ["Skip tour", "Skip", "Close", "Dismiss"]) {
+    const btn = page.getByRole("button", { name: label, exact: false });
+    if (await btn.count().catch(() => 0)) {
+      try {
+        await btn.first().click({ timeout: 2000 });
+        await page.waitForTimeout(300);
+        break;
+      } catch {
+        /* not the overlay's button */
+      }
+    }
+  }
+
+  const measured = [];
+
+  for (const route of ROUTES) {
+    const budget = ROUTE_BUDGETS[route.split("?")[0]] ?? MAX_SCREENS;
+    let m;
+    try {
+      await page.goto(`${SITE}${route}`, { waitUntil: "networkidle", timeout: 90_000 });
+      await page.waitForTimeout(1400); // let client tables hydrate and settle
+      m = await page.evaluate(shapeOf);
+    } catch (e) {
+      // A route that cannot be measured is not a pass. It is also not a scroll
+      // failure, so it is reported distinctly rather than counted as one.
+      check(`${route}: renders`, false, e.message.split("\n")[0].slice(0, 110));
+      continue;
+    }
+
+    measured.push({ route, ...m, budget });
+
+    // ── 1. the document fits its budget ──────────────────────────────────
+    check(
+      `${route}: opens within ${budget} screens`,
+      m.screens <= budget,
+      `${m.px}px = ${m.screens} screens at ${VIEWPORT_H}px tall` +
+        (budget !== MAX_SCREENS ? ` (pinned budget, house default is ${MAX_SCREENS})` : ""),
+    );
+
+    // ── 2. no table dumps its result set ─────────────────────────────────
+    const flood = m.tables.filter((t) => t.rows > MAX_ROWS);
+    check(
+      `${route}: no table renders more than ${MAX_ROWS} rows on first load`,
+      flood.length === 0,
+      flood.length
+        ? flood.map((t) => `"${t.title}" rendered ${t.rows} rows`).join("; ") +
+          " — page it through src/components/data-table/DataTable.tsx"
+        : `${m.tables.length} table(s), biggest ${m.tables.reduce((a, t) => Math.max(a, t.rows), 0)} rows`,
+    );
+
+    // ── 3. a table long enough to outscroll its header pins it ───────────
+    const naked = m.tables.filter((t) => t.rows > STICKY_FLOOR && !t.sticky);
+    check(
+      `${route}: every table over ${STICKY_FLOOR} rows keeps its header on screen`,
+      naked.length === 0,
+      naked.length
+        ? naked.map((t) => `"${t.title}" (${t.rows} rows, ${t.cols} cols) has no sticky header`).join("; ")
+        : "no unpinned long table",
+    );
+
+    // ── 4. a bounded list says how much it is bounding ───────────────────
+    // Only asserted where there is something to bound: a page whose biggest
+    // table is 8 rows has no total to state and no reader to mislead.
+    const biggest = m.tables.reduce((a, t) => Math.max(a, t.rows), 0);
+    if (biggest >= STICKY_FLOOR) {
+      check(
+        `${route}: states how many rows are on screen out of the total`,
+        m.statesTotal,
+        m.statesTotal
+          ? ""
+          : `biggest table is ${biggest} rows and nothing on the page says "X-Y of N" — a bounded list reads as a truncated one`,
+      );
+    }
+  }
+
+  /* ── the summary table, so a red build says WHERE in one glance ───────── */
+  console.log(`\n${"route".padEnd(42)} ${"screens".padStart(8)} ${"budget".padStart(7)} ${"tables".padStart(7)} ${"biggest".padStart(8)} sticky`);
+  for (const m of measured.sort((a, b) => b.screens - a.screens)) {
+    const biggest = m.tables.reduce((a, t) => Math.max(a, t.rows), 0);
+    console.log(
+      `${m.route.padEnd(42)} ${String(m.screens).padStart(8)} ${String(m.budget).padStart(7)} ${String(m.tables.length).padStart(7)} ${String(biggest).padStart(8)}   ${
+        m.tables.length === 0 ? "-" : m.tables.every((t) => t.sticky || t.rows <= STICKY_FLOOR) ? "Y" : "."
+      }${m.screens > m.budget ? "   <- OVER BUDGET" : ""}`,
+    );
+  }
+} finally {
+  await browser.close();
+}
+
+console.log(
+  failed === 0
+    ? `\nTABLE SCROLL BUDGET: all checks passed (${MAX_SCREENS}-screen ceiling, ${MAX_ROWS}-row cap)`
+    : `\n${failed} check(s) failed`,
+);
+process.exitCode = failed === 0 ? 0 : 1;

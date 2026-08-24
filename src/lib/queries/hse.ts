@@ -361,80 +361,19 @@ export async function getOverviewCounts(supabase: SupabaseTyped): Promise<{
   };
 }
 
-/** Monday of the current ISO week, as a YYYY-MM-DD string -- matches Postgres's date_trunc('week', now()). */
-export function currentWeekStart(): string {
-  const now = new Date();
-  const isoDayOfWeek = (now.getUTCDay() + 6) % 7; // Mon=0 .. Sun=6
-  const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() - isoDayOfWeek);
-  return monday.toISOString().slice(0, 10);
-}
-
-/** Monday of the week `deltaWeeks` away from the given week_start (negative = earlier). */
-export function shiftWeekStart(weekStart: string, deltaWeeks: number): string {
-  const d = new Date(weekStart + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + deltaWeeks * 7);
-  return d.toISOString().slice(0, 10);
-}
-
-/**
- * The current user's own timesheet entries for the given week (defaults to
- * the current week), grouped back into one row per task with a 7-day hours
- * array. Scoped explicitly to the caller's own person_id (not just relying
- * on RLS): an exec can VIEW everyone's entries, but this page is "my own
- * timesheet", and grouping by entry_group alone -- without a person filter --
- * would merge different people's rows together if their entry_group numbers
- * ever collide.
+/*
+ * currentWeekStart(), shiftWeekStart() and getTimesheetEntries() MOVED to
+ * src/lib/queries/timesheets.ts.
+ *
+ * Not merely relocated for tidiness. public.timesheet_entries held 28 rows and
+ * every one was mockup data for the seeded, inactive person 'emp-1'; they are
+ * deleted in supabase/migrations/delete_mockup_timesheet_rows.sql. The reader
+ * gained a state the old one could not express (an account with no linked person
+ * is not an empty week), so the old signature is GONE rather than left exported
+ * beside the new one: a dead export returning the same rows is how mockup data
+ * survives a rewire, which is the lesson check-no-mockup-people.mjs already paid
+ * for with getTeamLeadBoard.
  */
-export async function getTimesheetEntries(
-  supabase: SupabaseTyped,
-  weekStart: string = currentWeekStart(),
-): Promise<TimesheetDayEntry[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  const { data: profile } = await supabase
-    .from("app_user_profile")
-    .select("person_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!profile?.person_id) return [];
-
-  const { data } = await supabase
-    .from("timesheet_entries")
-    .select("*")
-    .eq("person_id", profile.person_id)
-    .eq("week_start", weekStart)
-    .order("entry_group")
-    .order("day_of_week");
-
-  const byGroup = new Map<number, TimesheetDayEntry>();
-
-  for (const row of data ?? []) {
-    if (!byGroup.has(row.entry_group)) {
-      byGroup.set(row.entry_group, {
-        entryGroup: row.entry_group,
-        taskName: row.task_name,
-        projectName: row.project_name,
-        isBillable: row.is_billable,
-        customer: row.customer,
-        warning: row.warning,
-        status: row.status,
-        rejectionNote: row.rejection_note ?? null,
-        hours: [0, 0, 0, 0, 0, 0, 0],
-        dayRowIds: [null, null, null, null, null, null, null],
-      });
-    }
-    const group = byGroup.get(row.entry_group)!;
-    group.hours[row.day_of_week] = Number(row.hours);
-    group.dayRowIds[row.day_of_week] = row.id;
-  }
-
-  return Array.from(byGroup.values());
-}
 
 /**
  * The task board for a TrackingTime project.

@@ -164,7 +164,15 @@ console.log("\nEvery nav link points at a route that will actually deploy:\n");
 console.log("\nA mandatory explanation is shown to the person it is about:\n");
 {
   const actions = read("src/app/(app)/team-lead/actions.ts");
-  const query = read("src/lib/queries/hse.ts");
+  /*
+   * The grid's reader MOVED from queries/hse.ts to queries/timesheets.ts when the
+   * 28 seeded mockup rows were deleted from public.timesheet_entries (see
+   * supabase/migrations/delete_mockup_timesheet_rows.sql). This assertion named
+   * hse.ts, so the move broke it -- correctly. The chain it traces is "a mandatory
+   * explanation reaches the person it is about", and the query is one link in that
+   * chain wherever the query happens to live.
+   */
+  const query = read("src/lib/queries/timesheets.ts");
   const types = read("src/lib/queries/types.ts");
   const grid = read("src/app/(app)/timesheets/TimesheetGrid.tsx");
 

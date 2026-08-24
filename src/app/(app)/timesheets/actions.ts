@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
-import { currentWeekStart } from "@/lib/queries/hse";
+import { currentWeekStart } from "@/lib/queries/timesheets";
 import { parseDuration } from "@/lib/duration";
 
 export type AddEntryState = { status: "idle" | "success" | "error"; message?: string };

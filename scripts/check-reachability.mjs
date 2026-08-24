@@ -37,6 +37,7 @@
  * Run: node scripts/check-reachability.mjs
  */
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
@@ -104,6 +105,59 @@ console.log("\nEvery page has a way in:\n");
       !mountsTabs(`<PageHeader title="x" />`) &&
       // And a renamed component must not satisfy it either.
       !mountsTabs(`<RecordsTabsDisabled />`),
+  );
+}
+
+console.log("\nEvery nav link points at a route that will actually deploy:\n");
+{
+  /*
+   * THE FAILURE THIS CATCHES, WHICH HAS NOW HAPPENED TWICE
+   * -----------------------------------------------------
+   * A nav entry ships in one commit; the page it points at is left UNTRACKED.
+   * Locally everything is perfect -- the link renders, the route resolves, the
+   * build registers it, every gate is green -- because the page is sitting right
+   * there on disk. Vercel builds from the repository, so it gets the link and
+   * not the page, and the user clicks a live nav item and receives a 404.
+   *
+   * The comment at the top of this file already describes this shape ("it was
+   * never committed, so it existed locally and in no deployed build") for a
+   * single link. This is the general form: `git status` shows the page as an
+   * ordinary untracked file among dozens, and nothing else in the toolchain
+   * distinguishes "on disk" from "in the commit".
+   *
+   * So the question is deliberately NOT "does this file exist" -- fs.existsSync
+   * would pass in exactly the situation that breaks production. It is "is this
+   * file in HEAD", which is the only thing a deploy can see.
+   */
+  const trackedFiles = new Set(
+    execSync("git ls-tree -r HEAD --name-only", { maxBuffer: 1e8 })
+      .toString()
+      .split(/\r?\n/)
+      .filter(Boolean),
+  );
+
+  const nav = read("src/components/SidebarNav.tsx");
+  const hrefs = [...nav.matchAll(/href:\s*"(\/[^"]*)"/g)].map((m) => m[1]);
+
+  // "/" is the (app) group's own page.tsx; the rest map to a directory.
+  const pageFor = (href) =>
+    href === "/"
+      ? "src/app/(app)/page.tsx"
+      : `src/app/(app)${href}/page.tsx`;
+
+  const unresolved = hrefs.filter((h) => !trackedFiles.has(pageFor(h)));
+
+  check(
+    "every SidebarNav href resolves to a page committed in HEAD",
+    unresolved.length === 0,
+    unresolved.length
+      ? `${unresolved.join(", ")} — link ships, page does not`
+      : `${hrefs.length} links, all backed by a tracked page`,
+  );
+
+  check(
+    "negative control: a link to an uncommitted page WOULD be caught",
+    !trackedFiles.has("src/app/(app)/definitely-not-a-real-route/page.tsx"),
   );
 }
 

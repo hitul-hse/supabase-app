@@ -1,0 +1,309 @@
+{
+  "generatedAt": "2026-08-24T15:11:52.228Z",
+  "mode": "apply",
+  "inferFromService": false,
+  "projectsTotal": 231,
+  "populated": 176,
+  "distribution": {
+    "OPERATIONS": 111,
+    "ORGA": 65
+  },
+  "byTier": {
+    "B owner profile": 176
+  },
+  "leftNullCount": 55,
+  "leftNullReasons": {
+    "no owner and no responsible": 55
+  },
+  "leftNull": [
+    {
+      "id": "10151_00111_701_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10175_00022_501_01",
+      "contract_type": "Brandschutz",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10177_00015_701_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10198_00041_701_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10203_00053_104_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10305_00404_501_01",
+      "contract_type": "Brandschutz",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10342_00172_702_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10383_00203_702_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10443_00382_701_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10443_00383_701_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10443_00384_701_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10463_00337_401_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10463_00338_104_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10511_00274_601_01",
+      "contract_type": "SiGeKo",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10565_00401_301_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10565_00402_401_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10565_00403_701_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10634_0_4_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10724_00332_104_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10744_00352_205_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10766_00341_104_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10766_00342_205_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10766_00343_401_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10787_00373_203_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10811_00318_601_01",
+      "contract_type": "SiGeKo",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10818_00389_701_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10818_00390_401_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10818_00391_301_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10848_00345_402_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10848_00345_405_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10869_00333_606_01",
+      "contract_type": "SiGeKo",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10872_00386_301_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10872_00387_401_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10878_00392_401_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10878_00394_104_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10880_00393_111_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10881_00347_104_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10881_00348_205_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10897_00353_401_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10897_00355_205_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10899_00406_403_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10905_00357__01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10905_00357_205_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10919_00397_301_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10927_00409_205_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10929_00398_412_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10932_00399_403_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10932_00400_104_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10932_00405_205_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10940_00407_104_01",
+      "contract_type": "DGUV V2: Sifa",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10940_00407_401_01",
+      "contract_type": "Reteach Training",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10940_00407_403_01",
+      "contract_type": "H&S Consulting",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10940_00407_501_01",
+      "contract_type": "Brandschutz",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10940_00407_605_01",
+      "contract_type": "SiGeKo",
+      "why": "no owner and no responsible"
+    },
+    {
+      "id": "10940_00408_205_01",
+      "contract_type": "Betriebsarzt",
+      "why": "no owner and no responsible"
+    }
+  ],
+  "corroboration": {
+    "bothSources": 148,
+    "agree": 148,
+    "conflict": 0
+  },
+  "serviceMapObserved": {
+    "DGUV V2: Sifa": "OPERATIONS",
+    "Betriebsarzt": "ORGA",
+    "Reteach Training": "OPERATIONS",
+    "Brandschutz": "OPERATIONS",
+    "H&S Consulting": "OPERATIONS",
+    "SiGeKo (Enercon)": "OPERATIONS",
+    "SiGeKo": "OPERATIONS"
+  }
+}

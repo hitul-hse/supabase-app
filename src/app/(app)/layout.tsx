@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileSidebarDrawer } from "@/components/MobileSidebar";
+import { createClient } from "@/utils/supabase/server";
+import { getProfileView } from "@/lib/queries/profile";
 import OnboardingTour from "@/components/OnboardingTour";
 import { SidebarCollapseProvider } from "@/components/SidebarCollapseContext";
 // NOT from SidebarCollapseContext: that module is "use client", so a server
@@ -26,6 +28,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const cookieStore = await cookies();
   const collapsed = cookieStore.get(SIDEBAR_COOKIE)?.value === "1";
 
+  /*
+    Role for the mobile tab bar. This looks like a second profile read on every
+    page, and is not: getProfileView is wrapped in oncePerRequest, and <Sidebar/>
+    below already calls it during the same render, so the two share one result.
+    Resolved on the SERVER so the tab bar renders its correct shape in the first
+    byte of HTML rather than flashing the wrong tabs until hydration.
+  */
+  let roleKey: string | null = null;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const profile = await getProfileView(supabase, user.id, user.email ?? null);
+      roleKey = profile?.roleKey ?? null;
+    }
+  } catch {
+    // An unconfigured or unreachable Supabase must not blank the whole shell.
+    // The tab bar falls back to the four ungated defaults, which is right:
+    // none of them is role-gated in NAV_GROUPS.
+    roleKey = null;
+  }
+
   return (
     <SidebarCollapseProvider initialCollapsed={collapsed}>
     <div className="flex min-h-screen">
@@ -45,8 +69,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         the panel -- and therefore the control -- permanently on screen.
       */}
 
-      {/* Mobile: drawer wrapping the same Sidebar content */}
-      <MobileSidebarDrawer>
+      {/* Mobile: drawer wrapping the same Sidebar content, plus the bottom tab
+          bar (rendered inside the drawer component, which owns the open state
+          the "More" tab both sets and reflects). */}
+      <MobileSidebarDrawer roleKey={roleKey}>
         <Sidebar />
       </MobileSidebarDrawer>
 
@@ -64,7 +90,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         table headers on /time/dashboard silently did nothing -- the classes were
         present and correct, and the headers still scrolled away.
       */}
-      <main className="flex min-w-0 flex-1 flex-col overflow-x-clip pt-12 lg:pt-0">
+      {/*
+        pb-[76px] on mobile: the tab bar is fixed, so it is out of flow and
+        would otherwise cover the last ~76px of every page — which on a table
+        is the pager, i.e. the control you need exactly when you have scrolled
+        to the bottom. 56px of bar + 20px of breathing room, and the bar's own
+        env(safe-area-inset-bottom) padding sits inside that.
+      */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-x-clip pt-12 pb-[76px] lg:pt-0 lg:pb-0">
         <TimerBarSlot />
         {children}
       </main>

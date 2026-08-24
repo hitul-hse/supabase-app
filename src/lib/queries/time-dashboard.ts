@@ -26,6 +26,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { secondsToHours } from "@/lib/time-transform";
+import { oncePerRequest } from "./request-cache";
 
 type SupabaseTyped = SupabaseClient<Database>;
 /** See queries/time.ts — `time` is absent from the generated `public` types. */
@@ -563,10 +564,24 @@ const MISSING_AFTER_HOURS = 24 * 7;
  * Degrades to a null/`missing` shape rather than throwing: `raw` may not be
  * exposed in a given environment, and a dashboard that 500s over its own
  * freshness widget is worse than one that admits it does not know.
+ * MEMOISED PER REQUEST. <SyncBar/> renders this on nearly every page, and
+ * /projects and /time/dashboard then request the same source AGAIN inside
+ * their own Promise.all -- two identical multi-round-trip reads of raw.sync_run
+ * per navigation. Keyed by source; request-scoped only (see request-cache.ts).
+ * This one is not even user-specific -- pipeline freshness is the same fact for
+ * everyone -- but it is still kept request-scoped rather than cached across
+ * requests, so a sync that finishes mid-session is never reported stale.
  */
 export async function getSyncFreshness(
   supabase: SupabaseTyped,
   source = "trackingtime",
+): Promise<SyncFreshness> {
+  return oncePerRequest(`syncFreshness:${source}`, () => loadSyncFreshness(supabase, source));
+}
+
+async function loadSyncFreshness(
+  supabase: SupabaseTyped,
+  source: string,
 ): Promise<SyncFreshness> {
   const empty: SyncFreshness = {
     lastSuccessAt: null,

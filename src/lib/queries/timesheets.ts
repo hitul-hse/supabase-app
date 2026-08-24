@@ -29,6 +29,7 @@
  * caller handle them separately.
  */
 import type { SupabaseTyped, TimesheetDayEntry } from "@/lib/queries/types";
+import { getSignedInUser } from "./request-cache";
 
 /** Monday of the current ISO week, YYYY-MM-DD — matches Postgres's date_trunc('week', now()). */
 export function currentWeekStart(): string {
@@ -72,9 +73,9 @@ export async function getTimesheetWeek(
   supabase: SupabaseTyped,
   weekStart: string = currentWeekStart(),
 ): Promise<TimesheetWeek> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Memoised per request -- see getSignedInUser()/request-cache.ts. The auth
+  // check is a network round trip, and the shell already made it this render.
+  const user = await getSignedInUser(supabase);
   if (!user) return { state: "no-person", entries: [] };
 
   const { data: profile } = await supabase

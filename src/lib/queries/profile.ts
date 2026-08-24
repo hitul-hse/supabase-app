@@ -1,4 +1,5 @@
 import type { SupabaseTyped } from "./types";
+import { oncePerRequest } from "./request-cache";
 
 export type ProfileView = {
   userId: string;
@@ -50,8 +51,26 @@ export function effectiveNameOf(displayName: string | null, personName: string |
  * The HR half comes from people and is read-only everywhere in this feature:
  * that table is destined for Factorial/TrackingTime sync, so a value edited
  * here would be overwritten with no conflict-resolution story.
+ * MEMOISED PER REQUEST. The shared app shell asks for this three times in a
+ * single render -- <Sidebar/> is mounted twice by (app)/layout.tsx (desktop
+ * shell + mobile drawer) and <TopBarChrome/> asks again -- and /profile then
+ * asks a fourth time. That was four identical round trips for ONE row, in
+ * series, on every navigation. Measured: the shared shell cost ~640ms of every
+ * page render while the heaviest real query in the app is 62ms.
+ *
+ * See request-cache.ts for why this is per-user safe. In short: the scope is a
+ * single render of a single request (not the Data Cache, not unstable_cache,
+ * nothing that outlives the request), and the key is the subject's own userId.
  */
 export async function getProfileView(
+  supabase: SupabaseTyped,
+  userId: string,
+  email: string | null,
+): Promise<ProfileView | null> {
+  return oncePerRequest(`profileView:${userId}`, () => loadProfileView(supabase, userId, email));
+}
+
+async function loadProfileView(
   supabase: SupabaseTyped,
   userId: string,
   email: string | null,

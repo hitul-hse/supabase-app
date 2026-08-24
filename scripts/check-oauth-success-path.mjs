@@ -450,7 +450,12 @@ check(
 );
 check(
   "the protected page rendered rather than bouncing to login",
-  !/Log in/i.test(ok.text) || ok.url.endsWith("/timesheets"),
+  // "Sign in", not "Log in": the login page's submit button and heading were
+  // renamed, and this sentinel is how we detect a silent bounce BACK to it.
+  // Left as "Log in" it would match nothing and quietly stop detecting — a
+  // check that cannot fail. Both spellings are accepted so the assertion does
+  // not break again on the next copy edit.
+  !/(Sign in|Log in)/i.test(ok.text) || ok.url.endsWith("/timesheets"),
 );
 
 // ── 2. next= must still be same-site here ──────────────────────────────────

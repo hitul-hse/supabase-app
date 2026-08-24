@@ -137,10 +137,11 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
               never looping: on a phone the form sits directly beneath it, so a
               perpetual animation would move right beside what someone is
               typing into. */}
-          <div className="flex flex-none items-center justify-between">
+          {/* DESKTOP lockup: small, top-left, because the 220px hero in the
+              identity panel beside it already carries the brand. */}
+          <div className="hidden flex-none items-center justify-between lg:flex">
             <div className="flex items-center gap-3">
-              <BrandMark size={30} animate className="flex-none lg:hidden" />
-              <BrandMark size={26} className="hidden flex-none lg:block" />
+              <BrandMark size={26} className="flex-none" />
               <div className="flex flex-col leading-[1.15]">
                 <span className="font-sans text-[15px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
                   HSE HUB
@@ -149,6 +150,39 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
                   HEALTH &amp; SAFETY EXPERTS
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/*
+            MOBILE hero. The identity panel is hidden below lg, so this is the
+            ONLY mark a phone user ever sees — and at 30px in the corner it was
+            a favicon, not a brand moment. The reference this page follows gives
+            its mark roughly a third of the screen with the wordmark centred
+            beneath it, and that is what this is: 96px, centred, with the rings
+            echoing the desktop hero so the two read as one design.
+
+            `animate` but NOT `loop`. On a phone the form sits directly beneath
+            this, so a perpetual animation would be moving right next to what
+            somebody is typing into. It plays once on arrival and then rests.
+          */}
+          <div className="relative flex flex-none flex-col items-center gap-3 pb-2 pt-2 lg:hidden">
+            <div aria-hidden className="pointer-events-none absolute inset-0 flex items-start justify-center pt-2">
+              {[210, 150].map((d) => (
+                <span
+                  key={d}
+                  className="absolute rounded-full border border-[var(--accent)] opacity-[0.07]"
+                  style={{ width: d, height: d }}
+                />
+              ))}
+            </div>
+            <BrandMark size={96} animate className="relative z-10 flex-none" />
+            <div className="relative z-10 flex flex-col items-center leading-[1.15]">
+              <span className="font-sans text-[17px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
+                HSE HUB
+              </span>
+              <span className="font-mono text-[9px] tracking-[0.14em] text-[var(--text-faint)]">
+                HEALTH &amp; SAFETY EXPERTS
+              </span>
             </div>
           </div>
 

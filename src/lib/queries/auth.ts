@@ -1,4 +1,5 @@
 import type { SupabaseTyped } from "./types";
+import { oncePerRequest } from "./request-cache";
 
 export type AppPermission = {
   permissionKey: string;
@@ -25,8 +26,26 @@ export type CurrentProfile = {
   personName: string | null;
 };
 
-/** The logged-in user's role/department/person, or null if no admin has provisioned a profile yet. */
+/**
+ * The logged-in user's role/department/person, or null if no admin has
+ * provisioned a profile yet.
+ *
+ * MEMOISED PER REQUEST. requirePermission() and requireProfile() each call
+ * this, and several pages then call it again directly after their own gate has
+ * already run -- the same single row, re-fetched over the network inside one
+ * render. See request-cache.ts for why this is per-user safe: the scope is one
+ * render of one request, and the key is the subject's own userId, so it can
+ * never serve one user's row to another.
+ */
 export async function getCurrentProfile(
+  supabase: SupabaseTyped,
+  userId: string,
+  email: string | null,
+): Promise<CurrentProfile | null> {
+  return oncePerRequest(`currentProfile:${userId}`, () => loadCurrentProfile(supabase, userId, email));
+}
+
+async function loadCurrentProfile(
   supabase: SupabaseTyped,
   userId: string,
   email: string | null,

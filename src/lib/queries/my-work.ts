@@ -58,6 +58,7 @@
  */
 import type { SupabaseTyped } from "./types";
 import { fetchAllPaged, PAGE } from "./paged";
+import { getSignedInUser } from "./request-cache";
 
 /* --------------------------------------------------------------- shapes */
 
@@ -739,9 +740,11 @@ function emptyWork(
  * common state — 11 of 20 provisioned accounts — and the page says so.
  */
 export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getSignedInUser(), not supabase.auth.getUser(): the shared app shell has
+  // already verified this same session two or three times in this very render
+  // (see request-cache.ts), and each raw call is a ~50ms network round trip to
+  // the auth server for an answer that cannot change mid-render.
+  const user = await getSignedInUser(supabase);
 
   if (!user) return emptyWork(null, null, true);
 

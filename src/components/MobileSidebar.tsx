@@ -9,29 +9,22 @@
  */
 
 import { useState, useEffect } from "react";
+import { MobileTabBar } from "./MobileTabBar";
 
 interface MobileSidebarProps {
   children: React.ReactNode;
+  /** Role key, for filtering the bottom tab bar the same way the sidebar is
+   *  filtered. Resolved server-side in the layout. */
+  roleKey?: string | null;
 }
 
-export function MobileSidebarToggle({ onOpen }: { onOpen: () => void }) {
-  return (
-    <button
-      onClick={onOpen}
-      aria-label="Open navigation"
-      className="flex h-8 w-8 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] lg:hidden"
-    >
-      {/* Hamburger icon */}
-      <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden>
-        <rect y="0" width="18" height="2" rx="1" fill="currentColor" />
-        <rect y="6" width="18" height="2" rx="1" fill="currentColor" />
-        <rect y="12" width="18" height="2" rx="1" fill="currentColor" />
-      </svg>
-    </button>
-  );
-}
+/* MobileSidebarToggle (the top-left hamburger) was deleted with the bottom tab
+   bar, not merely unmounted: it had one caller, and leaving an exported
+   component nobody renders invites somebody to put it back beside the tab bar
+   — two controls, opposite corners, opening the same drawer. "More" is the one
+   way in now. */
 
-export function MobileSidebarDrawer({ children }: MobileSidebarProps) {
+export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarProps) {
   const [open, setOpen] = useState(false);
 
   // Close on route change (pathname shift detected via popstate / pushstate)
@@ -53,9 +46,17 @@ export function MobileSidebarDrawer({ children }: MobileSidebarProps) {
 
   return (
     <>
-      {/* Mobile top bar — hamburger + brand mark */}
-      <div className="fixed top-0 left-0 right-0 z-30 flex h-12 items-center gap-3 border-b border-[var(--border)] bg-[var(--sidebar)] px-4 lg:hidden">
-        <MobileSidebarToggle onOpen={() => setOpen(true)} />
+      {/*
+        Mobile top bar. The hamburger is GONE from it: the bottom tab bar now
+        owns navigation, and two controls opening the same drawer from opposite
+        corners is a second way to do one thing. What is left is a title bar —
+        it still says where you are, and `pt-12` in the layout already reserves
+        its space.
+
+        pt-[env(safe-area-inset-top)] for the notch: without it the title sits
+        under the status bar in a home-screen/standalone context.
+      */}
+      <div className="fixed top-0 left-0 right-0 z-30 flex h-12 items-center gap-3 border-b border-[var(--border)] bg-[var(--sidebar)] px-4 pt-[env(safe-area-inset-top)] lg:hidden">
         <span className="font-sans text-[13px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
           HSE HUB
         </span>
@@ -95,6 +96,15 @@ export function MobileSidebarDrawer({ children }: MobileSidebarProps) {
           {children}
         </div>
       </div>
+
+      {/*
+        The bottom tab bar. Rendered here rather than in the layout because the
+        drawer's open state lives in this component and the "More" tab both
+        opens it and reflects it — lifting that state into the server layout is
+        not possible, and duplicating it would let the bar say "closed" while
+        the drawer is open.
+      */}
+      <MobileTabBar roleKey={roleKey} moreOpen={open} onOpenMore={() => setOpen(true)} />
     </>
   );
 }

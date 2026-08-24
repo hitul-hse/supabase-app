@@ -13,6 +13,7 @@ import {
   authLabelClass,
 } from "@/components/AuthShell";
 import { OAuthButtons } from "@/components/OAuthButtons";
+import { BiometricSignIn } from "@/components/BiometricSignIn";
 
 /**
  * Where to go after a successful login, restricted to this app.
@@ -87,9 +88,33 @@ function LoginForm() {
 
   return (
     <>
-      <AuthHeading eyebrow="HSE HUB / ACCESS" title="Log in" />
+      {/* "Sign in", not "Welcome back": /portal already greets the user with
+          "Welcome back, {name}." on the very next screen, and it can use their
+          actual name because by then we know it. Two "welcome back"s a second
+          apart, the first of them anonymous, reads as a template rather than as
+          the product recognising anyone. This heading names the ACTION. */}
+      <AuthHeading eyebrow="HSE HUB / ACCESS" title="Sign in" />
 
       {(error || linkError) && <AuthNotice tone="error">{error ?? linkError}</AuthNotice>}
+
+      {/*
+        Biometrics FIRST, above the OAuth buttons. On a phone this is the
+        fastest path by a wide margin — one tap and a glance, versus typing an
+        address and a password on a soft keyboard — and the reference this page
+        follows puts a single prominent sign-in action directly under the
+        heading rather than burying it beneath a form.
+
+        It renders NOTHING unless the device has a platform authenticator, the
+        page is a secure context, AND the Supabase project has passkeys enabled.
+        Today the last is false in production, so nothing appears here and the
+        page is exactly as it was — see BiometricSignIn's own note.
+      */}
+      <BiometricSignIn
+        redirectTo={redirectTo}
+        disabled={loading}
+        onError={(message) => setError(message || null)}
+        onSuccess={(to) => router.push(to)}
+      />
 
       {/* Single sign-on first: most staff already carry a Google session, so the
           password form below is the fallback rather than the default path.
@@ -159,7 +184,7 @@ function LoginForm() {
         </div>
 
         <button type="submit" disabled={loading} className={authButtonClass}>
-          {loading ? "Logging in..." : "Log in"}
+          {loading ? "Signing in…" : "Sign in"}
         </button>
       </form>
 

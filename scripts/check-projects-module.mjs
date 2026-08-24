@@ -95,9 +95,16 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
     }),
   );
 
+  /*
+   * The real Card module, not a stub: the tile checks below assert on rendered
+   * card markup, and a stub would let them pass while nothing rendered.
+   */
+  const cardFile = await compile("src/components/ui/Card.tsx", "Card.cjs", {});
+
   const panelsFile = await compile("src/app/(app)/projects/ProjectPanels.tsx", "ProjectPanels.cjs", {
     "@/lib/queries/projects-live": posix(stub),
     "next/link": posix(linkStub),
+    "@/components/ui/Card": posix(cardFile),
   });
   const panels = require(panelsFile);
 
@@ -575,14 +582,43 @@ module.exports = {
     /data-testid="project-totals"[^>]*class="[^"]*\bgap-/.test(stripHtml),
     "no gap- on the tile grid",
   );
+  /*
+   * PER TILE, not by counting. Both checks below used to count class
+   * occurrences across the whole strip, which measures a proxy: five hints
+   * could sit on two tiles, and the border pattern required the class to
+   * appear in the same tag AFTER data-tile (StatTile spreads it last, so the
+   * class comes first and the count silently went to zero).
+   *
+   * Splitting on data-tile gives one slice per tile, so "every tile has X" is
+   * asserted as written.
+   */
+  const tileSlices = stripHtml.split("data-tile=").slice(1);
   check(
-    "each tile carries its own border and surface",
-    (stripHtml.match(/data-tile=[^>]*border-\[var\(--border\)\]/g) ?? []).length === 5,
+    "each tile is its own bordered surface",
+    tileSlices.length === 5 &&
+      tileSlices.every(
+        (t) =>
+          t.includes("border-[var(--border)]") ||
+          /class="[^"]*\bcard-elev\b/.test(t),
+      ),
+    `${tileSlices.length} slice(s)`,
   );
   // Uneven card heights are what made the old row look broken: only two of five
   // cells had a sub-label, so three were visibly shorter.
-  const hintCount = (stripHtml.match(/text-\[var\(--text-faint\)\]/g) ?? []).length;
-  check("every tile carries a hint line, so heights match", hintCount === 5, `${hintCount} hints`);
+  /*
+   * TWO faint spans per tile, not one: StatTile paints the label faint AND the
+   * hint faint, so "has a hint" is "has a second faint span". A tile missing
+   * its hint measures 1 and is caught -- which a mere presence test would not
+   * do, because the label alone satisfies it.
+   */
+  const tilesWithHint = tileSlices.filter(
+    (t) => (t.match(/text-\[var\(--text-faint\)\]/g) ?? []).length >= 2,
+  ).length;
+  check(
+    "every tile carries a hint line, so heights match",
+    tilesWithHint === 5,
+    `${tilesWithHint} of ${tileSlices.length} tiles have a hint`,
+  );
   check(
     "a zero over-budget count is not painted red",
     !/data-tile="OVER BUDGET"[\s\S]{0,400}?var\(--critical\)/.test(stripHtml),

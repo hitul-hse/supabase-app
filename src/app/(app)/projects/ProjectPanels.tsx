@@ -11,6 +11,7 @@
  * healthy would be a confident false claim about a quarter of the portfolio.
  */
 import type { BurnPoint, ProjectContributor, ProjectTaskRow } from "@/lib/queries/projects-live";
+import { Card, StatTile } from "@/components/ui/Card";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
@@ -57,7 +58,7 @@ export function ProjectTotalsStrip({
       // Only paint it red when there is something to act on. A permanent red
       // "0" trains the reader to stop seeing the colour, which costs us the
       // one moment it needs to work.
-      color: overBudget > 0 ? "var(--critical)" : undefined,
+      tone: overBudget > 0 ? ("critical" as const) : undefined,
       hint: overBudget > 0 ? "needs attention" : "all within budget",
     },
     {
@@ -74,39 +75,24 @@ export function ProjectTotalsStrip({
     // independent facts. Gap does the grouping work that a shared border cannot.
     <div
       data-testid="project-totals"
-      className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5"
+      className="grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-5"
     >
+      {/*
+       * StatTile, not a local tile: it already encodes the baseline-aligned
+       * unit, the n/a-never-0 rule, and the tone scale. Every tile still
+       * carries a hint so the five cards keep equal height on one row -- the
+       * two-with-hints version had a visibly ragged row.
+       */}
       {cells.map((c) => (
-        <div
+        <StatTile
           key={c.label}
           data-tile={c.label}
-          className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3.5 sm:p-4"
-        >
-          <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-            {c.label}
-          </span>
-          {/* Baseline-aligned so the unit sits ON the number's baseline rather
-              than centred against a 24px glyph, which reads as a typo. */}
-          <span className="flex items-baseline gap-1">
-            <span
-              className="font-mono text-[22px] font-semibold leading-none tracking-[-0.02em] sm:text-[26px]"
-              style={{ color: c.color ?? "var(--text-primary)" }}
-            >
-              {c.value}
-            </span>
-            {c.unit && (
-              <span className="font-mono text-[12px] leading-none text-[var(--text-muted)]">
-                {c.unit}
-              </span>
-            )}
-          </span>
-          {/* Every tile carries a hint, so the five cards stay the same height
-              on a row. Without it the two that had one were taller and the row
-              looked broken. */}
-          <span className="font-mono text-[10px] leading-tight text-[var(--text-faint)]">
-            {c.hint}
-          </span>
-        </div>
+          label={c.label}
+          value={c.value}
+          unit={c.unit}
+          hint={c.hint}
+          tone={c.tone ?? "neutral"}
+        />
       ))}
     </div>
   );
@@ -140,12 +126,12 @@ export function BurnChart({
 }) {
   if (points.length === 0) {
     return (
-      <div className="border border-[var(--border)] bg-[var(--surface)] p-5">
+      <Card className="p-5">
         <span className="text-[13px] font-semibold text-[var(--text-primary)]">Hours over time</span>
         <p className="mt-3 font-mono text-[11px] text-[var(--text-faint)]">
           No time has been logged against this project yet.
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -165,7 +151,7 @@ export function BurnChart({
   const budgetY = budget === null ? null : y(budget);
 
   return (
-    <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-5">
+    <Card tone="hero" className="flex flex-col gap-3 p-5">
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="text-[13px] font-semibold text-[var(--text-primary)]">Hours over time</span>
         <span className="font-mono text-[10px] text-[var(--text-muted)]">
@@ -212,14 +198,14 @@ export function BurnChart({
         {points.length > 2 && <span>{points[Math.floor(points.length / 2)].label}</span>}
         <span>{points[points.length - 1].label}</span>
       </div>
-    </div>
+    </Card>
   );
 }
 
 export function ContributorTable({ rows }: { rows: ProjectContributor[] }) {
   return (
-    <div className="flex flex-col border border-[var(--border)] bg-[var(--surface)]">
-      <div className="border-b border-[var(--border)] px-4 py-3">
+    <Card className="flex flex-col">
+      <div className="border-b border-[var(--divider)] px-4 py-3">
         <span className="text-[12px] font-semibold text-[var(--text-primary)]">
           Who worked on this
         </span>
@@ -232,7 +218,7 @@ export function ContributorTable({ rows }: { rows: ProjectContributor[] }) {
         rows.map((r) => (
           <div
             key={r.memberId}
-            className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2 text-[12px] last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 text-[12px] last:border-b-0"
           >
             <span className="truncate text-[var(--text-primary)]">{r.memberName}</span>
             <span className="flex shrink-0 gap-4 font-mono text-[11px]">
@@ -243,15 +229,15 @@ export function ContributorTable({ rows }: { rows: ProjectContributor[] }) {
           </div>
         ))
       )}
-    </div>
+    </Card>
   );
 }
 
 export function TaskTable({ rows }: { rows: ProjectTaskRow[] }) {
   const shown = rows.slice(0, 20);
   return (
-    <div className="flex flex-col border border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex items-baseline justify-between border-b border-[var(--border)] px-4 py-3">
+    <Card className="flex flex-col">
+      <div className="flex items-baseline justify-between border-b border-[var(--divider)] px-4 py-3">
         <span className="text-[12px] font-semibold text-[var(--text-primary)]">Time by task</span>
         {rows.length > shown.length && (
           <span className="font-mono text-[10px] text-[var(--text-faint)]">
@@ -267,7 +253,7 @@ export function TaskTable({ rows }: { rows: ProjectTaskRow[] }) {
         shown.map((r) => (
           <div
             key={r.taskName}
-            className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2 text-[12px] last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 text-[12px] last:border-b-0"
           >
             <span className="truncate text-[var(--text-secondary)]">{r.taskName}</span>
             <span className="flex shrink-0 gap-4 font-mono text-[11px]">
@@ -277,6 +263,6 @@ export function TaskTable({ rows }: { rows: ProjectTaskRow[] }) {
           </div>
         ))
       )}
-    </div>
+    </Card>
   );
 }

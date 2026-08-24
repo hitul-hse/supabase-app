@@ -26,6 +26,7 @@ import type { OrgChartData, OrgNode, OrgMember } from "@/lib/queries/org-chart-l
 import { setSupervisor, setMemberDetails } from "./org-actions";
 import { teamLabel, teamOptionsFor } from "@/lib/teams";
 import { SearchableSelect } from "@/components/ui/Field";
+import { Card } from "@/components/ui/Card";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -169,12 +170,12 @@ export function OrgChartView({
   if (totalPeople === 0) {
     return (
       <div className="p-4 sm:p-6">
-        <div className="border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
+        <Card className="p-8 text-center">
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">No active people</p>
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
             Nobody in the TrackingTime roster is currently active.
           </p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -183,7 +184,7 @@ export function OrgChartView({
     <div className="flex flex-col gap-4 p-4 sm:p-6">
       {/* Completeness, stated up front. A chart is only as good as its coverage,
           and hiding that number is how a mostly-empty chart passes for finished. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+      <Card className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             Reporting structure
@@ -196,7 +197,7 @@ export function OrgChartView({
           {placedCount} OF {totalPeople} PLACED
           {teams.length > 0 && ` · ${teams.length} TEAM${teams.length === 1 ? "" : "S"}`}
         </span>
-      </div>
+      </Card>
 
       {/*
         * Say so when the picture is incomplete.
@@ -258,7 +259,7 @@ export function OrgChartView({
 
       {/* The tree */}
       {roots.length === 0 ? (
-        <div className="border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
+        <Card className="p-8 text-center">
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">
             No reporting lines recorded yet
           </p>
@@ -268,22 +269,24 @@ export function OrgChartView({
               ? "Use EDIT beside anyone below to record their manager, and the chart will build itself."
               : "Somebody with permission to edit people can record it."}
           </p>
-        </div>
+        </Card>
       ) : (
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
-          <div className="border-b border-[var(--border)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+        /* The chart CANVAS is a card; its node rows stay compact rows. A node
+           is a glyph in a diagram -- elevation per node turns it into a heap. */
+        <Card className="overflow-hidden">
+          <div className="border-b border-[var(--divider)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
             REPORTS TO
           </div>
           {roots.map((root) => (
             <NodeRow key={root.memberId} node={root} onEdit={setEditing} canEdit={canEdit} />
           ))}
-        </div>
+        </Card>
       )}
 
       {/* Unplaced, never hidden */}
       {unplaced.length > 0 && (
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
+        <Card className="overflow-hidden">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--divider)] px-4 py-2">
             <span className="text-[12px] font-semibold text-[var(--text-primary)]">
               Not yet placed
             </span>
@@ -295,7 +298,7 @@ export function OrgChartView({
             {unplaced.map((m) => (
               <div
                 key={m.memberId}
-                className="flex items-center gap-2.5 border-b border-[var(--border)] px-4 py-2 hover:bg-[var(--surface-hover)]"
+                className="flex items-center gap-2.5 border-b border-[var(--divider)] px-4 py-2 hover:bg-[var(--surface-hover)]"
               >
                 <span
                   aria-hidden
@@ -327,7 +330,7 @@ export function OrgChartView({
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* The editor. Inline rather than a modal: the list stays visible, which

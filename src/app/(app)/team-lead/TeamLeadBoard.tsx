@@ -27,6 +27,7 @@ import type { TeamLeadBoardData, BoardCell } from "@/lib/queries/team-lead-live"
 import { approveDecision, approveAllPending } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { IconCheck } from "@/components/nav-icons";
+import { Card, StatTile } from "@/components/ui/Card";
 
 /** Hours to one decimal, or an em dash when the person logged nothing. */
 function cellText(cell: BoardCell): string {
@@ -99,65 +100,35 @@ export function TeamLeadBoard({
         {/* Measured KPIs. Each renders "n/a" rather than 0 when there is no
             basis: "nobody logged anything" and "the value is zero" are
             different claims, and 0% reads as a team sitting idle. */}
-        <div className="grid grid-cols-2 border border-[var(--border)] bg-[var(--surface)] lg:grid-cols-4">
-          <div className="flex flex-col gap-1 border-b border-r border-[var(--border)] p-3 sm:p-3.5 lg:border-b-0">
-            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-              TEAM UTILISATION
-            </span>
-            <span className="font-mono text-[20px] font-semibold text-[var(--text-primary)] sm:text-[23px]">
-              {teamUtilisationPercent === null ? "n/a" : `${teamUtilisationPercent}%`}
-            </span>
-            <span className="font-mono text-[10px] text-[var(--text-faint)]">
-              {board.weeklyHoursAreNominal ? "VS NOMINAL 40 H WEEK" : "VS CONTRACTED"}
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-1 border-b border-[var(--border)] p-3 sm:p-3.5 lg:border-b-0 lg:border-r">
-            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-              LOGGED THIS WINDOW
-            </span>
-            <span className="font-mono text-[20px] font-semibold text-[var(--text-primary)] sm:text-[23px]">
-              {activeCount}
-            </span>
-            <span className="font-mono text-[10px] text-[var(--text-faint)]">PEOPLE</span>
-          </div>
-
-          <div className="flex flex-col gap-1 border-r border-[var(--border)] p-3 sm:p-3.5 lg:border-r">
-            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-              NO TIME LOGGED
-            </span>
-            <span
-              className="font-mono text-[20px] font-semibold sm:text-[23px]"
-              style={{ color: idleCount > 0 ? "var(--warning)" : "var(--text-primary)" }}
-            >
-              {idleCount}
-            </span>
-            <span className="font-mono text-[10px] text-[var(--text-faint)]">
-              ACTIVE MEMBERS
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-1 p-3 sm:p-3.5">
-            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)] sm:text-[10px]">
-              OVER ESTIMATE
-            </span>
-            <span
-              className="font-mono text-[20px] font-semibold sm:text-[23px]"
-              style={{
-                color: overBudgetProjects.some((p) => p.burnPercent >= 100)
-                  ? "var(--critical)"
-                  : "var(--text-primary)",
-              }}
-            >
-              {overBudgetProjects.filter((p) => p.burnPercent >= 100).length}
-            </span>
-            <span className="font-mono text-[10px] text-[var(--text-faint)]">PROJECTS</span>
-          </div>
+        <div className="grid grid-cols-2 gap-[var(--card-gap)] lg:grid-cols-4">
+          <StatTile
+            label="TEAM UTILISATION"
+            value={teamUtilisationPercent}
+            unit="%"
+            hint={board.weeklyHoursAreNominal ? "VS NOMINAL 40 H WEEK" : "VS CONTRACTED"}
+          />
+          <StatTile label="LOGGED THIS WINDOW" value={activeCount} hint="PEOPLE" />
+          {/* Amber only when somebody is actually idle: a permanently coloured
+              zero trains the reader to stop seeing the colour. */}
+          <StatTile
+            label="NO TIME LOGGED"
+            value={idleCount}
+            hint="ACTIVE MEMBERS"
+            tone={idleCount > 0 ? "warning" : "neutral"}
+          />
+          <StatTile
+            label="OVER ESTIMATE"
+            value={overBudgetProjects.filter((p) => p.burnPercent >= 100).length}
+            hint="PROJECTS"
+            tone={
+              overBudgetProjects.some((p) => p.burnPercent >= 100) ? "critical" : "neutral"
+            }
+          />
         </div>
 
         {/* Workload grid — horizontally scrollable with a sticky name column */}
-        <div className="border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex flex-wrap items-baseline gap-2.5 border-b border-[var(--border)] px-4 py-3">
+        <Card className="overflow-hidden">
+          <div className="flex flex-wrap items-baseline gap-2.5 border-b border-[var(--divider)] px-4 py-3">
             <span className="text-[12px] font-semibold text-[var(--text-primary)]">
               Hours logged per week
             </span>
@@ -246,17 +217,17 @@ export function TeamLeadBoard({
             </div>
           )}
 
-          <div className="border-t border-[var(--border)] px-4 py-2 font-mono text-[10px] text-[var(--text-faint)]">
+          <div className="border-t border-[var(--divider)] px-4 py-2 font-mono text-[10px] text-[var(--text-faint)]">
             {board.weeklyHoursAreNominal
               ? "OVER / UNDER IS AGAINST A NOMINAL 40 H WEEK — TRACKINGTIME'S ACCOUNT DEFAULT, NOT A CONTRACT"
               : "OVER / UNDER IS AGAINST CONTRACTED HOURS"}
             {weeks.some((w) => w.isCurrent) && " · THE LAST COLUMN IS THE WEEK IN PROGRESS"}
           </div>
-        </div>
+        </Card>
 
         {/* Lower grid: decisions and the projects worth a lead's attention */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-2">
+          <Card className="flex flex-col gap-3 p-4">
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-semibold text-[var(--text-primary)]">
                 Needs your decision
@@ -313,9 +284,9 @@ export function TeamLeadBoard({
                 ))
               )}
             </div>
-          </div>
+          </Card>
 
-          <div className="flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] p-4">
+          <Card className="flex flex-col gap-3 p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <span className="text-[12px] font-semibold text-[var(--text-primary)]">
                 Projects over estimate
@@ -367,7 +338,7 @@ export function TeamLeadBoard({
                 })}
               </div>
             )}
-          </div>
+          </Card>
         </div>
       </div>
     </>

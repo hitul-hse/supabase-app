@@ -91,13 +91,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         present and correct, and the headers still scrolled away.
       */}
       {/*
-        pb-[76px] on mobile: the tab bar is fixed, so it is out of flow and
-        would otherwise cover the last ~76px of every page — which on a table
-        is the pager, i.e. the control you need exactly when you have scrolled
-        to the bottom. 56px of bar + 20px of breathing room, and the bar's own
-        env(safe-area-inset-bottom) padding sits inside that.
+        The tab bar is fixed, so it is out of flow and would otherwise cover the
+        last stretch of every page — which on a table is the pager, i.e. the
+        control you need exactly when you have scrolled to the bottom.
+
+        The arithmetic changed when the bar started FLOATING, and it has to be
+        derived rather than guessed:
+             12px  gap below the pill  (its `bottom-[calc(12px+env(...))]`)
+          +  56px  pill height         (`min-h-[56px]` on each tab)
+          +  12px  breathing room above it
+          +  env(safe-area-inset-bottom)
+          =  80px + env(safe-area-inset-bottom)
+        The safe-area term is now OUTSIDE the bar (it used to be inner padding),
+        so it has to be added here or the last row of content sits behind the
+        pill on exactly the notched iPhones the inset exists for.
       */}
-      <main className="flex min-w-0 flex-1 flex-col overflow-x-clip pt-12 pb-[76px] lg:pt-0 lg:pb-0">
+      <main className="flex min-w-0 flex-1 flex-col overflow-x-clip pt-12 pb-[calc(80px+env(safe-area-inset-bottom))] lg:pt-0 lg:pb-0">
         <TimerBarSlot />
         {children}
       </main>

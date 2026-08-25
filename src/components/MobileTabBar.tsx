@@ -68,13 +68,31 @@ export function MobileTabBar({
       aria-label="Primary"
       data-testid="mobile-tab-bar"
       /*
-        pb-[env(safe-area-inset-bottom)] is load-bearing, not defensive. On any
-        iPhone with a home indicator the bottom ~34px is reserved: without this
-        the row of labels sits UNDER the indicator and the bottom third of every
-        tap target is swallowed by the system's own swipe gesture. There was no
-        safe-area handling anywhere in this codebase before this component.
+        FLOATING, not edge-anchored. The bar is a detached pill inset from all
+        three edges, per the references — measured on the E-Commerce shot
+        (Anitei, 27259789): ~18px corner radius, inset ~7% of phone width, and
+        the designer's own stated reason is "maximize screen space".
+
+        THE SAFE AREA MOVED, and this is the part that breaks if you skim it.
+        While the bar was flush to the bottom it needed pb-[env(...)] INSIDE
+        itself, or its labels sat under the home indicator. A floating bar
+        does not touch the bottom edge, so the inset belongs BELOW it instead:
+        bottom-[calc(12px+env(safe-area-inset-bottom))]. Keeping the old inner
+        padding as well would double-count it — ~34px of dead space inside the
+        pill on every notched iPhone, and a visibly lopsided bar.
+
+        mx-4 (16px) rather than the reference's ~7%: at 390px that is 27px a
+        side, which costs each of five targets ~11px of width for no gain. 16px
+        reads as clearly detached and keeps every target at 71px.
+
+        card-elev-raised, NOT shadow-[var(--shadow-raised)]. Tailwind v4 emits
+        no rule for that arbitrary-value form — it compiles clean and renders a
+        FULLY TRANSPARENT shadow. This codebase already shipped that bug once
+        (globals.css:505). The shadow is what makes a floating bar read as
+        floating rather than as a mis-aligned block, so a silent no-op here
+        undoes the whole change.
       */
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--sidebar)] pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="card-elev-raised fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--sidebar)] lg:hidden"
     >
       <ul className="flex items-stretch">
         {tabs.map((tab) => {
@@ -110,18 +128,27 @@ export function MobileTabBar({
                   active ? "text-[var(--accent-hover)]" : "text-[var(--text-secondary)]"
                 }`}
               >
-                {/* The active marker is a bar ABOVE the icon, flush to the top
-                    border. A filled pill (the sidebar's active shape) does not
-                    survive here: at ~72px wide it either clips the label or
-                    forces the icon off-centre. */}
-                {/* The marker is a FILL, not text: --accent is correct here.
-                    WCAG's 3:1 non-text floor applies, and it clears that in
-                    both themes (light 4.19, dark 9.69). It is deliberately a
-                    different token from the label above, which is text and
-                    owes 4.5. */}
+                {/* A DOT BELOW THE LABEL, not the bar flush to the top edge it
+                    used to be. That bar was drawn against a straight top
+                    border; the pill has a 20px corner radius and clips its own
+                    overflow, so on the first and last tab the marker's end now
+                    disappears into the curve — present, wrong, and only visible
+                    on two of five tabs.
+
+                    A filled pill (the sidebar's active shape) still does not
+                    fit: at ~71px wide it either clips the label or forces the
+                    icon off-centre.
+
+                    Absolutely positioned, so it costs the flex column no
+                    height and cannot squeeze the 44px target.
+
+                    The marker is a FILL, not text: --accent is correct. WCAG's
+                    3:1 non-text floor applies and it clears that in both
+                    themes (light 4.19, dark 9.69) — deliberately a different
+                    token from the label, which is text and owes 4.5. */}
                 <span
                   aria-hidden
-                  className={`absolute top-0 h-[2px] w-8 rounded-full transition-opacity ${
+                  className={`absolute bottom-[7px] h-[3px] w-[3px] rounded-full transition-opacity ${
                     active ? "bg-[var(--accent)] opacity-100" : "opacity-0"
                   }`}
                 />
@@ -152,7 +179,7 @@ export function MobileTabBar({
           >
             <span
               aria-hidden
-              className={`absolute top-0 h-[2px] w-8 rounded-full transition-opacity ${
+              className={`absolute bottom-[7px] h-[3px] w-[3px] rounded-full transition-opacity ${
                 moreOpen || !onATab ? "bg-[var(--accent)] opacity-100" : "opacity-0"
               }`}
             />

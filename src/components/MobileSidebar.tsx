@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from "react";
 import { MobileTabBar } from "./MobileTabBar";
+import { BrandMark } from "./BrandMark";
 
 interface MobileSidebarProps {
   children: React.ReactNode;
@@ -56,7 +57,20 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         pt-[env(safe-area-inset-top)] for the notch: without it the title sits
         under the status bar in a home-screen/standalone context.
       */}
-      <div className="fixed top-0 left-0 right-0 z-30 flex h-12 items-center gap-3 border-b border-[var(--border)] bg-[var(--sidebar)] px-4 pt-[env(safe-area-inset-top)] lg:hidden">
+      <div className="fixed top-0 left-0 right-0 z-30 flex h-12 items-center gap-2.5 border-b border-[var(--border)] bg-[var(--sidebar)] px-4 pt-[env(safe-area-inset-top)] lg:hidden">
+        {/*
+          THE MARK, not just the words. Below `lg` the sidebar is a drawer and
+          the desktop lockup never renders, so before this the signed-in app
+          had NO logo anywhere on a phone: the animated 96px mark lives on the
+          LOGIN page only, which meant the brand appeared once, at the moment
+          you leave it behind.
+
+          STATIC, per BrandMark's frequency tier. This bar is on screen on
+          every page all day; an assemble animation here would replay on every
+          navigation. 22px because the bar is 48px tall and the mark has to sit
+          on the cap-height of the wordmark beside it, not tower over it.
+        */}
+        <BrandMark size={22} className="flex-none" />
         <span className="font-sans text-[13px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
           HSE HUB
         </span>

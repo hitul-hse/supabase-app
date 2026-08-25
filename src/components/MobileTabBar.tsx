@@ -93,27 +93,36 @@ export function MobileTabBar({
         side, which costs each of five targets ~11px of width for no gain. 16px
         reads as clearly detached and keeps every target at 71px.
 
-        card-elev-raised, NOT shadow-[var(--shadow-raised)]. Tailwind v4 emits
+        card-elev-glass, NOT shadow-[var(--shadow-glass)]. Tailwind v4 emits
         no rule for that arbitrary-value form — it compiles clean and renders a
         FULLY TRANSPARENT shadow. This codebase already shipped that bug once
-        (globals.css:505). The shadow is what makes a floating bar read as
-        floating rather than as a mis-aligned block, so a silent no-op here
-        undoes the whole change.
+        (globals.css). Deeper than .card-elev-raised because this is the only
+        surface that floats over the PAGE rather than sitting on a card.
 
-        surface-translucent gives the bar 0.80 alpha over a 24px backdrop blur
-        at 180% saturation — frosted glass, not a tint. That class (globals.css)
-        carries the blur, the @supports guard and the prefers-reduced-
-        transparency fallback to a fully opaque bar; the alpha is a MEASURED
-        floor (0.75 puts the light-theme active label at 4.38, under the 4.5
-        text floor), not taste. It replaces bg-[var(--sidebar)] rather than
-        sitting alongside it: a Tailwind bg-* utility would win on specificity
-        and silently re-opaque the bar while every other assertion here passed.
+        surface-translucent gives the bar 0.72 alpha over a 28px backdrop blur
+        at 180% saturation. That class (globals.css) carries the blur, the
+        @supports guard and the prefers-reduced-transparency fallback.
 
-        border-[var(--glass-edge)] rather than --border. Real frosted glass
-        catches light on its top edge; a flat hairline at 0.80 alpha makes the
-        bar read as a cut-out hole rather than a pane sitting above the page.
+        THE FIX THAT MATTERS HERE was the TINT, not the alpha. The bar used to
+        be tinted with --sidebar (#0d0f12), which is DARKER than --page
+        (#121418): composited it landed on rgb(14,16,19) against a rgb(18,20,24)
+        page — separation 1.033, where 1.00 is invisible. It read as a hole cut
+        in the page, not a pane above it. Alpha could not fix that (separation
+        was IDENTICAL at 0.72 and 0.80), so the tint moved to #2f3742, LIGHTER
+        than the page: separation 1.330. Frosted glass catches light; on a dark
+        UI that means the pane goes up in luminance, not down.
+
+        It replaces bg-[var(--sidebar)] rather than sitting alongside it: a
+        Tailwind bg-* utility would win on specificity and silently re-opaque
+        the bar while every other assertion here passed.
+
+        border-[var(--glass-edge)] rather than --border, at 0.16 rather than
+        0.10. On a near-black page the rim does work the shadow cannot: a black
+        shadow over --page reaches separation 1.054, versus 2.070 for the same
+        shadow over the light page. Dark lifts with fill + rim; light lifts
+        with shadow.
       */
-      className="card-elev-raised surface-translucent fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-full border border-[var(--glass-edge)] lg:hidden"
+      className="card-elev-glass surface-translucent fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-full border border-[var(--glass-edge)] lg:hidden"
     >
       <ul className="flex items-stretch">
         {tabs.map((tab) => {
@@ -135,18 +144,23 @@ export function MobileTabBar({
                    the fixed <nav> — and every tab's marker stacks in the
                    top-left corner of the bar. */
                 /*
-                  --accent-hover / --text-secondary, NOT --accent /
-                  --text-faint. Measured on the rendered bar in BOTH themes:
-                  in LIGHT mode --text-faint on --sidebar is 4.49:1 and --accent
-                  is 4.19:1, i.e. the ACTIVE tab was the worst text on the bar
-                  and both failed the 4.5 floor for 10px type. Both tokens pass
-                  comfortably on the dark sidebar, which is why reading them
-                  there alone would have shipped this.
-                    dark : secondary 10.57  accent-hover 11.4
-                    light: secondary  7.32  accent-hover  5.99
+                  --glass-text / --glass-text-active, NOT the app-wide
+                  --text-secondary / --accent-hover.
+
+                  A translucent surface's luminance moves with whatever scrolls
+                  under it, so its text cannot inherit tokens tuned against a
+                  fixed opaque surface. Measured on the NEW lighter pane over
+                  its worst backdrop (an --accent fill): --text-secondary
+                  (#bcc1c4) gives 3.07, a clear fail, while --glass-text
+                  (#e8ebed) gives 4.65 and --glass-text-active (#ffffff) 5.57.
+
+                  That headroom is what PAID for the lighter, more transparent
+                  pane — the tint could not move without the labels moving too.
+                  Light theme keeps app-token values (5.76 / 6.52) and inverts
+                  the hierarchy: on a white pane, active is DARKER than idle.
                 */
                 className={`relative flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] ${
-                  active ? "text-[var(--accent-hover)]" : "text-[var(--text-secondary)]"
+                  active ? "text-[var(--glass-text-active)]" : "text-[var(--glass-text)]"
                 }`}
               >
                 {/* A DOT BELOW THE LABEL, not the bar flush to the top edge it
@@ -163,14 +177,19 @@ export function MobileTabBar({
                     Absolutely positioned, so it costs the flex column no
                     height and cannot squeeze the 44px target.
 
-                    The marker is a FILL, not text: --accent is correct. WCAG's
-                    3:1 non-text floor applies and it clears that in both
-                    themes (light 4.19, dark 9.69) — deliberately a different
-                    token from the label, which is text and owes 4.5. */}
+                    The marker is a FILL, not text, so WCAG's 3:1 non-text
+                    floor applies rather than 4.5 — deliberately a different
+                    token from the label.
+
+                    --accent-hover, not --accent. On the NEW lighter pane,
+                    measured over its worst backdrop, --accent falls to 3.22:
+                    still passing, but with 0.22 of margin, which is the kind
+                    of number that silently fails the next time a token moves.
+                    --accent-hover is the same hue at 3.80. */}
                 <span
                   aria-hidden
                   className={`absolute bottom-[7px] h-[3px] w-[3px] rounded-full transition-opacity ${
-                    active ? "bg-[var(--accent)] opacity-100" : "opacity-0"
+                    active ? "bg-[var(--accent-hover)] opacity-100" : "opacity-0"
                   }`}
                 />
                 <Icon className="h-[18px] w-[18px]" />
@@ -195,13 +214,13 @@ export function MobileTabBar({
             aria-haspopup="dialog"
             aria-label="More navigation"
             className={`relative flex min-h-[56px] w-full flex-col items-center justify-center gap-1 px-1 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] ${
-              moreOpen || !onATab ? "text-[var(--accent-hover)]" : "text-[var(--text-secondary)]"
+              moreOpen || !onATab ? "text-[var(--glass-text-active)]" : "text-[var(--glass-text)]"
             }`}
           >
             <span
               aria-hidden
               className={`absolute bottom-[7px] h-[3px] w-[3px] rounded-full transition-opacity ${
-                moreOpen || !onATab ? "bg-[var(--accent)] opacity-100" : "opacity-0"
+                moreOpen || !onATab ? "bg-[var(--accent-hover)] opacity-100" : "opacity-0"
               }`}
             />
             <IconMore className="h-[18px] w-[18px]" />

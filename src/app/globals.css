@@ -13,36 +13,81 @@
    * --sidebar-translucent: the floating mobile tab bar, which is the ONLY
    * surface in the app that content scrolls underneath.
    *
-   * ALPHA IS 0.80 AND THAT IS A MEASURED FLOOR, not taste. A translucent bar's
-   * label contrast is no longer set by its own colour — it is set by whatever
-   * is behind it, so the ratio must hold against the WORST backdrop, not the
-   * usual one. Computed across every surface that can sit under it:
+   * THE TINT IS LIGHTER THAN THE PAGE, AND THAT IS THE WHOLE POINT. This was
+   * previously --sidebar (#0d0f12), which is DARKER than --page (#121418).
+   * Composited at 0.80 that lands on rgb(14,16,19) against a rgb(18,20,24)
+   * page: a 4/255 delta, separation 1.033 where 1.00 is literally invisible.
+   * The bar read as a HOLE cut in the page rather than a pane above it — which
+   * is exactly the "it blends into the black background" report.
    *
-   *            dark (worst = --surface-hover)   light (worst = an accent fill)
-   *   a=1.00   label 10.57  active 11.43        label 7.32  active 5.99
-   *   a=0.85   label 10.26  active 11.09        label 6.10  active 4.99
-   *   a=0.80   label 10.16  active 10.99        label 5.71  active 4.67
-   *   a=0.75   label  9.99  active 10.80        label 5.37  active 4.39  FAILS
+   * ALPHA COULD NOT FIX THAT. Separation was 1.033 at BOTH 0.72 and 0.80,
+   * because alpha only slides the bar between two colours that already match.
+   * Reaching for more/less transparency here is the wrong lever entirely; the
+   * tint has to move. Frosted glass is lighter than what it sits on because it
+   * catches light — so on dark the pane goes UP in luminance, not down.
    *
-   * Light mode is what binds: at 0.75 the ACTIVE label drops to 4.39 (under
-   * the 4.5 floor for 10px text) and the marker dot to 3.07 (under 3:1 for
-   * non-text). Dark mode never fails at any of these — reading only the dark
-   * palette would have shipped an inaccessible light theme, which is exactly
-   * the bug measured on this bar last time.
+   * #2f3742 @ 0.72 over --page gives rgb(39,45,54): separation 1.330.
    *
-   * 0.80 is therefore the FLOOR, not a preference: it is one step above the
-   * first value that fails. Anything more transparent needs the labels to get
-   * darker/lighter first, not the alpha to drop.
+   * THE BINDING CONSTRAINT IS NOT THE PAGE. It is an accent fill scrolling
+   * under the bar (chart areas, pills, --accent #91c2b7). There the bar goes
+   * mid-tone and the labels have the least room, so every candidate below is
+   * scored against its WORST backdrop, not the usual one:
+   *
+   *   tint      a     sep(page)   worst idle label (over an accent fill)
+   *   #0d0f12  0.80   1.033       7.19   <- invisible bar, comfortable text
+   *   #232933  0.72   1.170       4.10
+   *   #2f3742  0.72   1.330       4.65   <- chosen
+   *   #333b47  0.72   1.390       3.59   FAILS
+   *
+   * Note the shape of that table: separation and legibility pull in OPPOSITE
+   * directions, so this is a two-sided constraint, not a floor. #2f3742 is the
+   * lightest tint that still clears 4.5 on the bar's own label tokens
+   * (--glass-text / --glass-text-active below, which had to brighten with it).
    */
-  --sidebar-translucent: rgba(13, 15, 18, 0.8);
+  --sidebar-translucent: rgba(47, 55, 66, 0.72);
   /*
-   * --glass-edge: the hairline on a frosted surface. Brighter than --border
-   * because real glass catches light along its rim; at 0.80 alpha a flat
-   * --border hairline makes the bar read as a hole cut in the page rather than
-   * a pane floating above it. Semi-transparent white so it works over whatever
-   * happens to be behind the bar, rather than only over the page background.
+   * The same pane at alpha 1, for the two paths that cannot blur: browsers
+   * without backdrop-filter, and users with prefers-reduced-transparency on.
+   * Deliberately NOT --sidebar: falling back to the darker-than-page fill would
+   * hand the people who asked for less visual ambiguity the exact bar that
+   * disappears. Losing the blur is acceptable; losing the bar is not.
    */
-  --glass-edge: rgba(255, 255, 255, 0.1);
+  --glass-solid: #2f3742;
+  /*
+   * The bar's own label colours, deliberately NOT --text-secondary/--accent.
+   *
+   * A translucent surface's luminance moves with whatever is behind it, so its
+   * text cannot inherit tokens tuned for a fixed opaque surface. Measured on
+   * the frosted bar over its worst backdrop: --text-secondary (#bcc1c4) gives
+   * 3.07 — a fail — while #e8ebed gives 4.65 and #ffffff 5.57. That is the
+   * headroom that pays for the lighter, more transparent pane.
+   *
+   * The pair also has to preserve HIERARCHY: active must read brighter than
+   * idle, so the gap is 0.173 in relative luminance, not a hue change that
+   * vanishes at 10px.
+   */
+  --glass-text: #e8ebed;
+  --glass-text-active: #ffffff;
+  /*
+   * --glass-edge: the hairline on a frosted surface. Real glass catches light
+   * along its rim, and on a near-black page the rim is doing work the SHADOW
+   * cannot: measured, rgba(0,0,0,0.34) over --page separates only 1.054, while
+   * the same shadow over the light page separates 2.070. So on dark the lift
+   * comes from the fill and this rim; on light it comes from the shadow.
+   * Raised from 0.10 to 0.16 to carry that load.
+   */
+  --glass-edge: rgba(255, 255, 255, 0.16);
+  /*
+   * The floating bar's own shadow, deeper than --shadow-raised because it is
+   * the only surface that floats over the PAGE rather than sitting on it.
+   *
+   * On dark this is doing less than it looks: a black shadow over --page can
+   * only reach separation 1.054 (measured), so the ambient ring is really
+   * about grounding the pill, and the lift itself comes from the lighter fill
+   * plus --glass-edge. Compare the light theme, where the same shadow reaches
+   * 2.070 and genuinely carries the elevation.
+   */
+  --shadow-glass: 0 4px 10px rgba(0, 0, 0, 0.4), 0 18px 44px -14px rgba(0, 0, 0, 0.7);
   --surface: #1a1e24;
   --surface-2: #14171c;
   --surface-hover: #232933;
@@ -230,15 +275,45 @@
 
   --page: #eef0f2;
   --sidebar: #e4e7ea;
-  /* #e4e7ea at 0.80 — see the dark-theme note above for why 0.80 is a floor
-     rather than a preference. This is the theme that sets it. */
-  --sidebar-translucent: rgba(228, 231, 234, 0.8);
   /*
-   * Light theme inverts the rim: a white edge is invisible on a #e4e7ea bar
+   * Same principle as dark: the pane is LIGHTER than the page it floats on.
+   * #e4e7ea was darker than --page (#eef0f2) and had the same "hole, not pane"
+   * problem, just less visibly. #ffffff @ 0.72 over the page gives rgb(250,251,251).
+   *
+   * Light separation is inherently capped — white on off-white is only 1.102 —
+   * so THIS theme leans on its shadow, which is the mechanism dark cannot use:
+   * a dark shadow over a light page separates 2.070, versus 1.054 for a black
+   * shadow over the dark page. Same perceived lift, opposite mechanism.
+   */
+  --sidebar-translucent: rgba(255, 255, 255, 0.72);
+  /* See the dark-theme note: the no-blur fallback is the lit pane at alpha 1,
+     never --sidebar. On light that is plain white against a #eef0f2 page. */
+  --glass-solid: #ffffff;
+  /*
+   * Light theme's label pair. Hierarchy runs the OTHER way here: on a light
+   * pane the active tab is DARKER than idle, not brighter.
+   *
+   * #0b3a2f rather than --accent-hover (#17604f). The two must be told apart
+   * at 10px, and measured as label-to-label contrast --accent-hover gives only
+   * 1.13 against #3f4a51 — the active tab was a barely-different grey-green.
+   * #0b3a2f is the same hue at 1.39, and still clears 4.5 over the worst
+   * backdrop the bar can sit on.
+   */
+  --glass-text: #3f4a51;
+  --glass-text-active: #0b3a2f;
+  /*
+   * Light theme inverts the rim: a white edge is invisible on a near-white bar
    * over a #eef0f2 page. Glass in a light room is defined by the shadow at its
    * edge, not a highlight — so this is black at low alpha, not white.
    */
-  --glass-edge: rgba(0, 0, 0, 0.08);
+  --glass-edge: rgba(0, 0, 0, 0.1);
+  /*
+   * Light theme's shadow is the load-bearing one. A near-white pane on an
+   * off-white page separates only 1.102 by fill alone, so this is what makes
+   * the bar read as floating — the opposite of dark, where the fill does the
+   * work and the shadow can barely register.
+   */
+  --shadow-glass: 0 4px 10px rgba(23, 32, 38, 0.1), 0 18px 40px -14px rgba(23, 32, 38, 0.26);
   --surface: #ffffff;
   --surface-2: #f2f4f5;
   --surface-hover: #e9edee;
@@ -562,6 +637,16 @@ body {
 .card-elev-raised {
   box-shadow: var(--shadow-raised);
 }
+/*
+ * .card-elev-glass — the floating mobile tab bar only.
+ *
+ * A plain class, not shadow-[var(--shadow-glass)]: Tailwind v4 emits NO rule
+ * for that arbitrary-value form, so it compiles clean and renders a fully
+ * transparent shadow. This codebase already shipped that exact bug once.
+ */
+.card-elev-glass {
+  box-shadow: var(--shadow-glass);
+}
 
 /*
  * .surface-translucent — the floating mobile tab bar.
@@ -576,46 +661,48 @@ body {
  * collides with the labels. The blur destroys that high-frequency detail and
  * leaves an average tone, which is what makes the labels readable.
  *
- * THE ALPHA IS A MEASURED FLOOR, NOT TASTE. 0.80 is as transparent as this can
- * go. Computed over the three worst things that can sit under the bar (page,
- * card surface, and an --accent fill) in BOTH themes:
- *      a=0.85  light active 4.99   a=0.80  light active 4.68
- *      a=0.75  light active 4.38  <- FAILS the 4.5 floor for 10px text
- * LIGHT MODE BINDS. Every value passes comfortably on the dark palette, so
- * judging this on dark alone would ship an inaccessible light theme -- which is
- * exactly the bug this bar already shipped once.
+ * THE TINT IS LIGHTER THAN THE PAGE. See --sidebar-translucent for the full
+ * derivation; the short version is that this surface previously used --sidebar,
+ * which is DARKER than --page, so the "glass" composited to within 4/255 of the
+ * background and read as a hole rather than a pane. Alpha could not fix that
+ * (separation was identical at 0.72 and 0.80) — the tint had to move.
  *
- * blur(24px) saturate(180%), not blur(16px) saturate(140%). Frosted glass is
- * not "a tint you can see through": it is heavy defocus plus retained colour.
- * A bigger radius destroys more high-frequency detail (which BUYS the extra
- * transparency back in legibility), and pushing saturation past 100% keeps the
- * colour that the blur's averaging washes out -- without it a more transparent
- * bar reads as dirty grey rather than glass.
+ * blur(28px) saturate(180%), not blur(24px). Frosted glass is not "a tint you
+ * can see through": it is heavy defocus plus retained colour. The radius went
+ * UP as the alpha came DOWN, and that trade is the whole mechanism — a bigger
+ * radius destroys more high-frequency detail, which is what BUYS the extra
+ * transparency back in legibility. Saturation past 100% keeps the colour the
+ * blur's averaging washes out; without it a more transparent bar reads as
+ * dirty grey rather than glass.
  *
  * prefers-reduced-transparency: a real accessibility setting (macOS "Reduce
  * transparency", Windows "Transparency effects" off), not a nicety. People turn
- * it on precisely because layered translucent surfaces are hard to parse. We
- * fall back to the fully opaque --sidebar, which is the palette the labels were
- * originally measured against, so the fallback is the SAFEST state, never a
- * degraded one.
+ * it on precisely because layered translucent surfaces are hard to parse.
+ *
+ * THE FALLBACK IS --glass-solid, NOT --sidebar, and that distinction is the
+ * whole bug in miniature. Falling back to --sidebar would hand exactly the
+ * users who asked for LESS visual ambiguity the darker-than-page fill that
+ * made this bar disappear in the first place — a bar they cannot see is a
+ * worse outcome than one they can. --glass-solid is the same lit pane at
+ * alpha 1, so reduced transparency loses the blur and nothing else.
  *
  * @supports: Firefox shipped backdrop-filter late and it can be disabled by
- * flag. Without the guard those users get the 0.85 window with NO blur —
+ * flag. Without the guard those users get an unblurred window —
  * text-through-text — which is worse than an opaque bar.
  */
 .surface-translucent {
-  background-color: var(--sidebar);
+  background-color: var(--glass-solid);
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .surface-translucent {
     background-color: var(--sidebar-translucent);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
   }
 }
 @media (prefers-reduced-transparency: reduce) {
   .surface-translucent {
-    background-color: var(--sidebar);
+    background-color: var(--glass-solid);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

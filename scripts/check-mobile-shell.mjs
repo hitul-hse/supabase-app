@@ -161,15 +161,73 @@ check(
     ? "shadow-[var(--shadow-*)] renders TRANSPARENT in Tailwind v4"
     : "card-elev-raised",
 );
-/* ── The bar is translucent, and the alpha is a FLOOR ────────────────────────
-   A translucent bar's label contrast is no longer set by its own colour: it is
-   set by whatever scrolls behind it. Measured across every surface that can sit
-   under it, LIGHT mode binds — at alpha 0.75 the ACTIVE label falls to 4.39
-   (under 4.5 for 10px text) and the marker dot to 3.07 (under 3:1 non-text).
-   Dark mode never fails at any tested alpha, so reading only the dark palette
-   would ship an inaccessible light theme — the exact bug measured on this bar
-   last time. Hence: parse the number, don't just look for "rgba". */
-const ALPHA_FLOOR = 0.8;
+/* ── The bar must read as a PANE, not a hole ─────────────────────────────────
+   This replaced a blanket ALPHA_FLOOR of 0.80, and the reason is worth keeping:
+   that floor asserted a number which could not describe the defect at all. The
+   bar VANISHED into the page while sitting comfortably above it and passing
+   every alpha check — because the failure was never the alpha.
+
+   The tint was --sidebar (#0d0f12), DARKER than --page (#121418). Composited it
+   landed on rgb(14,16,19) against rgb(18,20,24): separation 1.033, where 1.00 is
+   literally invisible. And alpha could not fix it — separation was IDENTICAL at
+   0.72 and 0.80, because alpha only slides the fill between two colours that
+   already match.
+
+   So this computes the two things that actually matter, in both themes:
+     1. does the composited bar SEPARATE from the page it floats on, and
+     2. does every label still clear its floor over the WORST backdrop —
+        which is not the page but an --accent fill (charts, pills) scrolling
+        under the bar, where the pane goes mid-tone and text has least room.
+
+   Those two pull in OPPOSITE directions, which is exactly why a one-sided
+   floor was the wrong shape of check. */
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const lum1 = (c) => {
+  const s = c / 255;
+  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+};
+const relL = ([r, g, b]) => 0.2126 * lum1(r) + 0.7152 * lum1(g) + 0.0722 * lum1(b);
+const contrast = (a, b) => {
+  const [hi, lo] = [relL(a), relL(b)].sort((p, q) => q - p);
+  return (hi + 0.05) / (lo + 0.05);
+};
+const composite = (fg, alpha, bg) => fg.map((c, i) => Math.round(c * alpha + bg[i] * (1 - alpha)));
+
+/** Pull a `--token: #rrggbb` out of one theme block. */
+const tokenIn = (block, name) => {
+  const m = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`).exec(block);
+  return m ? hex(m[1]) : null;
+};
+/** Pull `--sidebar-translucent: rgba(r, g, b, a)` out of one theme block. */
+const tintIn = (block) => {
+  const m = /--sidebar-translucent:\s*rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/.exec(
+    block,
+  );
+  return m ? { rgb: [+m[1], +m[2], +m[3]], alpha: +m[4] } : null;
+};
+
+/* The :root block is the dark theme; [data-theme="light"] is light. Slice them
+   apart so a token defined in one is never read from the other — the bug that
+   shipped an inaccessible light theme on this same bar. */
+const lightStart = css.indexOf('[data-theme="light"]');
+const darkBlock = css.slice(0, lightStart);
+const lightBlock = css.slice(lightStart, css.indexOf("}", css.indexOf("--divider", lightStart)));
+
+/** A bar that reads as a hole scores ~1.0 here.
+ *
+ *  PER-THEME, and that is not a fudge — it is the physics. A dark pane can be
+ *  much lighter than a near-black page, so it separates by FILL. A light pane
+ *  cannot: measured, even a FULLY OPAQUE white bar on the #eef0f2 page reaches
+ *  only 1.142, so any floor above that is unreachable by fill at any alpha.
+ *  Light's edge is instead defined by its rim (1.25 against the bar) and its
+ *  shadow (1.71 against the page), which is the mechanism dark cannot use —
+ *  a black shadow on a near-black page reaches just 1.054.
+ *
+ *  So: dark must clear a real fill floor; light must merely be lighter than its
+ *  page AND carry the shadow, which is asserted separately below. Setting one
+ *  number for both would either wave dark through or demand the impossible of
+ *  light — and the second is how a gate gets deleted. */
+const SEPARATION_FLOOR = { dark: 1.2, light: 1.08 };
 check(
   "the bar is translucent, not an opaque slab",
   /surface-translucent/.test(tabBar),
@@ -193,11 +251,83 @@ check(
   alphas.length === 2,
   `${alphas.length} definition(s) — expected 2 (dark + light)`,
 );
-check(
-  `every theme's alpha clears the measured ${ALPHA_FLOOR} floor`,
-  alphas.length > 0 && alphas.every((a) => a >= ALPHA_FLOOR),
-  alphas.length ? `alphas: ${alphas.join(", ")}` : "no --sidebar-translucent found",
-);
+
+/* THE CHECK THIS BAR ACTUALLY NEEDED. For each theme: composite the tint over
+   the page and demand the result be visibly a different surface. This is the
+   assertion that would have caught "the bar blends into the black background";
+   the old alpha floor could not, because the bar passed it while invisible. */
+for (const [themeName, block] of [
+  ["dark", darkBlock],
+  ["light", lightBlock],
+]) {
+  const tint = tintIn(block);
+  const page = tokenIn(block, "page");
+  if (!tint || !page) {
+    check(`[${themeName}] glass tokens are readable`, false, "missing --sidebar-translucent/--page");
+    continue;
+  }
+  const bar = composite(tint.rgb, tint.alpha, page);
+  const sep = contrast(bar, page);
+  const floor = SEPARATION_FLOOR[themeName];
+  check(
+    `[${themeName}] the bar SEPARATES from the page (reads as a pane, not a hole)`,
+    sep >= floor,
+    `separation ${sep.toFixed(3)} — bar rgb(${bar}) over page rgb(${page})` +
+      (sep < floor ? `; needs >= ${floor}` : ""),
+  );
+  /* Glass catches light: the pane must be LIGHTER than what it floats on, in
+     BOTH themes. Stated separately from separation because a tint that is far
+     DARKER than the page would also "separate" while looking like a hole. */
+  check(
+    `[${themeName}] the pane is lighter than the page (glass catches light)`,
+    relL(bar) > relL(page),
+    `bar L ${relL(bar).toFixed(3)} vs page L ${relL(page).toFixed(3)}`,
+  );
+
+  /* Worst-case legibility. The binding backdrop is NOT the page — it is an
+     accent fill scrolling under the bar, where the pane goes mid-tone. */
+  const backdrops = ["page", "surface", "surface-hover", "accent", "accent-hover", "chart-hue"]
+    .map((n) => tokenIn(block, n))
+    .filter(Boolean);
+  const idle = tokenIn(block, "glass-text");
+  const activeC = tokenIn(block, "glass-text-active");
+  if (!idle || !activeC) {
+    check(`[${themeName}] --glass-text/--glass-text-active exist`, false, "missing label tokens");
+    continue;
+  }
+  let worstIdle = Infinity;
+  let worstActive = Infinity;
+  let worstBg = null;
+  for (const bg of backdrops) {
+    const over = composite(tint.rgb, tint.alpha, bg);
+    const ci = contrast(idle, over);
+    if (ci < worstIdle) {
+      worstIdle = ci;
+      worstBg = bg;
+    }
+    worstActive = Math.min(worstActive, contrast(activeC, over));
+  }
+  check(
+    `[${themeName}] labels clear 4.5 over the WORST backdrop, not just the page`,
+    worstIdle >= 4.5 && worstActive >= 4.5,
+    `idle ${worstIdle.toFixed(2)} / active ${worstActive.toFixed(2)} over rgb(${worstBg})`,
+  );
+  /* Hierarchy must survive: the active tab has to look different from the rest
+     at 10px, and a same-luminance hue shift does not read at that size.
+
+     CONTRAST RATIO, not a raw luminance gap. Relative luminance is heavily
+     compressed at the dark end, so the same perceptual step measures 0.173
+     between two near-white labels and only 0.013 between two dark ones. An
+     absolute-gap check therefore passes dark text through nothing and fails
+     light text that is plainly distinguishable — it measures the curve, not
+     the difference. */
+  const hier = contrast(activeC, idle);
+  check(
+    `[${themeName}] active label is distinguishable from idle`,
+    hier >= 1.12,
+    `label-to-label contrast ${hier.toFixed(2)}` + (hier < 1.12 ? "; needs >= 1.12" : ""),
+  );
+}
 /* Without the blur the bar is a flat 15% window: text scrolling under it stays
    legible THROUGH the bar and collides with the labels. The blur destroys that
    high-frequency detail and leaves an average tone. It is load-bearing. */
@@ -240,6 +370,32 @@ check(
   /border-\[var\(--glass-edge\)\]/.test(navClass),
   /border-\[var\(--glass-edge\)\]/.test(navClass) ? "--glass-edge" : "still on --border",
 );
+/* The labels must use the BAR's tokens, not the app-wide ones. On the lighter
+   pane --text-secondary measures 3.07 over an accent fill — a fail — so a
+   revert to the app tokens is a real regression that nothing else here sees. */
+check(
+  "labels use the bar's own tokens, not app-wide --text-secondary/--accent-hover",
+  /--glass-text\)/.test(tabBar) && /--glass-text-active\)/.test(tabBar),
+  /--text-secondary\)/.test(tabBar)
+    ? "still on --text-secondary (3.07 over an accent fill — fails)"
+    : "--glass-text / --glass-text-active",
+);
+/* Tailwind v4 emits NO rule for shadow-[var(--x)], so that form compiles clean
+   and renders a fully transparent shadow. This repo shipped that bug once. On
+   LIGHT the shadow is the only real lift the bar has (fill separation is capped
+   at ~1.10), so a silent no-op there un-floats the bar entirely. */
+check(
+  "the bar's shadow is a real class, not the no-op shadow-[var(...)] form",
+  /card-elev-glass/.test(navClass) && !/shadow-\[var\(/.test(navClass),
+  /shadow-\[var\(/.test(navClass)
+    ? "shadow-[var(--shadow-glass)] renders TRANSPARENT in Tailwind v4"
+    : "card-elev-glass",
+);
+check(
+  ".card-elev-glass actually resolves to a shadow token",
+  /\.card-elev-glass\s*\{[^}]*box-shadow:\s*var\(--shadow-glass\)/.test(css),
+  /--shadow-glass:/.test(css) ? "box-shadow: var(--shadow-glass)" : "no --shadow-glass token",
+);
 /* Firefox shipped backdrop-filter late and it can be disabled by flag. Without
    the @supports guard those users get the 0.85 window with NO blur — text
    through text — which is worse than an opaque bar. */
@@ -253,16 +409,40 @@ check(
 );
 /* prefers-reduced-transparency is a real setting (macOS "Reduce transparency",
    Windows "Transparency effects" off). People enable it precisely because
-   layered translucent surfaces are hard to parse. The fallback is the OPAQUE
-   palette the labels were originally measured against — the safest state. */
+   layered translucent surfaces are hard to parse.
+
+   THE FALLBACK MUST BE --glass-solid, NOT --sidebar, and this assertion used to
+   demand the opposite. --sidebar is the darker-than-page fill that made this bar
+   invisible; falling back to it would hand the users who asked for LESS visual
+   ambiguity a bar they cannot see. --glass-solid is the same lit pane at alpha
+   1, so reduced transparency costs the blur and nothing else. */
 const rtFallback =
-  /@media\s*\(prefers-reduced-transparency:\s*reduce\)[\s\S]{0,300}?\.surface-translucent[\s\S]{0,200}?background-color:\s*var\(--sidebar\)\s*;/.test(
+  /@media\s*\(prefers-reduced-transparency:\s*reduce\)[\s\S]{0,300}?\.surface-translucent[\s\S]{0,200}?background-color:\s*var\(--glass-solid\)\s*;/.test(
     css,
   );
 check(
-  "prefers-reduced-transparency falls back to the opaque bar",
+  "prefers-reduced-transparency falls back to the opaque PANE (not the invisible --sidebar)",
   rtFallback,
-  rtFallback ? "falls back to the opaque --sidebar" : "no reduced-transparency fallback",
+  rtFallback
+    ? "falls back to --glass-solid"
+    : /background-color:\s*var\(--sidebar\)/.test(css)
+      ? "falls back to --sidebar — the darker-than-page fill that made the bar vanish"
+      : "no reduced-transparency fallback",
+);
+/* Same for the no-backdrop-filter path: an engine without blur must still get a
+   visible bar, so the base rule cannot sit on --sidebar either. */
+const baseSolid = /\.surface-translucent\s*\{\s*background-color:\s*var\(--glass-solid\)\s*;?\s*\}/.test(
+  css,
+);
+check(
+  "the no-blur base rule also uses the visible pane",
+  baseSolid,
+  baseSolid ? "background-color: var(--glass-solid)" : "base .surface-translucent is not --glass-solid",
+);
+check(
+  "--glass-solid is defined for BOTH themes",
+  (css.match(/--glass-solid:/g) || []).length === 2,
+  `${(css.match(/--glass-solid:/g) || []).length} definition(s) — expected 2`,
 );
 
 check("it is hidden on desktop", /lg:hidden/.test(tabBar));

@@ -350,13 +350,30 @@ for (const [themeName, block] of [
       worstMarker = Math.min(worstMarker, contrast(markerTok, composite(bandRgb, bandA, bg)));
     }
     check(
-      `[${themeName}] the active marker dot clears the 3:1 non-text floor ON THE BAND`,
+      `[${themeName}] the active PILL clears the 3:1 non-text floor ON THE BAND`,
       worstMarker >= 3,
       `worst ${worstMarker.toFixed(2)} over the specular band` +
         (worstMarker < 3 ? "; --accent measures 2.80 here — use --accent-hover" : ""),
     );
+
+    /* And the LABEL sitting ON that fill. This is a different pair from every
+       other check here: --accent-contrast against --accent-hover, neither of
+       which touches the translucent pane. It needs 4.5 (12px text), and it is
+       invisible to the pane measurements above — a pane token here would be
+       light-on-light and pass every one of them. */
+    const onFill = tokenIn(block, "accent-contrast");
+    if (onFill) {
+      const labelOnFill = contrast(onFill, markerTok);
+      check(
+        `[${themeName}] the pill's label clears 4.5 on the accent fill`,
+        labelOnFill >= 4.5,
+        `--accent-contrast on --accent-hover = ${labelOnFill.toFixed(2)}`,
+      );
+    } else {
+      check(`[${themeName}] --accent-contrast exists`, false, "missing on-accent text token");
+    }
   } else {
-    check(`[${themeName}] marker/band tokens are readable`, false, "missing --glass-band/--accent-hover");
+    check(`[${themeName}] pill/band tokens are readable`, false, "missing --glass-band/--accent-hover");
   }
 }
 /* Without the blur the bar is a flat 15% window: text scrolling under it stays
@@ -427,22 +444,75 @@ check(
    pane --text-secondary measures 3.07 over an accent fill — a fail — so a
    revert to the app tokens is a real regression that nothing else here sees. */
 check(
-  "labels use the bar's own tokens, not app-wide --text-secondary/--accent-hover",
-  /--glass-text\)/.test(tabBar) && /--glass-text-active\)/.test(tabBar),
+  "idle labels use the bar's own token, not app-wide --text-secondary",
+  /--glass-text\)/.test(tabBar),
   /--text-secondary\)/.test(tabBar)
     ? "still on --text-secondary (3.07 over an accent fill — fails)"
-    : "--glass-text / --glass-text-active",
+    : "--glass-text",
 );
-/* And the COMPONENT has to actually use that token. The check above measures
-   --accent-hover; this one measures what the marker is painted with, which is
-   the half a token-only check cannot see. --accent is 2.80 on the band. */
-const markerAccent = /bg-\[var\(--accent\)\]/.test(tabBar);
+
+/* ── THE FILLED ACTIVE PILL ────────────────────────────────────────────────
+   The active tab is a solid pill carrying its label; idle tabs are icon-only.
+   Two independent floors, and a token-only check sees neither:
+
+     the PILL vs the composited pane  -> 3:1  (a non-text boundary)
+     the LABEL on that pill           -> 4.5  (it is 12px text)
+
+   --accent as the fill reaches only 2.80 against the pane in DARK theme, so
+   the pill dissolves into the bar exactly where it means "you are here".
+   --accent-hover is the same hue at 3.30 dark / 6.15 light. This is the same
+   reason the old marker dot used --accent-hover, and it survives the anatomy
+   change because it is a property of the surface, not of the shape. */
+const fillAccent = /bg-\[var\(--accent\)\]/.test(tabBar);
 check(
-  "the active marker dot is painted with --accent-hover, not the failing --accent",
-  /bg-\[var\(--accent-hover\)\]/.test(tabBar) && !markerAccent,
-  markerAccent
-    ? "marker uses --accent — 2.80 on the specular band, under the 3:1 non-text floor"
-    : "marker uses --accent-hover (3.37)",
+  "the active pill is filled with --accent-hover, not the failing --accent",
+  /bg-\[var\(--accent-hover\)\]/.test(tabBar) && !fillAccent,
+  fillAccent
+    ? "pill uses --accent — 2.80 against the pane in dark, under the 3:1 non-text floor"
+    : "pill uses --accent-hover (3.30 dark / 6.15 light)",
+);
+check(
+  "the pill's label uses --accent-contrast (on-accent), not a pane token",
+  /text-\[var\(--accent-contrast\)\]/.test(tabBar),
+  /--glass-text-active/.test(tabBar)
+    ? "still on --glass-text-active — that is tuned for the translucent pane, not for an accent fill"
+    : "--accent-contrast (9.39 dark / 7.44 light on the fill)",
+);
+/* The pill has to be a pill. Without a radius it is a rectangle inside a
+   rounded bar, which reads as a rendering bug rather than a selection.
+
+   Anchored to the TAB's own className — specifically the `min-h-[44px]`
+   template literal — NOT a file-wide /rounded-full/. That looser form has a
+   hole this gate already fell into once: the <nav> itself is rounded-full, so
+   deleting the radius from the tab left the check passing on the bar's class. */
+const tabClassBlocks = [...tabBar.matchAll(/min-h-\[44px\][^`]*/g)].map((m) => m[0]);
+check(
+  "the active pill is itself rounded (asserted on the TAB's class, not the nav's)",
+  tabClassBlocks.length >= 2 && tabClassBlocks.every((c) => /rounded-full/.test(c)),
+  tabClassBlocks.length >= 2
+    ? `${tabClassBlocks.length} tab classes, all rounded-full`
+    : `only found ${tabClassBlocks.length} tab class blocks — expected 2 (route tab + More)`,
+);
+/* EXACTLY ONE tab is filled, and "More" is what fills when the route is not on
+   the bar. Asserting only that `moreActive` EXISTS is not enough: dropping the
+   `!onATab` term leaves the name in place and every other check green, while
+   /admin/roles fills nothing and the bar claims you are nowhere. So assert the
+   TERMS, not the identifier. */
+const moreDef = /const moreActive\s*=\s*([^;]+);/.exec(tabBar);
+check(
+  "one single source of truth decides which tab is filled",
+  !!moreDef && /moreOpen/.test(moreDef[1]) && /!onATab/.test(moreDef[1]),
+  moreDef
+    ? `moreActive = ${moreDef[1].trim()}` +
+      (/!onATab/.test(moreDef[1]) ? "" : " — missing the !onATab term: /admin/* would fill NOTHING")
+    : "moreActive is not defined",
+);
+/* The idle tabs must NOT render a label. That is what pays for the active
+   label being 12px instead of the old truncating 10px. */
+check(
+  "the label renders only on the active tab (idle tabs are icon-only)",
+  /active \?\s*\([\s\S]{0,260}?\{tab\.short\}/.test(tabBar),
+  "conditional on `active`",
 );
 /* Tailwind v4 emits NO rule for shadow-[var(--x)], so that form compiles clean
    and renders a fully transparent shadow. This repo shipped that bug once. On
@@ -654,6 +724,41 @@ check(
 );
 check("the drawer still exists for everything off the bar", /role="dialog"/.test(drawer));
 check("the tab bar is mounted by the drawer (shared open state)", /<MobileTabBar/.test(drawer));
+
+/* ── THE PORTAL MOUNT ──────────────────────────────────────────────────────
+   The bar is mounted by the (app) group's layout, so any authenticated page
+   OUTSIDE that group renders with no navigation at all. Measured on the live
+   portal at 390x844: present on /, /my-work, /projects, /people and
+   /time/dashboard; ABSENT on /portal. Somebody who tapped through to the tile
+   chooser lost every route and had only the browser's back button.
+
+   Asserted on the file rather than the rendered page because that is the half
+   a browser check cannot see cheaply — and because the failure is silent: the
+   page builds, renders and passes every other check here with no bar.
+
+   /auth/*, /access-pending and /demo are deliberately NOT asserted: they are
+   pre-authentication or public, where a bar of routes you cannot open is worse
+   than no bar. */
+const portal = read("src/app/portal/page.tsx");
+check(
+  "/portal mounts the tab bar too (it is outside the (app) group)",
+  /<MobileSidebarDrawer/.test(portal),
+  /<MobileSidebarDrawer/.test(portal)
+    ? "MobileSidebarDrawer mounted"
+    : "no bar on /portal — a phone user on the tile chooser has NO navigation",
+);
+check(
+  "/portal passes the same <Sidebar/> child, so More opens the identical nav",
+  /<MobileSidebarDrawer[\s\S]{0,200}?<Sidebar\s*\/>/.test(portal),
+  "shared nav content, not a second drifting copy",
+);
+/* A floating bar is out of flow, so every page that mounts it needs its own
+   bottom padding or the last row of content sits behind the pill. */
+check(
+  "/portal clears the floating bar with bottom padding",
+  /pb-\[calc\(80px\s*\+\s*env\(safe-area-inset-bottom\)\)\]/.test(portal),
+  "pb-[calc(80px+env(safe-area-inset-bottom))]",
+);
 check(
   "a route outside the bar still reports a position",
   /onATab/.test(tabBar),
@@ -718,16 +823,27 @@ check(
   renderer, and re-deriving WCAG here would be a second implementation to keep
   in sync with the live probe that already does it properly.
 */
-const labelClasses = [...tabBar.matchAll(/active[^?]*\?\s*"text-\[var\(--([a-z-]+)\)\]"\s*:\s*"text-\[var\(--([a-z-]+)\)\]"/g)]
-  .flatMap((m) => [m[1], m[2]]);
-const bannedOnBar = ["text-faint", "text-muted", "accent"];
-const offenders = labelClasses.filter((t) => bannedOnBar.includes(t));
+/*
+  RE-ANCHORED for the filled-pill anatomy. The old regex expected a bare
+  ternary of two `text-[var(--x)]` strings; the active branch now also carries
+  `bg-[var(--accent-hover)]`, so it matched NOTHING and the check failed while
+  the colours were correct. That is the cheap failure — the expensive one is a
+  regex that goes vacuous and reports a green on an empty list, which this
+  guards against by requiring at least two tokens.
+*/
+const labelClasses = [
+  ...tabBar.matchAll(/text-\[var\(--([a-z-]+)\)\]/g),
+].map((m) => m[1]);
+const bannedOnBar = ["text-faint", "text-muted", "accent", "text-secondary"];
+const offenders = [...new Set(labelClasses.filter((t) => bannedOnBar.includes(t)))];
 check(
   "tab labels use tokens that pass 4.5:1 in BOTH themes",
-  labelClasses.length > 0 && offenders.length === 0,
-  labelClasses.length
-    ? (offenders.length ? `${offenders.join(", ")} fails in light mode on --sidebar` : labelClasses.join(" / "))
-    : "could not parse the label colour classes",
+  labelClasses.length >= 2 && offenders.length === 0,
+  labelClasses.length >= 2
+    ? (offenders.length
+        ? `${offenders.join(", ")} fails in light mode on this surface`
+        : [...new Set(labelClasses)].join(" / "))
+    : `could not parse the label colour classes (found ${labelClasses.length})`,
 );
 
 // ── 8. The login hero ─────────────────────────────────────────────────────

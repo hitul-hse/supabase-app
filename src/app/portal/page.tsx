@@ -17,6 +17,8 @@ import { requireProfile } from "@/utils/supabase/require-profile";
 import { getUserModules, isModuleReachable } from "@/lib/queries/modules";
 import { BrandMark } from "@/components/BrandMark";
 import { LogoutButton } from "@/components/LogoutButton";
+import { MobileSidebarDrawer } from "@/components/MobileSidebar";
+import { Sidebar } from "@/components/Sidebar";
 
 export const metadata = {
   title: "HSE Platform",
@@ -31,7 +33,35 @@ export default async function PortalPage() {
   const firstName = profile.personName?.split(" ")[0] ?? null;
 
   return (
-    <div className="min-h-screen bg-[var(--surface)]">
+    /*
+      pb clears the floating tab bar added below — same arithmetic as the (app)
+      layout's <main>: 12px gap + 56px pill + 12px breathing room + the safe-area
+      inset, which lives OUTSIDE the bar. Without it the last module tile sits
+      behind the pill on a phone.
+    */
+    <div className="min-h-screen bg-[var(--surface)] pb-[calc(80px+env(safe-area-inset-bottom))] lg:pb-0">
+      {/*
+        THE MOBILE TAB BAR, on the portal too.
+
+        This page lives OUTSIDE the (app) route group, and the bar is mounted by
+        that group's layout — so /portal (and only /portal, of the seven pages
+        outside the group) rendered with NO navigation whatsoever on a phone.
+        Measured on the live portal at 390x844: the bar is present on /,
+        /my-work, /projects, /people and /time/dashboard, and absent here. A
+        person who tapped through to the tile chooser lost every route and had
+        no way back except the browser's own back button.
+
+        The other six pages outside the group are correctly bar-free: /auth/*,
+        /access-pending and /demo are pre-authentication or public, where a nav
+        bar to routes you cannot open is worse than none.
+
+        Mounted with the same <Sidebar/> child as the app layout, so "More"
+        opens the identical full nav rather than a second, drifting copy.
+      */}
+      <MobileSidebarDrawer roleKey={profile.roleKey}>
+        <Sidebar />
+      </MobileSidebarDrawer>
+
       <header className="border-b border-[var(--border)] bg-[var(--surface-2)]">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">

@@ -63,6 +63,14 @@ export function MobileTabBar({
     t.href === "/" ? pathname === "/" : pathname === t.href || pathname?.startsWith(`${t.href}/`),
   );
 
+  /* Exactly ONE tab is filled at any moment, and this is what guarantees it:
+     "More" takes the pill when the drawer is open OR when the current route is
+     not one of the four tabs. Without the single source of truth, a route like
+     /admin/roles would fill nothing and the bar would claim you are nowhere —
+     or worse, both a route tab and More could fill at once and two labels would
+     compete for the same row. */
+  const moreActive = moreOpen || !onATab;
+
   return (
     <nav
       aria-label="Primary"
@@ -134,9 +142,20 @@ export function MobileTabBar({
         Tailwind bg-* utility would win on specificity and silently re-opaque
         the bar while every other assertion here passed.
       */
-      className="card-elev-glass surface-translucent fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-full border border-[var(--glass-edge)] lg:hidden"
+      className="card-elev-glass surface-translucent fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 rounded-full border border-[var(--glass-edge)] lg:hidden"
     >
-      <ul className="flex items-stretch">
+      {/*
+        p-1.5 gives the inner pill room to breathe inside the bar. Without it
+        the filled pill's edge would touch the bar's own rim and the two radii
+        would fight each other visually.
+
+        NOTE: `overflow-hidden` was REMOVED from the <nav> above. It existed to
+        clip the old top-flush marker, which no longer exists; with the filled
+        pill it clipped the pill's own shadow on the first and last tab. The bar
+        is already `rounded-full`, and every child is inside its bounds, so
+        nothing needs clipping.
+      */}
+      <ul className="flex items-stretch gap-0.5 p-1.5">
         {tabs.map((tab) => {
           const Icon = NAV_ICONS[tab.href] ?? IconDot;
           const active =
@@ -146,11 +165,29 @@ export function MobileTabBar({
               : pathname === tab.href || pathname?.startsWith(`${tab.href}/`));
 
           return (
-            <li key={tab.href} className="flex-1">
+            /*
+              THE ACTIVE TAB GROWS, the idle ones shrink. `flex-1` on every tab
+              (the old behaviour) gives five equal 71px columns, which is what
+              forced the label down to 10px and made it truncate. The reference
+              instead lets the active pill take the width its label needs and
+              leaves the rest as icon-only squares:
+
+                idle   -> flex-none, 44px wide  (a square icon target)
+                active -> flex-1,    fills the remainder
+
+              At 390px that is 4 x 44 + pill = 176 + ~190px of pill, so the
+              label reads at 12px with no truncation — where five equal columns
+              could not fit "Tracking" at 10px.
+            */
+            <li key={tab.href} className={active ? "min-w-0 flex-1" : "flex-none"}>
               <Link
                 href={tab.href}
                 data-testid={`tab-${tab.href}`}
                 aria-current={active ? "page" : undefined}
+                /* The label is hidden on idle tabs, so the icon alone is the
+                   accessible name. An aria-label keeps every tab announced by
+                   its route rather than as a bare "link". */
+                aria-label={tab.short}
                 /* `relative` anchors the active marker below. Without it the
                    marker positions against the nearest positioned ancestor —
                    the fixed <nav> — and every tab's marker stacks in the
@@ -171,56 +208,63 @@ export function MobileTabBar({
                   Light theme keeps app-token values (5.76 / 6.52) and inverts
                   the hierarchy: on a white pane, active is DARKER than idle.
                 */
-                className={`relative flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] ${
-                  active ? "text-[var(--glass-text-active)]" : "text-[var(--glass-text)]"
+                /*
+                  A FILLED PILL, horizontal, not a vertical icon-over-label
+                  stack with a dot underneath.
+
+                  --accent-hover as the fill, NOT --accent. Measured against the
+                  three backdrops this floating pane sits over (--page, an
+                  --accent fill, --surface), an --accent pill reaches only 2.80
+                  against the composited pane in dark theme — an outright FAIL of
+                  the 3:1 non-text floor, i.e. the pill visibly dissolves into
+                  the bar exactly where it is meant to say "you are here".
+                  --accent-hover is the same hue at 3.30 dark / 6.15 light.
+
+                  --accent-contrast for the label (#1c2427 dark / #ffffff
+                  light): 9.39 / 7.44 on that fill. NOT --glass-text, which is
+                  tuned for the translucent pane and would sit light-on-light.
+
+                  min-h-[44px] not [56px]: the bar's own p-1.5 adds 12px, so the
+                  bar stays 56px+ overall while each target is a clean 44.
+                */
+                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-full px-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                  active
+                    ? "bg-[var(--accent-hover)] text-[var(--accent-contrast)]"
+                    : "text-[var(--glass-text)]"
                 }`}
               >
-                {/* A DOT BELOW THE LABEL, not the bar flush to the top edge it
-                    used to be. That bar was drawn against a straight top
-                    border; the pill has a 20px corner radius and clips its own
-                    overflow, so on the first and last tab the marker's end now
-                    disappears into the curve — present, wrong, and only visible
-                    on two of five tabs.
+                {/* The marker DOT is gone. It existed because every tab looked
+                    identical, so "here" needed a separate 3px signal — which is
+                    the weakest possible one at arm's length. The pill IS the
+                    signal now: a filled shape the eye finds without looking for
+                    it. One element instead of two, and no 3px fill to re-measure
+                    every time the pane's luminance moves. */}
+                <Icon className="h-[20px] w-[20px] flex-none" />
+                {/*
+                  RENDERED ONLY WHEN ACTIVE, and only ONE tab is ever active, so
+                  exactly one label is on screen at a time. That is what buys the
+                  size: 12px with no truncation, where five permanent labels
+                  forced 10px AND still truncated "Tracking".
 
-                    A filled pill (the sidebar's active shape) still does not
-                    fit: at ~71px wide it either clips the label or forces the
-                    icon off-centre.
-
-                    Absolutely positioned, so it costs the flex column no
-                    height and cannot squeeze the 44px target.
-
-                    The marker is a FILL, not text, so WCAG's 3:1 non-text
-                    floor applies rather than 4.5 — deliberately a different
-                    token from the label.
-
-                    --accent-hover, not --accent. Re-measured on the specular
-                    band over the worst backdrop, --accent falls to 2.80 — an
-                    outright FAIL of the 3:1 non-text floor, where it merely had
-                    thin margin before. --accent-hover is the same hue at 3.37.
-
-                    This is the cost of the brighter band, and it is why the
-                    band is capped: every element on this surface has to be
-                    re-measured when the pane moves, not just the labels. */}
-                <span
-                  aria-hidden
-                  className={`absolute bottom-[7px] h-[3px] w-[3px] rounded-full transition-opacity ${
-                    active ? "bg-[var(--accent-hover)] opacity-100" : "opacity-0"
-                  }`}
-                />
-                <Icon className="h-[18px] w-[18px]" />
-                {/* 10px is the floor here, and it is a deliberate exception to
-                    the app's 11px minimum: the label must survive at 390/5 =
-                    78px per tab. `truncate` rather than wrap — two-line labels
-                    make the bar 76px tall and eat a tenth of the viewport. */}
-                <span className="w-full truncate text-center text-[10px] leading-none tracking-[0.02em]">
-                  {tab.short}
-                </span>
+                  Idle tabs keep their aria-label (above), so nothing is lost to
+                  a screen reader — the label is visually redundant with the
+                  icon, not informational.
+                */}
+                {active ? (
+                  <span className="truncate text-[12px] font-medium leading-none tracking-[0.01em]">
+                    {tab.short}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );
         })}
 
-        <li className="flex-1">
+        {/* "More" follows the exact same anatomy as a route tab — filled when it
+            is the current context, icon-only otherwise. It is deliberately NOT a
+            permanently-labelled odd-one-out: a bar with one always-labelled tab
+            reads as a mistake rather than a distinction. */}
+        <li className={moreActive ? "min-w-0 flex-1" : "flex-none"}>
           <button
             type="button"
             onClick={onOpenMore}
@@ -228,20 +272,18 @@ export function MobileTabBar({
             aria-expanded={moreOpen}
             aria-haspopup="dialog"
             aria-label="More navigation"
-            className={`relative flex min-h-[56px] w-full flex-col items-center justify-center gap-1 px-1 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] ${
-              moreOpen || !onATab ? "text-[var(--glass-text-active)]" : "text-[var(--glass-text)]"
+            className={`flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full px-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+              moreActive
+                ? "bg-[var(--accent-hover)] text-[var(--accent-contrast)]"
+                : "text-[var(--glass-text)]"
             }`}
           >
-            <span
-              aria-hidden
-              className={`absolute bottom-[7px] h-[3px] w-[3px] rounded-full transition-opacity ${
-                moreOpen || !onATab ? "bg-[var(--accent-hover)] opacity-100" : "opacity-0"
-              }`}
-            />
-            <IconMore className="h-[18px] w-[18px]" />
-            <span className="w-full truncate text-center text-[10px] leading-none tracking-[0.02em]">
-              More
-            </span>
+            <IconMore className="h-[20px] w-[20px] flex-none" />
+            {moreActive ? (
+              <span className="truncate text-[12px] font-medium leading-none tracking-[0.01em]">
+                More
+              </span>
+            ) : null}
           </button>
         </li>
       </ul>

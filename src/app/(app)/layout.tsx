@@ -11,7 +11,6 @@ import { SidebarCollapseProvider } from "@/components/SidebarCollapseContext";
 import { SIDEBAR_COOKIE } from "@/components/sidebar-collapse-shared";
 import { DesktopSidebarShell } from "@/components/DesktopSidebarShell";
 import { StaleDeployNotice } from "@/components/StaleDeployNotice";
-import { TimerBarSlot } from "./TimerBarSlot";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   /*
@@ -107,7 +106,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         pill on exactly the notched iPhones the inset exists for.
       */}
       <main className="flex min-w-0 flex-1 flex-col overflow-x-clip pt-12 pb-[calc(80px+env(safe-area-inset-bottom))] lg:pt-0 lg:pb-0">
-        <TimerBarSlot />
+        {/*
+          The global timer strip used to render here, above every page.
+
+          It was removed on 2026-08-25 for two measured reasons. It wrote to
+          public.timesheet_entries while every real hour lives in time.entry
+          (5,351 rows from TrackingTime and calendar sync), so an hour logged
+          with it reached neither utilisation nor any dashboard, yet still fed
+          billable_value_by_person and project_budget_status -- a control that
+          could distort billing while appearing to do nothing. And it was used
+          exactly once in the app's lifetime, against 5,350 synced entries,
+          while costing 70px on a phone: 8.3% of the first screen on every
+          page, pushing each page's own title down to y=147px.
+
+          The working tracker is /time (TimeTracker + time/actions.ts), which
+          has a project picker and writes to time.entry through
+          time.current_member_id(). Put a shortcut in the nav if one is wanted;
+          do not restore a second tracker that writes to the other table.
+        */}
         {children}
       </main>
 

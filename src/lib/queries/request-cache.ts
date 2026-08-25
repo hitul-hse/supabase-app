@@ -21,7 +21,9 @@ import type { SupabaseTyped } from "./types";
  *   <Sidebar/>        getUser + getProfileView   (x2: the layout mounts it
  *                                                 twice, desktop + mobile drawer)
  *   <TopBarChrome/>   getUser + getProfileView
- *   <TimerBarSlot/>   getUser + profile lookup
+ *   <TimerBarSlot/>   getUser + profile lookup   (since removed, 2026-08-25 --
+ *                                                 it wrote to the wrong table and
+ *                                                 had been used once ever)
  *   requireProfile()  getUser + getCurrentProfile
  *
  * Same user, same request, same answer, ~50ms of network each.
@@ -96,7 +98,7 @@ export function oncePerRequest<T>(key: string, load: () => Promise<T>): Promise<
  *
  * Measured, a single navigation made 4-6 of these: the proxy, <Sidebar/> twice
  * (the layout mounts it for desktop and again for the mobile drawer),
- * <TopBarChrome/>, <TimerBarSlot/>, and the page's own requireProfile() gate --
+ * <TopBarChrome/> and the page's own requireProfile() gate --
  * in series, all returning the same user.
  *
  * This does NOT weaken the check. The token is still verified against the auth

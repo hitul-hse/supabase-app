@@ -90,7 +90,7 @@ export function RecordsTabs({ canReadAll }: { canReadAll: boolean }) {
              * a pill, and the rest of this app's segment controls now speak the same
              * shape, so an underline here would be the odd one out.
              */
-            className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+            className={`rounded-full px-3 py-1 text-[12px] transition-colors pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
               active
                 ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"

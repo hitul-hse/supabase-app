@@ -124,11 +124,31 @@ check(
    /rounded-(xl|full)/ passes on the active-marker dots — which are
    `rounded-full` — so deleting the pill's radius entirely still looked fine.
    That hole was real: the prove-script caught the gate, not the code. */
-const navClass = tabBar.match(/data-testid="mobile-tab-bar"[\s\S]{0,400}?className="([^"]*)"/)?.[1] ?? "";
+/* Read the className from the STRIPPED source, not the raw file, and do not cap
+   the distance. The raw file carries a long block comment between the testid
+   and the className; a {0,400} window silently stopped matching when that
+   comment grew, navClass became "", and THREE checks below passed vacuously on
+   an empty string — including the one asserting the bar keeps a control in both
+   states. An empty capture must therefore be a hard failure, not a pass. */
+const navClass =
+  strip(tabBar).match(/data-testid="mobile-tab-bar"[\s\S]*?className="([^"]*)"/)?.[1] ?? "";
 check(
-  "it has a real corner radius (a pill, not a slab)",
-  /rounded-\[var\(--radius-panel\)\]|rounded-(?:xl|2xl|3xl|full)/.test(navClass),
-  navClass ? `nav className: ${/rounded-\S+/.exec(navClass)?.[0] ?? "NO rounded-* on the bar itself"}` : "could not read the nav's className",
+  "the bar's className is readable (an empty capture passes everything vacuously)",
+  navClass.length > 0,
+  navClass ? `${navClass.length} chars` : "could not capture the nav className — checks below are meaningless",
+);
+/* rounded-FULL specifically, not "some radius". The references are true pills:
+   re-measured scale-invariantly, the E-Commerce bar is 37px tall and its fill
+   reaches full width at dy=15 of 37 — radius is HALF ITS HEIGHT. The earlier
+   20px came from reading "~18px" in raw pixels off a 3200x2400 export, which
+   says nothing about a 58px bar on a 390px phone. A fixed px radius also stops
+   being a pill the moment the bar's height changes; rounded-full cannot. */
+check(
+  "the bar is a FULL pill (radius >= half its height), not a rounded slab",
+  /rounded-full/.test(navClass),
+  navClass
+    ? `nav className: ${/rounded-\S+/.exec(navClass)?.[0] ?? "NO rounded-* on the bar itself"}`
+    : "could not read the nav's className",
 );
 /* The shadow is what makes a floating bar read as floating rather than as a
    mis-aligned block. It MUST go through .card-elev-raised: Tailwind v4 emits
@@ -187,10 +207,38 @@ check(
 const blurPx = Number(
   /\.surface-translucent\s*\{[^}]*?backdrop-filter:\s*blur\(\s*(\d+)px/.exec(css)?.[1] ?? 0,
 );
+/* >=20px, not >=8px. FROST, not tint: at 0.80 alpha a small blur radius leaves
+   the text behind the bar readable through the labels. A larger radius destroys
+   more high-frequency detail, which is what buys the extra transparency back. */
 check(
-  "the translucent surface is backdrop-blurred",
-  blurPx >= 8,
+  "the translucent surface is FROSTED (blur >= 20px, not a light tint)",
+  blurPx >= 20,
   blurPx ? `blur(${blurPx}px)` : "no backdrop blur on .surface-translucent itself",
+);
+/* Saturation >100% is not decoration: a heavy blur averages colour toward grey,
+   so without it a more transparent bar reads as dirty rather than as glass. */
+const sat = Number(
+  /\.surface-translucent\s*\{[^}]*?backdrop-filter:\s*blur\([^)]*\)\s*saturate\(\s*(\d+)%/.exec(css)?.[1] ?? 0,
+);
+check(
+  "the frost retains colour (saturate > 100%)",
+  sat > 100,
+  sat ? `saturate(${sat}%)` : "no saturate() — the blur will wash the bar toward grey",
+);
+/* Real glass catches light on its rim. At 0.80 alpha a flat --border hairline
+   makes the bar read as a hole cut in the page rather than a pane above it, and
+   the token must exist in BOTH themes: a white rim is invisible on a light bar,
+   so light inverts it to black at low alpha. */
+const glassEdges = [...css.matchAll(/--glass-edge:\s*rgba\(([^)]*)\)/g)].map((m) => m[1].trim());
+check(
+  "--glass-edge is defined for BOTH themes (white rim is invisible on light)",
+  glassEdges.length === 2,
+  glassEdges.length ? glassEdges.join("  |  ") : "no --glass-edge token",
+);
+check(
+  "the bar uses the glass rim, not the flat --border",
+  /border-\[var\(--glass-edge\)\]/.test(navClass),
+  /border-\[var\(--glass-edge\)\]/.test(navClass) ? "--glass-edge" : "still on --border",
 );
 /* Firefox shipped backdrop-filter late and it can be disabled by flag. Without
    the @supports guard those users get the 0.85 window with NO blur — text
@@ -410,6 +458,94 @@ check(
   "  it is static (an assemble here would replay on every navigation)",
   !/<BrandMark[^>]*\banimate\b/.test(drawer),
   /<BrandMark[^>]*\banimate\b/.test(drawer) ? "animate on a bar seen all day" : "static",
+);
+
+/* ── Filter capsules must survive a 360px phone ────────────────────────────
+   THE BUG THIS EXISTS FOR, reported as "some filtering capsules are not
+   appearing properly on mobile, for example the trackingtime dashboard tab's".
+
+   The GROUP BY trough holds five pills (Member/Project/Customer/Service/Task)
+   needing ~350px; a 360px phone has ~336px inside the card padding. Its PARENT
+   row wrapped, so the trough got a full line and looked like it should fit —
+   but the trough itself was `flex items-center` with NO flex-wrap, so "Task"
+   ran off the right edge. Not hidden behind a scrollbar: unreachable. There is
+   no horizontal scroll on these rows, so an overflowing pill cannot be reached
+   by any gesture.
+
+   Asserted across EVERY filter component, not just the one reported: the same
+   `flex items-center gap-0.5 rounded-full` trough is copy-pasted in six files,
+   so fixing only the reported one leaves five identical bugs. */
+const CAPSULE_FILES = [
+  "src/app/(app)/time/dashboard/ReportFilters.tsx",
+  "src/app/(app)/time/dashboard/WindowTabs.tsx",
+  "src/app/(app)/time/TimeViewTabs.tsx",
+  "src/app/(app)/OverviewFilters.tsx",
+  "src/app/(app)/team-lead/BoardRangeFilter.tsx",
+  "src/app/(app)/RecordsTabs.tsx",
+];
+const unwrapped = [];
+const tinyTargets = [];
+const zoomingDates = [];
+for (const f of CAPSULE_FILES) {
+  const raw = read(f);
+  if (raw === null) continue;
+  const src = strip(raw);
+  // a trough: rounded-full container of pills, identified by the gap-0.5 + p-0.5
+  // shape every one of them shares
+  for (const m of src.matchAll(/className="([^"]*gap-0\.5 rounded-full[^"]*)"/g)) {
+    if (!/flex-wrap/.test(m[1])) unwrapped.push(`${f}: ${m[1].slice(0, 58)}`);
+  }
+  // hand-rolled capsule buttons must carry the pointer-coarse bump that the
+  // shared primitives (Segmented, FilterChip) already have
+  for (const m of src.matchAll(/rounded-full px-3 py-1 text-\[12px\][^"`]*/g)) {
+    if (!/pointer-coarse:min-h/.test(m[0])) tinyTargets.push(`${f}: ${m[0].slice(0, 54)}`);
+  }
+  // iOS Safari force-zooms the whole page when a FOCUSED input is under 16px,
+  // and a date input is focused by tapping it. The page then stays zoomed.
+  //
+  // Anchored on `type="date"` and scoped to that element's own className. A
+  // bare /px-3 py-1\.5 font-mono text-\[(\d+)px\]/ matched the week-nav's
+  // <Link> ARROWS, which are not focusable inputs and cannot trigger the zoom —
+  // reporting two failures for a file with no defect. The zoom applies to
+  // inputs, so the check must too.
+  // The className is a TEMPLATE LITERAL: `className={`…`}`. Capturing with
+  // [{`"]([^`"]*) consumes the backtick as the delimiter and then immediately
+  // stops at the NEXT backtick — capturing the empty string, so every date
+  // input looked compliant and R9 sailed through. Take everything up to the
+  // closing `}` of the attribute instead.
+  for (const m of src.matchAll(/type="date"[\s\S]{0,800}?className=\{?[`"]([\s\S]*?)[`"]\}?\s*\/?>/g)) {
+    const cls = m[1];
+    const size = /(?:^|\s)text-\[(\d+)px\]/.exec(cls);
+    if (size && Number(size[1]) < 16) {
+      zoomingDates.push(`${f}: text-[${size[1]}px] on a date input`);
+    }
+  }
+}
+check(
+  "every capsule trough wraps (pills cannot run off a 360px screen)",
+  unwrapped.length === 0,
+  unwrapped.length ? unwrapped.slice(0, 4).join("  |  ") : `${CAPSULE_FILES.length} files clean`,
+);
+check(
+  "every hand-rolled capsule has a coarse-pointer tap target",
+  tinyTargets.length === 0,
+  tinyTargets.length ? tinyTargets.slice(0, 4).join("  |  ") : "all carry pointer-coarse:min-h",
+);
+check(
+  "no date input under 16px (iOS force-zooms the page on focus)",
+  zoomingDates.length === 0,
+  zoomingDates.length ? zoomingDates.slice(0, 4).join("  |  ") : "all >= 16px below sm",
+);
+/* The 22ch date label in the week nav could not shrink, so the row demanded
+   ~380px and clipped its own "next week" and "this week" controls on a 360px
+   phone. 22ch only matters once the row is on one line, so it is sm:-only. */
+const weekNav = strip(read("src/app/(app)/time/TimeViewTabs.tsx") ?? "");
+check(
+  "the week-nav date label does not force a fixed width on a phone",
+  !/(?<!sm:)min-w-\[22ch\]/.test(weekNav),
+  /(?<!sm:)min-w-\[22ch\]/.test(weekNav)
+    ? "unprefixed min-w-[22ch] forces the row to ~380px"
+    : "sm:min-w-[22ch]",
 );
 
 console.log(failed ? "\nFAILED" : "\nAll mobile shell checks passed");

@@ -13,7 +13,7 @@
    * --sidebar-translucent: the floating mobile tab bar, which is the ONLY
    * surface in the app that content scrolls underneath.
    *
-   * ALPHA IS 0.85 AND THAT IS A MEASURED FLOOR, not taste. A translucent bar's
+   * ALPHA IS 0.80 AND THAT IS A MEASURED FLOOR, not taste. A translucent bar's
    * label contrast is no longer set by its own colour — it is set by whatever
    * is behind it, so the ratio must hold against the WORST backdrop, not the
    * usual one. Computed across every surface that can sit under it:
@@ -29,8 +29,20 @@
    * non-text). Dark mode never fails at any of these — reading only the dark
    * palette would have shipped an inaccessible light theme, which is exactly
    * the bug measured on this bar last time.
+   *
+   * 0.80 is therefore the FLOOR, not a preference: it is one step above the
+   * first value that fails. Anything more transparent needs the labels to get
+   * darker/lighter first, not the alpha to drop.
    */
-  --sidebar-translucent: rgba(13, 15, 18, 0.85);
+  --sidebar-translucent: rgba(13, 15, 18, 0.8);
+  /*
+   * --glass-edge: the hairline on a frosted surface. Brighter than --border
+   * because real glass catches light along its rim; at 0.80 alpha a flat
+   * --border hairline makes the bar read as a hole cut in the page rather than
+   * a pane floating above it. Semi-transparent white so it works over whatever
+   * happens to be behind the bar, rather than only over the page background.
+   */
+  --glass-edge: rgba(255, 255, 255, 0.1);
   --surface: #1a1e24;
   --surface-2: #14171c;
   --surface-hover: #232933;
@@ -218,9 +230,15 @@
 
   --page: #eef0f2;
   --sidebar: #e4e7ea;
-  /* #e4e7ea at 0.85 — see the dark-theme note above for why 0.85 is a floor
+  /* #e4e7ea at 0.80 — see the dark-theme note above for why 0.80 is a floor
      rather than a preference. This is the theme that sets it. */
-  --sidebar-translucent: rgba(228, 231, 234, 0.85);
+  --sidebar-translucent: rgba(228, 231, 234, 0.8);
+  /*
+   * Light theme inverts the rim: a white edge is invisible on a #e4e7ea bar
+   * over a #eef0f2 page. Glass in a light room is defined by the shadow at its
+   * edge, not a highlight — so this is black at low alpha, not white.
+   */
+  --glass-edge: rgba(0, 0, 0, 0.08);
   --surface: #ffffff;
   --surface-2: #f2f4f5;
   --surface-hover: #e9edee;
@@ -553,10 +571,26 @@ body {
  * ONE place, and it is assertable — a gate can look for the class and know what
  * it resolves to.
  *
- * THE BLUR IS NOT DECORATION. Without it the bar is a flat 15% window onto
- * whatever is behind, so text scrolling under it stays legible THROUGH the bar
- * and collides with the labels. The blur destroys that high-frequency detail
- * and leaves an average tone, which is what makes the labels readable.
+ * THE BLUR IS NOT DECORATION. Without it the bar is a flat window onto whatever
+ * is behind, so text scrolling under it stays legible THROUGH the bar and
+ * collides with the labels. The blur destroys that high-frequency detail and
+ * leaves an average tone, which is what makes the labels readable.
+ *
+ * THE ALPHA IS A MEASURED FLOOR, NOT TASTE. 0.80 is as transparent as this can
+ * go. Computed over the three worst things that can sit under the bar (page,
+ * card surface, and an --accent fill) in BOTH themes:
+ *      a=0.85  light active 4.99   a=0.80  light active 4.68
+ *      a=0.75  light active 4.38  <- FAILS the 4.5 floor for 10px text
+ * LIGHT MODE BINDS. Every value passes comfortably on the dark palette, so
+ * judging this on dark alone would ship an inaccessible light theme -- which is
+ * exactly the bug this bar already shipped once.
+ *
+ * blur(24px) saturate(180%), not blur(16px) saturate(140%). Frosted glass is
+ * not "a tint you can see through": it is heavy defocus plus retained colour.
+ * A bigger radius destroys more high-frequency detail (which BUYS the extra
+ * transparency back in legibility), and pushing saturation past 100% keeps the
+ * colour that the blur's averaging washes out -- without it a more transparent
+ * bar reads as dirty grey rather than glass.
  *
  * prefers-reduced-transparency: a real accessibility setting (macOS "Reduce
  * transparency", Windows "Transparency effects" off), not a nicety. People turn
@@ -575,8 +609,8 @@ body {
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .surface-translucent {
     background-color: var(--sidebar-translucent);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
   }
 }
 @media (prefers-reduced-transparency: reduce) {

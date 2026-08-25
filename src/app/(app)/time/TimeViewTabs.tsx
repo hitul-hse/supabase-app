@@ -16,7 +16,7 @@ function Tab({ href, label, active }: { href: string; label: string; active: boo
       // aria-current is what conveys selection to a screen reader; colour alone
       // does not.
       aria-current={active ? "page" : undefined}
-      className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+      className={`rounded-full px-3 py-1 text-[12px] transition-colors pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
         active
           ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
           : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -72,7 +72,7 @@ export function TimeViewTabs({
     <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 card-elev sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-3">
         {/* Track first: logging time is the action, reading it is the report. */}
-        <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+        <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           <Tab href={url({ view: "track" })} label="Track" active={view === "track"} />
           <Tab href={url({ view: "records" })} label="Records" active={view === "records"} />
         </div>
@@ -81,14 +81,21 @@ export function TimeViewTabs({
             always the signed-in member's own time, so offering "Team" there
             would imply you could start a timer for a colleague. */}
         {view === "records" && (
-          <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+          <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
             <Tab href={url({ scope: "mine" })} label="My time" active={scope === "mine"} />
             <Tab href={url({ scope: "team" })} label="Team" active={scope === "team"} />
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* flex-wrap plus a responsive min-width on the date span. The span was a
+          flat min-w-[22ch] (~220px) which CANNOT shrink, so with two arrows and
+          the "This week" link the row demanded ~380px — wider than a 360px
+          phone — and the trailing controls were clipped off the right edge with
+          no scroll affordance. 22ch is there to stop the label reflowing as the
+          date changes, which only matters once the row is on one line, so it is
+          now sm:-only. */}
+      <div className="flex flex-wrap items-center gap-2">
         <Link
           href={url({ week: shiftWeek(weekStart, -1) })}
           aria-label="Previous week"
@@ -97,7 +104,7 @@ export function TimeViewTabs({
           ←
         </Link>
 
-        <span className="min-w-[22ch] text-center font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
+        <span className="text-center font-mono text-[11px] tabular-nums text-[var(--text-secondary)] sm:min-w-[22ch]">
           {formatDay(weekStart)} – {formatDay(weekEndDisplay)}
         </span>
 

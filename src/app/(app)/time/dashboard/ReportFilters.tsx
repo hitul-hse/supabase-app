@@ -46,7 +46,11 @@ function Toggle({
       onClick={onClick}
       aria-pressed={on}
       title={title}
-      className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+      /* pointer-coarse:min-h-[36px] matches Segmented/FilterChip, the two
+         shared capsule primitives. Without it these are ~20px tall — less than
+         half the 44px iOS/WCAG target — and they are the ONLY way to change
+         what the dashboard shows. Desktop keeps the dense 20px. */
+      className={`rounded-full px-3 py-1 text-[12px] transition-colors pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
         on
           ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
           : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -449,14 +453,25 @@ export function ReportFilters({
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        {/* flex-wrap: two native date inputs plus a separator have a hard
+            minimum width the browser will not shrink below (~140px each on
+            iOS). Without wrapping, the second input and the arrow are pushed
+            off-screen at 360px with NO scroll affordance — the row simply
+            appears cut off. */}
+        <div className="flex flex-wrap items-center gap-1.5">
           <input
             type="date"
             value={from}
             max={to}
             onChange={(e) => push({ preset: "custom", from: e.target.value, to })}
             aria-label="From date"
-            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            /* text-[16px] BELOW sm, not text-[11px]. iOS Safari force-zooms the
+               whole page whenever a focused input has a font-size under 16px,
+               and a <input type="date"> is focused by tapping it. The page then
+               stays zoomed — every other control is off-screen until the user
+               pinches back out. This is the single worst mobile defect on this
+               bar, and it is invisible on desktop and in devtools emulation. */
+            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[16px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] sm:text-[11px] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />
@@ -467,7 +482,7 @@ export function ReportFilters({
             min={from}
             onChange={(e) => push({ preset: "custom", from, to: e.target.value })}
             aria-label="To date"
-            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[16px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] sm:text-[11px] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />
@@ -481,7 +496,7 @@ export function ReportFilters({
         <MultiSelect label="Customer" options={customers} selected={customerIds} onChange={ids("customers")} />
         <MultiSelect label="Service" options={services} selected={serviceIds} onChange={ids("services")} />
 
-        <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+        <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           <Toggle on={billable === null} onClick={() => push({ billable: null })}>
             All
           </Toggle>
@@ -526,7 +541,14 @@ export function ReportFilters({
         <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
           GROUP BY
         </span>
-        <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+        {/* flex-wrap, and this trough is WHY the bug was reported. Five pills
+            (Member/Project/Customer/Service/Task) need ~350px; a 360px phone
+            has ~336px of usable width inside the card padding. The parent row
+            wraps, so the trough gets a full line and LOOKS like it should fit —
+            but the trough itself did not wrap, so "Task" (and part of Service)
+            ran off the right edge with no scrollbar and no fade. The options
+            were not hidden behind a scroll: they were simply unreachable. */}
+        <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           {[
             ["member", "Member"],
             ["project", "Project"],
@@ -543,7 +565,7 @@ export function ReportFilters({
         <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
           TREND
         </span>
-        <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+        <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           {[
             ["day", "Daily"],
             ["week", "Weekly"],

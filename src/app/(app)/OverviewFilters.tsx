@@ -117,7 +117,7 @@ export function OverviewFilters({
                 type="button"
                 aria-pressed={range.preset === p.key}
                 onClick={() => go({ preset: p.key })}
-                className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+                className={`rounded-full px-3 py-1 text-[12px] transition-colors pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
                   range.preset === p.key
                     ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -129,8 +129,13 @@ export function OverviewFilters({
           </div>
 
           {/* Custom dates: editing either one builds a range from BOTH current
-              values, so the untouched end never resets to a default. */}
-          <div className="flex items-center gap-1.5">
+              values, so the untouched end never resets to a default.
+
+              flex-wrap: a native date input has a hard minimum width the
+              browser will not shrink below, so two of them plus the arrow are
+              wider than a 360px phone. Unwrapped, the second one is simply cut
+              off the right edge with no scrollbar to reveal it. */}
+          <div className="flex flex-wrap items-center gap-1.5">
             <input
               type="date"
               value={range.from}
@@ -139,7 +144,7 @@ export function OverviewFilters({
               onChange={(e) => {
                 if (e.target.value) go({ from: e.target.value, to: range.to });
               }}
-              className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+              className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[16px] sm:text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
                 range.preset === null ? "border-[var(--accent)]" : "border-[var(--border)]"
               }`}
             />
@@ -154,7 +159,7 @@ export function OverviewFilters({
               onChange={(e) => {
                 if (e.target.value) go({ from: range.from, to: e.target.value });
               }}
-              className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+              className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[16px] sm:text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
                 range.preset === null ? "border-[var(--accent)]" : "border-[var(--border)]"
               }`}
             />
@@ -175,7 +180,7 @@ export function OverviewFilters({
             type="button"
             aria-pressed={team === null}
             onClick={() => go({ team: null })}
-            className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+            className={`rounded-full px-3 py-1 text-[12px] transition-colors pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
               team === null
                 ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -189,7 +194,7 @@ export function OverviewFilters({
               type="button"
               aria-pressed={team === option.key}
               onClick={() => go({ team: option.key })}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] transition-colors pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
                 team === option.key
                   ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"

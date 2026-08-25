@@ -56,7 +56,7 @@ export function BoardRangeFilter({ range }: { range: BoardRange }) {
               type="button"
               aria-pressed={range.preset === p.key}
               onClick={() => go(p.key === "4w" ? "" : `?range=${p.key}`)}
-              className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+              className={`rounded-full px-3 py-1 text-[12px] transition-colors pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
                 range.preset === p.key
                   ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -68,8 +68,12 @@ export function BoardRangeFilter({ range }: { range: BoardRange }) {
         </div>
 
         {/* Custom dates: editing either one switches to a custom range built
-            from BOTH current values, so the untouched end never resets. */}
-        <div className="flex items-center gap-1.5">
+            from BOTH current values, so the untouched end never resets.
+
+            flex-wrap: two native date inputs plus the arrow exceed a 360px
+            phone's usable width, and unwrapped the second is clipped off the
+            right edge with no scroll affordance. */}
+        <div className="flex flex-wrap items-center gap-1.5">
           <input
             type="date"
             value={range.from}
@@ -78,7 +82,7 @@ export function BoardRangeFilter({ range }: { range: BoardRange }) {
             onChange={(e) => {
               if (e.target.value) go(`?from=${e.target.value}&to=${range.to}`);
             }}
-            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[16px] sm:text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
               range.preset === null ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />
@@ -93,7 +97,7 @@ export function BoardRangeFilter({ range }: { range: BoardRange }) {
             onChange={(e) => {
               if (e.target.value) go(`?from=${range.from}&to=${e.target.value}`);
             }}
-            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
+            className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[16px] sm:text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] ${
               range.preset === null ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
           />

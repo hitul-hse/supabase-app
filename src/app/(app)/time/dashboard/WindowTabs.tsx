@@ -18,7 +18,7 @@ const OPTIONS = [
 export function WindowTabs({ current }: { current: string }) {
   return (
     <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 card-elev sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+      <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
         {OPTIONS.map((o) => {
           const active = o.key === current;
           return (
@@ -27,7 +27,7 @@ export function WindowTabs({ current }: { current: string }) {
               href={`/time/dashboard?window=${o.key}`}
               // Colour alone does not convey selection to a screen reader.
               aria-current={active ? "page" : undefined}
-              className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+              className={`rounded-full px-3 py-1 text-[12px] transition-colors pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
                 active
                   ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"

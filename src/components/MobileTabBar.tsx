@@ -69,9 +69,17 @@ export function MobileTabBar({
       data-testid="mobile-tab-bar"
       /*
         FLOATING, not edge-anchored. The bar is a detached pill inset from all
-        three edges, per the references — measured on the E-Commerce shot
-        (Anitei, 27259789): ~18px corner radius, inset ~7% of phone width, and
-        the designer's own stated reason is "maximize screen space".
+        three edges, per the references — the designer's own stated reason on
+        the E-Commerce shot (Anitei, 27259789) is "maximize screen space".
+
+        rounded-full, NOT rounded-[var(--radius-panel)]. The earlier 20px came
+        from a BAD MEASUREMENT of that reference: "~18px radius" was read in
+        raw pixels off a 3200x2400 export, which says nothing about a 58px-tall
+        bar on a 390px phone. Re-measured scale-invariantly, the reference bar
+        is 37px tall and its fill reaches full width at dy=15 of 37 — radius is
+        HALF ITS HEIGHT, i.e. a true pill. At our 58px height that is 29px, and
+        `rounded-full` expresses "always a pill" rather than pinning a number
+        that silently stops being a pill the moment the bar's height changes.
 
         THE SAFE AREA MOVED, and this is the part that breaks if you skim it.
         While the bar was flush to the bottom it needed pb-[env(...)] INSIDE
@@ -92,16 +100,20 @@ export function MobileTabBar({
         floating rather than as a mis-aligned block, so a silent no-op here
         undoes the whole change.
 
-        surface-translucent gives the bar 0.85 alpha over a 16px backdrop blur,
-        so the content it floats over shows through — which is the point of a
-        detached bar rather than a slab. That class (globals.css) carries the
-        blur, the @supports guard and the prefers-reduced-transparency fallback
-        to a fully opaque bar; the alpha is a MEASURED floor, not taste. It
-        replaces bg-[var(--sidebar)] rather than sitting alongside it: a
-        Tailwind bg-* utility would win on specificity and silently re-opaque
-        the bar while every other assertion here still passed.
+        surface-translucent gives the bar 0.80 alpha over a 24px backdrop blur
+        at 180% saturation — frosted glass, not a tint. That class (globals.css)
+        carries the blur, the @supports guard and the prefers-reduced-
+        transparency fallback to a fully opaque bar; the alpha is a MEASURED
+        floor (0.75 puts the light-theme active label at 4.38, under the 4.5
+        text floor), not taste. It replaces bg-[var(--sidebar)] rather than
+        sitting alongside it: a Tailwind bg-* utility would win on specificity
+        and silently re-opaque the bar while every other assertion here passed.
+
+        border-[var(--glass-edge)] rather than --border. Real frosted glass
+        catches light on its top edge; a flat hairline at 0.80 alpha makes the
+        bar read as a cut-out hole rather than a pane sitting above the page.
       */
-      className="card-elev-raised surface-translucent fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--border)] lg:hidden"
+      className="card-elev-raised surface-translucent fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-full border border-[var(--glass-edge)] lg:hidden"
     >
       <ul className="flex items-stretch">
         {tabs.map((tab) => {

@@ -127,6 +127,10 @@ module.exports = {
   const emptyStateFile = await compile("src/components/EmptyState.tsx", "EmptyState.cjs", { "next/link": posix(linkStub) });
   const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", { "next/link": posix(linkStub) });
   const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", { "next/link": posix(linkStub) });
+  // Added when the mobile work wrapped the explorer's panels in a disclosure.
+  // Compiled rather than stubbed: it is small and dependency-free, and a stub
+  // would keep this gate green if the real component started throwing.
+  const mobileDisclosureFile = await compile("src/components/MobileDisclosure.tsx", "MobileDisclosure.cjs", {});
 
   const insightsFile = await compile("src/app/(app)/projects/project-insights.ts", "project-insights.cjs", {
     "@/lib/queries/projects-live": posix(stub),
@@ -165,6 +169,7 @@ module.exports = {
       "./CustomerMultiSelect": posix(customerSelectFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/ui/Button": posix(buttonFile),
+      "@/components/MobileDisclosure": posix(mobileDisclosureFile),
     }),
   );
 

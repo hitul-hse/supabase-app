@@ -345,8 +345,18 @@ check(
   /export async function getMyWork\(\s*supabase:\s*SupabaseTyped\s*\)/.test(querySrc),
 );
 check(
-  "it resolves the caller through auth.getUser()",
-  /supabase\.auth\.getUser\(\)/.test(querySrc),
+  "it resolves the caller from the verified session, not from an argument",
+  // Either the raw call or getSignedInUser(), the request-scoped memo in
+  // request-cache.ts that wraps it (see request-cache.ts:115). Both end at
+  // supabase.auth.getUser(); the wrapper exists because the app shell asks the
+  // same question two or three times per render and each raw call is a ~50ms
+  // round trip to the auth server.
+  //
+  // The mechanism is deliberately not pinned. What must hold is that the
+  // identity is SERVER-VERIFIED and not passed in -- the parameter case is
+  // asserted separately above, and that is the one that would let a page render
+  // somebody else's book of work.
+  /supabase\.auth\.getUser\(\)|getSignedInUser\s*\(/.test(querySrc),
 );
 // Deliberately loose about WHICH claims exist: the module has since grown
 // "responsible" and "replacement" alongside owner/assigned. Pinning the exact

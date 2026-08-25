@@ -9,6 +9,28 @@
 
   --page: #121418;
   --sidebar: #0d0f12;
+  /*
+   * --sidebar-translucent: the floating mobile tab bar, which is the ONLY
+   * surface in the app that content scrolls underneath.
+   *
+   * ALPHA IS 0.85 AND THAT IS A MEASURED FLOOR, not taste. A translucent bar's
+   * label contrast is no longer set by its own colour — it is set by whatever
+   * is behind it, so the ratio must hold against the WORST backdrop, not the
+   * usual one. Computed across every surface that can sit under it:
+   *
+   *            dark (worst = --surface-hover)   light (worst = an accent fill)
+   *   a=1.00   label 10.57  active 11.43        label 7.32  active 5.99
+   *   a=0.85   label 10.26  active 11.09        label 6.10  active 4.99
+   *   a=0.80   label 10.16  active 10.99        label 5.71  active 4.67
+   *   a=0.75   label  9.99  active 10.80        label 5.37  active 4.39  FAILS
+   *
+   * Light mode is what binds: at 0.75 the ACTIVE label drops to 4.39 (under
+   * the 4.5 floor for 10px text) and the marker dot to 3.07 (under 3:1 for
+   * non-text). Dark mode never fails at any of these — reading only the dark
+   * palette would have shipped an inaccessible light theme, which is exactly
+   * the bug measured on this bar last time.
+   */
+  --sidebar-translucent: rgba(13, 15, 18, 0.85);
   --surface: #1a1e24;
   --surface-2: #14171c;
   --surface-hover: #232933;
@@ -196,6 +218,9 @@
 
   --page: #eef0f2;
   --sidebar: #e4e7ea;
+  /* #e4e7ea at 0.85 — see the dark-theme note above for why 0.85 is a floor
+     rather than a preference. This is the theme that sets it. */
+  --sidebar-translucent: rgba(228, 231, 234, 0.85);
   --surface: #ffffff;
   --surface-2: #f2f4f5;
   --surface-hover: #e9edee;
@@ -518,6 +543,48 @@ body {
 }
 .card-elev-raised {
   box-shadow: var(--shadow-raised);
+}
+
+/*
+ * .surface-translucent — the floating mobile tab bar.
+ *
+ * A plain class rather than `bg-[var(--sidebar-translucent)]` + `backdrop-blur`
+ * for the same reason .card-elev exists: it keeps the blur and its fallback in
+ * ONE place, and it is assertable — a gate can look for the class and know what
+ * it resolves to.
+ *
+ * THE BLUR IS NOT DECORATION. Without it the bar is a flat 15% window onto
+ * whatever is behind, so text scrolling under it stays legible THROUGH the bar
+ * and collides with the labels. The blur destroys that high-frequency detail
+ * and leaves an average tone, which is what makes the labels readable.
+ *
+ * prefers-reduced-transparency: a real accessibility setting (macOS "Reduce
+ * transparency", Windows "Transparency effects" off), not a nicety. People turn
+ * it on precisely because layered translucent surfaces are hard to parse. We
+ * fall back to the fully opaque --sidebar, which is the palette the labels were
+ * originally measured against, so the fallback is the SAFEST state, never a
+ * degraded one.
+ *
+ * @supports: Firefox shipped backdrop-filter late and it can be disabled by
+ * flag. Without the guard those users get the 0.85 window with NO blur —
+ * text-through-text — which is worse than an opaque bar.
+ */
+.surface-translucent {
+  background-color: var(--sidebar);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .surface-translucent {
+    background-color: var(--sidebar-translucent);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .surface-translucent {
+    background-color: var(--sidebar);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 .viz-root {

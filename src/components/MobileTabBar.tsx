@@ -91,8 +91,17 @@ export function MobileTabBar({
         (globals.css:505). The shadow is what makes a floating bar read as
         floating rather than as a mis-aligned block, so a silent no-op here
         undoes the whole change.
+
+        surface-translucent gives the bar 0.85 alpha over a 16px backdrop blur,
+        so the content it floats over shows through — which is the point of a
+        detached bar rather than a slab. That class (globals.css) carries the
+        blur, the @supports guard and the prefers-reduced-transparency fallback
+        to a fully opaque bar; the alpha is a MEASURED floor, not taste. It
+        replaces bg-[var(--sidebar)] rather than sitting alongside it: a
+        Tailwind bg-* utility would win on specificity and silently re-opaque
+        the bar while every other assertion here still passed.
       */
-      className="card-elev-raised fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--sidebar)] lg:hidden"
+      className="card-elev-raised surface-translucent fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--border)] lg:hidden"
     >
       <ul className="flex items-stretch">
         {tabs.map((tab) => {

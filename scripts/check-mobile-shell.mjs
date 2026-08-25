@@ -65,14 +65,20 @@ const BIO = "src/components/BiometricSignIn.tsx";
 const SHELL = "src/components/AuthShell.tsx";
 const CLIENT = "src/utils/supabase/client.ts";
 const NAV = "src/components/SidebarNav.tsx";
+const CSS = "src/app/globals.css";
 
 console.log("── mobile shell ──────────────────────────────────────────────");
 
-for (const p of [TAB_BAR, SHARED, DRAWER, LAYOUT, BIO, SHELL, CLIENT, NAV]) {
+for (const p of [TAB_BAR, SHARED, DRAWER, LAYOUT, BIO, SHELL, CLIENT, NAV, CSS]) {
   check(`${p} exists`, read(p) !== null);
 }
 if (failed) { console.log("\nmissing sources — cannot continue"); process.exit(1); }
 
+// NOT strip()ped. strip() eats block comments, and every token here is
+// documented with a long one — stripping would take neighbouring declarations
+// with it. The CSS checks below match on declarations, which a comment cannot
+// forge, so reading the raw file is both safer and more honest.
+const css = read(CSS) ?? "";
 const tabBar = strip(read(TAB_BAR));
 const shared = strip(read(SHARED));
 const drawer = strip(read(DRAWER));
@@ -135,6 +141,82 @@ check(
     ? "shadow-[var(--shadow-*)] renders TRANSPARENT in Tailwind v4"
     : "card-elev-raised",
 );
+/* ── The bar is translucent, and the alpha is a FLOOR ────────────────────────
+   A translucent bar's label contrast is no longer set by its own colour: it is
+   set by whatever scrolls behind it. Measured across every surface that can sit
+   under it, LIGHT mode binds — at alpha 0.75 the ACTIVE label falls to 4.39
+   (under 4.5 for 10px text) and the marker dot to 3.07 (under 3:1 non-text).
+   Dark mode never fails at any tested alpha, so reading only the dark palette
+   would ship an inaccessible light theme — the exact bug measured on this bar
+   last time. Hence: parse the number, don't just look for "rgba". */
+const ALPHA_FLOOR = 0.8;
+check(
+  "the bar is translucent, not an opaque slab",
+  /surface-translucent/.test(tabBar),
+  /surface-translucent/.test(tabBar) ? ".surface-translucent" : "no translucency class on the bar",
+);
+/* A Tailwind bg-* utility alongside .surface-translucent wins on specificity
+   and silently re-opaques the bar while every other assertion here still
+   passes. That is the failure mode this catches. */
+check(
+  "no bg-* utility overrides the translucent background",
+  !/bg-\[var\(--sidebar\)\]/.test(navClass),
+  /bg-\[var\(--sidebar\)\]/.test(navClass)
+    ? "bg-[var(--sidebar)] on the nav re-opaques it (utility beats the class)"
+    : "none",
+);
+const alphas = [...css.matchAll(/--sidebar-translucent:\s*rgba\([^)]*?,\s*([\d.]+)\s*\)/g)].map((m) =>
+  Number(m[1]),
+);
+check(
+  "--sidebar-translucent is defined for BOTH themes",
+  alphas.length === 2,
+  `${alphas.length} definition(s) — expected 2 (dark + light)`,
+);
+check(
+  `every theme's alpha clears the measured ${ALPHA_FLOOR} floor`,
+  alphas.length > 0 && alphas.every((a) => a >= ALPHA_FLOOR),
+  alphas.length ? `alphas: ${alphas.join(", ")}` : "no --sidebar-translucent found",
+);
+/* Without the blur the bar is a flat 15% window: text scrolling under it stays
+   legible THROUGH the bar and collides with the labels. The blur destroys that
+   high-frequency detail and leaves an average tone. It is load-bearing. */
+/* Read the blur from the RULE, not the file: the first `blur(...)` in the file
+   is the 1px probe inside @supports, so a file-wide match reports "blur(1px"
+   and would keep passing if the real blur were deleted. */
+const blurPx = Number(
+  /\.surface-translucent\s*\{[^}]*?backdrop-filter:\s*blur\(\s*(\d+)px/.exec(css)?.[1] ?? 0,
+);
+check(
+  "the translucent surface is backdrop-blurred",
+  blurPx >= 8,
+  blurPx ? `blur(${blurPx}px)` : "no backdrop blur on .surface-translucent itself",
+);
+/* Firefox shipped backdrop-filter late and it can be disabled by flag. Without
+   the @supports guard those users get the 0.85 window with NO blur — text
+   through text — which is worse than an opaque bar. */
+const guarded = /@supports\s*\(\((?:-webkit-)?backdrop-filter[\s\S]{0,600}?\.surface-translucent/.test(
+  css,
+);
+check(
+  "translucency is guarded by @supports (no unblurred window on old engines)",
+  guarded,
+  guarded ? "@supports (backdrop-filter)" : "unguarded — old engines get a window with no blur",
+);
+/* prefers-reduced-transparency is a real setting (macOS "Reduce transparency",
+   Windows "Transparency effects" off). People enable it precisely because
+   layered translucent surfaces are hard to parse. The fallback is the OPAQUE
+   palette the labels were originally measured against — the safest state. */
+const rtFallback =
+  /@media\s*\(prefers-reduced-transparency:\s*reduce\)[\s\S]{0,300}?\.surface-translucent[\s\S]{0,200}?background-color:\s*var\(--sidebar\)\s*;/.test(
+    css,
+  );
+check(
+  "prefers-reduced-transparency falls back to the opaque bar",
+  rtFallback,
+  rtFallback ? "falls back to the opaque --sidebar" : "no reduced-transparency fallback",
+);
+
 check("it is hidden on desktop", /lg:hidden/.test(tabBar));
 
 // ── 2. It cannot cover the page ───────────────────────────────────────────

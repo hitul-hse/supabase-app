@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
-import { Card, CardHeader, StatTile } from "@/components/ui/Card";
+import { Card, CardHeader, ChartNote, StatTile } from "@/components/ui/Card";
 import { TrendFigure, Donut, Gauge, LegendDot } from "@/components/ui/Charts";
 import { Pill } from "@/components/ui/Segmented";
 import { TopBarChrome } from "@/components/TopBarChrome";
 import { IconWarning, IconArrowRight } from "@/components/nav-icons";
 import { SyncBar } from "@/components/SyncBar";
+import { MobileDisclosure } from "@/components/MobileDisclosure";
 import { createClient } from "@/utils/supabase/server";
 import {
   getLiveOverview,
@@ -424,6 +425,28 @@ export default async function OverviewPage({
           judgement". Both draw from figures already on this page, so they add a
           reading, not a new source.
         */}
+        {/*
+          COLLAPSED ON A PHONE ONLY. Measured at 390x844 this strip was 576px of
+          the route's 3,492px, and it is by construction the most redundant block
+          on the page: every figure in it is a RE-READING of numbers already
+          stated above (the billable donut re-draws the billable KPI tile, the
+          gauge averages the card above it, and "This period" restates the tiles
+          verbatim). Three abreast on a desktop that redundancy is the point --
+          proportion beside magnitude, read in one glance. Stacked into one
+          column on a phone it is three screens of the same three numbers.
+
+          The summary carries those numbers, so nothing is lost while shut, and
+          MobileDisclosure keeps `sm:block` on the content, so at 1440px this is
+          a bare wrapper and the desktop grid is unchanged.
+        */}
+        <MobileDisclosure
+          title="Billable split & utilisation"
+          summary={
+            `${billableShareAll === null ? "—" : `${billableShareAll}%`} billable` +
+            ` · ${avgUtilisation === null ? "—" : `${avgUtilisation}%`} utilisation` +
+            ` · ${Math.round(totalHoursAll).toLocaleString("de-DE")}h logged`
+          }
+        >
         <div className="grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-3">
           <Card className="flex flex-col">
             <CardHeader title="Billable split" qualifier={scopedQualifier()} />
@@ -460,6 +483,17 @@ export default async function OverviewPage({
                 </>
               )}
             </div>
+        {/*
+          "Billable share" is ambiguous without a denominator: share of tracked
+          hours, or share of contracted capacity? The two give very different
+          numbers from the same week. Stating which one stops a reader taking
+          63% of logged time as 63% of their working week.
+        */}
+        <ChartNote>
+          Billable hours as a share of all tracked hours in this period. The
+          denominator is time actually logged, not contracted capacity —
+          utilisation, in the card beside this one, answers that instead.
+        </ChartNote>
           </Card>
 
           <Card className="flex flex-col">
@@ -490,6 +524,17 @@ export default async function OverviewPage({
                 />
               )}
             </div>
+        {/*
+          The 40h nominal is the assumption most likely to be misread, and it is
+          not the only one in the app: the management page reckons capacity as
+          1,304 planned hours a year at 75% billable. A reader comparing the two
+          figures needs to know they rest on different bases.
+        */}
+        <ChartNote>
+          Tracked hours against a nominal 40-hour week, averaged over people who
+          logged time in the period. People with no hours are left out rather
+          than counted as zero, so this is the average of those working.
+        </ChartNote>
           </Card>
 
           <Card className="flex flex-col sm:col-span-2 lg:col-span-1">
@@ -525,6 +570,7 @@ export default async function OverviewPage({
             </div>
           </Card>
         </div>
+        </MobileDisclosure>
 
         {/* Project ledger — real projects, ranked by hours logged */}
         <Card className="overflow-hidden">

@@ -18,7 +18,7 @@
  */
 
 import Link from "next/link";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader, ChartNote } from "@/components/ui/Card";
 import { Donut, LegendDot } from "@/components/ui/Charts";
 // Fed a re-derived view: the Projects explorer recomputes this on every filter
 // change from rows already in the browser (project-insights.ts), so the charts
@@ -158,6 +158,16 @@ export function CustomerPortfolioCharts({
             capacity or pricing.
           </p>
         )}
+        {/*
+          Share of hours delivered, which is not share of revenue: a customer on
+          a low rate can dominate this ring while contributing far less. Saying
+          so prevents the most natural misreading of a customer donut.
+        */}
+        <ChartNote>
+          Each customer's share of delivered hours. This measures effort, not fee
+          — rates differ by customer, so the largest slice is not necessarily the
+          largest account.
+        </ChartNote>
       </Card>
 
       {/* --------------------------------------------- capacity vs commitment */}

@@ -14,7 +14,7 @@
  */
 
 import Link from "next/link";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader, ChartNote } from "@/components/ui/Card";
 import { Donut, LegendDot } from "@/components/ui/Charts";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { matchesFacet } from "./ProjectsLedger";
@@ -122,6 +122,17 @@ export function PortfolioCharts({
             })}
           </div>
         </div>
+        {/*
+          A figure that sorts projects into named buckets has to say where the
+          boundaries are, or "at risk" is just a colour someone chose. These are
+          the same thresholds the ledger filters on (matchesFacet), so clicking a
+          slice and reading this line cannot disagree.
+        */}
+        <ChartNote>
+          Projects by budget burn — logged hours as a share of the budget. Over
+          budget is above 100%, at risk is 85–100%. Projects with no budget set
+          are counted separately, never assumed healthy.
+        </ChartNote>
       </Card>
 
       <Card tone="hero" className="flex flex-col lg:col-span-8">
@@ -160,6 +171,17 @@ export function PortfolioCharts({
             </Link>
           ))}
         </div>
+        {/*
+          The ranking is by logged hours, not by value or by burn. Saying so
+          matters: a reader scanning for "our biggest engagements" would
+          otherwise read effort as revenue, and the two diverge sharply on any
+          project that is overrunning.
+        */}
+        <ChartNote>
+          The ten projects with the most hours logged. Length is effort spent,
+          not fee or budget — a long bar can be a large engagement or a small one
+          running over.
+        </ChartNote>
       </Card>
 
       <BurnDonutRow rows={rows} />
@@ -242,6 +264,18 @@ function BurnDonutRow({ rows }: { rows: ProjectListRow[] }) {
           })}
         </div>
       )}
+      {/*
+        The ring is capped at 100% (see this component's header comment), so a
+        340% overrun and a 105% one look identical on the ring and differ only in
+        the centre label. That is a deliberate readability trade, and a reader
+        comparing two red rings deserves to know it rather than concluding the
+        two projects are equally bad.
+      */}
+      <ChartNote>
+        Hours logged against the estimate. The ring fills to 100% and no further,
+        so overruns are told by the centre figure, not the arc — two full red
+        rings are not necessarily equally over.
+      </ChartNote>
     </Card>
   );
 }

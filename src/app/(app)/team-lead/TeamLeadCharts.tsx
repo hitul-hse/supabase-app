@@ -10,7 +10,7 @@
  * it summarises would be read as one of them lying.
  */
 
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader, ChartNote } from "@/components/ui/Card";
 import { TrendFigure, Donut, LegendDot } from "@/components/ui/Charts";
 import type { TeamLeadBoardData } from "@/lib/queries/team-lead-live";
 
@@ -80,6 +80,16 @@ export function TeamLeadCharts({ board }: { board: TeamLeadBoardData }) {
             <span>{weeks[weeks.length - 1].label}</span>
           </div>
         </div>
+        {/*
+          Total hours, not billable ones. A team can look busy here while the
+          billable share falls, which is exactly the divergence a lead needs to
+          see rather than have averaged away.
+        */}
+        <ChartNote>
+          Hours logged by the whole team each week, billable and non-billable
+          together. A week still in progress is marked as such in its readout,
+          so a low final point is usually incompleteness rather than a drop.
+        </ChartNote>
       </Card>
 
       <Card className="flex flex-col lg:col-span-4">
@@ -114,6 +124,19 @@ export function TeamLeadCharts({ board }: { board: TeamLeadBoardData }) {
             </>
           )}
         </div>
+        {/*
+          Three bands, and none of them is obvious from a colour. The widths are
+          deliberately generous (see classify() in team-lead-live.ts): the donut
+          exists to spot somebody drowning or idle, not to police a timesheet to
+          the hour, so a narrow band would paint most weeks amber for ordinary
+          variation.
+        */}
+        <ChartNote>
+          People by hours logged in the last completed week, against their own
+          nominal week. Over is more than 115%, under is below 50%, and the
+          current week is deliberately excluded — it is part-filled by
+          definition, so classifying anyone on a Tuesday would be a false alarm.
+        </ChartNote>
       </Card>
     </div>
   );

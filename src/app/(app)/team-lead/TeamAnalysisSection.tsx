@@ -16,7 +16,7 @@
  * team totals disagree with the board grid below, which shows everyone.
  */
 
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader, ChartNote } from "@/components/ui/Card";
 import { TrendFigure, Gauge, LegendDot } from "@/components/ui/Charts";
 import { teamLabel } from "@/lib/teams";
 import type { TeamLeadBoardData, BoardRow } from "@/lib/queries/team-lead-live";
@@ -156,6 +156,18 @@ function TeamAnalysis({ block, board }: { block: TeamBlock; board: TeamLeadBoard
           )}
         </div>
       </div>
+      {/*
+        The denominator is the part worth stating. Utilisation counts only the
+        weeks a person actually logged (see the computation above), not every
+        week in the window -- otherwise somebody who joined halfway through, or
+        who works part-time, reads as chronically under-used when they are not.
+      */}
+      <ChartNote>
+        Left: hours logged per week by this team, billable and non-billable.
+        Right: tracked hours against nominal capacity, counting only the weeks
+        each person logged, so part-time and mid-window starters are not shown
+        as under-used. The legend counts the last completed week only.
+      </ChartNote>
     </Card>
   );
 }

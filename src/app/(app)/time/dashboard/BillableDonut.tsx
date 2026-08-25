@@ -37,7 +37,7 @@ export function BillableDonut({
         <span className="text-[10px] text-[var(--text-faint)]">click a share to filter</span>
       </header>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-4">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 pt-4 pb-2">
         <Donut
           slices={[
             { label: "Billable", value: totals.billableSeconds, color: "var(--accent)" },
@@ -57,6 +57,18 @@ export function BillableDonut({
           </Link>
         </div>
       </div>
+      {/*
+        This panel is not a Card, so it cannot use ChartNote; the classes below
+        match ChartNote's so the two read identically wherever a reader meets
+        them. The point worth stating is the flag's provenance: billable is a
+        property TrackingTime carries on each entry, not something this app
+        infers, so a wrong split is corrected there rather than here.
+      */}
+      <p className="px-4 pb-3 text-[10px] leading-[1.45] text-[var(--text-faint)]">
+        Tracked time split by the billable flag on each TrackingTime entry.
+        Percentages are of hours in the current selection, so changing the date
+        range or filters changes this figure.
+      </p>
     </section>
   );
 }

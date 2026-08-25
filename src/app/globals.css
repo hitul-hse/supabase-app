@@ -46,13 +46,41 @@
    */
   --sidebar-translucent: rgba(47, 55, 66, 0.72);
   /*
+   * THE SPECULAR BAND — what makes this read as glass rather than a slab.
+   *
+   * A flat fill of ANY single colour reads as a solid widget: one tone, no
+   * curvature, no light source, however transparent it is. Real glass is
+   * brighter where light catches its top edge and falls away underneath.
+   *
+   * A FIXED-HEIGHT BAND, not a proportional gradient, because two surfaces
+   * share .surface-translucent: the 58px pill and the ~570px drawer sheet. A
+   * `to bottom` gradient over 570px is a heavy top-to-bottom wash, not a lit
+   * edge — so the band is 24px and then settles to the base fill, which reads
+   * the same on both.
+   *
+   * #3f4a59 is the CEILING, not a preference. Measured over the worst backdrop
+   * an --accent fill:
+   *
+   *   band      sep     idle label
+   *   #3a4453   1.533   4.97
+   *   #3f4a59   1.626   4.63   <- chosen
+   *   #424d5e   1.684   4.48   FAILS 4.5
+   *
+   * Band-to-base contrast is 1.223 — that difference IS the visible curvature.
+   */
+  --glass-band: rgba(63, 74, 89, 0.72);
+  /* The inset top highlight (see .card-elev-glass). Brighter than --glass-edge
+     because it is 1px of pure specular, not a rim around the whole shape.
+     Measured 1.95 against the band, so the top edge reads lit, not cut. */
+  --glass-specular: rgba(255, 255, 255, 0.22);
+  /*
    * The same pane at alpha 1, for the two paths that cannot blur: browsers
    * without backdrop-filter, and users with prefers-reduced-transparency on.
    * Deliberately NOT --sidebar: falling back to the darker-than-page fill would
    * hand the people who asked for less visual ambiguity the exact bar that
    * disappears. Losing the blur is acceptable; losing the bar is not.
    */
-  --glass-solid: #2f3742;
+  --glass-solid: #333c48;
   /*
    * The bar's own label colours, deliberately NOT --text-secondary/--accent.
    *
@@ -74,9 +102,20 @@
    * cannot: measured, rgba(0,0,0,0.34) over --page separates only 1.054, while
    * the same shadow over the light page separates 2.070. So on dark the lift
    * comes from the fill and this rim; on light it comes from the shadow.
-   * Raised from 0.10 to 0.16 to carry that load.
+   *
+   * 0.36, NOT 0.16, AND THAT IS THE WHOLE FIX. The rim is the only element that
+   * can lift this bar off a near-black page, because the FILL cannot: swept
+   * seven tints, every one bright enough to separate >= 2.0 fails the 4.5 text
+   * floor over an --accent backdrop (#7c8899@0.72 separates 3.26 but drops the
+   * idle label to 2.52). The rim costs text NOTHING — labels sit in the middle
+   * of the bar, not on its edge. Measured vs --page:
+   *
+   *   0.16 -> 2.52   (below the 3:1 non-text floor; why the bar looked flat)
+   *   0.24 -> 3.23
+   *   0.36 -> 4.57   <- chosen
+   *   0.50 -> 6.60   (reads as a drawn outline, not a lit edge)
    */
-  --glass-edge: rgba(255, 255, 255, 0.16);
+  --glass-edge: rgba(255, 255, 255, 0.36);
   /*
    * The floating bar's own shadow, deeper than --shadow-raised because it is
    * the only surface that floats over the PAGE rather than sitting on it.
@@ -286,6 +325,18 @@
    * shadow over the dark page. Same perceived lift, opposite mechanism.
    */
   --sidebar-translucent: rgba(255, 255, 255, 0.72);
+  /*
+   * Same specular gradient as dark, inverted: on a light pane the light still
+   * catches the TOP, so the top stays pure white and the bottom settles toward
+   * the page. Measured: top separates 1.057, bottom 1.035 — small numbers, but
+   * light separation is capped anyway (a FULLY OPAQUE white pane on this page
+   * reaches only 1.142), which is exactly why this theme lifts by shadow.
+   */
+  --glass-band: rgba(255, 255, 255, 0.86);
+  /* Barely there on light: the pane is already near-white, so a white inset has
+     almost nothing to brighten. Kept non-zero so the top edge still reads as
+     lit rather than cut, but it is the shadow doing the work in this theme. */
+  --glass-specular: rgba(255, 255, 255, 0.6);
   /* See the dark-theme note: the no-blur fallback is the lit pane at alpha 1,
      never --sidebar. On light that is plain white against a #eef0f2 page. */
   --glass-solid: #ffffff;
@@ -305,8 +356,13 @@
    * Light theme inverts the rim: a white edge is invisible on a near-white bar
    * over a #eef0f2 page. Glass in a light room is defined by the shadow at its
    * edge, not a highlight — so this is black at low alpha, not white.
+   *
+   * 0.14 rather than 0.10: the dark rim went to 0.36 to carry the lift, and
+   * this needs to keep pace or the light bar reads flatter than the dark one.
+   * It stays far lower than dark's because a light pane ALSO has its shadow
+   * (separation 2.070) doing real work; dark's rim is on its own.
    */
-  --glass-edge: rgba(0, 0, 0, 0.1);
+  --glass-edge: rgba(0, 0, 0, 0.14);
   /*
    * Light theme's shadow is the load-bearing one. A near-white pane on an
    * off-white page separates only 1.102 by fill alone, so this is what makes
@@ -643,9 +699,22 @@ body {
  * A plain class, not shadow-[var(--shadow-glass)]: Tailwind v4 emits NO rule
  * for that arbitrary-value form, so it compiles clean and renders a fully
  * transparent shadow. This codebase already shipped that exact bug once.
+ *
+ * IT OWNS THE INSET HIGHLIGHT TOO, and that placement is deliberate. The
+ * highlight is a box-shadow, and .surface-translucent is on the same element:
+ * whichever rule declared box-shadow LAST would silently erase the other's,
+ * making the bar's elevation depend on the order of two rules 200 lines apart.
+ * One author for box-shadow, so there is nothing to get out of order.
+ *
+ * The inset is what makes the pill look CURVED. A border draws a uniform
+ * outline; a lit edge is brightest along its upper surface, so a 1px inset
+ * highlight just inside the rim reads as a surface turning toward you rather
+ * than a flat disc with a stroke around it.
  */
 .card-elev-glass {
-  box-shadow: var(--shadow-glass);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-specular),
+    var(--shadow-glass);
 }
 
 /*
@@ -692,10 +761,26 @@ body {
  */
 .surface-translucent {
   background-color: var(--glass-solid);
+  background-image: none;
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .surface-translucent {
     background-color: var(--sidebar-translucent);
+    /*
+     * A 24px SPECULAR BAND, not a flat fill — the difference between glass and
+     * a slab. One flat tone has no light source and no curvature, so it reads
+     * as a solid widget however transparent it is.
+     *
+     * Fixed 24px, NOT a percentage: the same class dresses the 58px pill AND
+     * the ~570px drawer sheet, and a proportional gradient that looks like a
+     * lit edge on the pill becomes a heavy top-to-bottom wash on the sheet.
+     * An absolute band is a lit edge on both.
+     */
+    background-image: linear-gradient(
+      to bottom,
+      var(--glass-band) 0,
+      var(--sidebar-translucent) 24px
+    );
     -webkit-backdrop-filter: blur(28px) saturate(180%);
     backdrop-filter: blur(28px) saturate(180%);
   }
@@ -703,6 +788,10 @@ body {
 @media (prefers-reduced-transparency: reduce) {
   .surface-translucent {
     background-color: var(--glass-solid);
+    /* The gradient goes too. Reduced transparency is a request for fewer
+       layered visual effects, and a gradient is one — the fallback is one
+       flat, clearly-visible pane, which is the point of the setting. */
+    background-image: none;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

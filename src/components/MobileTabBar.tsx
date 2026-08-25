@@ -99,28 +99,40 @@ export function MobileTabBar({
         (globals.css). Deeper than .card-elev-raised because this is the only
         surface that floats over the PAGE rather than sitting on a card.
 
-        surface-translucent gives the bar 0.72 alpha over a 28px backdrop blur
-        at 180% saturation. That class (globals.css) carries the blur, the
-        @supports guard and the prefers-reduced-transparency fallback.
+        surface-translucent gives the bar a SPECULAR GRADIENT (not a flat tint)
+        over a 28px backdrop blur at 180% saturation. That class (globals.css)
+        carries the gradient, the blur, the @supports guard and the
+        prefers-reduced-transparency fallback.
 
-        THE FIX THAT MATTERS HERE was the TINT, not the alpha. The bar used to
-        be tinted with --sidebar (#0d0f12), which is DARKER than --page
-        (#121418): composited it landed on rgb(14,16,19) against a rgb(18,20,24)
-        page — separation 1.033, where 1.00 is invisible. It read as a hole cut
-        in the page, not a pane above it. Alpha could not fix that (separation
-        was IDENTICAL at 0.72 and 0.80), so the tint moved to #2f3742, LIGHTER
-        than the page: separation 1.330. Frosted glass catches light; on a dark
-        UI that means the pane goes up in luminance, not down.
+        WHY A GRADIENT AND A BRIGHT RIM, rather than "a lighter tint". The bar
+        first failed by being tinted DARKER than --page (separation 1.033, a
+        hole cut in the page). The obvious repair — keep brightening the flat
+        fill — does not work, and the sweep says so plainly: separation and
+        legibility move in OPPOSITE directions, one for one.
+
+          tint      a     sep    worst idle label (over an --accent fill)
+          #2f3742  0.72   1.330   5.71   <- reads as a solid slate SLAB
+          #454f60  0.72   1.717   4.41   FAILS 4.5
+          #68758c  0.72   2.652   2.98   FAILS badly
+          #7c8899  0.72   3.260   2.52   FAILS badly
+
+        So no flat fill can both pop and stay readable. The lift comes from the
+        two elements that cost text NOTHING, because labels sit in the MIDDLE of
+        the bar rather than on its edge:
+
+          - the RIM at 0.36 (was 0.16): separation 4.57 vs --page, where 0.16
+            gave only 2.52 — under the 3:1 non-text floor, which is why the bar
+            looked flat against black however transparent it was;
+          - the GRADIENT + inset specular: a single flat tone has no light
+            source and no curvature, so it reads as a widget however
+            transparent. Bright at the top where light catches the pill.
+
+        The fill itself stayed dark (top separation 1.533) precisely so the
+        labels keep 4.97 / 5.95 of headroom.
 
         It replaces bg-[var(--sidebar)] rather than sitting alongside it: a
         Tailwind bg-* utility would win on specificity and silently re-opaque
         the bar while every other assertion here passed.
-
-        border-[var(--glass-edge)] rather than --border, at 0.16 rather than
-        0.10. On a near-black page the rim does work the shadow cannot: a black
-        shadow over --page reaches separation 1.054, versus 2.070 for the same
-        shadow over the light page. Dark lifts with fill + rim; light lifts
-        with shadow.
       */
       className="card-elev-glass surface-translucent fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-30 mx-4 overflow-hidden rounded-full border border-[var(--glass-edge)] lg:hidden"
     >
@@ -181,11 +193,14 @@ export function MobileTabBar({
                     floor applies rather than 4.5 — deliberately a different
                     token from the label.
 
-                    --accent-hover, not --accent. On the NEW lighter pane,
-                    measured over its worst backdrop, --accent falls to 3.22:
-                    still passing, but with 0.22 of margin, which is the kind
-                    of number that silently fails the next time a token moves.
-                    --accent-hover is the same hue at 3.80. */}
+                    --accent-hover, not --accent. Re-measured on the specular
+                    band over the worst backdrop, --accent falls to 2.80 — an
+                    outright FAIL of the 3:1 non-text floor, where it merely had
+                    thin margin before. --accent-hover is the same hue at 3.37.
+
+                    This is the cost of the brighter band, and it is why the
+                    band is capped: every element on this surface has to be
+                    re-measured when the pane moves, not just the labels. */}
                 <span
                   aria-hidden
                   className={`absolute bottom-[7px] h-[3px] w-[3px] rounded-full transition-opacity ${

@@ -327,6 +327,37 @@ for (const [themeName, block] of [
     hier >= 1.12,
     `label-to-label contrast ${hier.toFixed(2)}` + (hier < 1.12 ? "; needs >= 1.12" : ""),
   );
+  /*
+   * THE ACTIVE MARKER DOT, and this check exists because its absence let a real
+   * regression through.
+   *
+   * The dot is a FILL, so WCAG's 3:1 non-text floor applies rather than 4.5 —
+   * and it is measured against the SPECULAR BAND, the brightest surface on the
+   * bar, not the base fill. When the band brightened to lift the bar off the
+   * page, --accent fell from 3.22 to 2.80: an outright fail. Every label check
+   * still passed, because a label is not a dot.
+   *
+   * The lesson generalises: when a translucent pane moves, EVERY element on it
+   * has to be re-measured, not just the text.
+   */
+  const bandTok = /--glass-band:\s*rgba\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)[,\s/]+([\d.]+)/.exec(block);
+  const markerTok = tokenIn(block, "accent-hover");
+  if (bandTok && markerTok) {
+    const bandRgb = [Number(bandTok[1]), Number(bandTok[2]), Number(bandTok[3])];
+    const bandA = Number(bandTok[4]);
+    let worstMarker = Infinity;
+    for (const bg of backdrops) {
+      worstMarker = Math.min(worstMarker, contrast(markerTok, composite(bandRgb, bandA, bg)));
+    }
+    check(
+      `[${themeName}] the active marker dot clears the 3:1 non-text floor ON THE BAND`,
+      worstMarker >= 3,
+      `worst ${worstMarker.toFixed(2)} over the specular band` +
+        (worstMarker < 3 ? "; --accent measures 2.80 here — use --accent-hover" : ""),
+    );
+  } else {
+    check(`[${themeName}] marker/band tokens are readable`, false, "missing --glass-band/--accent-hover");
+  }
 }
 /* Without the blur the bar is a flat 15% window: text scrolling under it stays
    legible THROUGH the bar and collides with the labels. The blur destroys that
@@ -365,6 +396,28 @@ check(
   glassEdges.length === 2,
   glassEdges.length ? glassEdges.join("  |  ") : "no --glass-edge token",
 );
+/*
+ * THE DARK RIM CARRIES THE LIFT, so its alpha is a floor, not a taste setting.
+ *
+ * This is the assertion that would have caught the bar reading flat against
+ * black. Measured against --page, the rim separates:
+ *
+ *   0.16 -> 2.52   (what shipped; UNDER the 3:1 non-text floor)
+ *   0.24 -> 3.23
+ *   0.36 -> 4.57   (current)
+ *
+ * It has to be the rim because the FILL cannot do this job: every tint bright
+ * enough to separate >= 2.0 drops the idle label under 4.5 over an accent
+ * backdrop. The rim costs text nothing — labels sit in the middle of the bar.
+ */
+const darkRimAlpha = Number(glassEdges[0]?.split(",").pop()?.trim() ?? 0);
+check(
+  "the dark rim is strong enough to lift the bar off a near-black page",
+  darkRimAlpha >= 0.28,
+  `rgba(...,${darkRimAlpha}) — separation ${
+    darkRimAlpha >= 0.36 ? "4.57" : darkRimAlpha >= 0.24 ? "~3.2" : "2.52, under the 3:1 floor"
+  }`,
+);
 check(
   "the bar uses the glass rim, not the flat --border",
   /border-\[var\(--glass-edge\)\]/.test(navClass),
@@ -380,6 +433,17 @@ check(
     ? "still on --text-secondary (3.07 over an accent fill — fails)"
     : "--glass-text / --glass-text-active",
 );
+/* And the COMPONENT has to actually use that token. The check above measures
+   --accent-hover; this one measures what the marker is painted with, which is
+   the half a token-only check cannot see. --accent is 2.80 on the band. */
+const markerAccent = /bg-\[var\(--accent\)\]/.test(tabBar);
+check(
+  "the active marker dot is painted with --accent-hover, not the failing --accent",
+  /bg-\[var\(--accent-hover\)\]/.test(tabBar) && !markerAccent,
+  markerAccent
+    ? "marker uses --accent — 2.80 on the specular band, under the 3:1 non-text floor"
+    : "marker uses --accent-hover (3.37)",
+);
 /* Tailwind v4 emits NO rule for shadow-[var(--x)], so that form compiles clean
    and renders a fully transparent shadow. This repo shipped that bug once. On
    LIGHT the shadow is the only real lift the bar has (fill separation is capped
@@ -393,8 +457,75 @@ check(
 );
 check(
   ".card-elev-glass actually resolves to a shadow token",
-  /\.card-elev-glass\s*\{[^}]*box-shadow:\s*var\(--shadow-glass\)/.test(css),
+  /\.card-elev-glass\s*\{[^}]*box-shadow:[\s\S]*?var\(--shadow-glass\)/.test(css),
   /--shadow-glass:/.test(css) ? "box-shadow: var(--shadow-glass)" : "no --shadow-glass token",
+);
+/*
+ * THE SPECULAR BAND. This is what separates glass from a slab, and it is the
+ * assertion the previous version of this gate could not make: it checked alpha
+ * and blur, both of which were correct while the bar still read as a solid
+ * slate widget. A flat fill has no light source and no curvature at ANY alpha.
+ *
+ * Asserted on the RULE, not the file, and specifically inside the @supports
+ * block — the base (no-blur) rule deliberately has `background-image: none`,
+ * so a file-wide match would pass on that and prove nothing.
+ */
+const supportsBlock =
+  /@supports\s*\(\((?:-webkit-)?backdrop-filter[\s\S]*?\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
+const bandGradient = /background-image:\s*linear-gradient\([\s\S]*?var\(--glass-band\)/.test(
+  supportsBlock,
+);
+check(
+  "the pane is a SPECULAR BAND, not a flat fill (what makes it glass, not a slab)",
+  bandGradient,
+  bandGradient
+    ? "linear-gradient(var(--glass-band) -> base)"
+    : "flat background-color only — reads as a solid widget at any alpha",
+);
+/* Fixed px, not a percentage. The same class dresses the 58px pill AND the
+   ~570px drawer sheet: a proportional gradient that is a lit edge on the pill
+   is a heavy top-to-bottom wash on the sheet. */
+const bandStop = /var\(--glass-band\)\s*0\s*,\s*var\([^)]*\)\s*(\d+)px/.exec(supportsBlock)?.[1];
+check(
+  "the band is an absolute height, so it reads the same on the pill and the sheet",
+  Boolean(bandStop) && Number(bandStop) >= 12 && Number(bandStop) <= 40,
+  bandStop
+    ? `settles at ${bandStop}px`
+    : "band stop is a percentage or missing — becomes a wash on the 570px sheet",
+);
+check(
+  "--glass-band is defined for BOTH themes",
+  (css.match(/--glass-band:/g) || []).length === 2,
+  `${(css.match(/--glass-band:/g) || []).length} definition(s) — expected 2`,
+);
+/*
+ * The inset top highlight, and WHERE it is declared.
+ *
+ * It lives in .card-elev-glass rather than .surface-translucent because both
+ * classes are on the same element and both would be declaring box-shadow —
+ * whichever rule came last would silently erase the other's, making the bar's
+ * elevation depend on the source order of two rules 200 lines apart.
+ */
+const insetInGlass = /\.card-elev-glass\s*\{[^}]*inset\s+0\s+1px\s+0\s+0\s+var\(--glass-specular\)/.test(
+  css,
+);
+check(
+  "the inset specular highlight is present (the pill reads curved, not flat)",
+  insetInGlass,
+  insetInGlass ? "inset 0 1px 0 0 var(--glass-specular)" : "no inset highlight",
+);
+check(
+  "box-shadow has ONE author, so the inset and the drop shadow cannot erase each other",
+  !/\.surface-translucent\s*\{[^}]*box-shadow:/.test(css) &&
+    !/@supports[\s\S]{0,900}?\.surface-translucent\s*\{[^}]*box-shadow:/.test(css),
+  /box-shadow:/.test(supportsBlock)
+    ? "surface-translucent ALSO sets box-shadow — order-dependent, one will win silently"
+    : "only .card-elev-glass sets box-shadow",
+);
+check(
+  "--glass-specular is defined for BOTH themes",
+  (css.match(/--glass-specular:/g) || []).length === 2,
+  `${(css.match(/--glass-specular:/g) || []).length} definition(s) — expected 2`,
 );
 /* Firefox shipped backdrop-filter late and it can be disabled by flag. Without
    the @supports guard those users get the 0.85 window with NO blur — text
@@ -431,13 +562,28 @@ check(
 );
 /* Same for the no-backdrop-filter path: an engine without blur must still get a
    visible bar, so the base rule cannot sit on --sidebar either. */
-const baseSolid = /\.surface-translucent\s*\{\s*background-color:\s*var\(--glass-solid\)\s*;?\s*\}/.test(
-  css,
-);
+const baseRule = /\.surface-translucent\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+const baseSolid = /background-color:\s*var\(--glass-solid\)/.test(baseRule);
 check(
   "the no-blur base rule also uses the visible pane",
   baseSolid,
   baseSolid ? "background-color: var(--glass-solid)" : "base .surface-translucent is not --glass-solid",
+);
+/* And the base rule must CLEAR the gradient. Without `background-image: none`
+   an engine with no backdrop-filter inherits nothing, but the reduced-
+   transparency path re-declares background-color while the gradient from the
+   @supports block still paints over it — the fallback would keep a translucent
+   band on an opaque pane, which is the exact ambiguity the setting asks to
+   remove. */
+check(
+  "the no-blur / reduced-transparency paths clear the gradient, not just the colour",
+  /background-image:\s*none/.test(baseRule) &&
+    /@media\s*\(prefers-reduced-transparency:\s*reduce\)[\s\S]{0,600}?background-image:\s*none/.test(
+      css,
+    ),
+  /background-image:\s*none/.test(baseRule)
+    ? "background-image: none on both fallback paths"
+    : "gradient survives into the opaque fallback",
 );
 check(
   "--glass-solid is defined for BOTH themes",

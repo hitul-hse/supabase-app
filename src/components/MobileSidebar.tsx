@@ -96,81 +96,79 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
       />
 
       {/*
-        A FLOATING BOTTOM SHEET, not a full-height side slab.
+        AN EDGE-ANCHORED BOTTOM SHEET. Not a floating card, and not a
+        full-height side slab.
 
-        WHY IT MOVED. The old drawer came in from the left edge, full height,
-        square-cornered and fully opaque -- the desktop sidebar transplanted onto
-        a phone. It was measured at x=0 y=0 w=260 h=844, radius 0, backdrop
-        none, beside a tab bar that is a 358x58 frosted pill inset 16px with a
-        24px blur. Two navigation surfaces in one app speaking two visual
-        languages, and the one that opens FROM the pill was the one that looked
-        least like it.
+        WHY IT IS NO LONGER DETACHED. The previous version was `mx-2`, rounded
+        on all four corners at 28px, hovering 84px off the bottom edge: a
+        ~374x520 rounded rectangle sitting in the middle of a 390x844 screen
+        with page visible above, below and either side of it. That is a
+        free-floating widget, which is exactly the shape the floating PILL was
+        reworked away from -- and at this size it is far more of one, because a
+        58px pill reads as a control while a 520px card reads as a second
+        window.
 
-        It also fought the hand. "More" sits at the bottom-right of the pill,
-        where the thumb already is; a panel that then anchors to the top-left is
-        the furthest travel available on a 390x844 screen. A sheet rises from
-        the same edge the tap happened on.
+        The pill can float because it is small, permanent, and has nothing to
+        anchor to. A sheet is the opposite: it is large, temporary, and rises
+        from the edge you tapped. Every phone OS anchors them (iOS action
+        sheets, Android Material bottom sheets) for a reason -- an edge contact
+        is what tells the eye "this came from there and goes back there",
+        which is the whole grammar of a sheet. Floating it clear of the edge
+        removes the one cue that makes the gesture legible.
 
-        THE GEOMETRY IS THE TAB BAR'S, deliberately. Same 16px side inset, same
-        --glass-edge hairline, same surface-translucent (0.80 alpha over
-        blur(24px) saturate(180%), with the @supports guard and the
-        prefers-reduced-transparency fallback that class carries). Matching by
-        REUSE rather than by eye means a future change to the glass reaches both,
-        and the alpha stays the measured 4.5-contrast floor rather than a second,
-        unmeasured value.
+        So: `inset-x-0 bottom-0`, no side margin, only the TOP two corners
+        rounded. It meets three edges of the screen and has exactly one visible
+        boundary, the top -- where the grab handle is.
 
-        rounded-t-[28px], not rounded-full. A pill radius on a sheet this tall
-        would bow the top edge into an arch and eat the first row's corners; 28px
-        is the tab bar's own 29px (half of 58) applied to the two corners that
-        are actually visible, so the family resemblance holds without the shape
-        becoming silly.
+        IT COVERS THE TAB BAR NOW, deliberately, and that is the standard
+        behaviour rather than a compromise. The bar is z-30, the sheet z-50.
+        The previous design floated the sheet ABOVE the bar so "More" stayed
+        lit, which is what forced the 84px offset and the detachment in the
+        first place -- a visual cost paid for an indicator nobody needs while
+        the panel it refers to is already open on screen. The backdrop and the
+        close button are the way out, and both are tested below.
 
-        max-h-[72svh] and svh, not vh. On mobile Safari, 100vh is the LARGEST
+        border-t only. A hairline on the left, right and bottom edges of a
+        panel that is flush to those edges renders as a stray line against the
+        screen border, and on the bottom edge it sits under the home
+        indicator.
+
+        THE GLASS IS STILL THE TAB BAR'S, by reuse: surface-translucent carries
+        the gradient, the 28px blur at 180% saturation, the @supports guard and
+        the prefers-reduced-transparency fallback. Matching by REUSE rather
+        than by eye means a future change to the glass reaches both surfaces,
+        and the alpha stays the measured 4.5-contrast floor rather than a
+        second, unmeasured value.
+
+        max-h-[72svh] and svh, not vh. On mobile Safari 100vh is the LARGEST
         viewport -- it excludes the browser chrome that is on screen when you
         open a sheet -- so a vh-sized panel is taller than the space it has and
         its last row hides behind the URL bar. svh is the small viewport, the
-        honest one. 72% leaves the page visibly alive behind the sheet, which is
+        honest one. 72% leaves the page visibly alive above the sheet, which is
         what tells you this is a layer and not a new page.
 
-        IT SITS ABOVE THE TAB BAR, NOT OVER IT. bottom-[calc(84px+env(...))]
-        clears the pill (58px tall, 12px off the bottom, plus breathing room) so
-        the bar stays visible and "More" stays lit while its own panel is open.
-        The first attempt covered the bar at z-50 and padded the sheet's content
-        by 88px to compensate -- which cleared nothing, because the bar was
-        underneath, and left a blank slab at the bottom of the sheet. Clearing it
-        in the POSITION is what the layering actually needed.
-
-        Fully rounded now, not rounded-t. A panel that floats clear of every edge
-        has four visible corners; rounding only the top was correct while it was
-        anchored to the bottom edge and wrong the moment it lifted off it.
-
-        max-h-[68svh] with the content sized naturally: the sheet is as tall as
-        its nine nav rows and no taller, and only starts scrolling when a longer
-        list would exceed the cap.
-
-        translate-y-full when closed: it slides from the bottom edge it belongs
-        to. The old -translate-x-full slid it off the left, which is now the one
-        direction nothing in this navigation lives.
+        translate-y-full when closed now genuinely parks it BELOW the viewport,
+        because the sheet is flush to the bottom edge. While it floated 84px up,
+        the same transform left its top edge at y=760 -- invisible but still
+        hit-testable, directly over the pill, silently swallowing every tap
+        aimed at the button that opens it.
       */}
       <div
         data-testid="mobile-sheet"
-        className={`surface-translucent card-elev-raised fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 mx-2 flex max-h-[68svh] flex-col overflow-hidden rounded-[28px] border border-[var(--glass-edge)] transition-transform duration-300 ease-out lg:hidden ${
+        className={`surface-translucent card-elev-raised fixed inset-x-0 bottom-0 z-50 flex max-h-[72svh] flex-col overflow-hidden rounded-t-[28px] border-t border-[var(--glass-edge)] transition-transform duration-300 ease-out lg:hidden ${
           open ? "translate-y-0" : "pointer-events-none translate-y-full"
         }`}
         /*
           aria-hidden + inert when closed, and pointer-events-none above.
 
-          The sheet floats 84px off the bottom edge so the tab bar stays visible
-          beneath it. That means "off-screen" is no longer off the VIEWPORT: at
-          translate-y-full its top edge lands at y=760, directly over the pill.
-          It is invisible but still hit-testable, so it silently swallowed every
-          tap aimed at "More" -- the button that opens it. The failure mode is a
-          control that does nothing at all, with no error to notice.
-
-          inert also takes it out of the tab order and the accessibility tree,
-          so a keyboard or screen-reader user cannot land inside a panel that is
-          not there. Both are needed: pointer-events-none fixes the thumb, inert
-          fixes everything else.
+          All three are kept even though the sheet is now flush to the bottom
+          edge and translate-y-full genuinely clears the viewport. Being
+          off-screen is not the same as being out of the accessibility tree: a
+          keyboard or screen-reader user could still tab into a panel that is
+          not visible, land on nine nav links, and have no idea where focus
+          went. inert removes it from the tab order AND the a11y tree;
+          pointer-events-none covers the thumb if the transform is ever
+          interrupted mid-flight.
         */
         role="dialog"
         aria-modal="true"
@@ -210,11 +208,14 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
           left after the handle, so the list overflowed past the sheet's rounded
           bottom instead of scrolling within it.
 
-          The bottom padding clears the home indicator AND the tab bar the sheet
-          is layered over, so the last nav row is never sitting under either.
+          pb-[env(safe-area-inset-bottom)] is REQUIRED now and was not before.
+          While the sheet floated 84px up, the inset was already cleared by the
+          offset; flush to the bottom edge, the last nav row would sit under the
+          home indicator on every notched iPhone. Plus 8px so the final row is
+          not touching the screen edge.
         */}
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(8px+env(safe-area-inset-bottom))]"
           onClick={() => setOpen(false)}
         >
           {children}

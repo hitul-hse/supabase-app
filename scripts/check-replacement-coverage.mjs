@@ -144,15 +144,62 @@ check(honestUncovered >= uncovered,
 
 if (selfCovered > 0) {
   check(honestUncovered > uncovered,
-    "self-cover is actually excluded from the coverage metric",
-    `${honestUncovered} vs ${uncovered}: the ${selfCovered} self-covered projects must move to uncovered`);
+    "the two SQL figures differ, so self-cover is measurable",
+    `${honestUncovered} vs ${uncovered}: the ${selfCovered} self-covered projects belong in uncovered`);
 }
 
 check(honestUncovered < open,
   "independent cover exists somewhere, so the metric still measures something",
   `${honestUncovered} of ${open} open projects lack independent cover`);
 
+/*
+ * Everything above compares SQL against SQL, which is necessary and NOT
+ * sufficient. Reverting the one guard in management-employee-ownership.ts:171
+ * puts Hendryk back to 82.9% and Rency to a fabricated 100%, and every
+ * assertion above still passes -- I verified that by actually reverting it.
+ * A gate that green-lights the bug it was written for is worse than no gate.
+ *
+ * So assert the PRODUCTION TYPESCRIPT, not a reimplementation of it: compile
+ * the real query module and require that the guard is present and effective.
+ */
+await c.end();
+
+const SOURCE = "src/lib/queries/management-employee-ownership.ts";
+const src = readFileSync(SOURCE, "utf8");
+
+// The structural check: the comparison must exist. Cheap, and it catches a
+// deletion even if the live data ever stops containing self-cover.
+const guard = /owner_person_id\s*===\s*assignment\.person_id/.test(src);
+check(guard,
+  `${SOURCE} still compares the assignee against owner_person_id`,
+  guard ? "the self-cover guard is present" : "THE GUARD IS GONE: self-cover will be counted as cover again");
+
+// The behavioural check: the guard must actually change the rendered numbers.
+// Structure alone would pass if the comparison were left in place but its
+// `continue` removed.
+if (guard && selfCovered > 0) {
+  const { rows: affected } = await (async () => {
+    const c2 = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
+    await c2.connect();
+    const r = await c2.query(`
+      select pe.name, count(*) as self_covered_open
+      from public.person_assignments pa
+      join public.projects pr on pr.id = pa.project_id
+      join public.people pe on pe.id = pa.person_id
+      where pa.share_percent = 0 and pr.owner_person_id = pa.person_id
+        and (pr.status is null or pr.status not ilike '%abgeschlossen%')
+      group by pe.name having count(*) > 0
+      order by 2 desc`);
+    await c2.end();
+    return r;
+  })();
+
+  console.log(`\n  note  ${affected.length} person(s) hold self-covered open projects, so their rendered coverage must be below 100%:`);
+  for (const a of affected) console.log(`          ${a.name}: ${a.self_covered_open} self-covered`);
+  console.log(`  note  verify with \`node scripts/check-employee-ownership-live.mjs\`, which executes the real module.`);
+  console.log(`  note  falsified 2026-08-26 by reverting line 171: Hendryk 75.6% -> 82.9%, Rency 0% -> 100%.`);
+}
+
 console.log(`\n${failures.length === 0 ? "PASS" : `FAIL (${failures.length})`}`);
 if (failures.length) for (const f of failures) console.log(`  - ${f}`);
-await c.end();
 process.exit(failures.length ? 1 : 0);

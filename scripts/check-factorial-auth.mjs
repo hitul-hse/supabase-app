@@ -11,12 +11,21 @@
 import { readFileSync, existsSync } from "node:fs";
 
 const ENV_PATH = "C:/Supabase/.env.local";
-const env = existsSync(ENV_PATH)
+const fileEnv = existsSync(ENV_PATH)
   ? Object.fromEntries(
       readFileSync(ENV_PATH, "utf8").split(/\r?\n/)
         .filter((l) => l && !l.startsWith("#") && l.includes("="))
         .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }))
   : {};
+
+/*
+ * The process environment wins over the file. Reading only .env.local was a real
+ * defect: CI and Vercel supply secrets as environment variables, never as a
+ * committed file, so a correctly-configured pipeline would have been told
+ * "BLOCKED: no credential" forever. Found by exporting a token and watching this
+ * gate ignore it.
+ */
+const env = { ...fileEnv, ...process.env };
 
 // §2.1: the version is pinned, and §1.2 chose a company token over an API key on
 // GDPR data-minimisation grounds.

@@ -98,6 +98,27 @@ export function CustomerGroup({
           {hours(customer.loggedHours)} / {hours(customer.contractHours)}h
         </span>
 
+        {/*
+          DESIGN.md rule 7: a total that omits rows states its coverage.
+
+          loggedHours sums with `?? 0`, so once migration 20260826120000 nulls the
+          unmeasured orders this figure becomes a FLOOR. Shown bare, a reader
+          divides it by the full contract and reads a burn nobody measured.
+
+          Rendered ONLY when rows are actually being omitted, so a fully-measured
+          customer keeps the clean two-number display. Same restraint as
+          `aliases` above, which appears only when a merge really collapsed
+          distinct spellings.
+        */}
+        {customer.measuredProjectCount < customer.projectCount ? (
+          <span
+            className="flex-none font-mono text-[10px] text-[var(--warning)]"
+            title={`${customer.projectCount - customer.measuredProjectCount} of ${customer.projectCount} projects have no measured hours, so the figure to the left is a floor rather than a total.`}
+          >
+            {customer.measuredProjectCount}/{customer.projectCount} measured
+          </span>
+        ) : null}
+
         {showMyHours ? (
           <span className="flex-none font-mono text-[11px] text-[var(--text-faint)]">
             mine {hours(customer.myLoggedHours)}h

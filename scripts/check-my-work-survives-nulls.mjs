@@ -76,43 +76,57 @@ check("the sum is arithmetically correct (this is not a maths bug)",
   summed === 80, `${summed}h`);
 
 /*
- * THE FINDING. The number is right and the presentation is not: nothing on the
- * page distinguishes "80h, complete" from "80h, plus two projects we are not
- * measuring". `myHoursUnpopulated` already exists for exactly this shape of
- * problem on a different column, which is the precedent for flagging it.
+ * THE FIX. DESIGN.md rule 7 settles what a partly-unknown total must do: "a
+ * collapsed or paged table still states its total ... a fixed-height list with no
+ * count is indistinguishable from a truncated one, so the reader stops trusting
+ * every other number on the page." A sum that omits rows is the same failure, so
+ * this was house policy rather than a product preference.
+ *
+ * measuredProjectCount carries the coverage, and the UI renders it ONLY when rows
+ * are actually being omitted.
  */
-const hasUnmeasuredFlag = /unmeasuredProjects|projectsUnmeasured|loggedHoursPartial|myHoursUnpopulated/.test(q);
-check("the query surfaces SOME signal that a total may be incomplete",
-  hasUnmeasuredFlag,
-  "myHoursUnpopulated is the existing precedent: a total whose completeness is "
-  + "unstated invites a wrong conclusion");
+const measuredCount = rows.filter((r) => r.loggedHours !== null).length;
+console.log(`  coverage: ${measuredCount}/${rows.length} measured`);
 
-/*
- * Whether that existing flag COVERS this case is the real question, and it does
- * not: myHoursUnpopulated is about person_assignments.logged_hours being
- * unbackfilled, not about projects.logged_hours being deliberately NULL. So the
- * gate records the gap rather than pretending the precedent already solves it.
- */
-const flagIsAboutAssignments = /myHoursUnpopulated:[\s\S]{0,200}myLoggedHours/.test(q);
-check("the existing flag is about ASSIGNMENT hours, a different column",
-  flagIsAboutAssignments,
-  "so it does not tell a reader that a CUSTOMER total omits unmeasured projects");
+check("the query exposes a per-customer coverage count",
+  /measuredProjectCount: number/.test(q),
+  "a total whose completeness is unstated invites a wrong conclusion (DESIGN.md rule 7)");
+check("it is counted from loggedHours, not from contractHours",
+  /if \(r\.loggedHours !== null\) c\.measuredProjectCount \+= 1/.test(q),
+  "\"measured\" must mean we know what was WORKED, which is what the sum claims");
+check("the page-level totals carry it too",
+  /measuredProjectCount: rows\.filter\(\(r\) => r\.loggedHours !== null\)\.length/.test(q));
+
+const cg = readFileSync("C:/Supabase/src/components/my-work/CustomerGroup.tsx", "utf8");
+check("CustomerGroup renders the coverage when rows are omitted",
+  /customer\.measuredProjectCount < customer\.projectCount/.test(cg),
+  "the count is dead data unless it reaches the page");
+check("and stays silent when every project is measured",
+  /measuredProjectCount < customer\.projectCount \? \(/.test(cg),
+  "a fully-measured customer keeps the clean two-number display");
+check("it uses the house --warning token, not an invented one",
+  /text-\[var\(--warning\)\]/.test(cg) && !/var\(--warn\)/.test(cg),
+  "--warn does not exist in DESIGN.md; --warning does");
+
+// The indicator must be correct, not merely present.
+const coverage = (rs) => ({
+  measured: rs.filter((r) => r.loggedHours !== null).length,
+  total: rs.length,
+});
+const partial = coverage(rows);
+check("a partly-measured customer reports 2 of 4",
+  partial.measured === 2 && partial.total === 4, JSON.stringify(partial));
+const allMeasured = coverage(rows.filter((r) => r.loggedHours !== null));
+check("a fully-measured customer reports measured === total (so nothing renders)",
+  allMeasured.measured === allMeasured.total, JSON.stringify(allMeasured));
 
 console.log("\n--- verdict\n");
-console.log("  my-work.ts is null-SAFE: nothing crashes, no per-row figure is invented,");
-console.log("  and every cell renders n/a rather than 0.");
-console.log("");
-console.log("  It is not null-TRANSPARENT at the aggregate level: a customer or page");
-console.log("  total silently omits unmeasured projects, so it is a floor presented as");
-console.log("  a total. That is a presentation gap, not a correctness bug, and it only");
-console.log("  becomes visible once 20260826120000 is pasted.");
-console.log("");
-console.log("  Recorded rather than fixed here, deliberately: changing what a total MEANS");
-console.log("  on a page people use daily is a product decision, and the honest options");
-console.log("  differ (annotate the total, exclude unmeasured projects from the");
-console.log("  denominator, or show a count alongside). See docs/next-steps-2026-08-26.md.");
+console.log("  my-work.ts is null-SAFE and now null-TRANSPARENT: no per-row figure is");
+console.log("  invented, every cell renders n/a rather than 0, and a total that omits");
+console.log("  projects states its coverage (DESIGN.md rule 7) instead of presenting a");
+console.log("  floor as a total.");
 
 console.log(failures === 0
-  ? "\nMY WORK survives the migration: null-safe throughout, with one presentation gap recorded."
+  ? "\nMY WORK survives the migration: null-safe, and honest about what a total omits."
   : `\n${failures} problem(s)`);
 process.exit(failures === 0 ? 0 : 1);

@@ -174,6 +174,17 @@ export type MyCustomer = {
   contractHours: number;
   /** Sum of logged hours across your projects for this customer. */
   loggedHours: number;
+  /*
+   * How many of `projectCount` actually have measured hours.
+   *
+   * DESIGN.md rule 7: a total that omits rows states its coverage, or the reader
+   * stops trusting every other number on the page. `loggedHours` sums with
+   * `?? 0`, so once migration 20260826120000 nulls the 54 unmeasured orders a
+   * bare total silently becomes a FLOOR. "80h over 2 of 4 projects" is honest;
+   * "80h" alone invites the reader to divide by the full contract and conclude a
+   * 40% burn that nobody measured.
+   */
+  measuredProjectCount: number;
   /** Sum of the hours YOUR assignment rows carry for this customer. */
   myLoggedHours: number;
   projects: MyProject[];
@@ -198,6 +209,8 @@ export type MyWork = {
     contractHours: number;
     loggedHours: number;
     myLoggedHours: number;
+    /** How many of `projects` have measured hours. See MyCustomer above. */
+    measuredProjectCount: number;
   };
   /**
    * Set when the signed-in account has no `person_id` on its profile. 11 of the
@@ -614,6 +627,7 @@ export function assembleMyWork(
         contractHours: 0,
         loggedHours: 0,
         myLoggedHours: 0,
+        measuredProjectCount: 0,
         projects: [],
       };
       byCustomer.set(key, c);
@@ -626,6 +640,9 @@ export function assembleMyWork(
     if (rank(r.role) < rank(c.topRole)) c.topRole = r.role;
     c.contractHours += r.contractHours ?? 0;
     c.loggedHours += r.loggedHours ?? 0;
+    // Counted from loggedHours, not contractHours: "measured" means we know what
+    // was worked, which is exactly what the sum above is claiming.
+    if (r.loggedHours !== null) c.measuredProjectCount += 1;
     c.myLoggedHours += r.myLoggedHours ?? 0;
     c.projects.push(r);
   }
@@ -690,6 +707,7 @@ export function assembleMyWork(
       contractHours: round1(rows.reduce((s, r) => s + (r.contractHours ?? 0), 0)),
       loggedHours: round1(rows.reduce((s, r) => s + (r.loggedHours ?? 0), 0)),
       myLoggedHours: round1(rows.reduce((s, r) => s + (r.myLoggedHours ?? 0), 0)),
+      measuredProjectCount: rows.filter((r) => r.loggedHours !== null).length,
     },
     unlinked: false,
     // One hour spread across 54 projects is not a workload, it is an unfilled
@@ -722,6 +740,8 @@ function emptyWork(
       contractHours: 0,
       loggedHours: 0,
       myLoggedHours: 0,
+      // Zero projects means zero measured projects; no rows are being omitted.
+      measuredProjectCount: 0,
     },
     unlinked,
     myHoursUnpopulated: false,

@@ -96,22 +96,24 @@ NULL, the per-project burn is computed only when both figures are known, and eve
 cell renders `n/a` rather than `0`. Verified by `check:my-work-survives-nulls`
 (gate 89).
 
-**One presentation gap is recorded rather than fixed, and it needs your call.**
+**The aggregate gap is fixed, and it turned out not to be a product decision.**
 My Work's customer and page *totals* sum with `?? 0`, so after the migration a
-total silently omits unmeasured projects. Four projects contracted at 200h with two
+total silently omits unmeasured projects: four projects contracted at 200h with two
 unmeasured reads "80h of 200h" — arithmetically correct, but a **floor presented as
-a total**, and nothing on the page says so. It is not a crash and not an invented
-per-row figure, which is why I did not guess at it: changing what a total *means*
-on a page people use daily is a product decision, and the honest options differ.
-Pick one when you paste the migration:
+a total**.
 
-1. annotate the total ("80h across 2 of 4 projects; 2 unmeasured")
-2. drop unmeasured projects from the denominator too, so the percentage is honest
-3. show the unmeasured count beside the total and leave the figure alone
+I had listed three options for you to choose between. **DESIGN.md rule 7 already
+decides it**: "a collapsed or paged table still states its total ... a fixed-height
+list with no count is indistinguishable from a truncated one, so the reader stops
+trusting every other number on the page." A sum that omits rows is the same
+failure, so this was house policy, not preference.
 
-Option 1 preserves the most information. The existing `myHoursUnpopulated` flag is
-the precedent for this shape of warning, but it is about a *different* column
-(`person_assignments.logged_hours`) so it does not cover this case.
+So `measuredProjectCount` now travels with each customer and with the page totals,
+and `CustomerGroup` renders `2/4 measured` beside the figure — **only when rows are
+actually omitted**, so a fully-measured customer keeps the clean two-number display
+(the same restraint `aliases` already uses). Counted from `loggedHours` rather than
+`contractHours`, because "measured" has to mean we know what was *worked*, which is
+what the sum is claiming.
 
 ### 2.2 [NEEDS A DECISION — and it is a SPREADSHEET problem, not an import bug]
 

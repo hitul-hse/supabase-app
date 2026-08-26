@@ -85,6 +85,34 @@ predicates over the real before/after populations and confirms the over-budget
 count is unchanged at 11 while the missing-status count stays 0 instead of jumping
 to 54.
 
+**All four consumers were checked, not assumed.** Three read different tables and
+are unaffected: `budget-alerts.ts` reads `public.budget_alert_feed`,
+`contract-periods.ts` reads `time.contract_period_status`, and
+`overbooking-notify.ts` reads `public.overbooking_alert`. Only
+`management-project-risks.ts` and `my-work.ts` read `public.projects`.
+
+`my-work.ts` is **null-safe already** and needed no change: `numOrNull` preserves
+NULL, the per-project burn is computed only when both figures are known, and every
+cell renders `n/a` rather than `0`. Verified by `check:my-work-survives-nulls`
+(gate 89).
+
+**One presentation gap is recorded rather than fixed, and it needs your call.**
+My Work's customer and page *totals* sum with `?? 0`, so after the migration a
+total silently omits unmeasured projects. Four projects contracted at 200h with two
+unmeasured reads "80h of 200h" — arithmetically correct, but a **floor presented as
+a total**, and nothing on the page says so. It is not a crash and not an invented
+per-row figure, which is why I did not guess at it: changing what a total *means*
+on a page people use daily is a product decision, and the honest options differ.
+Pick one when you paste the migration:
+
+1. annotate the total ("80h across 2 of 4 projects; 2 unmeasured")
+2. drop unmeasured projects from the denominator too, so the percentage is honest
+3. show the unmeasured count beside the total and leave the figure alone
+
+Option 1 preserves the most information. The existing `myHoursUnpopulated` flag is
+the precedent for this shape of warning, but it is about a *different* column
+(`person_assignments.logged_hours`) so it does not cover this case.
+
 ### 2.2 [NEEDS A DECISION — and it is a SPREADSHEET problem, not an import bug]
 
 Found by `node scripts/diagnose-order-name-customer-conflict.mjs`: **8 orders**

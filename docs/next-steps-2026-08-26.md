@@ -358,6 +358,27 @@ Then Phase 0 of the integration plan: credentials, version pinning, **zero write
 ## 6. Gate suite state at the end of this session
 
 `node scripts/run-all-gates.mjs` — **86 gates: 83 pass, 1 skip, 2 red.**
+Verified over the final tree, not an earlier snapshot.
+
+### The gates were themselves tested
+
+Every gate added this session was written *after* its fix and then observed to
+pass, which proves nothing: a gate asserting `true === true` also passes. So
+`node scripts/check-new-gates-can-fail.mjs` breaks the source each one reads,
+requires it to go red, and restores the original bytes with a hash-verified
+`finally`.
+
+**It found a real weakness immediately.** `check-factorial-pager` asserted
+`r.pages === MAX_PAGES` — comparing the result against the same constant the code
+under test had used. With the cap mutated from 500 to 3 the gate stayed **green**
+and cheerfully printed "3-page cap" in its own summary. The same shape appeared
+twice more on `MAX_LIMIT`. All three now assert the documented literals (500
+pages, 100 rows), so changing either requires editing a test.
+
+Eight mutations are covered and all eight are now caught: the cursor-cycle guard,
+the envelope array check, the page cap, the page size, a classifier that starts
+stripping dots, the importer's `: 0` coercion, its `measured` flag, and the trim
+in the ADR-001 link rule.
 
 Both red gates are red for a stated reason, and neither needs a judgement call:
 

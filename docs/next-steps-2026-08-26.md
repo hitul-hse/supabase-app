@@ -238,7 +238,35 @@ Then Phase 0 of the integration plan: credentials, version pinning, **zero write
 
 ---
 
-## 5. Recommended order of work
+## 6. Gate suite state at the end of this session
+
+`node scripts/run-all-gates.mjs` — **79 gates: 76 pass, 1 skip, 2 red.**
+
+Both red gates are red **on purpose**, and each one is red for a reason you can act
+on rather than a reason to ignore:
+
+| Gate | Why red | Clears when |
+| --- | --- | --- |
+| `check:projects-admit-unmeasured` | The fix is committed; the migration is not applied | You paste `20260826120000` |
+| `check:table-scroll-budget` | 3 real mobile layout failures it had been hiding behind a timeout | `/projects`, `/team-lead`, `/time/dashboard` are collapsed behind `MobileDisclosure` |
+
+`test:my-work-scoping` SKIPs, as it did before this session.
+
+Two gates were added and both are wired into `test:db`, so they run from now on:
+- `check:projects-admit-unmeasured` (gate 78)
+- `check:adr001-discriminates` (gate 79) — the negative control for the rule widening
+
+Three migrations are written, PGlite-verified twice each, and **awaiting a paste**:
+- `20260826120000_projects_admit_unmeasured_hours.sql`
+- `20260826130000_ypog_berlin_alias.sql`
+- `20260824100000_allow_masterdata_people_source.sql` (pre-existing, still unapplied)
+
+Nothing in this session wrote to the production database. Every change is either a
+committed script, a committed migration awaiting your review, or a document.
+
+---
+
+## 7. Recommended order of work
 
 1. Paste `20260826120000` — 54 orders stop lying. Gate 78 goes green. *(minutes)*
 2. Apply `20260824100000`, fix its stale "9" comment, run the relabel — unblocks

@@ -69,26 +69,45 @@ Committed in `e7cfac3`:
 **ACTION: paste the migration into production.** The gate is red until you do,
 which is the point. Then `npm run check:projects-admit-unmeasured` should go green.
 
-### 2.2 [NEEDS A DECISION] Three orders carry another company's name
+### 2.2 [NEEDS A DECISION — and it is a SPREADSHEET problem, not an import bug]
 
-Found by `node scripts/diagnose-order-name-customer-conflict.mjs`. In each case the
-5-digit Lexware prefix agrees with the **customer**, so the TrackingTime link is
-right and the **name** is the corrupted field — the signature of a row shift while
-reading the workbook.
+Found by `node scripts/diagnose-order-name-customer-conflict.mjs`: **8 orders**
+carry a name that names a different company than their own customer field. The
+5-digit Lexware prefix agrees with the customer, so the name looked like the
+corrupted field — the classic signature of an off-by-one row shift on import.
 
-| Order | Customer | Name it wrongly carries | At stake |
+**That turned out to be wrong, and the truth is worse.**
+`node scripts/diagnose-order-names-vs-workbook.mjs` checked each one against the
+source workbook: **every bad name is in the workbook verbatim, on the same row as
+the customer it contradicts.** The importer is faultless. Several appear on
+multiple sheets with the same wrong name, so it has been copied around.
+
+| Order | Customer | Name it carries | At stake |
 | --- | --- | --- | --- |
-| `10234_00103_104_01` | Netto ApS & Co. KG | "Mirantis Safety Engineer 2026/2027" | **398h** of real logged time |
-| `10738_00319_104_01` | Unity Technologies GmbH | "Intel GmbH / SiFa" | 6.4h |
-| `10110_00375_205_01`, `10361_00178_205_01` | AWB, SAGE | literally `"missing"` | 5.8h |
+| `10234_00103_104_01` | Netto ApS & Co. KG | "Mirantis Safety Engineer 2026/2027" | **201.5h logged, 288h contract** |
+| `10738_00319_104_01` | Unity Technologies GmbH | "Intel GmbH / SiFa" | 9.3h logged |
+| `10110_00375_205_01` | AWB Aluminiumwerk Berlin | literally `"missing"` | 5.8h logged |
+| `10361_00178_205_01` | SAGE Automotive Interiors | literally `"missing"` | 4h contract |
+| plus 4 more | Susell ×2, Stiftung Topographie, Kirby Group | see the findings doc | |
 
-Anyone reading the projects ledger sees the wrong client against real billable
-hours. Two more (`10305`, `10822`, Susell GmbH named "Reteach") need the same
-judgement.
+Two consequences that make this higher priority than a database typo:
+- **re-running the import cannot fix it, and will re-import it.** Any correction
+  applied to `public.projects` alone is reverted by the next import.
+- **the workbook is what the team reads.** Someone checking Netto's 2026 contract
+  sees "Mirantis Safety Engineer" against 288 contracted hours.
 
-**ACTION: confirm the correct names against the source workbook, then correct
-`projects.name` for those rows.** I have deliberately not guessed at them — a name
-is customer-facing and 398h of billing hangs off one of them.
+**Not all 8 are the same problem, so do not bulk-fix them.** Two look like real
+Excel row shifts (Mirantis→Netto, Intel→Unity). Two are the placeholder string
+`"missing"`. **Four may be perfectly legitimate** — "Reteach" is a product Susell
+may genuinely have bought, "Abrechnung über SIFA Vertrag" reads like a real
+invoicing note, and "NS Dokumentationszentrum" is plausibly a site name. The
+detector flags a name sharing no word with its customer, which catches a row shift
+and also catches a good name for a differently-named site or product.
+
+**ACTION: fix the workbook first, then re-import.** Full detail and the
+per-order judgement in `docs/order-name-corruption-findings.md`. Nothing was
+written to the database: patching `projects.name` from the hub side would hide a
+source error behind a change the next import silently reverts.
 
 ### 2.3 [NEEDS APPLYING] The masterdata people are labelled as seed data
 
@@ -401,9 +420,12 @@ committed script, a committed migration awaiting your review, or a document.
 
 **Needs your judgement, and I deliberately did not substitute for it:**
 
-6. **The 3–5 mis-named orders** (§2.2). `10234_00103_104_01` is Netto carrying
-   "Mirantis Safety Engineer 2026/2027" with **398h of real logged time** behind it.
-   Confirm the correct names against the workbook; I will apply them.
+6. **The 8 mis-named orders** (§2.2). These are **workbook** errors, not database
+   errors — every bad name is in the source verbatim, so a database patch would be
+   reverted by the next import. Fix the workbook, then re-import. Two look like
+   real Excel row shifts, two are the placeholder `"missing"`, and **four may be
+   legitimate**, so check before changing. `docs/order-name-corruption-findings.md`
+   has the per-order judgement.
 7. **Which YPOG entity** order `10305_00404_501_01` was contracted with — the
    `GmbH & Co. KG` or the `Partnerschaft von Rechtsanwälten mbB`.
 8. **Who Stefan Goelzner is in the hub.** Active, 139.8h all billable, last entry

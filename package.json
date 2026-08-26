@@ -168,6 +168,7 @@
                     "check:management-people-complete":  "node scripts/check-management-people-complete.mjs",
                     "check:management-contract-hours-live":  "node scripts/check-management-contract-hours-live.mjs",
                     "check:responsibility-encodings-agree":  "node scripts/check-responsibility-encodings-agree.mjs",
+                    "check:order-project-matching":  "node scripts/check-order-project-matching.mjs",
                     "link:tt-round2":  "node scripts/link-tt-round2.mjs",
                     "refresh:order-hours":  "node scripts/refresh-order-hours.mjs",
                     "test:timesheet-truth":  "node scripts/check-timesheet-truth.mjs",

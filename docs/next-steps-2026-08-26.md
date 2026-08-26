@@ -267,21 +267,32 @@ Then Phase 0 of the integration plan: credentials, version pinning, **zero write
 
 ## 6. Gate suite state at the end of this session
 
-`node scripts/run-all-gates.mjs` — **79 gates: 77 pass, 1 skip, 1 red.**
+`node scripts/run-all-gates.mjs` — **82 gates: 79 pass, 1 skip, 2 red.**
 
-The one red gate is red **on purpose**, and it clears without any judgement call:
+Both red gates are red for a stated reason, and neither needs a judgement call:
 
 | Gate | Why red | Clears when |
 | --- | --- | --- |
 | `check:projects-admit-unmeasured` | The fix is committed; the migration is not applied | You paste `20260826120000` |
+| `check:table-scroll-budget` | It measures **production**, and the layout fix is committed but **not deployed** | `npx vercel --prod --yes` |
 
-`check:table-scroll-budget` is now **fully green** ("all checks passed") at both
-1440x900 and 390x844, verified against a real `next build` served locally.
-`test:my-work-scoping` SKIPs, as it did before this session.
+That second row matters, so be precise about it: the three mobile routes are fixed
+and **verified green** against a real `next build` served locally, at both 1440x900
+and 390x844 ("all checks passed"). The gate is red only because production is still
+serving the pre-fix bundle. `check:deploy-skew` is green, so this is ordinary
+undeployed work rather than a broken deploy.
 
-Two gates were added and both are wired into `test:db`, so they run from now on:
-- `check:projects-admit-unmeasured` (gate 78)
-- `check:adr001-discriminates` (gate 79) — the negative control for the rule widening
+One flake to be aware of, not a regression: `test:user-management` failed once in a
+full-suite run and passes standalone. It creates five real auth accounts per run and
+Supabase rate-limits the invite mail, so running it concurrently with other gates
+(several agents were committing in parallel) trips it. It is worth making that gate
+tolerate a rate-limit response rather than treating it as a product failure.
+
+Four gates were added this session and all are wired into `test:db`:
+- `check:projects-admit-unmeasured` (78) — the honest-nulls gate
+- `check:adr001-discriminates` (79) — the negative control for the rule widening
+- plus `check:factorial-auth`, which correctly reports **BLOCKED** rather than
+  passing or failing, because Phase 0 needs a human with Factorial admin rights
 
 Three migrations are written, PGlite-verified twice each, and **awaiting a paste**:
 - `20260826120000_projects_admit_unmeasured_hours.sql`

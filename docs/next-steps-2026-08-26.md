@@ -117,12 +117,19 @@ scripts/diagnose-unlawful-tt-links.mjs` separates the causes:
   Same client, same service, different wording. These were linked by the
   name+prefix+service rules that `check-management-data` itself says it honours,
   but the assertion only implements two of the three.
-- **1 real unmatched customer**: `"YPOG Berlin"` -> `YPOG GmbH & Co. KG`
-  (`report-customer-matching.mjs`). A city suffix on a legal name; add an alias row
-  to `crm.legal_entity_alias` rather than loosening the matcher.
+- **1 real unmatched customer, and it is genuinely ambiguous**: order
+  `10305_00404_501_01` names `"YPOG Berlin"`. The obvious fix is to link it to
+  `YPOG GmbH & Co. KG` — and that would be wrong. There are **two active YPOG
+  entities** (a `GmbH & Co. KG` and a `Partnerschaft von Rechtsanwälten mbB`), and
+  customer 10305 **already holds orders against both**. A German law firm bills
+  through separate entities on purpose, so "Berlin" names an office, not an entity.
+  `supabase/migrations/20260826130000_ypog_berlin_alias.sql` therefore flags both
+  candidates `review_required` and **leaves the FK null**, because null is the
+  honest value. **ACTION: confirm which entity the 501 order was contracted with.**
 
-**ACTION: trim in the gate's regex, then widen the assertion to the third rule it
-already claims. Do not relax it into fuzzy matching.**
+**ACTION (done): the gate now implements the third rule and is green on all 187
+links.** `check-adr001-rule-discriminates.mjs` proves the widening did not make it
+permissive: 206 deliberately wrong pairings are still rejected.
 
 ### 2.5 [KNOWN, CORRECTLY LEFT ALONE] 2,392 unattributed hours
 
@@ -238,8 +245,8 @@ Then Phase 0 of the integration plan: credentials, version pinning, **zero write
    Factorial's `source` value. *(minutes)*
 3. Correct the 3–5 mis-named orders from §2.2 against the workbook — **needs your
    judgement**, 398h of billing rests on one.
-4. Fix the ADR-001 gate: trim the name, implement the third rule. *(small)*
+4. Paste `20260826130000` — flags the YPOG ambiguity for review, then **tell me
+   which YPOG entity** the 501 order belongs to. *(minutes + one decision)*
 5. Commit the V2 workbook and de-hardcode the importer path. *(small, protects all of the above)*
-6. Add the `YPOG Berlin` alias row. *(trivial)*
-7. Factorial Phase 0–1: credentials, then read-only harvest into staging.
-8. The 3 mobile layout failures from §2.6, behind `MobileDisclosure`.
+6. Factorial Phase 0–1: credentials, then read-only harvest into staging.
+7. The 3 mobile layout failures from §2.6, behind `MobileDisclosure`.

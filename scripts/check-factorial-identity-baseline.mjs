@@ -19,6 +19,13 @@
  */
 import { readFileSync } from "node:fs";
 import pg from "pg";
+/*
+ * The classifier is imported, not re-implemented. It lives in lib/factorial.mjs
+ * because the eventual sync must use the SAME logic: a baseline measured with
+ * one rule and a sync that applies another is worse than no baseline at all.
+ * check-factorial-pager.mjs tests it against 12 near-miss addresses.
+ */
+import { classifyEmployee, normaliseEmail, SHARED_MAILBOX_RE } from "./lib/factorial.mjs";
 
 const env = Object.fromEntries(
   readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
@@ -35,8 +42,13 @@ await c.connect();
  * ADR-001: the only matching input is lower(trim(email)). Never a name, never a
  * local-part comparison, never a similarity score.
  */
-const SHARED_MAILBOX = /^(info|jobs|office|kontakt|kontact|mail|hello|admin|noreply|no-reply)@/i;
-const norm = (e) => String(e ?? "").trim().toLowerCase();
+/*
+ * The matching inputs, restated for the reader: lower(trim(email)) and nothing
+ * else. The implementation is in lib/factorial.mjs; these are just the local
+ * aliases so the queries below read naturally.
+ */
+const norm = normaliseEmail;
+const SHARED_MAILBOX = SHARED_MAILBOX_RE;
 
 const { rows: members } = await c.query(`
   select m.id, m.email, m.hub_person_id, m.user_id, m.is_archived, m.role,
@@ -64,29 +76,11 @@ for (const m of members) {
 }
 
 /**
- * Classify one Factorial login_email against the hub. Returns the outcome the
- * review queue's `status` column would record.
+ * Classify one Factorial login_email against the hub, by delegating to the
+ * shared classifier. Wrapped only to bind the two lookup tables, so there is
+ * exactly ONE implementation of "who resolves" in the repo.
  */
-const classify = (loginEmail) => {
-  const e = norm(loginEmail);
-  if (!e) return { status: "unmatched", reason: "Factorial has no login email for this employee" };
-  if (SHARED_MAILBOX.test(e)) {
-    return { status: "excluded_not_a_person", reason: `${e} is a shared mailbox, not a colleague` };
-  }
-  const hits = byEmail.get(e) ?? [];
-  if (hits.length === 0) return { status: "unmatched", reason: `no time.member has ${e}` };
-  if (hits.length > 1) {
-    return { status: "ambiguous", reason: `${hits.length} time.member rows share ${e}`, count: hits.length };
-  }
-  const m = hits[0];
-  if (!m.hub_person_id) {
-    return { status: "bridged_unlinked", reason: `member ${m.id} matches on email but has no hub_person_id`, memberId: m.id };
-  }
-  if (claimedPersons.has(m.hub_person_id)) {
-    return { status: "ambiguous", reason: `${m.hub_person_id} is already claimed by another Factorial employee`, memberId: m.id, personId: m.hub_person_id };
-  }
-  return { status: "resolvable", reason: `exact email -> member ${m.id} -> ${m.hub_person_id}`, memberId: m.id, personId: m.hub_person_id };
-};
+const classify = (loginEmail) => classifyEmployee({ login_email: loginEmail }, byEmail, claimedPersons);
 
 /* ----------------------------------------------------- the hub-side baseline */
 

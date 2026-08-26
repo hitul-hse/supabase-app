@@ -212,9 +212,19 @@ for (const o of uniqueOrders) {
   // Live hours: exact-name TT match, summed inside the contract window when
   // both dates exist (the same rule the budget guard uses).
   const hits = ttByName.get(norm(o.orderName)) ?? [];
+  /*
+   * measured=false means no TrackingTime project resolved for this order, so we
+   * know NOTHING about its hours. That is not 'worked zero hours'. Writing 0 for
+   * it made the 54 orders with no TT link read consumed_percent=0 / status=NORMAL
+   * across 1,724 contract hours -- unmeasured work presented as on budget. The
+   * 113 LINKED orders that also sit at 0 are measured and keep their honest zero.
+   * House rule: honest nulls, never a plausible 0. Every hour-derived column
+   * below is null when measured is false.
+   */
+  const measured = hits.length === 1;
   let logged = 0;
   let billable = 0;
-  if (hits.length === 1) {
+  if (measured) {
     report.matchedTT += 1;
     for (const e of entries) {
       if (e.project_id !== hits[0].id) continue;
@@ -236,8 +246,14 @@ for (const o of uniqueOrders) {
   }
 
   const contract = o.contractHours;
-  const consumed = contract ? Math.round((logged / contract) * 100) : 0;
-  const status = consumed >= 95 ? "CRITICAL" : consumed >= 80 ? "WARNING" : "NORMAL";
+  // Unmeasured, or no contract to measure against, means there is no percentage
+  // to state and no budget status to claim. Both stay null.
+  const consumed = measured && contract ? Math.round((logged / contract) * 100) : null;
+  const status =
+  // null, not a sentinel string: the migration writes NULL for the same case, and
+  // management-project-risks flags unknown status via !project.status, which a
+  // truthy "UNKNOWN" would silently escape.
+    consumed === null ? null : consumed >= 95 ? "CRITICAL" : consumed >= 80 ? "WARNING" : "NORMAL";
 
   const owner =
     (o.responsible && (resolvePerson(o.responsible) ?? newPeople.find((p) => firstName(p.name) === firstName(o.responsible)))) || null;
@@ -251,9 +267,9 @@ for (const o of uniqueOrders) {
     lead: o.responsible || "n/a",
     status,
     contract_hours: contract ?? 0,
-    billable_hours: Math.round(billable * 10) / 10,
-    logged_hours: Math.round(logged * 10) / 10,
-    remaining_hours: contract ? Math.round((contract - logged) * 10) / 10 : null,
+    billable_hours: measured ? Math.round(billable * 10) / 10 : null,
+    logged_hours: measured ? Math.round(logged * 10) / 10 : null,
+    remaining_hours: measured && contract ? Math.round((contract - logged) * 10) / 10 : null,
     consumed_percent: consumed,
     due: o.endsOn ?? "n/a",
     contract_type: o.service,
@@ -298,7 +314,9 @@ writeFileSync(
 if (DRY) {
   console.log("\nDRY RUN: nothing written. Sample rows:");
   for (const r of projectRows.slice(0, 8)) {
-    console.log(`  ${r.id}  ${String(r.contract_hours).padStart(6)}h contract, ${String(r.logged_hours).padStart(7)}h logged (${r.consumed_percent}%)  ${r.name.slice(0, 48)}`);
+    const lg = r.logged_hours === null ? "n/a" : String(r.logged_hours);
+    const pc = r.consumed_percent === null ? "n/a" : `${r.consumed_percent}%`;
+    console.log(`  ${r.id}  ${String(r.contract_hours).padStart(6)}h contract, ${lg.padStart(7)}h logged (${pc})  ${r.name.slice(0, 48)}`);
   }
   process.exit(0);
 }

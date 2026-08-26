@@ -153,17 +153,26 @@ The first is the same corrupted-name problem as `next-steps-2026-08-26.md` §2.2
 
 *5 cannot link at any price — the identity is absent at source:*
 
-| order number | name |
-| --- | --- |
-| `#N/A` | BBH Sicherheitsteschnische Betreuung 2026 |
-| `_0_2_01` | PBS Neu Isenburg / company doctor 2025/2026 |
-| `_0_2_01` | Trinity Bet Malta / company doctor 2025/2026 |
-| `_0_2_01` | PBS Berlin / company doctor 2025/2026 |
-| `_0_701_01` | Quantica3D / Basic instruction 2025/2026 |
+| order number | Kundennummer | customer named in the row | name |
+| --- | --- | --- | --- |
+| `#N/A` | `#N/A` | `ƒ∆` (mojibake) | BBH Sicherheitsteschnische Betreuung 2026 |
+| `_0_2_01` | *(empty)* | PBS Germany Operations GmbH | PBS Neu Isenburg / company doctor 2025/2026 |
+| `_0_2_01` | *(empty)* | Trinity Bet Operations Ltd | Trinity Bet Malta / company doctor 2025/2026 |
+| `_0_2_01` | *(empty)* | PBS Germany Operations GmbH | PBS Berlin / company doctor 2025/2026 |
+| `_0_701_01` | *(empty)* | Quantica3D | Quantica3D / Basic instruction 2025/2026 |
 
-The customer-number segment is empty on four, and one is a literal `#N/A` left by
-a broken spreadsheet formula. No code change resolves these. Someone has to fix
-the workbook, and it is a bounded task.
+Verified with `node scripts/diagnose-malformed-order-numbers.mjs`, and the result
+is worse than "a malformed id". The `Kundennummer` cell is genuinely empty on
+four and `#N/A` on the fifth, so the order number cannot be reconstructed from
+the row: the id shape is `customer_AB_service_artikel` and the customer segment
+is the missing one. The BBH row's customer name is also mojibake (`ƒ∆`), so that
+row has lost its customer twice over.
+
+**And none of these five customers exists in `public.projects` at all** — every
+one returns zero projects. So these are not mislinked orders whose link could be
+repaired; they are five customers the database has never heard of. Whoever fixes
+this is entering a customer number that is missing, not correcting one that is
+wrong, and the affected work may never have been imported.
 
 *1 is a genuine data gap:*
 
@@ -200,7 +209,46 @@ can be locked in.
 
 ---
 
-## 5. Two notes for whoever works on this next
+## 5. What these gates deliberately cannot see
+
+**`check:management-people-complete` keys off `project_responsibility`.** It
+catches a person who exists in `public.people` and carries responsibility but is
+missing from the management allowlist, which is exactly the Rency bug. It cannot
+catch someone who was never imported into `public.people` at all, because there
+is no row for it to compare against.
+
+That population is not empty. `check:factorial-identity-baseline` found **Stefan
+Goelzner**: 57 entries, **134.8h billable**, not archived, `hub_person_id` null,
+and **no `public.people` row whatsoever** — zero responsibility rows, zero
+assignments, zero owned projects. He is a different bug from Rency, not a missed
+instance of the same one, and he is invisible to my gate by construction.
+
+Three more, all archived, so lower priority but the same shape:
+
+| member | billable hours | archived |
+| --- | --- | --- |
+| Stefan Goelzner | **134.8** | no |
+| Kamila Evangelista da Silva | 61.9 | yes |
+| Pablo Guerra Ares | 27.9 | yes |
+| Liliia Ganeeva | 0.8 | yes |
+
+Reproduce with `node scripts/diagnose-unlinked-billable-members.mjs`. The
+Factorial identity work is the right place to fix this, because the email is the
+only candidate key and Stefan's (`stefan-external@hs-expert.com`) is on a
+near-miss domain — `hs-expert` rather than `hs-experts` — which is precisely the
+case `check:factorial-pager` asserts must **not** fuzzy-match.
+
+**`check:responsibility-encodings-agree` pins a tolerance, it does not fix.** It
+fails if the 28-project gap grows and notes when it shrinks. It cannot tell you
+which of the two tables should win; that decision is in §3.1.
+
+**`check:order-project-matching` measures the workbook, not the deployment.** It
+exits 2 (BLOCKED) when the workbook is absent rather than passing, so it proves
+nothing about a machine that does not have the file.
+
+---
+
+## 6. Two notes for whoever works on this next
 
 **The allowlist has more than one consumer.** Widening `PEOPLE` changed both
 `getEmployeeOwnershipOverview` and `getManagementContractHours`. Only the first

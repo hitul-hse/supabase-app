@@ -1,0 +1,214 @@
+# Responsibility and coverage: what was wrong, and what still needs a person
+
+Companion to `docs/next-steps-2026-08-26.md`, covering the responsibility /
+coverage half of the same session. That document owns the migrations, the mobile
+layout work and the gate-suite state; this one owns the questions "is the
+masterdata import connected correctly" and "are the logics working correctly"
+as they apply to **who covers which project**.
+
+Everything below was measured against the live database. Commits:
+`e922254`, `7eb0c1f`, `4e78282`, `1be8936`, `707809e`, plus `b004574` for the
+Factorial Phase 0 gate.
+
+---
+
+## 1. The replacement person did survive the import
+
+This was the first thing to rule out, because if the Vertretung column had been
+dropped there would be nothing to fix downstream.
+
+It was not dropped. `import-masterdata-projects.mjs:292-303` writes the
+replacement as a second `person_assignments` row with `share_percent = 0` and
+`sort_order = 1`, distinct from the owner's `100` / `0`:
+
+| | count |
+| --- | --- |
+| `person_assignments` rows encoding a cover | **168** |
+| projects carrying both an owner and a cover | **167** |
+| `project_responsibility` rows with `role = 'replacement'` | **140** |
+| of those 140, contradicted by `person_assignments` | **0** |
+
+Reproduce: `node scripts/diagnose-replacement-visibility.mjs` and
+`node scripts/diagnose-replacement-readpaths.mjs`.
+
+---
+
+## 2. Three things were wrong
+
+### 2.1 [FIXED] Self-cover was counted as coverage
+
+The single worst finding of the session, because it inflated a safety metric.
+
+The source workbook repeats the responsible person's name in the Vertretung
+column on **78 rows**. The import copied that faithfully, so **65 projects name
+someone as their own replacement**. `getEmployeeOwnershipOverview` counted them,
+and reported **100% replacement coverage for five of seven people**.
+
+A project whose only named fallback is the person who would be absent has no
+fallback. Excluded by comparing against `projects.owner_person_id`, which is the
+same value the row's own RESPONSIBLE column displays, so the two columns cannot
+disagree on screen.
+
+| | before | after |
+| --- | --- | --- |
+| Hendryk's coverage | 82.9% | **75.6%** |
+| Hendryk's projects without cover | 7 | **10** |
+| Open projects without independent cover, company-wide | 91 | **156 of 231** |
+
+The import is **not** at fault here and should not be "fixed": it reproduced the
+source correctly. The workbook is where the repeated names live.
+
+### 2.2 [FIXED] The busiest person in the company was invisible
+
+`management-contract-hours.ts:7` held a hardcoded seven-name allowlist that gated
+the service grid, the utilisation outlook and the employee overview. Anyone
+missing was dropped, and the page still rendered a complete-looking table, so the
+omission could not be seen.
+
+**Rency Sebastian was missing**: 62 responsible projects, 62 replacement
+projects, 690.3h of owned contract hours, and **1,184.8h logged in TrackingTime,
+more than anyone else in the company**. Not archived, status VERIFIED. Björn was
+missing too, with 1,638h owned.
+
+Meanwhile Serhii *was* listed, while being archived in TrackingTime with a single
+3h project. So the list was never a policy about who counts; it was a snapshot
+from the utilisation-outlook commit that nothing kept current.
+
+**This is the finding to act on.** With both restored, the page shows two people
+over capacity, one of whom could not previously be seen:
+
+| person | bound hours | utilisation | status |
+| --- | --- | --- | --- |
+| Björn | 1,638h | **125.6%** | Kapazitätsrisiko |
+| Hendryk | 1,487.5h | **114.1%** | Kapazitätsrisiko |
+| Rency Sebastian | 690.3h | 52.9% | Gesunde Auslastung |
+
+Rency also reads **0% replacement coverage across 65 open projects**, which is
+what §2.1 and §2.2 look like when combined: all 62 of those replacement rows
+named Rency as Rency's own cover.
+
+(The two views count differently and both are right. Rency has exactly 130
+assignment rows, all on open projects: **65 carrying load** (`share > 0`) and
+**65 as cover** (`share = 0`). The employee overview shows 65 because it skips
+cover rows; the service grid's drilldown shows 130 because it resolves every
+assignment. Neither number is the other's error. My first guess — that the
+difference was closed work — was wrong, and checking it took one query.)
+
+### 2.3 [FIXED, not user-visible] A hardcoded null claiming the data did not exist
+
+`management-service-overview.ts` returned `projectsWithoutReplacement: null`
+under the comment *"No confirmed replacement relation exists in the current
+schema"*, while 140 rows sat in `project_responsibility`. That is not an honest
+null; the relation existed and was simply never read.
+
+Worth stating plainly: `graphify explain` confirms this function currently has
+**no callers**, so fixing it changed nothing a user sees. It is
+correctness-in-waiting, and it is listed here so nobody records it as a delivered
+improvement.
+
+---
+
+## 3. Two disagreements that need a decision, not a fix
+
+### 3.1 [NEEDS A DECISION] The two cover tables disagree on 28 projects
+
+The same fact is stored twice, and the encodings do not agree:
+
+- `person_assignments`: `share_percent = 0` / `sort_order = 1` → 168 projects
+- `project_responsibility`: `role = 'replacement'` → 140 projects
+
+The 28-project difference is **not** a deliberate filter. All 28 are absent from
+`project_responsibility` entirely, carrying no role row at all, not even
+`responsible`. And 25 of the 28 name a genuinely different person from the
+responsible, which rules out the tempting theory that a later, stricter import
+dropped self-cover rows on purpose. The role table is simply incomplete.
+
+Measured impact, which is smaller than it first appears: all 28 projects remain
+**listed** on `/my-work`, because the `share_percent = 0` row itself satisfies the
+`assigned` rung. What is lost is the REPLACEMENT badge and the role count, so the
+page understates cover duty on 25 projects — Mathias 12, Thorsten 5, Hendryk 5,
+Stephan 3. A mislabel, not a disappearance.
+
+**The decision:** backfill `project_responsibility` from those 28 rows, which
+would restore 25 REPLACEMENT badges and let the gate's tolerance drop to zero? It
+writes to a canonical table, so it needs sign-off rather than initiative.
+
+### 3.2 [NEEDS DATA ENTRY] 8 orders cannot reach exactly one project
+
+`report-masterdata-responsibility.mjs` has been counting this for a while but
+never naming the rows, so it stayed abstract. Against the live order book — the
+same seven sheets the importer reads — 223 rows, 221 distinct names, 213 matching
+exactly one project.
+
+**2 ambiguous**, because two `public.projects` rows share a normalised name:
+
+| workbook name | candidates |
+| --- | --- |
+| `Intel GmbH / SiFa` | `10738_00319_104_01` (cust Unity Technologies, WARNING) and `10747_00360_104_01` (cust Intel Deutschland) |
+| `missing` | `10110_00375_205_01` (AWB) and `10361_00178_205_01` (SAGE Automotive) |
+
+The first is the same corrupted-name problem as `next-steps-2026-08-26.md` §2.2.
+
+**6 unmatched, and they split by who can fix them:**
+
+*5 cannot link at any price — the identity is absent at source:*
+
+| order number | name |
+| --- | --- |
+| `#N/A` | BBH Sicherheitsteschnische Betreuung 2026 |
+| `_0_2_01` | PBS Neu Isenburg / company doctor 2025/2026 |
+| `_0_2_01` | Trinity Bet Malta / company doctor 2025/2026 |
+| `_0_2_01` | PBS Berlin / company doctor 2025/2026 |
+| `_0_701_01` | Quantica3D / Basic instruction 2025/2026 |
+
+The customer-number segment is empty on four, and one is a literal `#N/A` left by
+a broken spreadsheet formula. No code change resolves these. Someone has to fix
+the workbook, and it is a bounded task.
+
+*1 is a genuine data gap:*
+
+`10443_00253_104_01` — "RISE FX GmbH / 25-26 SiFa Stuttgart" is well-formed and
+points at a project the database does not have.
+
+---
+
+## 4. Gates added
+
+Five, each **verified to fail when its bug is reintroduced**, because a gate that
+has never been seen to fail has not been tested:
+
+| Gate | Asserts | In `test:db` |
+| --- | --- | --- |
+| `check:replacement-coverage` | the relation is read, and self-cover stays excluded | yes |
+| `check:management-people-complete` | nobody carrying responsibility is silently absent | yes |
+| `check:management-contract-hours-live` | the service grid covers everyone; totals reconcile | yes |
+| `check:responsibility-encodings-agree` | the 28-project gap does not grow | yes |
+| `check:order-project-matching` | the 8 failures do not grow, split by cause | no — see below |
+
+Two of them (`-live`) compile and execute the **real production TypeScript** the
+page imports, rather than a reimplementation, following the pattern in
+`check-employee-ownership-live.mjs`.
+
+`check:order-project-matching` is deliberately **not** in `test:db`: the workbook
+lives outside the repo, so the gate exits `2` (BLOCKED) rather than passing when
+it is absent, which would fail the suite on any machine without the file. Same
+reasoning as `check:factorial-auth`.
+
+Each gate pins its known-failure count as a named constant. Tightening one is a
+deliberate edit, and each prints a note when the real number improves so the win
+can be locked in.
+
+---
+
+## 5. Two notes for whoever works on this next
+
+**The allowlist has more than one consumer.** Widening `PEOPLE` changed both
+`getEmployeeOwnershipOverview` and `getManagementContractHours`. Only the first
+had a gate. Changing a shared allowlist while half its consumers are unverified is
+how a fix becomes a regression, which is why `check:management-contract-hours-live`
+exists.
+
+**Do not join the two responsibility tables.** Joining `project_responsibility` to
+`person_assignments` fans out and turned a real 62 into 8,060 — a number that
+looks entirely plausible in a report. Use scalar subqueries.
+`scripts/diagnose-management-people-allowlist.mjs` shows the correct shape.

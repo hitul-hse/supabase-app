@@ -7,6 +7,10 @@ estimated; the script that produced it is named so you can re-run it.
 Companion documents:
 - `docs/factorial-api-integration.md` — the full API reference and integration design
 - `docs/live-people-data-map.md` — the earlier TrackingTime/people analysis
+- `docs/responsibility-coverage-findings.md` — the responsibility/coverage half of
+  this session: self-cover counted as coverage, the stale management allowlist that
+  hid the busiest person in the company, and the two order/cover disagreements that
+  still need a person
 
 ---
 

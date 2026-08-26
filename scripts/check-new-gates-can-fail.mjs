@@ -205,6 +205,23 @@ await provesItCatches({
   expect: /FAIL: every link satisfies/,
 });
 
+/* --------------------------------------------------- the risk-panel seam */
+
+await provesItCatches({
+  label: "check-risk-panel-survives-nulls notices if the reader reverts to a bare !status",
+  file: "src/lib/queries/management-project-risks.ts",
+  script: "scripts/check-risk-panel-survives-nulls.mjs",
+  /*
+   * Restore the original predicate. After the honest-nulls migration this would
+   * report 54 unmeasured orders as "somebody forgot a status", which is a UI that
+   * argues against a correct data fix.
+   */
+  mutate: (s) => s.replace(
+    ".filter((project) => !project.status && project.logged_hours !== null)",
+    ".filter((project) => !project.status)"),
+  expect: /FAIL/,
+});
+
 console.log(failures === 0
   ? "\nEVERY NEW GATE FAILS WHEN ITS SUBJECT BREAKS. They are checks, not decoration."
   : `\n${failures} problem(s) — a gate that cannot fail is not protecting anything`);

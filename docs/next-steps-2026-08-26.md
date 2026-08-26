@@ -150,19 +150,46 @@ unrunnable** and had been for some time. Fixed in `6905b15`.
 
 First real run: **76 green, 1 red.** The red was `check:table-scroll-budget` being
 killed at the runner's 180s cap while legitimately needing 4m25s; raised to 600s in
-`ee86dae`, which revealed **3 genuine mobile layout failures** it had been hiding
-(`/projects` 7.4 screens, `/team-lead` 6.13, `/time/dashboard` 5.2 against a 4–5
-budget). Those are queued behind the data work.
+`ee86dae`, which revealed **3 genuine mobile layout failures** it had been hiding.
 
-### 2.7 [PROCESS] The importer reads from a personal Downloads folder
+**All three are now fixed and measured against a real production build** — the gate
+reports "all checks passed" at both viewports:
 
-`scripts/import-masterdata-projects.mjs:45` hardcodes
-`C:/Users/hitul/Downloads/HSE_Masterdata_Übersicht...V2.xlsx`. The workbook committed
-under `.local/import/` is a **different file** (customer master, 0 orders). Nobody
-but the original operator can reproduce or verify the portfolio import.
+| Route | Before | After | Budget |
+| --- | --- | --- | --- |
+| `/projects` | 7.40 | **2.27** | 4 |
+| `/team-lead` | 6.13 | **2.32** | 4 |
+| `/time/dashboard` | 5.20 | **4.55** | 5 |
 
-**ACTION: commit the V2 workbook to `.local/import/` and point the script at a repo
-path.** This one is cheap and it protects everything else in this document.
+None was a long-table problem: at 390px `/projects` renders zero `<table>` elements.
+The height was every `lg:grid-cols-12` row collapsing into one column, so panels that
+sit three abreast on a desktop stacked end to end. `MobileDisclosure` (which existed,
+fully documented, and was imported nowhere) keeps `sm:block` on its content, so from
+`sm` up it is a bare wrapper div — the 1440px pass is unchanged on every route.
+
+The judgement in each case was **which panel stays open**, decided from measured
+block heights rather than from reading the JSX:
+- `/team-lead`: the board stays open. It is where approving happens.
+- `/projects`: the totals strip stays open. It already *is* the summary.
+- `/time/dashboard`: the heatmap stays open, the waffle collapses. A waffle's
+  finding is one sentence and the summary states it; a heatmap's finding is its
+  shape and no summary can carry it.
+
+### 2.7 [FIXED] The importer read from a personal Downloads folder
+
+`scripts/import-masterdata-projects.mjs` hardcoded
+`C:/Users/hitul/Downloads/HSE_Masterdata_Übersicht...V2.xlsx`, so the 231-order
+import was unreproducible on any other machine — and the workbook under
+`.local/import/` was a **different file** (the customer master, which yields 0
+orders), so a verification re-run would have silently imported nothing.
+
+Now `.local/import/` by convention, with a `MASTERDATA_XLSX` override and an
+`existsSync` check that names the correct workbook. `.local/` stays gitignored on
+purpose: the file carries customer names and named personnel, so it belongs beside
+the repo rather than in it.
+
+Verified: the dry run reads **232 rows → 231 unique orders**, and reports the
+unmeasured ones as `n/a` rather than `0`.
 
 ---
 
@@ -240,16 +267,16 @@ Then Phase 0 of the integration plan: credentials, version pinning, **zero write
 
 ## 6. Gate suite state at the end of this session
 
-`node scripts/run-all-gates.mjs` — **79 gates: 76 pass, 1 skip, 2 red.**
+`node scripts/run-all-gates.mjs` — **79 gates: 77 pass, 1 skip, 1 red.**
 
-Both red gates are red **on purpose**, and each one is red for a reason you can act
-on rather than a reason to ignore:
+The one red gate is red **on purpose**, and it clears without any judgement call:
 
 | Gate | Why red | Clears when |
 | --- | --- | --- |
 | `check:projects-admit-unmeasured` | The fix is committed; the migration is not applied | You paste `20260826120000` |
-| `check:table-scroll-budget` | 3 real mobile layout failures it had been hiding behind a timeout | `/projects`, `/team-lead`, `/time/dashboard` are collapsed behind `MobileDisclosure` |
 
+`check:table-scroll-budget` is now **fully green** ("all checks passed") at both
+1440x900 and 390x844, verified against a real `next build` served locally.
 `test:my-work-scoping` SKIPs, as it did before this session.
 
 Two gates were added and both are wired into `test:db`, so they run from now on:
@@ -266,15 +293,32 @@ committed script, a committed migration awaiting your review, or a document.
 
 ---
 
-## 7. Recommended order of work
+## 7. What is left
 
-1. Paste `20260826120000` — 54 orders stop lying. Gate 78 goes green. *(minutes)*
-2. Apply `20260824100000`, fix its stale "9" comment, run the relabel — unblocks
-   Factorial's `source` value. *(minutes)*
-3. Correct the 3–5 mis-named orders from §2.2 against the workbook — **needs your
-   judgement**, 398h of billing rests on one.
-4. Paste `20260826130000` — flags the YPOG ambiguity for review, then **tell me
-   which YPOG entity** the 501 order belongs to. *(minutes + one decision)*
-5. Commit the V2 workbook and de-hardcode the importer path. *(small, protects all of the above)*
-6. Factorial Phase 0–1: credentials, then read-only harvest into staging.
-7. The 3 mobile layout failures from §2.6, behind `MobileDisclosure`.
+**Needs only a paste (no judgement):**
+
+1. Paste `20260826120000` — 54 orders stop reporting a burn they never measured.
+   Gate 78 goes green. *(minutes)*
+2. Paste `20260824100000` — relabels the 18 real `md-*` colleagues off `'seed'`.
+   **This blocks Factorial**, whose constraint already reserves `'factorial'`.
+   Verify with `node scripts/check-masterdata-source-migration.mjs`. *(minutes)*
+3. Paste `20260826130000` — flags the YPOG ambiguity where a human will see it.
+
+**Needs your judgement, and I deliberately did not substitute for it:**
+
+4. **The 3–5 mis-named orders** (§2.2). `10234_00103_104_01` is Netto carrying
+   "Mirantis Safety Engineer 2026/2027" with **398h of real logged time** behind it.
+   Confirm the correct names against the workbook; I will apply them.
+5. **Which YPOG entity** order `10305_00404_501_01` was contracted with — the
+   `GmbH & Co. KG` or the `Partnerschaft von Rechtsanwälten mbB`.
+
+**Then the actual goal:**
+
+6. Factorial Phase 0: credentials, version pinning, **zero writes**. Then Phase 1,
+   the read-only harvest into staging. Full plan in
+   `docs/factorial-api-integration.md`.
+
+Items 1, 2 and 4 are all prerequisites for Factorial rather than preferences.
+Landing real contract hours on top of a table that invents zeros, or a `people`
+table where provenance means nothing, would make the fake numbers harder to find
+rather than easier.

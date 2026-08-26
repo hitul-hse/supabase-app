@@ -256,6 +256,73 @@ Factorial supplies what TrackingTime structurally cannot:
   gets a real answer.
 - **Legal entity and team structure** to join against `crm.legal_entity`.
 
+### What is already built, before any credential exists
+
+Phase 0 needs a human with Factorial admin rights, but three pieces did not need
+to wait for it, so they are done and tested:
+
+**1. The identity baseline is measured** (`npm run check:factorial-identity-baseline`).
+One input had already moved since `live-people-data-map.md` was written on 18 Aug:
+`time.member.hub_person_id` was NULL for all 49 members and is populated for 18
+now. So the resolvable population is a real number today:
+
+| | count | |
+| --- | --- | --- |
+| auto-resolve | **18** | exact email → member → person |
+| queue for review | **29** | 25 are archived leavers; 4 carry real hours |
+| excluded | **2** | `info@` and `jobs@` are mailboxes, not colleagues |
+
+Phase 2 is now a comparison against a known baseline rather than a discovery
+exercise, and the honest headline for its gate is all three counts, never the first.
+
+**It also surfaced a problem that exists today, independent of Factorial.** 636h
+sits behind members with no person link. Most is archived leavers, whose NULL is
+correct. But **Stefan Goelzner is not archived**, has logged 59 entries and
+**139.8h, every one billable**, and his last entry was yesterday — and nothing in
+the hub can attribute that work to a colleague. His address is
+`stefan-external@hs-expert.com`, missing the `s` in `hs-experts`, so it will never
+match by luck. **ACTION: set his `hub_person_id`, or say he should not have a
+`people` row.**
+
+**2. The schema is written and attacked** (`20260826140000`, gate 85). It adds
+`crm.factorial_identity_review` so an unresolved employee is a reviewable row
+rather than a silent omission, plus provenance columns on the existing mapping
+table. Two things the *database* now enforces rather than a code review:
+- a terminal or manual decision must name an accountable human, while the machine
+  states must not — this is what stops a script backdating itself as a decision
+- `match_method` accepts only `exact_email_via_time_member` or `manual`, so a
+  `fuzzy_name` method is rejected by Postgres
+
+It also fixes a collision with the honest-nulls rule: `expected_minutes` was
+`NOT NULL`, but Factorial returns `source='none'` when it does not know a day's
+expectation. Writing `0` reads as infinite utilisation; writing `2400` reinvents
+the fake 40h week that Factorial is being brought in to *replace*. Now nullable
+with a companion `expected_minutes_source`, and a `CHECK` making both "a number
+with source=none" and "a number with no source" impossible. The table has 0 rows,
+so this was free now and a data migration later.
+
+**Deliberately not written:** staging tables for `worked_times`, `leaves` and
+`contract_versions`. Their column lists would be transcribed from documentation
+rather than observed, because there is no credential and no demo tenant yet. That
+would be inventing a schema and calling it a migration.
+
+**3. The paging client is built and unit-tested** (`scripts/lib/factorial.mjs`,
+gate 86). 47 assertions against a fake transport — no network, no token. It is
+built first because its failure mode is silence: a short page does not throw, it
+produces a smaller number. The cases that matter all throw rather than return:
+
+- a repeated **or cycling** `end_cursor` (the infinite-loop bug)
+- `has_next_page` true with no cursor to advance with
+- `data` missing or an object, instead of reading as zero rows
+- `has_next_page` as the string `"false"`, which is truthy and would end early
+- HTTP 500 or 429 mid-run, so rows already read are never mistaken for all of them
+- an endless `has_next_page` stops at 500 pages and returns `truncated: true`,
+  which a rollup must discard
+
+Writing that test found a real bug in my own helper: `boundedAtToday` returned
+`""` rather than `false` for a null date, so a caller comparing `=== false` would
+have silently included undated rows.
+
 ### Sequencing
 
 **Do §2.1 and §2.3 first.** Both are prerequisites, not preferences:
@@ -271,7 +338,7 @@ Then Phase 0 of the integration plan: credentials, version pinning, **zero write
 
 ## 6. Gate suite state at the end of this session
 
-`node scripts/run-all-gates.mjs` — **82 gates: 79 pass, 1 skip, 2 red.**
+`node scripts/run-all-gates.mjs` — **86 gates: 83 pass, 1 skip, 2 red.**
 
 Both red gates are red for a stated reason, and neither needs a judgement call:
 
@@ -295,12 +362,22 @@ tolerate a rate-limit response rather than treating it as a product failure.
 Four gates were added this session and all are wired into `test:db`:
 - `check:projects-admit-unmeasured` (78) — the honest-nulls gate
 - `check:adr001-discriminates` (79) — the negative control for the rule widening
-- plus `check:factorial-auth`, which correctly reports **BLOCKED** rather than
-  passing or failing, because Phase 0 needs a human with Factorial admin rights
+- `check:invite-throttle-classification` (84) — proves the new rate-limit SKIP is narrow
+- `check:factorial-identity-migration` (85) — 25 assertions, 10 of which try to
+  insert rows the constraints must refuse
+- `check:factorial-pager` (86) — 47 assertions against a fake transport
 
-Three migrations are written, PGlite-verified twice each, and **awaiting a paste**:
+Two more are registered but deliberately **not** chained, because they report
+"blocked, needs a human" rather than pass/fail, and a suite that goes red for an
+unmade decision teaches people to ignore red:
+- `check:factorial-auth` — exits 2 until Phase 0 credentials exist
+- `check:factorial-identity-baseline` — exits 2 while an active member has hours
+  and no person link (currently Stefan, see §4)
+
+Four migrations are written, PGlite-verified twice each, and **awaiting a paste**:
 - `20260826120000_projects_admit_unmeasured_hours.sql`
 - `20260826130000_ypog_berlin_alias.sql`
+- `20260826140000_factorial_identity_review.sql`
 - `20260824100000_allow_masterdata_people_source.sql` (pre-existing, still unapplied)
 
 Nothing in this session wrote to the production database. Every change is either a
@@ -318,22 +395,33 @@ committed script, a committed migration awaiting your review, or a document.
    **This blocks Factorial**, whose constraint already reserves `'factorial'`.
    Verify with `node scripts/check-masterdata-source-migration.mjs`. *(minutes)*
 3. Paste `20260826130000` — flags the YPOG ambiguity where a human will see it.
+4. Paste `20260826140000` — the Factorial identity review queue.
+5. `npx vercel --prod --yes` — ships the mobile layout fix, taking
+   `check:table-scroll-budget` green in a full run.
 
 **Needs your judgement, and I deliberately did not substitute for it:**
 
-4. **The 3–5 mis-named orders** (§2.2). `10234_00103_104_01` is Netto carrying
+6. **The 3–5 mis-named orders** (§2.2). `10234_00103_104_01` is Netto carrying
    "Mirantis Safety Engineer 2026/2027" with **398h of real logged time** behind it.
    Confirm the correct names against the workbook; I will apply them.
-5. **Which YPOG entity** order `10305_00404_501_01` was contracted with — the
+7. **Which YPOG entity** order `10305_00404_501_01` was contracted with — the
    `GmbH & Co. KG` or the `Partnerschaft von Rechtsanwälten mbB`.
+8. **Who Stefan Goelzner is in the hub.** Active, 139.8h all billable, last entry
+   yesterday, no `hub_person_id`. Either link him or say he should not have a
+   `people` row.
 
-**Then the actual goal:**
+**Then Factorial, which is now mostly waiting on one thing:**
 
-6. Factorial Phase 0: credentials, version pinning, **zero writes**. Then Phase 1,
-   the read-only harvest into staging. Full plan in
-   `docs/factorial-api-integration.md`.
+9. **Phase 0 needs a Factorial admin**: create the OAuth application with the six
+   scopes, complete the client-credentials flow for a **company** token (not a
+   user token — those die on a 7-day cliff), request the demo tenant, and put
+   `FACTORIAL_ACCESS_TOKEN` in `.env.local`. `npm run check:factorial-auth` lists
+   the exact steps and verifies them once the token exists.
+10. Phase 1 then has a tested pager, a measured identity baseline and a schema
+    waiting for it. What it still needs is the staging tables, which were
+    deliberately left unwritten until a real API response can be inspected.
 
-Items 1, 2 and 4 are all prerequisites for Factorial rather than preferences.
-Landing real contract hours on top of a table that invents zeros, or a `people`
-table where provenance means nothing, would make the fake numbers harder to find
-rather than easier.
+Items 1, 2 and 8 are prerequisites for Factorial rather than preferences. Landing
+real contract hours on top of a table that invents zeros, or a `people` table where
+provenance means nothing, would make the fake numbers harder to find rather than
+easier.

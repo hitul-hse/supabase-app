@@ -182,6 +182,7 @@
                     "check:factorial-identity-baseline":  "node scripts/check-factorial-identity-baseline.mjs",
                     "check:factorial-identity-migration":  "node scripts/check-factorial-identity-migration.mjs",
                     "check:factorial-pager":  "node scripts/check-factorial-pager.mjs",
+                    "check:new-gates-can-fail":  "node scripts/check-new-gates-can-fail.mjs",
                     "test:no-anonymous-read":  "node scripts/check-no-anonymous-read.mjs"
                 },
     "dependencies":  {

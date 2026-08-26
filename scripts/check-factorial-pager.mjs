@@ -58,16 +58,23 @@ console.log("--- URL construction (a wrong param name is an empty result, not an
   const u = buildUrl({ base: "https://api.factorialhr.com", version: "2026-07-01", resource: "employees/employees" });
   check("path is /api/<version>/resources/<resource>",
     u.pathname === "/api/2026-07-01/resources/employees/employees", u.pathname);
-  check("limit defaults to the documented maximum",
-    u.searchParams.get("limit") === String(MAX_LIMIT), u.searchParams.get("limit"));
+  /*
+   * The LITERAL 100, not MAX_LIMIT. Comparing the sent value against the same
+   * constant that produced it passes at any value and proves nothing -- the same
+   * self-referential flaw check-new-gates-can-fail.mjs caught on MAX_PAGES.
+   * 100 is what the docs state is both the default AND the maximum
+   * (https://apidoc.factorialhr.com/docs/pagination), so it is a fact to assert.
+   */
+  check("the documented page size is 100", MAX_LIMIT === 100, `MAX_LIMIT is ${MAX_LIMIT}`);
+  check("limit defaults to 100", u.searchParams.get("limit") === "100", u.searchParams.get("limit"));
   check("no after_id on the first page", u.searchParams.get("after_id") === null);
 }
 {
   // Asking for more than the max is silently capped by the server, so cap it here
   // too rather than letting a caller believe they asked for 1000.
   const u = buildUrl({ base: "https://x", version: "v", resource: "r", limit: 1000 });
-  check("an over-max limit is clamped, not sent as-is",
-    u.searchParams.get("limit") === String(MAX_LIMIT), u.searchParams.get("limit"));
+  check("an over-max limit is clamped to 100, not sent as-is",
+    u.searchParams.get("limit") === "100", u.searchParams.get("limit"));
 }
 {
   const u = buildUrl({ base: "https://x", version: "v", resource: "r", params: { employee_ids: [7, 8, 9] } });
@@ -197,10 +204,25 @@ await throws("no token is refused before any request is made", async () => {
     json: async () => { n += 1; return { data: [row(n)], meta: { has_next_page: true, end_cursor: `c${n}` } }; },
   });
   const r = await fetchAllPages({ resource: "r", token: "t", transport });
-  check("an endless has_next_page stops at MAX_PAGES", r.pages === MAX_PAGES, `${r.pages} pages`);
+
+  /*
+   * Assert the LITERAL 500, not MAX_PAGES.
+   *
+   * `r.pages === MAX_PAGES` compares the result against the same constant the
+   * code under test used, so it holds at any cap and proves only that the loop
+   * stopped somewhere. check-new-gates-can-fail.mjs caught exactly that: it
+   * changed the cap to 3 and this gate stayed green.
+   *
+   * 500 pages x 100 rows is 50,000 -- far above any employee-scale response, and
+   * low enough to bound a runaway job against an API with no documented GET rate
+   * limit. Changing it is a real decision, so it should require editing a test.
+   */
+  check("the page cap is the documented 500, not merely 'some' cap",
+    MAX_PAGES === 500, `MAX_PAGES is ${MAX_PAGES}`);
+  check("an endless has_next_page stops at exactly 500 pages", r.pages === 500, `${r.pages} pages`);
   check("and reports truncated:true rather than pretending to be complete", r.truncated === true,
     "a rollup must discard a truncated read; it can only do that if it is told");
-  check("the rows it did read are still returned for diagnosis", r.rows.length === MAX_PAGES);
+  check("the rows it did read are still returned for diagnosis", r.rows.length === 500);
 }
 
 /* ==================================== the classifier, shared with the sync */

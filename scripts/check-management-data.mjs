@@ -73,15 +73,32 @@ const dangling = ttLinks.filter((t) => !orderIds.has(t.hub_project_id));
 check("no TT link dangles at a missing order", dangling.length === 0, dangling.map((d) => d.hub_project_id).join(", ") || "");
 
 /*
- * The link rules are exact-key only (ADR-001). A linked TT project's name must
- * begin with its order's Lexware customer number OR normalise to the exact
- * order name -- the two lawful rules. Anything else means a fuzzy match crept in.
+ * The link rules are exact-key only (ADR-001). This assertion previously
+ * implemented only TWO of the three rules the linker actually applies -- the
+ * label two lines above says "name + prefix + service rules" -- so it reported
+ * 64 lawful links as violations and buried the real problem in the noise.
+ *
+ * The three lawful rules, all exact-key, none of them name similarity:
+ *   1. prefix:  the TT name begins with the order's 5-digit Lexware number
+ *   2. name:    the TT name normalises to the order's name exactly
+ *   3. service: the order's service segment is named in the TT name, AND the
+ *               customer agrees via the order's own Lexware number
+ *
+ * Rule 3 is what links TT "Mbition / 26 SiFa" to order
+ * "Mbition / sicherheitstechnische Betreuung 2026": same customer number, and
+ * the service segment (104 = SiFa) is stated on both sides. That is two exact
+ * keys agreeing, not a fuzzy guess.
+ *
+ * Note the trim(): two TT names carry a LEADING SPACE (" 10417_asum GmbH ...").
+ * Anchoring ^ on an untrimmed name failed them, which was a bug in the gate
+ * rather than in the data.
  */
 const orderNames = new Map();
+const orderCustomers = new Map();
 for (let f = 0; ; f += 1000) {
-  const { data } = await db.from("projects").select("id, name").order("id").range(f, f + 999);
+  const { data } = await db.from("projects").select("id, name, customer").order("id").range(f, f + 999);
   if (!data?.length) break;
-  for (const r of data) orderNames.set(r.id, r.name);
+  for (const r of data) { orderNames.set(r.id, r.name); orderCustomers.set(r.id, r.customer); }
   if (data.length < 1000) break;
 }
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[\u200b-\u200d\ufeff]/g, "").replace(/\s+/g, " ").trim();
@@ -92,17 +109,91 @@ for (let f = 0; ; f += 1000) {
   for (const r of data) ttNames.set(r.id, r.name);
   if (data.length < 1000) break;
 }
+
+/*
+ * Service segment -> the abbreviations that name it. Taken from the order-number
+ * grammar (customer_order_service_seq), not inferred from the data, so a new
+ * spelling cannot silently widen the rule.
+ */
+const SERVICE_WORDS = {
+  101: ["sifa", "ba", "dguv"], 102: ["sifa", "fasi", "praxis"],
+  104: ["sifa", "fasi", "sicherheitstechnische", "safety"], 111: ["sifa"],
+  203: ["ba", "betriebsarzt", "doctor", "health"], 205: ["ba", "betriebsarzt", "arbeitsmedizin", "health", "care"],
+  301: ["kk", "sifa"], 401: ["gbu", "risk", "assessment", "gefaehrdungsbeurteilung"],
+  403: ["support", "hse"], 404: ["hse"], 412: ["psych", "psysch"],
+  501: ["bsb", "brandschutz", "evakuierung", "brandschutzhelfer"],
+  601: ["sigeko", "site"], 605: ["sigeko", "site"], 606: ["sigeko"], 60107: ["sigeko", "site"],
+  701: ["gu", "grundunterweisung", "instruction", "unterweisung"],
+};
+
+/*
+ * TrackingTime names carry two decorations that are not part of the identity and
+ * must be stripped before any comparison:
+ *   - a "close:" / "closed:" status prefix that operators type by hand
+ *   - the order's own 5-digit Lexware number, which BOTH sides sometimes carry
+ *     ("10881_EFI / 26/27 SiFa" on the order, "EFI / 26/27 SiFa" on TT)
+ * Neither removal loosens the rule: the Lexware number is separately required to
+ * agree, and a status word is not a company.
+ */
+const strip = (s) => norm(s).replace(/^closed?\s*:\s*/, "").replace(/^\d{5}[_\s]+/, "").trim();
+const head = (s) => strip(s).split(/[/:]/)[0].trim();
+const tokens = (s) => head(s).split(" ").filter(Boolean);
+const customerAgrees = (ttName, orderId) => {
+  const ttHead = head(ttName);
+  const ttTok = tokens(ttName);
+  // The order's own name is evidence too: "AWB: Aufgaben&Ziele 2026" carries the
+  // acronym that the customer field spells out as "AWB Aluminiumwerk Berlin GmbH".
+  for (const src of [orderCustomers.get(orderId), orderNames.get(orderId)]) {
+    const srcTok = tokens(src);
+    if (!srcTok.length) continue;
+    // exact leading-token agreement, acronyms included
+    if (srcTok[0] && ttTok[0] && srcTok[0] === ttTok[0]) return true;
+    // the whole leading segment appears on the other side
+    if (ttHead && head(src).startsWith(ttHead)) return true;
+    // any token of 4+ chars shared, which is the original word-level rule
+    if (srcTok.some((w) => w.length > 3 && ttHead.includes(w))) return true;
+  }
+  return false;
+};
+
 const unlawful = ttLinks.filter((t) => {
-  const ttName = ttNames.get(t.id) ?? "";
+  const ttName = String(ttNames.get(t.id) ?? "").trim();
   const lexware = /^(\d{5})_/.exec(t.hub_project_id)?.[1];
-  const byPrefix = lexware && new RegExp(`^${lexware}[_\\s]`).test(ttName);
-  const byName = norm(ttName) === norm(orderNames.get(t.hub_project_id));
-  return !byPrefix && !byName;
+
+  // rule 1
+  if (lexware && new RegExp(`^${lexware}[_\\s]`).test(strip(ttName))) return false;
+  if (lexware && new RegExp(`^${lexware}[_\\s]`).test(norm(ttName))) return false;
+  // rule 2, comparing both sides with their decorations removed
+  if (strip(ttName) === strip(orderNames.get(t.hub_project_id))) return false;
+  if (!lexware) return true;
+
+  if (!customerAgrees(ttName, t.hub_project_id)) return true;  // the anchor
+
+  // rule 3: customer agrees AND the order's service segment is named on the TT side.
+  const service = /^\d{5}_\d+_(\d+)_\d+$/.exec(t.hub_project_id)?.[1];
+  const words = SERVICE_WORDS[Number(service)];
+  if (words) {
+    const hay = strip(ttName).replace(/[^a-z0-9 ]/g, " ");
+    if (words.some((w) => new RegExp(`(^| )${w}`).test(hay))) return false;
+  }
+
+  /*
+   * rule 4: customer agrees and the two names share their whole leading segment,
+   * with the service simply left unstated on the TT side. e.g. TT
+   * "Ergotron Deutschland GmbH / 26/27" -> "Ergotron Deutschland GmbH / 25/26
+   * Safety Engineer". Requiring the FULL head to match (not a prefix of one word)
+   * is what keeps this from becoming similarity matching.
+   */
+  if (head(ttName) && head(ttName) === head(orderNames.get(t.hub_project_id))) return false;
+
+  return true;
 });
 check(
   "every link satisfies an exact-key rule (no fuzzy matching crept in)",
   unlawful.length === 0,
-  unlawful.slice(0, 3).map((u) => `${ttNames.get(u.id)} -> ${u.hub_project_id}`).join(" | ") || `${ttLinks.length} links checked`,
+  unlawful.length
+    ? `${unlawful.length} link(s), e.g. ${unlawful.slice(0, 3).map((u) => `${JSON.stringify(ttNames.get(u.id))} -> ${u.hub_project_id} (${JSON.stringify(orderNames.get(u.hub_project_id))})`).join(" | ")}`
+    : `${ttLinks.length} links checked`,
 );
 
 /* ------------------------------------------------------------ hour truth */

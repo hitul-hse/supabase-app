@@ -248,7 +248,40 @@ nothing about a machine that does not have the file.
 
 ---
 
-## 6. Two notes for whoever works on this next
+## 6. Deploy order: is it safe to ship before the migrations?
+
+**Yes for the web app, no for the next import run.** Established with
+`node scripts/diagnose-deploy-migration-order.mjs` rather than assumed, because
+getting this backwards means a runtime failure on a live request.
+
+Three columns on `public.projects` are still `NOT NULL` on the live database —
+`billable_hours`, `consumed_percent`, `status` — because migration
+`20260826120000` has not been applied. Code that writes an honest `null` into any
+of them fails at runtime. The question is therefore *which* code writes them.
+
+Answer: **zero files under `src/`**, and seven under `scripts/`, including
+`import-masterdata-projects.mjs`. So no live web request can hit the constraint;
+the hazard is confined to scripts a human runs deliberately.
+
+| | verdict |
+| --- | --- |
+| `npm run build` | clean, compiled in 7.0s |
+| `src/` paths writing a NOT NULL column | **none** |
+| Deploy without the migration | **safe** |
+| Run the importer without the migration | **will fail** — apply it first |
+| Read paths against the unmigrated DB | verified working (231 projects, 0 nulls) |
+
+The reverse direction was checked too: the new management code runs correctly
+against the database *as it is today*, so deploying does not depend on the
+migration landing first. `20260826140000_factorial_identity_review` is likewise
+safe to defer — no `src/` file references `factorial_identity_review` at all.
+
+The migrations are still required. They are just not a deploy blocker, and
+knowing which of the two it is decides whether you can ship this afternoon.
+
+---
+
+## 7. Two notes for whoever works on this next
 
 **The allowlist has more than one consumer.** Widening `PEOPLE` changed both
 `getEmployeeOwnershipOverview` and `getManagementContractHours`. Only the first

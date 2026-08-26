@@ -69,6 +69,22 @@ Committed in `e7cfac3`:
 **ACTION: paste the migration into production.** The gate is red until you do,
 which is the point. Then `npm run check:projects-admit-unmeasured` should go green.
 
+**One consumer had to be fixed first, and it was.** `management-project-risks.ts`
+is the only reader of these columns, and it surfaced statusless orders as a risk
+called "Kein Status gesetzt" — somebody forgot. After the migration 54 orders have
+no status *by design*, so a bare `!project.status` filter would have accused all 54
+of an omission that is really the fix working. 54 false alarms invite exactly the
+wrong response: distrust the panel, or "fix" it by setting NORMAL and reintroducing
+the lie.
+
+The two cases are separable from the same row, since an unmeasured order has NULL
+`logged_hours` too. The predicate now requires the hours to be **known**, so a
+deliberate NULL is silent and a genuine lapse is still caught.
+`node scripts/check-risk-panel-survives-nulls.mjs` (gate 88) replays both
+predicates over the real before/after populations and confirms the over-budget
+count is unchanged at 11 while the missing-status count stays 0 instead of jumping
+to 54.
+
 ### 2.2 [NEEDS A DECISION — and it is a SPREADSHEET problem, not an import bug]
 
 Found by `node scripts/diagnose-order-name-customer-conflict.mjs`: **8 orders**

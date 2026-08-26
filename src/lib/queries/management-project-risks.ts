@@ -322,8 +322,25 @@ export async function getManagementProjectRisks(
     const openWithoutOwner = projectRows
       .filter((project) => isOpen(project.status) && !project.owner_person_id)
       .map((project) => detailById.get(project.id)!);
+    /*
+     * "Kein Status gesetzt" must mean somebody FORGOT, not "there is nothing
+     * to measure".
+     *
+     * Migration 20260826120000 sets status to NULL for the 54 orders with no
+     * TrackingTime link, because inventing NORMAL for an unmeasured order is
+     * the plausible-zero this codebase spent a migration removing. A bare
+     * `!project.status` filter would then accuse all 54 of an omission, and
+     * the likely human response to 54 false alarms is either to distrust the
+     * panel or to "fix" it by setting NORMAL -- reintroducing the exact lie.
+     *
+     * The two cases are distinguishable from the same row: an unmeasured order
+     * has NULL logged_hours as well. So a statusless order counts as forgotten
+     * only when its hours ARE known. Verified by
+     * scripts/check-risk-panel-survives-nulls.mjs, which replays this
+     * predicate over the real before/after populations.
+     */
     const withoutStatus = projectRows
-      .filter((project) => !project.status)
+      .filter((project) => !project.status && project.logged_hours !== null)
       .map((project) => detailById.get(project.id)!);
     const withoutCustomerMapping = customerMappings.available
       ? details.filter((detail) => detail.customerMapping === "missing")

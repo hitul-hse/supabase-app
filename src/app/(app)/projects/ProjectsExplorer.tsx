@@ -38,6 +38,7 @@ import { PortfolioCharts } from "./PortfolioCharts";
 import { CustomerPortfolioCharts } from "./CustomerPortfolioCharts";
 import { ProjectsLedger, type LedgerSort } from "./ProjectsLedger";
 import { CustomerMultiSelect } from "./CustomerMultiSelect";
+import { MobileDisclosure } from "@/components/MobileDisclosure";
 
 const FACETS: { key: ProjectFacet; label: string }[] = [
   { key: "over", label: "OVER BUDGET" },
@@ -113,6 +114,26 @@ export function ProjectsExplorer({
   // The health donut maps to exactly one facet when a single one is active, so
   // it can ring that slice; with several selected it rings none.
   const soleFacet = filters.facets.size === 1 ? [...filters.facets][0] : null;
+
+  /*
+   * PHONE SUMMARIES for the two collapsed chart groups below.
+   *
+   * These are what the reader sees INSTEAD of the charts at 390px, so they carry
+   * the finding rather than the topic: how many projects are over budget, and
+   * how concentrated the customer base is. A summary that just repeated the
+   * title would make the collapsed panel indistinguishable from an empty one,
+   * which is the failure DESIGN.md rule 7 is about.
+   */
+  const topCustomer = portfolio.rows[0] ?? null;
+  const chartsSummary =
+    filtered.length === 0
+      ? "No projects match the current filter"
+      : `${overBudget} over budget · ${noBudget} without a budget · ${filtered.length} projects`;
+  const customersSummary =
+    portfolio.customerCount === 0
+      ? "No customer hours logged yet"
+      : `${portfolio.customerCount} customers · top 5 hold ${portfolio.top5SharePercent}%` +
+        (topCustomer ? ` · biggest ${topCustomer.name}` : "");
 
   const clearAll = () =>
     setFilters({ query: "", customers: new Set(), facets: new Set(), billableOnly: null });
@@ -193,6 +214,9 @@ export function ProjectsExplorer({
       {/* Everything below reads `filtered` — one control, whole page. And the
           charts are themselves controls: clicking a health-donut slice or a
           customer slice toggles that filter, the cross-filtering BI tools do. */}
+      {/* The totals strip stays open at every width: it is five short tiles, it
+          IS the summary the panels below would collapse to, and hiding it would
+          leave the phone with a filter bar and nothing to show for it. */}
       <ProjectTotalsStrip
         projectCount={filtered.length}
         totalHours={totalHours}
@@ -200,12 +224,31 @@ export function ProjectsExplorer({
         overBudget={overBudget}
         noBudget={noBudget}
       />
-      <PortfolioCharts rows={filtered} onFacet={toggleFacet} activeFacet={soleFacet} />
-      <CustomerPortfolioCharts
-        data={portfolio}
-        onCustomer={toggleCustomer}
-        activeCustomers={filters.customers}
-      />
+
+      {/*
+        Both chart groups collapse on a PHONE only (see MobileDisclosure: the
+        content keeps `sm:block`, so at 1440px this wrapper renders nothing but a
+        div and the desktop layout is byte-for-byte what it was).
+
+        Measured at 390px they were the second and third tallest blocks on the
+        route -- "Portfolio health" 1,182px and "Biggest customers" 1,033px, i.e.
+        2.6 of 7.1 screens -- because each is a `lg:grid-cols-12` row that stacks
+        into one column. They are also the panels a phone reader is least likely
+        to have come for: a donut and a share ring are a desktop scanning tool,
+        and the figures inside them are already stated in the summary line and
+        the totals strip above.
+      */}
+      <MobileDisclosure title="Portfolio charts" summary={chartsSummary}>
+        <PortfolioCharts rows={filtered} onFacet={toggleFacet} activeFacet={soleFacet} />
+      </MobileDisclosure>
+      <MobileDisclosure title="Customers" summary={customersSummary}>
+        <CustomerPortfolioCharts
+          data={portfolio}
+          onCustomer={toggleCustomer}
+          activeCustomers={filters.customers}
+        />
+      </MobileDisclosure>
+
       <ProjectsLedger rows={filtered} initialSort={initialSort} />
     </div>
   );

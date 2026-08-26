@@ -38,11 +38,39 @@
  * --dry-run reports everything and writes nothing.
  */
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import * as XLSX from "xlsx";
 
+/*
+ * The order workbook. Repo-relative by default, overridable with MASTERDATA_XLSX.
+ *
+ * This was hardcoded to C:/Users/hitul/Downloads/... until 26 Aug 2026, which
+ * meant the portfolio import could not be reproduced or verified on any other
+ * machine -- and the file committed under .local/import/ was a DIFFERENT
+ * workbook (the customer master, which yields 0 orders through readOrders()).
+ * Anyone re-running this to check the 231 orders would have silently imported
+ * nothing.
+ *
+ * .local/ is gitignored on purpose and that stays true: this workbook carries
+ * customer names and named personnel, so it belongs beside the repo rather than
+ * in it. What changes is that the path is now conventional and stated, so a
+ * second machine drops the file in one known place instead of reading someone
+ * else's Downloads folder.
+ */
 const XL =
-  "C:/Users/hitul/Downloads/HSE_Masterdata_Übersicht Kunden_verantwortlichkeiten_customer_responsible_2026_V2.xlsx";
+  process.env.MASTERDATA_XLSX ??
+  ".local/import/HSE_Masterdata_Übersicht Kunden_verantwortlichkeiten_customer_responsible_2026_V2.xlsx";
+
+// Fail loudly and usefully. An unreadable workbook previously surfaced as a
+// stack trace from deep inside the xlsx reader, or worse, as a successful run
+// over the wrong file.
+if (!existsSync(XL)) {
+  console.error(`Order workbook not found: ${XL}`);
+  console.error("Put it at that path, or set MASTERDATA_XLSX to point at it.");
+  console.error("It is the 22-sheet 'Übersicht Kunden_verantwortlichkeiten' file,");
+  console.error("NOT HSE_Customer_Masterdata_V1_2.xlsx (that one yields 0 orders).");
+  process.exit(1);
+}
 const DRY = process.argv.includes("--dry-run");
 
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {

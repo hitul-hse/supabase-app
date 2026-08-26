@@ -69,6 +69,24 @@ export type LedgerSort = "burn" | "hours" | "recent" | "name" | "budget" | "peop
 const PAGE_SIZE = 30;
 
 /**
+ * How many rows the PHONE shows before asking, within the same page of 30.
+ *
+ * The desktop row is a 12-column grid ~28px tall. Under 640px that grid is
+ * unreadable, so the mobile branch renders a stacked card instead -- name,
+ * customer, a burn bar and two figures -- which measures ~95px. Thirty of those
+ * is 2,871px, and audit-mobile.mjs measured exactly that: the ledger alone was
+ * 3.4 of the 7.1 screens this route occupied at 390px. The same 30 rows are
+ * ~840px on a desktop, which is why this never showed up at 1440px.
+ *
+ * Eight rows is ~760px, just under one phone screen, so the first paint is the
+ * top of the sorted list and the pager is reachable without a scroll. It is a
+ * VIEW cap, not a page cap: the pager still pages in 30, the count line still
+ * states the total, and one tap reveals the rest of the page in place. Nothing
+ * is unreachable and no number changes.
+ */
+const MOBILE_ROWS = 8;
+
+/**
  * Sort, with unmeasured rows pinned last in BOTH directions.
  *
  * A null burn means "nobody set a budget", not "0% burned". Coercing it to 0
@@ -154,12 +172,18 @@ export function ProjectsLedger({
 }) {
   const [sortKey, setSortKey] = useState<LedgerSort>(initialSort);
   const [sortDir, setSortDir] = useState<SortDirection>(initialSort === "name" ? "asc" : "desc");
+  /** Phone only: has the reader asked for the rest of this page? */
+  const [mobileExpanded, setMobileExpanded] = useState(false);
 
   const sorted = sortRows(rows, sortKey, sortDir);
 
   const tableRef = useRef<HTMLDivElement>(null);
   const pager = usePager(sorted.length, PAGE_SIZE, `${sortKey}|${sortDir}|${rows.length}`);
   const visible = sorted.slice(pager.start, pager.end);
+  // Re-collapsing on a sort or page change is deliberate: the point of the cap
+  // is that the first paint after any control is one screen.
+  const mobileVisible = mobileExpanded ? visible : visible.slice(0, MOBILE_ROWS);
+  const mobileHidden = visible.length - mobileVisible.length;
 
   const handleSort = (key: string) => {
     const next = key as LedgerSort;
@@ -194,7 +218,7 @@ export function ProjectsLedger({
       <Card className="overflow-hidden">
         {/* Mobile cards — a 7-column grid is unreadable under ~640px. */}
         <div className="flex flex-col divide-y divide-[var(--divider)] sm:hidden">
-          {visible.map((p) => (
+          {mobileVisible.map((p) => (
             <Link
               key={p.id}
               data-ledger-row
@@ -232,6 +256,25 @@ export function ProjectsLedger({
               </div>
             </Link>
           ))}
+
+          {/*
+            The count is stated whether expanded or not (DESIGN.md rule 7): a
+            capped list with no count is indistinguishable from a truncated one.
+            `sm:hidden` is inherited from the wrapper, so the desktop tree below
+            never sees this control.
+          */}
+          {(mobileHidden > 0 || mobileExpanded) && (
+            <button
+              type="button"
+              onClick={() => setMobileExpanded((v) => !v)}
+              aria-expanded={mobileExpanded}
+              className="px-3 py-2.5 text-left font-mono text-[10px] tracking-[0.08em] text-[var(--accent)]"
+            >
+              {mobileExpanded
+                ? `SHOW FEWER · ${mobileVisible.length} OF ${sorted.length.toLocaleString("en-GB")} PROJECTS`
+                : `SHOW ${mobileHidden} MORE ON THIS PAGE · ${mobileVisible.length} OF ${sorted.length.toLocaleString("en-GB")} PROJECTS`}
+            </button>
+          )}
         </div>
 
         <div ref={tableRef} className="hidden sm:block">

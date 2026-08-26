@@ -45,6 +45,7 @@ import { TeamAnalysisSection } from "./TeamAnalysisSection";
 import { TeamDeepAnalysis } from "./TeamDeepAnalysis";
 import { TeamLeadCharts } from "./TeamLeadCharts";
 import { TeamLeadBoard } from "./TeamLeadBoard";
+import { MobileDisclosure } from "@/components/MobileDisclosure";
 
 /** The key an unassigned row filters under. Distinct from any real team key. */
 const NO_TEAM = "__none__";
@@ -401,6 +402,41 @@ export function TeamLeadExplorer({
   const shownCount = filteredBoard.rows.length;
   const totalCount = board.rows.length;
 
+  /*
+   * PHONE SUMMARIES for the three analysis panels collapsed below.
+   *
+   * Measured at 390x844 (scripts/audit-mobile.mjs) this route was 5.6 screens,
+   * and the four ANALYSIS panels were essentially all of it: "Month over month"
+   * 1,381px, the board 1,130px, "Analysis by team" 1,111px, "Team hours per
+   * week" 498px. Every one of them is a `lg:grid-cols-12` or `lg:grid-cols-2`
+   * row, so on a desktop they sit two or three abreast and on a phone they
+   * stack end to end. That is a layout defect, not a long table -- the single
+   * table here is 8 rows with a sticky header.
+   *
+   * Each summary carries the panel's actual headline figure, because a
+   * collapsed panel that only restates its title is indistinguishable from an
+   * empty one (DESIGN.md rule 7).
+   */
+  const util = filteredBoard.teamUtilisationPercent;
+  const analysisSummary =
+    `${shownCount} ${shownCount === 1 ? "person" : "people"}` +
+    // An em dash, never "0%": a missing utilisation is "we do not know", and
+    // 0% is a claim that nobody logged anything (DESIGN.md rule 6).
+    ` · ${util === null ? "—" : `${util}%`} utilisation` +
+    ` · ${filteredBoard.activeCount} active, ${filteredBoard.idleCount} idle`;
+
+  const mc = filteredBoard.monthComparison;
+  const deepSummary = mc
+    ? `${mc.prevLabel} ${Math.round(mc.orgPrevHours)}h → ${mc.currLabel} ${Math.round(mc.orgCurrHours)}h · heatmap and travel split`
+    : "Month over month, utilisation heatmap and travel split";
+
+  const chartsSummary = (() => {
+    const weeks = filteredBoard.weeks;
+    if (weeks.length === 0) return "No weeks in this period";
+    const total = filteredBoard.rows.reduce((s, r) => s + r.totalHours, 0);
+    return `${Math.round(total)}h across ${weeks.length} ${weeks.length === 1 ? "week" : "weeks"} · ${weeks[0]?.label}–${weeks[weeks.length - 1]?.label}`;
+  })();
+
   const clear = () => {
     setSelectedTeams(new Set());
     setSelectedMembers([]);
@@ -492,15 +528,38 @@ export function TeamLeadExplorer({
       {/* Everything below re-derives from the narrowed board, so the analysis,
           the deep figures, the org-wide charts and the grid all show the same
           people. Empty selection passes the original board straight through. */}
-      <div className="pt-4">
-        <TeamAnalysisSection
-          board={filteredBoard}
-          viewerRole={viewerRole}
-          viewerTeam={viewerTeam}
-        />
+      {/*
+        The three ANALYSIS panels collapse on a PHONE only; the BOARD below stays
+        open at every width. That split is the whole judgement here: the board is
+        the thing a lead opens this route to act on (it is where approving
+        happens), and a page that collapses everything equally is a menu rather
+        than an answer. The figures explain the board, so on a small screen they
+        are one tap away instead of 3,900px of scrolling in front of it.
+
+        MobileDisclosure keeps `sm:block` on its content, so from sm up this is a
+        bare wrapper div and the desktop page is exactly what it was -- verified
+        at 1440px, not assumed.
+
+        The px-4/sm:px-6 matches the gutter each panel already sets on itself, so
+        the collapsed triggers line up with the filter bar above them.
+      */}
+      <div className="flex flex-col gap-2 px-4 pt-4 pb-4 sm:gap-0 sm:px-0 sm:pb-0">
+        <MobileDisclosure title="Analysis by team" summary={analysisSummary}>
+          <div className="sm:pt-0">
+            <TeamAnalysisSection
+              board={filteredBoard}
+              viewerRole={viewerRole}
+              viewerTeam={viewerTeam}
+            />
+          </div>
+        </MobileDisclosure>
+        <MobileDisclosure title="Month over month & travel" summary={deepSummary}>
+          <TeamDeepAnalysis board={filteredBoard} />
+        </MobileDisclosure>
+        <MobileDisclosure title="Team hours per week" summary={chartsSummary}>
+          <TeamLeadCharts board={filteredBoard} />
+        </MobileDisclosure>
       </div>
-      <TeamDeepAnalysis board={filteredBoard} />
-      <TeamLeadCharts board={filteredBoard} />
       <TeamLeadBoard board={filteredBoard} initialDecisions={initialDecisions} />
     </>
   );

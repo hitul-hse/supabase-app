@@ -103,11 +103,27 @@ console.log("\nIf Factorial's roster matched the 49 TrackingTime addresses exact
 console.table(Object.entries(tally).map(([status, n]) => ({ status, n })));
 
 const resolvable = rows.filter((r) => r.status === "resolvable");
-const queued = rows.filter((r) => r.status !== "resolvable" && r.status !== "excluded_not_a_person");
-const excluded = rows.filter((r) => r.status === "excluded_not_a_person");
+const queued = rows.filter((r) => r.status !== "resolvable");
 
-console.log(`\nresolvable: ${resolvable.length}   queued for review: ${queued.length}   excluded: ${excluded.length}`);
-console.log("\nThe honest headline for a Phase 2 gate is all three counts, never just the first.");
+/*
+ * There is no longer an "excluded" bucket here, and that is deliberate.
+ *
+ * The classifier used to return `excluded_not_a_person` for a shared mailbox.
+ * check-factorial-classifier-schema-agree.mjs proved that would abort the first
+ * sync: the schema requires a named human for any terminal status, and a sync has
+ * none. So the two mailboxes now arrive as `ambiguous` with a reason telling a
+ * human to confirm the exclusion.
+ *
+ * The counts therefore read 18 / 31 / 0 rather than the 18 / 29 / 2 reported
+ * before that fix. The population did not change; the responsibility did. Those
+ * two rows are now visible in the open queue until someone signs off on them,
+ * which is the point of a terminal state requiring an author.
+ */
+const looksLikeMailbox = rows.filter((r) => SHARED_MAILBOX.test(r.email));
+
+console.log(`\nresolvable: ${resolvable.length}   queued for review: ${queued.length}`);
+console.log(`of the queued, ${looksLikeMailbox.length} look like shared mailboxes awaiting a human exclusion`);
+console.log("\nThe honest headline for a Phase 2 gate is both counts, never just the first.");
 
 console.log("\n--- would AUTO-RESOLVE (exact email -> member -> person)");
 console.table(resolvable.map((r) => ({ email: r.email, person: r.person, entries: r.entries })));
@@ -115,8 +131,9 @@ console.table(resolvable.map((r) => ({ email: r.email, person: r.person, entries
 console.log("\n--- would QUEUE for a human");
 console.table(queued.map((r) => ({ email: r.email, status: r.status, entries: r.entries, archived: r.archived })));
 
-console.log("\n--- would be EXCLUDED as not-a-person (terminal, pre-seeded)");
-console.table(excluded.map((r) => ({ email: r.email, status: r.status })));
+console.log("\n--- of those, the ones that look like mailboxes rather than colleagues");
+console.log("    (a human must set excluded_not_a_person; the sync may not)");
+console.table(looksLikeMailbox.map((r) => ({ email: r.email, status: r.status, entries: r.entries })));
 
 /* ------------------------------------------------- what the queue would cost */
 
@@ -188,7 +205,7 @@ if (sample) {
   mustBe("uppercase still resolves (we lowercase, which is not fuzzy)", sample.toUpperCase(), "resolvable");
   mustBe("surrounding whitespace still resolves", `  ${sample}  `, "resolvable");
 }
-mustBe("a shared mailbox is excluded, not matched", "info@hs-experts.com", "excluded_not_a_person");
+mustBe("a shared mailbox is flagged for a human, not auto-excluded", "info@hs-experts.com", "ambiguous");
 mustBe("an empty email is unmatched, never resolved", "", "unmatched");
 mustBe("a name is not an email and must not match", "Rency Sebastian", "unmatched");
 mustBe("a stranger is unmatched", "nobody.here@hs-experts.com", "unmatched");

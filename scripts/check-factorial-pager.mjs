@@ -248,8 +248,37 @@ check("two members on one email is ambiguous, never a pick",
 check("a person already claimed is ambiguous, not a second mapping",
   status("taken@hs-experts.com") === "ambiguous",
   "people.factorial_employee_id is UNIQUE; predicting this beats a mid-sync insert failure");
-check("a shared mailbox is excluded as not-a-person",
-  status("info@hs-experts.com") === "excluded_not_a_person");
+/*
+ * A shared mailbox is FLAGGED, not auto-excluded. The classifier used to return
+ * `excluded_not_a_person` here; check-factorial-classifier-schema-agree.mjs
+ * proved that would abort the first sync, because the schema requires a named
+ * human for any terminal status and a sync has none. So the machine reports
+ * `ambiguous` and a person makes the exclusion permanent.
+ */
+check("a shared mailbox is flagged ambiguous for a human, not auto-excluded",
+  status("info@hs-experts.com") === "ambiguous",
+  "a machine may not self-authorise a terminal exclusion");
+check("and the reason says what to do about it",
+  /shared mailbox/i.test(classifyEmployee({ login_email: "info@hs-experts.com" }, members, claimed).reason)
+    && /excluded_not_a_person/.test(classifyEmployee({ login_email: "info@hs-experts.com" }, members, claimed).reason),
+  "a queue row nobody can action is backlog, not a decision");
+
+/*
+ * The stronger claim: the classifier must NEVER emit a terminal status, for any
+ * input. Those statuses require an accountable human by construction.
+ */
+{
+  const TERMINAL = new Set(["excluded_not_a_person", "excluded_not_employee", "resolved_manual"]);
+  const probes = [
+    null, "", "   ", "info@hs-experts.com", "jobs@x.com", "support@x.com",
+    "no-reply@x.com", "rency@hs-experts.com", "stranger@x.com", "twin@hs-experts.com",
+    "taken@hs-experts.com", "nobody@hs-experts.com", "Rency Sebastian", "@@@",
+  ];
+  const leaked = probes.filter((p) => TERMINAL.has(status(p)));
+  check("no input makes the classifier emit a status only a human may set",
+    leaked.length === 0,
+    leaked.length ? `leaked on: ${JSON.stringify(leaked)}` : `${probes.length} inputs probed`);
+}
 check("a stranger is unmatched", status("who@hs-experts.com") === "unmatched");
 check("a missing email is unmatched, never resolved", status(null) === "unmatched");
 check("a dot inserted in the local part does NOT match",

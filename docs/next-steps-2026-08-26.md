@@ -288,11 +288,23 @@ now. So the resolvable population is a real number today:
 | | count | |
 | --- | --- | --- |
 | auto-resolve | **18** | exact email → member → person |
-| queue for review | **29** | 25 are archived leavers; 4 carry real hours |
-| excluded | **2** | `info@` and `jobs@` are mailboxes, not colleagues |
+| queue for review | **31** | 25 archived leavers, 4 carry real hours, 2 look like mailboxes |
+
+Note there is **no "excluded" bucket**, and that is the result of a bug this work
+found in itself. The classifier originally returned `excluded_not_a_person` for
+`info@` and `jobs@`, giving a tidier 18 / 29 / 2. But the schema requires a named
+human for any terminal status, so **the first sync would have aborted on `info@`** —
+proved by `node scripts/check-factorial-classifier-schema-agree.mjs`, which inserts
+a row for every status the classifier can emit.
+
+The schema was right and the classifier was wrong. A machine that can
+self-authorise a permanent exclusion can quietly remove a named colleague from
+every hours figure with nobody's name against it. So the two mailboxes now arrive
+as `ambiguous` with a reason telling a human to confirm, and sit in the open queue
+until someone signs off. The population did not change; the responsibility did.
 
 Phase 2 is now a comparison against a known baseline rather than a discovery
-exercise, and the honest headline for its gate is all three counts, never the first.
+exercise, and the honest headline for its gate is both counts, never just the first.
 
 **It also surfaced a problem that exists today, independent of Factorial.** 636h
 sits behind members with no person link. Most is archived leavers, whose NULL is

@@ -7,10 +7,18 @@
 -- reach everyone (node scripts/check-factorial-identity-baseline.mjs, 26 Aug):
 --
 --     18  resolve exactly   email -> time.member -> hub_person_id -> people
---     29  do not            25 archived leavers, 4 carrying real hours
---      2  are not people    info@ and jobs@ are shared mailboxes
+--     31  do not            25 archived leavers, 4 carrying real hours,
+--                           and 2 that look like shared mailboxes (info@, jobs@)
 --
--- 29 of 49 is not an edge case, so "unresolved" needs somewhere to live. Without
+-- Those last 2 are NOT auto-excluded, deliberately. The classifier reports them
+-- as `ambiguous` with a reason, because the decision-needs-reviewer constraint
+-- below requires a named human for any terminal status and a sync has none. A
+-- machine that could self-authorise a permanent exclusion could quietly delete a
+-- colleague from every hours figure. This was proved rather than assumed:
+-- check-factorial-classifier-schema-agree.mjs showed the earlier design would
+-- have aborted the first sync on info@.
+--
+-- 31 of 49 is not an edge case, so "unresolved" needs somewhere to live. Without
 -- a queue the sync has exactly two options, and both are unacceptable: guess by
 -- name similarity (forbidden, ADR-001, and this is an authorisation-adjacent
 -- join), or drop the employee silently and under-report the company's hours.
@@ -117,6 +125,11 @@ create table if not exists crm.factorial_identity_review (
 
   -- A terminal or manual decision requires an accountable human. The machine
   -- states (unmatched / bridged_unlinked / ambiguous / resolved_auto) do not.
+  --
+  -- This is load-bearing, not paperwork. It is what forces the sync to report a
+  -- suspicious address as `ambiguous` rather than excluding it: a machine has no
+  -- reviewed_by to offer, so the insert fails. An auto-exclusion would remove a
+  -- named person's hours from every figure with nobody's name against it.
   constraint factorial_identity_review_decision_needs_reviewer
     check (
       status in ('unmatched', 'bridged_unlinked', 'ambiguous', 'resolved_auto')
@@ -144,7 +157,8 @@ comment on table crm.factorial_identity_review is
   'Every Factorial employee that could NOT be mapped to public.people by exact email. '
   'Exists so an unresolved employee is a reviewable row rather than a silent omission or '
   'a fuzzy guess. Rows are re-evaluated on every sync; terminal decisions are never '
-  'reopened. Baseline at creation (26 Aug 2026): 18 resolvable, 29 queued, 2 excluded.';
+  'reopened. Baseline at creation (26 Aug 2026): 18 resolvable, 31 queued, of which 2 look '
+  'like shared mailboxes awaiting a human exclusion. A sync may NOT set a terminal status.';
 comment on column crm.factorial_identity_review.factorial_full_name is
   'Display only, so a human can recognise the row. Forbidden as a matching input (ADR-001).';
 comment on column crm.factorial_identity_review.candidate_count is

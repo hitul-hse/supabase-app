@@ -213,6 +213,10 @@ export const normaliseEmail = (e) => String(e ?? "").trim().toLowerCase();
  * @returns {{status: string, reason: string, memberId?: number, personId?: string, count: number}}
  *   status is one of the crm.factorial_identity_review status values, plus
  *   'resolvable' for the auto-resolve case which becomes a mapping row instead.
+ *
+ * IMPORTANT: this returns only statuses a MACHINE may write. The terminal
+ * statuses (`excluded_not_a_person`, `excluded_not_employee`) are deliberately
+ * NOT returned -- see the shared-mailbox branch below.
  */
 export function classifyEmployee(employee, membersByEmail, claimedPersonIds = new Set()) {
   const email = normaliseEmail(employee?.login_email);
@@ -220,8 +224,35 @@ export function classifyEmployee(employee, membersByEmail, claimedPersonIds = ne
   if (!email) {
     return { status: "unmatched", reason: "Factorial has no login email for this employee", count: 0 };
   }
+
+  /*
+   * A shared mailbox is FLAGGED, not excluded.
+   *
+   * This function used to return `excluded_not_a_person` here, and
+   * check-factorial-classifier-schema-agree.mjs proved that would have aborted
+   * the first sync: the schema's
+   * factorial_identity_review_decision_needs_reviewer constraint requires
+   * reviewed_by AND reviewed_at for any terminal status, and a sync has no human
+   * to name.
+   *
+   * The constraint is right and this function was wrong. Per
+   * docs/factorial-api-integration.md, an exclusion must be "a recorded decision
+   * with an author rather than an accident" -- that is exactly what makes it safe
+   * to be permanent. A machine that could self-authorise a terminal exclusion
+   * could quietly delete a colleague from every hours figure.
+   *
+   * So the machine reports `ambiguous` and says WHY in the reason. A human then
+   * moves it to excluded_not_a_person and their name goes on it. The row is
+   * visible in the open queue until they do, which is the desired outcome: an
+   * address that looks like a mailbox is worth one glance.
+   */
   if (SHARED_MAILBOX_RE.test(email)) {
-    return { status: "excluded_not_a_person", reason: `${email} is a shared mailbox, not a colleague`, count: 0 };
+    return {
+      status: "ambiguous",
+      reason: `${email} looks like a shared mailbox, not a colleague. `
+        + "Confirm and set excluded_not_a_person; a machine may not self-authorise a terminal exclusion.",
+      count: 0,
+    };
   }
 
   const hits = membersByEmail.get(email) ?? [];

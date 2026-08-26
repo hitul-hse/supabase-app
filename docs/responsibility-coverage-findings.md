@@ -179,6 +179,31 @@ wrong, and the affected work may never have been imported.
 `10443_00253_104_01` — "RISE FX GmbH / 25-26 SiFa Stuttgart" is well-formed and
 points at a project the database does not have.
 
+### 3.3 Three of these are the same bug as the mis-named orders
+
+`docs/order-name-corruption-findings.md` reached eight mis-named orders from the
+*database* side: a project whose name belongs to a different customer. I reached
+mine from the *workbook* side: a name that resolves to zero or several projects.
+Three rows appear in both lists, which means they are one root cause observed
+twice rather than two problems to schedule separately.
+
+| order | stored name | actual customer |
+| --- | --- | --- |
+| `10110_00375_205_01` | `missing` | AWB Aluminiumwerk Berlin GmbH |
+| `10361_00178_205_01` | `missing` | SAGE Automotive Interiors |
+| `10738_00319_104_01` | `Intel GmbH / SiFa` | **Unity Technologies GmbH** |
+
+Correcting those three names fixes both symptoms at once: the name stops
+belonging to the wrong customer, and the workbook name stops colliding so the
+order matches 1:1. Verified with
+`node scripts/diagnose-order-findings-overlap.mjs`, which parses the other
+document's ids rather than restating them, so the two cannot drift apart.
+
+**The five unmatchable orders in §3.2 are not part of this.** Their customers —
+PBS Germany Operations GmbH, Trinity Bet Operations Ltd, Quantica3D — appear in
+**zero** projects, so there is no name to correct. Those five need a customer
+number entered, or the work behind them imported; renaming cannot reach them.
+
 ---
 
 ## 4. Gates added

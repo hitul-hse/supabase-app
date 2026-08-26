@@ -160,6 +160,15 @@ export async function getEmployeeOwnershipOverview(
     const replacementByProject = new Map<string, string>();
     for (const assignment of assignments as Assignment[]) {
       if (numberOrZero(assignment.share_percent) > 0 || !assignment.project_id) continue;
+      /*
+       * SELF-COVER IS NOT COVER. The source workbook repeats the responsible
+       * person in the Vertretung column on 78 rows, so 65 projects name someone
+       * as their own replacement. Counting those produced 100% coverage for 5 of
+       * 7 people while the project had nobody independent to fall back on.
+       * Skipping them makes the project read as uncovered, which is what it is.
+       */
+      const project = projectById.get(assignment.project_id);
+      if (project && project.owner_person_id === assignment.person_id) continue;
       const name = nameById.get(assignment.person_id);
       if (name) replacementByProject.set(assignment.project_id, name);
     }

@@ -503,6 +503,27 @@ committed script, a committed migration awaiting your review, or a document.
    real Excel row shifts, two are the placeholder `"missing"`, and **four may be
    legitimate**, so check before changing. `docs/order-name-corruption-findings.md`
    has the per-order judgement.
+
+   **Before running that re-import, know what it does** — measured by
+   `node scripts/check-reimport-is-safe.mjs`:
+   - It **upserts** the 231 project rows. Upsert *merges*: the 11 columns the
+     importer omits (including `customer_legal_entity_id` on 230 rows and
+     `department` on 176) are **preserved** on existing rows. Verified against
+     real Postgres in `check-upsert-merge-semantics.mjs`, because reasoning about
+     `ON CONFLICT` is how you lose 230 links.
+   - It **DELETEs and re-INSERTs `person_assignments`** for all 231 project ids.
+     Only responsible/replacement rows derivable from the workbook come back, so
+     any assignment created another way is lost. The 8 rows with a NULL
+     `project_id` survive, since the delete is scoped by project id.
+   - It **does not touch `public.project_responsibility`** (288 rows), which
+     therefore goes stale against the workbook it just re-read.
+     `scripts/import-project-responsibility.mjs` owns that table and must be
+     re-run after.
+   - A **newly added order number** arrives with `department` and
+     `customer_legal_entity_id` unset and needs re-linking.
+
+   So the safe sequence is: `--dry-run` first, then the import, then
+   `import-project-responsibility.mjs`, then `npm run check:management-data`.
 7. **Which YPOG entity** order `10305_00404_501_01` was contracted with — the
    `GmbH & Co. KG` or the `Partnerschaft von Rechtsanwälten mbB`.
 8. **Who Stefan Goelzner is in the hub.** Active, 139.8h all billable, last entry

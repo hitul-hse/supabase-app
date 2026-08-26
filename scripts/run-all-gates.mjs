@@ -28,7 +28,10 @@ const run = (name) => new Promise((resolve) => {
     const skip = /^SKIP/m.test(out);
     resolve({ name, code, ms: Date.now() - t0, fails, skip });
   });
-  setTimeout(() => { try { p.kill(); } catch {} resolve({ name, code: -1, ms: Date.now() - t0, fails: ["(timeout)"], skip: false }); }, 180000);
+  // Playwright gates drive production over the network across ~18 routes twice
+  // (desktop + mobile). check:table-scroll-budget legitimately takes ~4m25s, so a
+  // 180s cap reported it as red-by-timeout and hid its 3 real assertion failures.
+  setTimeout(() => { try { p.kill(); } catch {} resolve({ name, code: -1, ms: Date.now() - t0, fails: ["(timeout)"], skip: false }); }, 600000);
 });
 
 const results = [];

@@ -178,6 +178,7 @@
                     "check:projects-admit-unmeasured":  "node scripts/check-projects-admit-unmeasured.mjs",
                     "check:adr001-discriminates":  "node scripts/check-adr001-rule-discriminates.mjs",
                     "check:invite-throttle-classification":  "node scripts/check-invite-throttle-classification.mjs",
+                    "check:factorial-identity-baseline":  "node scripts/check-factorial-identity-baseline.mjs",
                     "test:no-anonymous-read":  "node scripts/check-no-anonymous-read.mjs"
                 },
     "dependencies":  {

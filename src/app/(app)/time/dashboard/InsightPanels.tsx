@@ -17,6 +17,7 @@ import {
   Waffle,
 } from "@/components/ui/AnalyticsCharts";
 import { LegendDot } from "@/components/ui/Charts";
+import { MobileDisclosure } from "@/components/MobileDisclosure";
 import type {
   CustomerShare,
   ServiceMixMonth,
@@ -104,7 +105,34 @@ export function InsightPanels({
       className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12"
     >
       {/* --------------------------------------- customer concentration */}
-      <Card className="flex flex-col lg:col-span-4">
+      {/*
+        PHONE ONLY: collapsed. Measured at 390x844 against a production build,
+        this panel is 968px -- the single tallest block on the route, and
+        /time/dashboard was 4,388px = 5.2 screens against a budget of 5. It is
+        over by only 168px, so collapsing this one clears it with room to spare.
+
+        Why this panel and not the heatmap below it: a waffle chart is a
+        desktop scanning tool. Its finding is one sentence ("the top customers
+        hold N% of the hours"), which the summary states in full, so a phone
+        reader loses nothing but the pixels. The heatmap's finding IS its shape
+        and cannot be summarised, so it stays open.
+
+        MobileDisclosure keeps `sm:block` on its content, so from sm up this is
+        a bare wrapper div and the lg:grid-cols-12 layout is untouched. The
+        wrapper carries the col-span the Card used to carry, or the grid would
+        place the wrapper instead of the panel.
+      */}
+      <MobileDisclosure
+        className="lg:col-span-4"
+        title="Customer concentration"
+        summary={
+          customers.length === 0
+            ? "No customers in this selection"
+            : `top ${customers.length} hold ${customers.reduce((s, c) => s + c.percent, 0)}% of ${h(totalHours)}h` +
+              (customers[0] ? ` · biggest ${customers[0].name} ${customers[0].percent}%` : "")
+        }
+      >
+        <Card className="flex h-full flex-col">
         <CardHeader
           title="Customer concentration"
           qualifier={`1 SQUARE = 1% OF ${h(totalHours)}H`}
@@ -153,9 +181,15 @@ export function InsightPanels({
             </>
           )}
         </div>
-      </Card>
+        </Card>
+      </MobileDisclosure>
 
       {/* ----------------------------------------------- weekday pattern */}
+      {/* Stays OPEN at every width. The heatmap's finding is its shape -- where
+          the week's work actually falls -- and no summary line can carry that,
+          so collapsing it would cost the reader the answer rather than the
+          scrolling. Collapsing the panel above already brings the route inside
+          budget, so there is nothing to buy here. */}
       <Card className="flex flex-col lg:col-span-8">
         <CardHeader
           title="When the work happens"

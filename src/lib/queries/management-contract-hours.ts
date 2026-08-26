@@ -4,7 +4,32 @@ import { fetchAllPaged } from "@/lib/queries/paged";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
-const PEOPLE = ["Thorsten", "Mathias", "Ousmane", "Hendryk", "Stephan", "Serhii", "Mustafa"] as const;
+/*
+ * The people the management views report on, keyed by `public.people.name`.
+ *
+ * This is an allowlist, so anyone missing is dropped from the service grid, the
+ * utilisation outlook and the employee overview -- silently, because the page
+ * renders a complete-looking table either way. It drifted: Rency Sebastian (62
+ * responsible and 62 replacement projects, 690.3h owned, 1,184.8h logged, the
+ * most of anyone and not archived) and Björn (3 responsible, 1,638h owned) were
+ * both absent, while Serhii is present despite being archived in TrackingTime
+ * with one 3h project.
+ *
+ * `check:management-people-complete` now fails if anyone carrying
+ * responsibility is missing here, so the next drift is caught rather than
+ * rendered as a confident partial total.
+ */
+const PEOPLE = [
+  "Thorsten",
+  "Mathias",
+  "Ousmane",
+  "Hendryk",
+  "Stephan",
+  "Serhii",
+  "Mustafa",
+  "Rency Sebastian",
+  "Björn",
+] as const;
 const SERVICES = [
   "DGUV V2: SiFa / Safety Engineer",
   "Health & Safety Consulting",

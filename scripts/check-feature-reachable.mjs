@@ -100,25 +100,62 @@ check("something links to /orders/", linkedFrom.length > 0,
  *
  * The old ResponsibleEditor was a bare list of names, which gave a lead no way
  * to see that Rency Sebastian already holds 62 projects and covers 62 more.
+ *
+ * This originally pinned ManagementCustomerPortfolio.tsx and reported a false
+ * FAIL: the agent correctly extracted the picker into its own
+ * ReassignmentPicker.tsx, which is better structure than the inline editor it
+ * replaced. A gate that fails a refactor it should welcome is measuring file
+ * layout rather than behaviour, so it now searches wherever the picker lives.
  */
-const PORTFOLIO = "src/app/(app)/dashboard/management/ManagementCustomerPortfolio.tsx";
-if (existsSync(PORTFOLIO)) {
-  const src = readFileSync(PORTFOLIO, "utf8");
-  const wired = /CandidateLoad|getReassignmentCandidates|responsibleFor|coversAsReplacement/.test(src);
-  check("the reassignment picker reads the capacity signal", wired,
-    wired ? "candidate load is in play" : "still a bare dropdown of names");
+const pickerCandidates = [
+  "src/app/(app)/dashboard/management/ReassignmentPicker.tsx",
+  "src/app/(app)/dashboard/management/ManagementCustomerPortfolio.tsx",
+];
+const pickerFile = pickerCandidates.find((f) =>
+  existsSync(f) && /CandidateLoad|responsibleFor|coversAsReplacement/.test(readFileSync(f, "utf8")));
 
-  if (wired) {
-    // absence is ALWAYS null today (leave_requests has 0 rows). Rendering that
-    // as "available" would be a confident lie about who can take the work.
-    check("an unknown absence is shown as unknown, not as availability",
-      /unbekannt|unknown|Abwesenheit/i.test(src),
-      "leave_requests has 0 rows, so nobody's availability is known");
+check("the reassignment picker reads the capacity signal", Boolean(pickerFile),
+  pickerFile ? `${pickerFile.split("/").pop()}` : "still a bare dropdown of names");
 
-    check("people already on the project are distinguishable",
-      /alreadyOnProject/.test(src),
-      "reassigning to the current holder is a real misclick");
-  }
+if (pickerFile) {
+  const src = readFileSync(pickerFile, "utf8");
+
+  // absence is ALWAYS null today (leave_requests has 0 rows). Rendering that
+  // as "available" would be a confident lie about who can take the work.
+  check("an unknown absence is shown as unknown, not as availability",
+    /unbekannt|unknown|Abwesenheit/i.test(src),
+    "leave_requests has 0 rows, so nobody's availability is known");
+
+  check("people already on the project are distinguishable",
+    /alreadyOnProject/.test(src),
+    "reassigning to the current holder is a real misclick");
+
+  // The load figures are the whole reason the picker exists.
+  check("both load dimensions are surfaced",
+    /responsibleFor/.test(src) && /coversAsReplacement/.test(src),
+    "covering 62 projects is real work even though none of them is 'theirs'");
+
+  // Honest nulls again: a person whose whole portfolio is unmeasured must not
+  // read as having zero contracted work.
+  check("a null contract-hours total renders as n/a, not 0",
+    /n\/a/i.test(src));
+
+  check("no emoji or unicode glyphs in the picker",
+    !/[\u{1F300}-\u{1FAFF}\u{2190}-\u{21FF}\u{2500}-\u{27BF}]/u.test(src));
+}
+
+/*
+ * The picker is a component, so it must actually be mounted somewhere or it is
+ * as unreachable as a page nobody links to.
+ */
+if (pickerFile?.includes("ReassignmentPicker")) {
+  const mounted = [
+    "src/app/(app)/dashboard/management/ManagementCustomerPortfolio.tsx",
+    "src/app/(app)/dashboard/management/ManagementMatrix.tsx",
+    "src/app/(app)/dashboard/management/page.tsx",
+  ].filter((f) => existsSync(f) && /ReassignmentPicker/.test(readFileSync(f, "utf8")));
+  check("the picker component is mounted", mounted.length > 0,
+    mounted.length ? mounted.map((f) => f.split("/").pop()).join(", ") : "the component exists but nothing renders it");
 }
 
 /*

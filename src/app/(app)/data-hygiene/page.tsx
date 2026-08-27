@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { IconCheck } from "@/components/nav-icons";
 import { MobileDisclosure } from "@/components/MobileDisclosure";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
@@ -239,8 +240,12 @@ export default async function DataHygienePage() {
                 <CardHeader title="Checks that found nothing" qualifier={`${hygiene.clean.length} CLEAN`} />
                 <ul className="flex flex-col gap-1 px-4 pb-4">
                   {hygiene.clean.map((title) => (
-                    <li key={title} className="text-[12px] text-[var(--text-faint)]">
-                      <span className="text-[var(--good)]">✓</span> {title}
+                    <li key={title} className="flex items-center gap-1.5 text-[12px] text-[var(--text-faint)]">
+                      {/* IconCheck, not a tick glyph: DESIGN.md craft floor bans
+                          Unicode standing in for the icon system, and
+                          test:design-system enforces it. */}
+                      <IconCheck className="h-3 w-3 flex-none text-[var(--good)]" />
+                      {title}
                     </li>
                   ))}
                 </ul>

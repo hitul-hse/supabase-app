@@ -20,7 +20,7 @@ import { ManagementCustomerPortfolio as ManagementCustomerPortfolioView } from "
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 
-export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, people, changeRequests }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; people: { id: string; name: string }[]; changeRequests: ManagementChangeRequest[] }) {
+export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; changeRequests: ManagementChangeRequest[] }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   /*
    * The active tab lives in the URL (?tab=), not in useState: a management
@@ -69,7 +69,7 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
 
       {tab === "customers" && <ManagementMultiServiceMatrix model={multiServiceModel} />}
 
-      {tab === "customers" && <ManagementCustomerPortfolioView model={customerPortfolio} people={people} changeRequests={changeRequests} />}
+      {tab === "customers" && <ManagementCustomerPortfolioView model={customerPortfolio} changeRequests={changeRequests} />}
 
       {tab === "overview" && (<>
       <Card className="overflow-hidden">

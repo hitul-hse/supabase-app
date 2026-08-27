@@ -17,14 +17,13 @@ import { ManagementMatrix } from "./ManagementMatrix";
 export default async function ManagementPage() {
   await requirePermission("/dashboard/management", PERMISSIONS.HR_CONTRACT_READ);
   const supabase = await createManagementReadClient();
-  const [model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, peopleResult, changeRequests] = await Promise.all([
+  const [model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests] = await Promise.all([
     getManagementContractHours(supabase),
     getEmployeeOwnershipOverview(supabase),
     getManagementDataQuality(supabase),
     getManagementProjectRisks(supabase),
     getManagementMultiServiceMatrix(supabase),
     getManagementCustomerPortfolio(supabase),
-    supabase.from("people").select("id, name").eq("is_active", true).order("name"),
     getManagementChangeRequests(supabase),
   ]);
 
@@ -40,7 +39,7 @@ export default async function ManagementPage() {
         <main className="flex flex-col gap-4 page-shell">
           {model.projectCount === 0 ? (
             <Card><EmptyState title="Keine Vertragsstunden verfügbar" description="Das Read Model liefert aktuell keine sichtbaren Projekte aus public.projects." /></Card>
-          ) : <ManagementMatrix model={model} ownershipRows={ownershipRows} dataQualityRows={dataQualityRows} projectRiskRows={projectRiskRows} multiServiceModel={multiServiceModel} customerPortfolio={customerPortfolio} people={(peopleResult.data ?? []).map((person) => ({ id: person.id, name: person.name }))} changeRequests={changeRequests} />}
+          ) : <ManagementMatrix model={model} ownershipRows={ownershipRows} dataQualityRows={dataQualityRows} projectRiskRows={projectRiskRows} multiServiceModel={multiServiceModel} customerPortfolio={customerPortfolio} changeRequests={changeRequests} />}
         </main>
       </div>
     </PageTransition>

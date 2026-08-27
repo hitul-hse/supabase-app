@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
+import { getReassignmentCandidates, type CandidateLoad } from "@/lib/queries/reassignment-candidates";
 
 export type ManagementChangeActionState = {
   status: "idle" | "success" | "error";
@@ -15,6 +16,35 @@ async function authorisedWriter() {
   if (!user) return null;
   const { data: allowed } = await supabase.rpc("app_user_has_permission", { p_key: PERMISSIONS.PROJECTS_WRITE });
   return allowed ? supabase : null;
+}
+
+export type CandidateLoadState =
+  | { status: "ok"; candidates: CandidateLoad[] }
+  | { status: "error"; message: string };
+
+/**
+ * Load the capacity picture for one project's reassignment picker.
+ *
+ * A READ, deliberately shaped as an action rather than prefetched on the page:
+ * getReassignmentCandidates is per-project and does four reads plus a paged
+ * scan of time.entry, so prefetching it for all 93 portfolio rows would be ~370
+ * round trips for a panel the user opens once. The disclosure asks for it when
+ * it opens.
+ *
+ * Gated on PROJECTS_WRITE, not the page's read permission: the only reason to
+ * see who is loaded enough to take a project over is to request the change, and
+ * this exposes per-person workload.
+ */
+export async function loadReassignmentCandidates(projectId: string): Promise<CandidateLoadState> {
+  const supabase = await authorisedWriter();
+  if (!supabase) return { status: "error", message: "Keine Berechtigung, Kandidaten zu laden." };
+  const id = projectId.trim();
+  if (!id) return { status: "error", message: "Kein Projekt angegeben." };
+  try {
+    return { status: "ok", candidates: await getReassignmentCandidates(supabase, id) };
+  } catch {
+    return { status: "error", message: "Kandidaten konnten nicht geladen werden." };
+  }
 }
 
 export async function requestResponsibleChange(

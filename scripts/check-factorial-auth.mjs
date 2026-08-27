@@ -142,11 +142,40 @@ try {
   check(creds.status === 200, `GET /api/${VERSION}/resources/api_public/credentials returns 200`, `got ${creds.status}`);
 
   if (creds.status === 200 && creds.body) {
-    const owner = creds.body.owner_type ?? creds.body.type ?? creds.body.data?.owner_type ?? null;
+    /*
+     * THE COMPANY-VS-USER TEST, corrected against the real payload.
+     *
+     * I originally asserted an `owner_type` field. There is no such field. The
+     * response is the standard paged envelope, and the credential's nature is
+     * revealed by WHICH fields are populated (verified 2026-08-27 with
+     * scripts/diagnose-factorial-credential-shape.mjs):
+     *
+     *   company credential -> company_id and legal_name set,
+     *                         email / full_name / role / employee_id ALL null
+     *   user credential    -> the user fields carry values
+     *
+     * That is exactly what doc §1.1 describes: an API key "acts on behalf of the
+     * company (no user attribution)". So an absent user identity is the POSITIVE
+     * signal here, not a missing field, and the original assertion would have
+     * failed forever on a perfectly good credential.
+     *
+     * This matters beyond tidiness: §1.5 says a USER token dies on a 7-day cliff
+     * and would break the scheduled sync silently, so the test has to actually
+     * discriminate rather than just pass.
+     */
+    const row = Array.isArray(creds.body.data) ? creds.body.data[0] ?? {} : creds.body.data ?? creds.body;
+    const companyId = row.company_id ?? null;
+    const userFields = ["email", "login_email", "full_name", "first_name", "last_name", "employee_id", "role"];
+    const populatedUserFields = userFields.filter((f) => row[f] !== null && row[f] !== undefined && row[f] !== "");
+
     check(
-      typeof owner === "string" && owner.toLowerCase().includes("compan"),
-      "the token is owned by a company, not a user",
-      owner === null ? "no owner field in the response; inspect the payload shape" : `owner_type=${owner}`,
+      companyId !== null && populatedUserFields.length === 0,
+      "the credential belongs to a company, not a user",
+      companyId === null
+        ? "no company_id in the response; this may not be a company credential"
+        : populatedUserFields.length
+          ? `company_id present BUT user fields are populated (${populatedUserFields.join(", ")}) - this looks like a USER credential, which dies on a 7-day cliff`
+          : `company_id set, all ${userFields.length} user-identity fields null`,
     );
 
     const granted = String(creds.body.scope ?? creds.body.scopes ?? creds.body.data?.scope ?? "")
@@ -176,8 +205,23 @@ try {
 
     const snapshot = "docs/factorial-oas-2026-07-01.sha256";
     if (!existsSync(snapshot)) {
-      check(false, "a committed OpenAPI hash exists to compare against",
-        `${snapshot} is absent — write it on the first green run, then a later diff means Factorial changed the contract`);
+      /*
+       * Chicken and egg: the gate cannot pass without a snapshot and had no way
+       * to make one, so it could never go green. `--write-oas-snapshot` records
+       * it deliberately, which is the right shape for a trust-on-first-use
+       * baseline: a human runs it once, the hash is committed, and every later
+       * run detects a contract change.
+       */
+      if (process.argv.includes("--write-oas-snapshot")) {
+        const { createHash } = await import("node:crypto");
+        const digest = createHash("sha256").update(JSON.stringify(oas.body)).digest("hex");
+        const { writeFileSync } = await import("node:fs");
+        writeFileSync(snapshot, `${digest}\n`);
+        check(true, "OpenAPI hash snapshot written", `${snapshot} — commit this; a later diff means Factorial changed the contract`);
+      } else {
+        check(false, "a committed OpenAPI hash exists to compare against",
+          `${snapshot} is absent — re-run with --write-oas-snapshot to record the current contract`);
+      }
     } else {
       const { createHash } = await import("node:crypto");
       const actual = createHash("sha256").update(JSON.stringify(oas.body)).digest("hex");

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { MobileDisclosure } from "@/components/MobileDisclosure";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
 import { getDataHygiene, type HygieneFinding } from "@/lib/queries/data-hygiene";
@@ -142,11 +143,12 @@ export default async function DataHygienePage() {
                 </div>
               </Card>
             ) : (
-              hygiene.findings.map((finding) => {
+              hygiene.findings.map((finding, index) => {
                 const style = KIND_STYLE[finding.kind];
                 const shown = finding.rows.length;
                 const hidden = finding.count - shown;
-                return (
+
+                const panel = (
                   <Card key={finding.key} as="section">
                     <CardHeader
                       title={finding.title}
@@ -202,6 +204,29 @@ export default async function DataHygienePage() {
                       </div>
                     )}
                   </Card>
+                );
+
+                /*
+                 * At 390px every row stacks its subject above its detail, so the
+                 * seven panels measured 5.28 screens against rule 8's four-screen
+                 * mobile ceiling. Collapsing the panels below the first fixes the
+                 * height without touching the desktop tree (MobileDisclosure is a
+                 * plain wrapper from `sm:` up).
+                 *
+                 * The FIRST panel stays open: findings are sorted worst-first, and
+                 * collapsing everything equally would turn the report into a menu
+                 * rather than an answer. The rest state their count while shut, so
+                 * a collapsed panel never reads as an absent one.
+                 */
+                if (index === 0) return panel;
+                return (
+                  <MobileDisclosure
+                    key={finding.key}
+                    title={finding.title}
+                    summary={`${finding.count} ${finding.count === 1 ? "case" : "cases"} · ${style.label}`}
+                  >
+                    {panel}
+                  </MobileDisclosure>
                 );
               })
             )}

@@ -122,6 +122,31 @@ console.log(`        measured: ${h.findings.length} finding type(s), ${h.clean.l
   const keys = h.findings.map((f) => f.key);
   ok(new Set(keys).size === keys.length, "finding keys are unique",
     "duplicate keys make React reuse the wrong panel");
+
+  /*
+   * Rows must be capped, or one prolific probe makes the whole report
+   * unscrollable and buries the panels below it. 55 unowned orders rendered in
+   * full measured 4.63 screens against a house budget of 3 -- caught by
+   * check:table-scroll-budget only because the route was added to it.
+   *
+   * The bound is asserted here too, at the data layer, because it is cheap and
+   * because the scroll gate needs a running server while this does not.
+   */
+  const ROW_CAP = 12;
+  const overCap = h.findings.filter((f) => f.rows.length > ROW_CAP);
+  ok(overCap.length === 0, `no finding renders more than ${ROW_CAP} rows`,
+    overCap.map((f) => `${f.key}: ${f.rows.length} rows`).join(" | "));
+
+  /*
+   * And the cap must be DISCLOSED, not silent. At least one finding currently
+   * exceeds it, so the "showing N of M" path must be live -- if nothing were
+   * capped, that branch would never render and its correctness would be
+   * unobserved.
+   */
+  const capped = h.findings.filter((f) => f.count > f.rows.length);
+  ok(capped.length > 0,
+    `${capped.length} finding(s) are capped, so the disclosure line is exercised`,
+    "no finding is capped: the 'showing N of M' branch is never rendered and untested");
 }
 
 /* 3. remedy, and row identity. */

@@ -139,9 +139,23 @@ export async function getDataHygiene(supabase: SupabaseTyped): Promise<DataHygie
     return { findings: [], clean: [], checkedAt, unavailable: true };
   }
 
+  /*
+   * One cap, applied centrally, so no probe can make the page unscrollable by
+   * finding a lot. 55 unowned orders rendered in full pushed the page to 4.63
+   * screens against a house budget of 3, and a report nobody scrolls to the end
+   * of is a report that hides its own later panels.
+   *
+   * `count` is always the TRUE total and is set by each probe before this runs,
+   * so capping here cannot make a number wrong -- it only limits what is drawn,
+   * and the page renders "showing N of M" whenever the two differ. The panels
+   * are homogeneous lists: row 9 of 55 teaches nothing row 8 did not, and the
+   * fix for all of them is the same bulk edit in the workbook.
+   */
+  const ROWS_PER_FINDING = 8;
+
   const record = (f: Omit<HygieneFinding, "error">) => {
     if (f.count === 0) clean.push(f.title);
-    else findings.push({ ...f, error: null });
+    else findings.push({ ...f, rows: f.rows.slice(0, ROWS_PER_FINDING), error: null });
   };
 
   /* ------------------- 1. one customer name, several Lexware numbers ------ */

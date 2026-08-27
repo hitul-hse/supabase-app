@@ -48,9 +48,16 @@ const MUTATIONS = [
   },
   {
     file: QUERY,
-    why: "renders empty panels instead of routing zero-result probes to `clean`",
-    from: "if (f.count === 0) clean.push(f.title);\n    else findings.push({ ...f, error: null });",
-    to: "findings.push({ ...f, error: null });",
+    why: "removes the `clean` routing entirely, so a zero-result probe renders an empty panel",
+    /*
+     * Deleting the call, not disabling the condition. `if (false) clean.push(...)`
+     * is undetectable today and the gate was right to stay green on it: all seven
+     * probes currently fire, so `clean` is empty either way and no runtime
+     * observation can distinguish the two. Only the source assertion can, so the
+     * mutation has to remove what that assertion looks for.
+     */
+    from: "if (f.count === 0) clean.push(f.title);\n    else findings.push",
+    to: "if (f.count === 0) return;\n    else findings.push",
   },
   {
     file: QUERY,
@@ -63,6 +70,12 @@ const MUTATIONS = [
      */
     from: '"Nobody is accountable for these orders, so nothing routes to a desk when a "\n        + "budget or a deadline moves. Assign a responsible in the source workbook.",',
     to: '"",',
+  },
+  {
+    file: QUERY,
+    why: "uncaps the rows so a finding with 55 cases renders all of them, blowing the scroll budget",
+    from: "const ROWS_PER_FINDING = 8;",
+    to: "const ROWS_PER_FINDING = 500;",
   },
 ];
 

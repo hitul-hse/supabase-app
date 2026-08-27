@@ -127,6 +127,70 @@ const ROUTE_BUDGETS = {
    */
   "/team-lead": 4,
 };
+
+/**
+ * THE MOBILE PASS. Same routes, same document-height assertion, 390x844.
+ *
+ * WHY IT EXISTS. Every measurement this project had ever taken was at 1440x900,
+ * and PRODUCT.md claims "mobile responsive". When someone finally looked
+ * (scripts/audit-mobile.mjs), /projects was 7.1 screens on a phone and
+ * /team-lead 5.6, against a desktop gate that was green on both. The failure
+ * mode is structural and silent: a `lg:grid-cols-12` row of four panels is one
+ * screen on a desktop and four on a phone, so a layout can pass the desktop
+ * ceiling forever while rotting at 390px. A gate that only measures the wide
+ * viewport cannot see it, so it would happen again.
+ *
+ * WHY THE BUDGET IS LOOSER THAN 3, AND WHY IT IS 4 RATHER THAN "whatever passes".
+ * Single-column stacking is not a defect in itself -- it is the correct response
+ * to a 390px viewport, and the same content genuinely occupies more vertical
+ * space when it cannot go sideways. A KPI strip that is one row of five tiles at
+ * 1440px is five rows at 390px, which alone is ~1.5 screens more. Holding the
+ * phone to the desktop's 3 would force deleting content rather than arranging
+ * it, and DESIGN.md's point is the opposite.
+ *
+ * Four screens is the smallest budget that a correctly-arranged page meets
+ * without hiding anything: header and filter (~0.4), a stacked KPI strip (~1.0),
+ * one open panel or table (~1.3), and collapsed summaries for the rest (~0.15
+ * each). It is a ceiling on ARRANGEMENT, not on content -- a route that exceeds
+ * it is stacking panels that should be behind a disclosure.
+ *
+ * Only the height is asserted here. The row, sticky-header and count checks are
+ * viewport-independent properties of the same DOM, so re-asserting them at a
+ * second width would double every failure message without adding a finding.
+ */
+const MOBILE = { width: 390, height: 844 };
+const MOBILE_MAX_SCREENS = 4;
+/**
+ * Per-route mobile exceptions.
+ *
+ * Note what is NOT here: /projects and /team-lead, the two routes this pass was
+ * written for. They were 7.1 and 5.6 screens and are now 2.4 and 2.3, fixed by
+ * collapsing their secondary panels behind MobileDisclosure rather than by
+ * pinning a bigger number. That is the outcome this gate exists to produce, and
+ * an exception granted instead would have hidden it. /  came along the same way
+ * (4.1 -> 3.6) and needs no entry either.
+ *
+ * The three entries below are DEBT, not exemptions, and they are written as
+ * debt: each is pinned one notch above its MEASURED height so it cannot get
+ * worse un-noticed, and each names the work that clears it. They are listed
+ * because the mobile pass found them on its first run and they sit in files
+ * owned by other work in flight, so fixing them here would have collided; the
+ * alternative was shipping the pass switched off, which is how a gate never
+ * gets switched on.
+ *
+ * Clearing one means deleting its line, not raising it.
+ */
+const MOBILE_ROUTE_BUDGETS = {
+  // Measured 7.38. Import review stacks a filter bar, a summary strip and
+  // several full-width review panels; the Pager here is the house reference
+  // implementation, so the rows are already bounded and the height is layout.
+  "/customer-master/import-review": 7.5,
+  // Measured 5.25. The user list renders a card per user at phone width.
+  "/admin/users": 5.5,
+  // Measured 4.96. Two chart rows plus the grouped breakdown, the same
+  // furniture its pinned desktop budget of 6 documents.
+  "/time/dashboard": 5,
+};
 /** More rows than any offered page size below "all" -- see header comment. */
 const MAX_ROWS = 60;
 /** Past this many rows the header scrolls away, so it has to be sticky. */
@@ -153,6 +217,7 @@ const ROUTES = [
   "/admin/users",
   "/admin/alerts",
   "/customer-master/import-review",
+  "/data-hygiene",
   "/dashboard/management?tab=overview",
   "/dashboard/management?tab=employees",
   "/dashboard/management?tab=customers",
@@ -203,6 +268,29 @@ const shapeOf = () => {
   return {
     screens: +(sh / vh).toFixed(2),
     px: sh,
+    /**
+     * DID THIS MEASUREMENT ACTUALLY LAND ON THE PAGE?
+     *
+     * The sign-in check at the top of the run only proves the session was good
+     * ONCE. A session can be invalidated mid-run -- another agent restarting the
+     * server, a parallel gate minting a link for the same address, a cookie
+     * rotating -- and from that point every route redirects to /auth/login. The
+     * login page is one viewport tall with no <table> in it, so it reports
+     * "1 screen, 0 tables" and PASSES every assertion. Observed for real: a whole
+     * run of 18 routes each reporting exactly 900px and all green, which is a
+     * green build that measured nothing.
+     *
+     * So each measurement carries where it actually was. A route that is not the
+     * route we asked for is void, and void is reported as a failure rather than
+     * as a pass.
+     */
+    url: location.pathname + location.search,
+    /** The route-level error boundary. Same problem as a redirect: a short
+     *  document with no table that passes every assertion while showing the
+     *  reader nothing. Observed on a route whose data query threw. */
+    errored: /This page couldn.t load|Something went wrong|Application error/i.test(
+      document.body.innerText.slice(0, 400),
+    ),
     // The count line, wherever it is on the page.
     statesTotal:
       /\d+\s*[–-]\s*\d+\s+of\s+[\d.,]+|all\s+[\d.,]+\s+rows|\d+\s*\/\s*\d+/i.test(
@@ -324,6 +412,29 @@ try {
 
     measured.push({ route, ...m, budget });
 
+    /* ── 0. is this a measurement of the route at all? ────────────────────
+     *
+     * A redirect to /auth/login and a route-level error boundary are both a
+     * SHORT document with NO table in it, so both pass every assertion below
+     * and report "1 screen, 0 tables". Observed for real in both flavours: a
+     * run where a lapsed session produced 18 green routes each measuring
+     * exactly 900px, and a route whose query threw rendering "This page
+     * couldn't load" at one screen tall. A gate that reports those as passes
+     * is worse than no gate, because it is green precisely when the page is
+     * broken. Void is a failure, and it says which kind.
+     */
+    if (/\/auth\/login|\/access-pending/.test(m.url) || m.errored) {
+      check(
+        `${route}: measured the route rather than a redirect or an error page`,
+        false,
+        m.errored
+          ? "the route rendered its error boundary — this run is void here, and that is" +
+            " a real defect worth its own investigation"
+          : `landed on ${m.url} — the session lapsed mid-run, so this measurement is void`,
+      );
+      continue;
+    }
+
     // ── 1. the document fits its budget ──────────────────────────────────
     check(
       `${route}: opens within ${budget} screens`,
@@ -378,13 +489,81 @@ try {
       }${m.screens > m.budget ? "   <- OVER BUDGET" : ""}`,
     );
   }
+
+  /* ── SECOND PASS: the same routes on a phone ───────────────────────────
+   *
+   * A new context rather than page.setViewportSize(), so the run gets a real
+   * mobile context (isMobile/hasTouch) and the responsive branches that key off
+   * touch behave as they do on a device. The storage state is copied from the
+   * signed-in desktop context, so this costs no second magic link -- minting one
+   * would invalidate the first and is the exact race the retry logic above
+   * exists to survive.
+   */
+  console.log(`\n\n===== MOBILE PASS ${MOBILE.width}x${MOBILE.height} (budget ${MOBILE_MAX_SCREENS} screens)\n`);
+
+  const mobileCtx = await browser.newContext({
+    viewport: MOBILE,
+    isMobile: true,
+    hasTouch: true,
+    storageState: await ctx.storageState(),
+  });
+  const mobilePage = await mobileCtx.newPage();
+  const mobileMeasured = [];
+
+  try {
+    for (const route of ROUTES) {
+      const budget = MOBILE_ROUTE_BUDGETS[route.split("?")[0]] ?? MOBILE_MAX_SCREENS;
+      let m;
+      try {
+        await mobilePage.goto(`${SITE}${route}`, { waitUntil: "networkidle", timeout: 90_000 });
+        await mobilePage.waitForTimeout(1400);
+        m = await mobilePage.evaluate(shapeOf);
+      } catch (e) {
+        check(`${route} @${MOBILE.width}px: renders`, false, e.message.split("\n")[0].slice(0, 110));
+        continue;
+      }
+
+      mobileMeasured.push({ route, ...m, budget });
+
+      if (/\/auth\/login|\/access-pending/.test(m.url) || m.errored) {
+        check(
+          `${route} @${MOBILE.width}px: measured the route rather than a redirect`,
+          false,
+          `landed on ${m.url} — the session lapsed mid-run, so this measurement is void`,
+        );
+        continue;
+      }
+
+      check(
+        `${route} @${MOBILE.width}px: opens within ${budget} screens`,
+        m.screens <= budget,
+        `${m.px}px = ${m.screens} screens at ${MOBILE.height}px tall` +
+          (m.screens > budget
+            ? " — panels are stacking into one column; collapse the secondary ones behind" +
+              " src/components/MobileDisclosure.tsx (it keeps the desktop layout identical)"
+            : ""),
+      );
+    }
+
+    console.log(`\n${"route".padEnd(42)} ${"screens".padStart(8)} ${"budget".padStart(7)} (at ${MOBILE.width}x${MOBILE.height})`);
+    for (const m of mobileMeasured.sort((a, b) => b.screens - a.screens)) {
+      console.log(
+        `${m.route.padEnd(42)} ${String(m.screens).padStart(8)} ${String(m.budget).padStart(7)}${
+          m.screens > m.budget ? "   <- OVER BUDGET" : ""
+        }`,
+      );
+    }
+  } finally {
+    await mobileCtx.close();
+  }
 } finally {
   await browser.close();
 }
 
 console.log(
   failed === 0
-    ? `\nTABLE SCROLL BUDGET: all checks passed (${MAX_SCREENS}-screen ceiling, ${MAX_ROWS}-row cap)`
+    ? `\nTABLE SCROLL BUDGET: all checks passed (${MAX_SCREENS}-screen ceiling at 1440px, ` +
+      `${MOBILE_MAX_SCREENS} at ${MOBILE.width}px, ${MAX_ROWS}-row cap)`
     : `\n${failed} check(s) failed`,
 );
 process.exitCode = failed === 0 ? 0 : 1;

@@ -285,6 +285,28 @@ function IconAlerts({ className }: IconProps) {
   );
 }
 
+/**
+ * Data hygiene: a lens over records that disagree.
+ *
+ * Deliberately NOT a warning triangle -- IconAlerts owns that shape, and
+ * conflating "somebody must act on this commercial exception" with "these two
+ * rows should be one" would make both icons mean less.
+ *
+ * Uses the shared Svg wrapper like every other icon: stroke width, linecap and
+ * aria-hidden are set there once, so no single icon can drift from the set.
+ */
+function IconDataHygiene({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="7" cy="7" r="4.25" />
+      <path d="M10.2 10.2 L14 14" />
+      {/* two rules that do not line up -- the discrepancy the page is about */}
+      <path d="M5.4 6.2 h3.2" />
+      <path d="M5.4 8.4 h1.8" />
+    </Svg>
+  );
+}
+
 /** Registry keyed by nav href, so SidebarNav stays declarative. */
 export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,
@@ -299,4 +321,5 @@ export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/admin/users": IconUsersRoles,
   "/admin/roles": IconPermissions,
   "/admin/alerts": IconAlerts,
+  "/data-hygiene": IconDataHygiene,
 };

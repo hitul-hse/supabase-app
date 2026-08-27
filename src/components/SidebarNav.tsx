@@ -73,6 +73,11 @@ const NAV_GROUPS: NavGroup[] = [
     title: "ADMIN",
     items: [
       { href: "/customer-master/import-review", label: "Customer Master", roles: ["exec"] },
+      // Beside Customer Master because both answer the same question: can the
+      // customer record be trusted. Exec-only -- these checks compare the WHOLE
+      // order book against itself, so a department-scoped reader would get a
+      // partial report that looks complete, which is worse than no report.
+      { href: "/data-hygiene", label: "Data Hygiene", roles: ["exec"] },
       { href: "/admin/users", label: "Users & Roles",    roles: ["exec", "dept_head"] },
       { href: "/admin/roles", label: "Role Permissions", roles: ["exec", "dept_head"] },
       // Budget alerts. Deliberately in ADMIN rather than beside Projects: these

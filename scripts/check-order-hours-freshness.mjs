@@ -21,11 +21,25 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 
-// The accepted number of stale rows, measured 2026-08-27. Lower these after
-// running `node scripts/refresh-order-hours.mjs`; raising one needs a reason.
-const KNOWN_STALE = 59;
-const KNOWN_OVERSTATED = 1;
-const KNOWN_OVER_CONTRACT = 4;
+// Measured 2026-08-27, AFTER `node scripts/refresh-order-hours.mjs` was run.
+//
+// Before the refresh: 59 understated, 51 reading exactly 0h against 1,206h of
+// real work, 4 already over contract while showing 0h. After: 3 understated (all
+// 0.1h rounding) and 0 silently over contract. The refresh did its job.
+//
+// It also changed what the column MEANS. refresh-order-hours.mjs sums all-time
+// by design (see its header), so `logged_hours` is now "planned + logged" rather
+// than "logged to date": 4 orders store more than their to-date entries support,
+// and all 4 differences are exactly their future-dated entries. Mirantis is the
+// clearest -- 398h stored, 201.5h actually worked, 24 future entries.
+//
+// That is a defensible product decision, not a bug, but it means a burn figure
+// includes work not yet done. KNOWN_OVERSTATED is pinned at the measured 4 so
+// the count cannot drift; the fabrication test below is the one that must stay
+// at zero.
+const KNOWN_STALE = 3;
+const KNOWN_OVERSTATED = 4;
+const KNOWN_OVER_CONTRACT = 0;
 // Hours tolerance. Below this a difference is rounding, not staleness.
 const EPSILON = 0.05;
 

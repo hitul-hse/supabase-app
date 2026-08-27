@@ -168,6 +168,8 @@
                     "check:management-people-complete":  "node scripts/check-management-people-complete.mjs",
                     "check:reassignment-migration":  "node scripts/check-reassignment-migration.mjs",
                     "check:order-hours-freshness":  "node scripts/check-order-hours-freshness.mjs",
+                    "check:order-detail-live":  "node scripts/check-order-detail-live.mjs",
+                    "check:order-detail-page":  "node scripts/check-order-detail-page.mjs",
                     "check:reassignment-migration-is-needed":  "node scripts/check-reassignment-migration-is-needed.mjs",
                     "check:management-contract-hours-live":  "node scripts/check-management-contract-hours-live.mjs",
                     "check:responsibility-encodings-agree":  "node scripts/check-responsibility-encodings-agree.mjs",

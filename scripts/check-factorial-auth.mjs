@@ -45,7 +45,27 @@ const REQUIRED_SCOPES = [
   "company_holidays",       // CompanyHoliday, needed for correct expected hours
 ];
 
-const TOKEN = env.FACTORIAL_ACCESS_TOKEN ?? env.FACTORIAL_TOKEN ?? "";
+/*
+ * Factorial offers TWO credential types and they use different headers, so the
+ * gate has to know which one it holds (doc §1.1):
+ *
+ *   API key        x-api-key: <KEY>          never expires, TOTAL access
+ *   OAuth2 token   Authorization: Bearer ..  company token never expires
+ *
+ * An API key is what an admin can generate in the UI in one click, so it is by
+ * far the likeliest thing to be handed. Reading only the bearer variable would
+ * have reported "no credential" while a perfectly good key sat in .env.local --
+ * the same class of defect as this gate previously ignoring process.env.
+ *
+ * The key is accepted, but §1.2 chose OAuth2 on GDPR data-minimisation grounds:
+ * an API key cannot be scope-limited, so it grants access to payroll and bank
+ * details we have no business reading. That is a finding, not a blocker, and it
+ * is reported as one below rather than silently tolerated.
+ */
+const API_KEY = env.FACTORIAL_API_KEY ?? env.FACTORIAL_KEY ?? "";
+const BEARER = env.FACTORIAL_ACCESS_TOKEN ?? env.FACTORIAL_TOKEN ?? "";
+const TOKEN = BEARER || API_KEY;
+const CREDENTIAL_KIND = BEARER ? "oauth" : API_KEY ? "api_key" : "none";
 
 console.log("check-factorial-auth (Phase 0)\n");
 
@@ -61,7 +81,9 @@ if (!TOKEN) {
   console.log("  3. Request the demo tenant (doc §11 Q1). Phase 1 cannot start without it,");
   console.log("     because harvesting against production employee data to discover the");
   console.log("     shape of the API is not defensible under GDPR.");
-  console.log("  4. Put the token in .env.local as FACTORIAL_ACCESS_TOKEN. Never commit it.");
+  console.log("  4. Put it in .env.local. Never commit it. Either name works:");
+  console.log("       FACTORIAL_API_KEY=...        (an admin-generated API key, simplest)");
+  console.log("       FACTORIAL_ACCESS_TOKEN=...   (an OAuth2 company token, scope-limited)");
   console.log("  5. Re-run this gate. It will then verify the token type, the exact scope");
   console.log("     set, and that the pinned OpenAPI hash still matches.\n");
   console.log("BLOCKED (exit 2): not a failure, and not a pass. Phase 0 is not complete.");
@@ -81,12 +103,38 @@ const call = async (path) => {
   // a wrong version string is served with a different schema rather than 404,
   // so a typo here degrades silently instead of failing.
   const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/json" },
+    headers: {
+      // Wrong header = 401 that looks like a bad credential rather than a
+      // mismatched auth scheme, which would send someone hunting the wrong bug.
+      ...(CREDENTIAL_KIND === "api_key"
+        ? { "x-api-key": TOKEN }
+        : { Authorization: `Bearer ${TOKEN}` }),
+      Accept: "application/json",
+    },
   });
   let body = null;
   try { body = await res.json(); } catch { /* non-JSON is itself a finding */ }
   return { status: res.status, body };
 };
+
+console.log(`  credential: ${CREDENTIAL_KIND === "api_key" ? "API key (x-api-key)" : "OAuth2 bearer token"}\n`);
+
+if (CREDENTIAL_KIND === "api_key") {
+  /*
+   * Not a failure: the doc confirms API keys remain supported for internal
+   * company integrations. But an API key has TOTAL ACCESS and cannot be
+   * narrowed, so the §1.4 least-privilege scope check below is unenforceable
+   * and the GDPR Art. 5(1)(c) argument in §11 is not satisfied. Say so plainly
+   * rather than letting a green gate imply the data-minimisation question was
+   * settled.
+   */
+  console.log("  note  An API key cannot be scope-limited: it grants TOTAL access, including");
+  console.log("  note  payroll and bank details this integration must never read. Harvesting");
+  console.log("  note  with it is fine for a read-only probe, but the scheduled sync should");
+  console.log("  note  move to an OAuth2 company token with exactly the six scopes in §1.4.");
+  console.log("  note  The field allow-list in scripts/lib/factorial.mjs is the compensating");
+  console.log("  note  control until then, and check-factorial-harvest asserts it.\n");
+}
 
 try {
   // §1.5: the owner must be a company. A user token is the 7-day cliff.
@@ -103,7 +151,11 @@ try {
 
     const granted = String(creds.body.scope ?? creds.body.scopes ?? creds.body.data?.scope ?? "")
       .split(/[\s,]+/).filter(Boolean).sort();
-    if (!granted.length) {
+    if (CREDENTIAL_KIND === "api_key") {
+      // Asserting least privilege against a credential that cannot be narrowed
+      // would be theatre. The note above states the real position.
+      console.log("  skip  least-privilege scope check does not apply to an API key");
+    } else if (!granted.length) {
       check(false, "the response reports a scope string", "none found; cannot verify least privilege");
     } else {
       const missing = REQUIRED_SCOPES.filter((s) => !granted.includes(s));

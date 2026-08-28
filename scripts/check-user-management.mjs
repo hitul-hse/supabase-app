@@ -18,7 +18,7 @@
  * admin can act on: either it says it sent, or it hands back a usable link. A no-op
  * satisfies neither.
  */
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { createClient } from "@supabase/supabase-js";
@@ -28,10 +28,13 @@ import { loadBindings, transform } from "next/dist/build/swc/index.js";
 
 await loadBindings();
 
-const env = {};
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-  const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-  if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+const env = { ...process.env };
+if (existsSync(".env.local")) {
+  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    // Never let a local file override a secret injected by CI.
+    if (m && env[m[1]] === undefined) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
 }
 if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); process.exit(0); }
 

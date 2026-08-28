@@ -23,13 +23,16 @@
  * A missing grant is loud; a non-matching policy is silent. So the same probe
  * that confirms the grant also confirms the policy is doing the authorisation.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
-const env = {};
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-  const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-  if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+const env = { ...process.env };
+if (existsSync(".env.local")) {
+  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    // Never let a local file override a secret injected by CI.
+    if (m && env[m[1]] === undefined) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
 }
 if (!env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: no service-role key");

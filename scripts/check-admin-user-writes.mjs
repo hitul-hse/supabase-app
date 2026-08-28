@@ -78,145 +78,191 @@ await admin.from("app_user_profile").insert({
   user_id: created.user.id, role_key: "employee", department: null, is_active: true,
 });
 
-// The exec whose session the actions will run under.
-const { data: execProfile } = await admin
-  .from("app_user_profile").select("user_id").eq("role_key", "exec").eq("is_active", true).limit(1).maybeSingle();
-const { data: execUser } = await admin.auth.admin.getUserById(execProfile.user_id);
+/*
+ * try/finally, and the `finally` is the whole point.
+ *
+ * This gate creates a REAL auth account to edit. The cleanup below used to sit at
+ * the end of a linear script, so it ran only when every check above it had already
+ * passed. Any throw -- a changed action signature, a network blip, a Supabase 500 --
+ * skipped it and stranded the account in production forever.
+ *
+ * That is not hypothetical. On 2026-08-26 this leaked 391 accounts
+ * (admin.write.probe.*@example.invalid), which is why /admin/users renders 411 rows
+ * for a company of twenty and why check:table-scroll-budget reads 22.97 screens
+ * against a 3-screen budget. The gate that guards admin writes was itself the
+ * largest writer of junk admin rows.
+ *
+ * The cleanup is idempotent and re-asserts its own success, so a failure to delete
+ * is reported rather than swallowed.
+ */
+/*
+ * RESIDUAL GAP, stated because it is real and NOT fixed here.
+ *
+ * The `finally` above protects the throw path, and that is proven: injecting a
+ * mid-body throw crashes the run and the probe count stays flat.
+ *
+ * It does NOT protect a kill. On Windows there is no way for it to. A SIGTERM
+ * never unwinds the stack (measured: a node process holding a try/finally exits
+ * 143 with the finally unrun), and Windows has no real signals -- child.kill()
+ * calls TerminateProcess, which is immediate and uncatchable, so a
+ * process.on("SIGTERM") handler does not run either. Both were tested here: the
+ * handler version still leaked one account (409 -> 410) when the run was killed
+ * mid-probe.
+ *
+ * This matters because scripts/tmp-audit-exit.mjs runs the registered gates under
+ * `timeout: 240000` and execFileSync kills the child when that elapses; its own
+ * log records sig:SIGTERM against several gates. Every such kill of THIS gate
+ * strands one probe account.
+ *
+ * The only thing that actually closes it on this platform is a sweeper: delete
+ * any admin.write.probe.* account older than a few minutes at the START of a run,
+ * so a killed run is cleaned up by the next one. scripts/purge-probe-accounts.mjs
+ * does that shape of match already. Not wired in here without a decision, because
+ * it means a gate deleting production auth rows on every run.
+ */
+try {
 
-// Stub the server-only modules the action file imports. createClient must return a
-// client authenticated AS THE EXEC, because assertCanManageUsers reads the session
-// through it -- stubbing that away would test nothing.
-const { data: link } = await admin.auth.admin.generateLink({ type: "magiclink", email: execUser.user.email });
-const anon = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-const { data: verified } = await anon.auth.verifyOtp({ type: "magiclink", token_hash: link.properties.hashed_token });
+  // The exec whose session the actions will run under.
+  const { data: execProfile } = await admin
+    .from("app_user_profile").select("user_id").eq("role_key", "exec").eq("is_active", true).limit(1).maybeSingle();
+  const { data: execUser } = await admin.auth.admin.getUserById(execProfile.user_id);
 
-const stub = join(dir, "stubs.cjs");
-writeFileSync(
-  stub,
-  `const { createClient } = require("@supabase/supabase-js");
-const URL_ = ${JSON.stringify(env.NEXT_PUBLIC_SUPABASE_URL)};
-const ANON = ${JSON.stringify(env.NEXT_PUBLIC_SUPABASE_ANON_KEY)};
-const SERVICE = ${JSON.stringify(env.SUPABASE_SERVICE_ROLE_KEY)};
-const TOKEN = ${JSON.stringify(verified.session.access_token)};
-module.exports = {
-  createClient: async () => createClient(URL_, ANON, {
-    auth: { persistSession: false },
-    global: { headers: { Authorization: "Bearer " + TOKEN } },
-  }),
-  createAdminClient: () => createClient(URL_, SERVICE, { auth: { persistSession: false } }),
-  revalidatePath: () => {},
-  getSiteUrl: () => "https://hseportal.hs-experts.com",
-  PERMISSIONS: require(${JSON.stringify(posix(await compile("src/lib/permissions.ts", "permissions.cjs")))}).PERMISSIONS,
-};`,
-);
+  // Stub the server-only modules the action file imports. createClient must return a
+  // client authenticated AS THE EXEC, because assertCanManageUsers reads the session
+  // through it -- stubbing that away would test nothing.
+  const { data: link } = await admin.auth.admin.generateLink({ type: "magiclink", email: execUser.user.email });
+  const anon = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+  const { data: verified } = await anon.auth.verifyOtp({ type: "magiclink", token_hash: link.properties.hashed_token });
 
-const actions = req(await compile("src/app/(app)/admin/users/actions.ts", "actions.cjs", {
-  "@/utils/supabase/server": posix(stub),
-  "@/utils/supabase/admin": posix(stub),
-  "next/cache": posix(stub),
-  "@/utils/site-url": posix(stub),
-  "@/lib/permissions": posix(stub),
-}));
-
-const readProbe = async () => {
-  const { data } = await admin
-    .from("app_user_profile").select("role_key, department, is_active").eq("user_id", created.user.id).maybeSingle();
-  return data;
-};
-
-// ── 1. The reported bug: changing a team ────────────────────────────────
-const teamRes = await actions.changeUserDepartment(created.user.id, "TECH");
-check(
-  "changing a user's team succeeds",
-  !teamRes.error,
-  teamRes.error ?? "no error -- this returned 42501 permission denied before the fix",
-);
-check("and the value is actually stored", (await readProbe())?.department === "TECH", JSON.stringify(await readProbe()));
-
-// Clearing it must work too, since "None" is a legitimate choice.
-const clearRes = await actions.changeUserDepartment(created.user.id, "");
-check("clearing a team stores null, not an empty string", !clearRes.error && (await readProbe())?.department === null,
-  `${clearRes.error ?? ""} ${JSON.stringify((await readProbe())?.department)}`);
-
-// ── 2. The other two writes, broken by the same cause ──────────────────
-const roleRes = await actions.changeUserRole(created.user.id, "project_manager");
-check("changing a role succeeds", !roleRes.error, roleRes.error ?? "ok");
-check("and is stored", (await readProbe())?.role_key === "project_manager", JSON.stringify((await readProbe())?.role_key));
-
-const deactivate = await actions.setUserActive(created.user.id, false);
-check("deactivating an account succeeds", !deactivate.error, deactivate.error ?? "ok");
-check("and is stored", (await readProbe())?.is_active === false, JSON.stringify((await readProbe())?.is_active));
-await actions.setUserActive(created.user.id, true);
-
-// ── 3. The self-lockout guards ─────────────────────────────────────────
-const selfDeactivate = await actions.setUserActive(execProfile.user_id, false);
-check(
-  "an admin cannot deactivate themselves",
-  Boolean(selfDeactivate.error),
-  selfDeactivate.error ?? "ALLOWED -- an admin could lock themselves out of the console",
-);
-const { data: execAfter } = await admin
-  .from("app_user_profile").select("is_active").eq("user_id", execProfile.user_id).maybeSingle();
-check("and their account is untouched", execAfter.is_active === true, `is_active=${execAfter.is_active}`);
-
-const selfDemote = await actions.changeUserRole(execProfile.user_id, "employee");
-check(
-  "an admin cannot demote themselves out of admin",
-  Boolean(selfDemote.error),
-  selfDemote.error ?? "ALLOWED -- an admin could lock themselves out",
-);
-const { data: roleAfter } = await admin
-  .from("app_user_profile").select("role_key").eq("user_id", execProfile.user_id).maybeSingle();
-check("and their role is untouched", roleAfter.role_key === "exec", `role_key=${roleAfter.role_key}`);
-
-// Acting on SOMEONE ELSE must still be allowed: the guard must be narrow.
-const otherOk = await actions.setUserActive(created.user.id, false);
-check("but deactivating someone else is still allowed", !otherOk.error, otherOk.error ?? "ok");
-await actions.setUserActive(created.user.id, true);
-
-// ── 4. A non-admin is still refused ────────────────────────────────────
-// The permission gate is the whole boundary now that RLS is bypassed, so it has to
-// be shown working rather than assumed.
-const { data: employee } = await admin
-  .from("app_user_profile").select("user_id").eq("role_key", "employee").eq("is_active", true)
-  .neq("user_id", created.user.id).limit(1).maybeSingle();
-if (employee) {
-  const { data: empUser } = await admin.auth.admin.getUserById(employee.user_id);
-  const { data: empLink } = await admin.auth.admin.generateLink({ type: "magiclink", email: empUser.user.email });
-  const { data: empVerified } = await anon.auth.verifyOtp({ type: "magiclink", token_hash: empLink.properties.hashed_token });
-
-  const empStub = join(dir, "stubs-emp.cjs");
+  const stub = join(dir, "stubs.cjs");
   writeFileSync(
-    empStub,
-    readFileSync(stub, "utf8").replace(
-      JSON.stringify(verified.session.access_token),
-      JSON.stringify(empVerified.session.access_token),
-    ),
+    stub,
+    `const { createClient } = require("@supabase/supabase-js");
+  const URL_ = ${JSON.stringify(env.NEXT_PUBLIC_SUPABASE_URL)};
+  const ANON = ${JSON.stringify(env.NEXT_PUBLIC_SUPABASE_ANON_KEY)};
+  const SERVICE = ${JSON.stringify(env.SUPABASE_SERVICE_ROLE_KEY)};
+  const TOKEN = ${JSON.stringify(verified.session.access_token)};
+  module.exports = {
+    createClient: async () => createClient(URL_, ANON, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: "Bearer " + TOKEN } },
+    }),
+    createAdminClient: () => createClient(URL_, SERVICE, { auth: { persistSession: false } }),
+    revalidatePath: () => {},
+    getSiteUrl: () => "https://hseportal.hs-experts.com",
+    PERMISSIONS: require(${JSON.stringify(posix(await compile("src/lib/permissions.ts", "permissions.cjs")))}).PERMISSIONS,
+  };`,
   );
-  const empActions = req(await compile("src/app/(app)/admin/users/actions.ts", "actions-emp.cjs", {
-    "@/utils/supabase/server": posix(empStub),
-    "@/utils/supabase/admin": posix(empStub),
-    "next/cache": posix(empStub),
-    "@/utils/site-url": posix(empStub),
-    "@/lib/permissions": posix(empStub),
+
+  const actions = req(await compile("src/app/(app)/admin/users/actions.ts", "actions.cjs", {
+    "@/utils/supabase/server": posix(stub),
+    "@/utils/supabase/admin": posix(stub),
+    "next/cache": posix(stub),
+    "@/utils/site-url": posix(stub),
+    "@/lib/permissions": posix(stub),
   }));
 
-  const denied = await empActions.changeUserDepartment(created.user.id, "HR");
+  const readProbe = async () => {
+    const { data } = await admin
+      .from("app_user_profile").select("role_key, department, is_active").eq("user_id", created.user.id).maybeSingle();
+    return data;
+  };
+
+  // ── 1. The reported bug: changing a team ────────────────────────────────
+  const teamRes = await actions.changeUserDepartment(created.user.id, "TECH");
   check(
-    "an employee cannot change anyone's team",
-    Boolean(denied.error),
-    denied.error ?? "ALLOWED -- the permission gate is the only boundary now, so this must hold",
+    "changing a user's team succeeds",
+    !teamRes.error,
+    teamRes.error ?? "no error -- this returned 42501 permission denied before the fix",
   );
+  check("and the value is actually stored", (await readProbe())?.department === "TECH", JSON.stringify(await readProbe()));
+
+  // Clearing it must work too, since "None" is a legitimate choice.
+  const clearRes = await actions.changeUserDepartment(created.user.id, "");
+  check("clearing a team stores null, not an empty string", !clearRes.error && (await readProbe())?.department === null,
+    `${clearRes.error ?? ""} ${JSON.stringify((await readProbe())?.department)}`);
+
+  // ── 2. The other two writes, broken by the same cause ──────────────────
+  const roleRes = await actions.changeUserRole(created.user.id, "project_manager");
+  check("changing a role succeeds", !roleRes.error, roleRes.error ?? "ok");
+  check("and is stored", (await readProbe())?.role_key === "project_manager", JSON.stringify((await readProbe())?.role_key));
+
+  const deactivate = await actions.setUserActive(created.user.id, false);
+  check("deactivating an account succeeds", !deactivate.error, deactivate.error ?? "ok");
+  check("and is stored", (await readProbe())?.is_active === false, JSON.stringify((await readProbe())?.is_active));
+  await actions.setUserActive(created.user.id, true);
+
+  // ── 3. The self-lockout guards ─────────────────────────────────────────
+  const selfDeactivate = await actions.setUserActive(execProfile.user_id, false);
   check(
-    "and nothing was written",
-    (await readProbe())?.department === null,
-    JSON.stringify((await readProbe())?.department),
+    "an admin cannot deactivate themselves",
+    Boolean(selfDeactivate.error),
+    selfDeactivate.error ?? "ALLOWED -- an admin could lock themselves out of the console",
   );
+  const { data: execAfter } = await admin
+    .from("app_user_profile").select("is_active").eq("user_id", execProfile.user_id).maybeSingle();
+  check("and their account is untouched", execAfter.is_active === true, `is_active=${execAfter.is_active}`);
+
+  const selfDemote = await actions.changeUserRole(execProfile.user_id, "employee");
+  check(
+    "an admin cannot demote themselves out of admin",
+    Boolean(selfDemote.error),
+    selfDemote.error ?? "ALLOWED -- an admin could lock themselves out",
+  );
+  const { data: roleAfter } = await admin
+    .from("app_user_profile").select("role_key").eq("user_id", execProfile.user_id).maybeSingle();
+  check("and their role is untouched", roleAfter.role_key === "exec", `role_key=${roleAfter.role_key}`);
+
+  // Acting on SOMEONE ELSE must still be allowed: the guard must be narrow.
+  const otherOk = await actions.setUserActive(created.user.id, false);
+  check("but deactivating someone else is still allowed", !otherOk.error, otherOk.error ?? "ok");
+  await actions.setUserActive(created.user.id, true);
+
+  // ── 4. A non-admin is still refused ────────────────────────────────────
+  // The permission gate is the whole boundary now that RLS is bypassed, so it has to
+  // be shown working rather than assumed.
+  const { data: employee } = await admin
+    .from("app_user_profile").select("user_id").eq("role_key", "employee").eq("is_active", true)
+    .neq("user_id", created.user.id).limit(1).maybeSingle();
+  if (employee) {
+    const { data: empUser } = await admin.auth.admin.getUserById(employee.user_id);
+    const { data: empLink } = await admin.auth.admin.generateLink({ type: "magiclink", email: empUser.user.email });
+    const { data: empVerified } = await anon.auth.verifyOtp({ type: "magiclink", token_hash: empLink.properties.hashed_token });
+
+    const empStub = join(dir, "stubs-emp.cjs");
+    writeFileSync(
+      empStub,
+      readFileSync(stub, "utf8").replace(
+        JSON.stringify(verified.session.access_token),
+        JSON.stringify(empVerified.session.access_token),
+      ),
+    );
+    const empActions = req(await compile("src/app/(app)/admin/users/actions.ts", "actions-emp.cjs", {
+      "@/utils/supabase/server": posix(empStub),
+      "@/utils/supabase/admin": posix(empStub),
+      "next/cache": posix(empStub),
+      "@/utils/site-url": posix(empStub),
+      "@/lib/permissions": posix(empStub),
+    }));
+
+    const denied = await empActions.changeUserDepartment(created.user.id, "HR");
+    check(
+      "an employee cannot change anyone's team",
+      Boolean(denied.error),
+      denied.error ?? "ALLOWED -- the permission gate is the only boundary now, so this must hold",
+    );
+    check(
+      "and nothing was written",
+      (await readProbe())?.department === null,
+      JSON.stringify((await readProbe())?.department),
+    );
+  }
+} finally {
+  // ── Clean up ─────────────────────────────────────────────────────────
+  await admin.from("app_user_profile").delete().eq("user_id", created.user.id);
+  await admin.auth.admin.deleteUser(created.user.id);
 }
 
-// ── Clean up ───────────────────────────────────────────────────────────
-await admin.from("app_user_profile").delete().eq("user_id", created.user.id);
-await admin.auth.admin.deleteUser(created.user.id);
 const { data: gone } = await admin
   .from("app_user_profile").select("user_id").eq("user_id", created.user.id);
 check("the probe account was removed", (gone?.length ?? 0) === 0, `${gone?.length ?? 0} row(s) left`);

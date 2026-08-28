@@ -122,4 +122,23 @@ if (zeroed.length) console.log(`  note  ${zeroed.length} shown as an honest 0 ra
 console.log(`\n${failures.length === 0 ? "PASS" : `FAIL (${failures.length})`}`);
 if (failures.length) for (const f of failures) console.log(`  - ${f}`);
 rmSync(dir, { recursive: true, force: true });
-process.exit(failures.length ? 1 : 0);
+
+/*
+ * exitCode, NOT process.exit().
+ *
+ * This gate crashed 6 runs in 10 with a libuv assert on Windows
+ * (UV_HANDLE_CLOSING, exit 0xC0000409) -- ALWAYS after printing PASS. So the
+ * product was fine, the runner still recorded it red, and because it sits at
+ * #82 of 98 it hid the 16 gates chained after it.
+ *
+ * Cause: two undici keep-alive sockets from the Supabase client are still open
+ * at the end, confirmed with process._getActiveHandles(). process.exit() tears
+ * the event loop down on top of them, and on Windows that trips the assert.
+ *
+ * Setting exitCode lets Node drain those sockets and exit on its own with the
+ * same status. The sibling gate check-employee-ownership-live.mjs hit this same
+ * class of bug and fixed its pg Pool with allowExitOnIdle; these sockets live
+ * inside the fetch client where the gate cannot reach them, so the exit is what
+ * has to change instead.
+ */
+process.exitCode = failures.length ? 1 : 0;

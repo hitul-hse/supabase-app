@@ -148,39 +148,37 @@ await admin.from("app_user_profile").insert({
  * passed. Any throw -- a changed action signature, a network blip, a Supabase 500 --
  * skipped it and stranded the account in production forever.
  *
- * That is not hypothetical. On 2026-08-26 this leaked 391 accounts
- * (admin.write.probe.*@example.invalid), which is why /admin/users renders 411 rows
- * for a company of twenty and why check:table-scroll-budget reads 22.97 screens
+ * That is not hypothetical. This leaked 410 accounts
+ * (admin.write.probe.*@example.invalid), which is why /admin/users rendered 411 rows
+ * for a company of twenty and why check:table-scroll-budget read 22.97 screens
  * against a 3-screen budget. The gate that guards admin writes was itself the
- * largest writer of junk admin rows.
+ * largest writer of junk admin rows. Purged in 6f29844; the route now reads 1.84.
  *
  * The cleanup is idempotent and re-asserts its own success, so a failure to delete
  * is reported rather than swallowed.
  */
 /*
- * RESIDUAL GAP, stated because it is real and NOT fixed here.
+ * WHY THE SWEEP ABOVE EXISTS, and why the finally alone was not enough.
  *
- * The `finally` above protects the throw path, and that is proven: injecting a
- * mid-body throw crashes the run and the probe count stays flat.
+ * The `finally` protects the throw path, and that is proven: injecting a mid-body
+ * throw crashes the run and the probe count stays flat.
  *
- * It does NOT protect a kill. On Windows there is no way for it to. A SIGTERM
+ * It cannot protect a kill, and on Windows nothing in this process can. A SIGTERM
  * never unwinds the stack (measured: a node process holding a try/finally exits
  * 143 with the finally unrun), and Windows has no real signals -- child.kill()
  * calls TerminateProcess, which is immediate and uncatchable, so a
- * process.on("SIGTERM") handler does not run either. Both were tested here: the
- * handler version still leaked one account (409 -> 410) when the run was killed
- * mid-probe.
+ * process.on("SIGTERM") handler does not run either. That version was written and
+ * tested: killed mid-probe it still leaked one account (409 -> 410). It was
+ * removed rather than kept as a protection that does not protect.
  *
- * This matters because scripts/tmp-audit-exit.mjs runs the registered gates under
- * `timeout: 240000` and execFileSync kills the child when that elapses; its own
- * log records sig:SIGTERM against several gates. Every such kill of THIS gate
- * strands one probe account.
+ * That is not theoretical. scripts/tmp-audit-exit.mjs runs the registered gates
+ * under `timeout: 240000` and execFileSync kills the child when it elapses; its
+ * own log records sig:SIGTERM against several gates. Every such kill strands one
+ * probe account.
  *
- * The only thing that actually closes it on this platform is a sweeper: delete
- * any admin.write.probe.* account older than a few minutes at the START of a run,
- * so a killed run is cleaned up by the next one. scripts/purge-probe-accounts.mjs
- * does that shape of match already. Not wired in here without a decision, because
- * it means a gate deleting production auth rows on every run.
+ * Hence the sweeper at the top of this file: the NEXT run cleans up what a killed
+ * run could not. It is the only mechanism left once in-process cleanup is ruled
+ * out, which is why it is worth a gate deleting production auth rows.
  */
 try {
 

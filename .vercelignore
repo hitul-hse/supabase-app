@@ -1,0 +1,22 @@
+# Keep the deploy archive small enough to survive an unreliable upload.
+#
+# The 2026-08-28 deploy stalled at 20 of 80.6MB and timed out. Most of that
+# weight never belonged in a serverless bundle:
+#
+#   graphify-out/   48MB of code-graph analysis artefacts, tooling-only
+#   *.wav           33MB of raw background-music takes; nothing imports them
+#                   (the shipped page uses the 29KB bg-music.mp3)
+#   docs/, scripts/ developer material the app never serves
+#
+# hse-hub-ad.mp4 (20MB) IS referenced by /video and /demo, so it stays.
+graphify-out
+.context-bridge
+.v3code
+docs
+scripts
+supabase/migrations
+public/bg-music.wav
+public/bg-music-v2.wav
+public/bg-music-v3.wav
+*.xlsx
+tmp-*.png

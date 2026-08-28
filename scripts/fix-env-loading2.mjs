@@ -17,8 +17,10 @@ const skipped = [];
 
 // Every known way these files built `env`, each ending in a single binding.
 const SHAPES = [
-  // const env = Object.fromEntries(readFileSync("C:/Supabase/.env.local"...)...);
-  /const env = Object\.fromEntries\(\s*\n?\s*readFileSync\(["'][^"']*\.env\.local["'], ["']utf8["']\)[\s\S]*?\n\);/,
+  // const env = Object.fromEntries( readFileSync("<any path>/.env.local"...) ... );
+  // Ends at the first ");" that closes fromEntries, which in practice is "}));"
+  // or "\n);" depending on whether the last call was a .map arrow.
+  /const env = Object\.fromEntries\([\s\S]*?\.env\.local[\s\S]*?\)\);/,
   // const env = {}; for (...) { ... }
   /const env = \{\};\s*\nfor \(const line of readFileSync\([^)]*\)\.split\([^)]*\)\) \{[\s\S]*?\n\}/,
 ];

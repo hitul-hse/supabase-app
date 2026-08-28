@@ -17,11 +17,9 @@
 // READ-ONLY.
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { loadEnv } from "./lib/gate-env.mjs";
 
-const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
+const env = loadEnv();
 
 // Parse the allowlist out of the source rather than duplicating it, so the gate
 // cannot drift from the thing it is guarding.

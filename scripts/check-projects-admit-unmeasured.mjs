@@ -26,11 +26,9 @@
  */
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { loadEnv } from "./lib/gate-env.mjs";
 
-const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
+const env = loadEnv();
 
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
 await c.connect();

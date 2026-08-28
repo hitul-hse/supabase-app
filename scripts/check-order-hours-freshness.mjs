@@ -18,8 +18,9 @@
 // hours) and is asserted separately.
 //
 // READ-ONLY.
-import { readFileSync } from "node:fs";
+
 import pg from "pg";
+import { loadEnv } from "./lib/gate-env.mjs";
 
 // Measured 2026-08-27, AFTER `node scripts/refresh-order-hours.mjs` was run.
 //
@@ -43,10 +44,7 @@ const KNOWN_OVER_CONTRACT = 0;
 // Hours tolerance. Below this a difference is rounding, not staleness.
 const EPSILON = 0.05;
 
-const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
+const env = loadEnv();
 
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
 await c.connect();

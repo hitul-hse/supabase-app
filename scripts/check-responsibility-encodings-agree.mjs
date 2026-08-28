@@ -33,13 +33,11 @@
 // a project in the role table that the assignment table contradicts.
 //
 // READ-ONLY.
-import { readFileSync } from "node:fs";
-import pg from "pg";
 
-const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
+import pg from "pg";
+import { loadEnv } from "./lib/gate-env.mjs";
+
+const env = loadEnv();
 
 // The known, accepted size of the gap. Raising this must be a deliberate edit
 // with a reason, which is the whole point of pinning it.

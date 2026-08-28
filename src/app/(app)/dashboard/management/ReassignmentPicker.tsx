@@ -135,12 +135,29 @@ function leastLoaded(candidates: CandidateLoad[]): CandidateLoad | null {
   const eligible = candidates.filter((c) => !c.alreadyOnProject);
   if (!eligible.length) return null;
 
-  const holdsNothing = eligible
+  /*
+   * Externals are offerable but never AUTO-SUGGESTED.
+   *
+   * The suggestion answers "who has the most room", and it reads capacity from
+   * responsibilities held. An external contractor holds none by construction --
+   * they are engaged per project, not given a portfolio -- so they look maximally
+   * idle on every axis this function measures and would win the "least loaded"
+   * badge on almost every project.
+   *
+   * That would be a fabricated recommendation: their availability depends on a
+   * commercial engagement the Hub knows nothing about. A lead may still pick
+   * them deliberately, which is the point, but the tool must not nudge toward
+   * spending money it cannot see.
+   */
+  const internal = eligible.filter((c) => !c.isExternal);
+  if (!internal.length) return null;
+
+  const holdsNothing = internal
     .filter((c) => c.responsibleFor === 0 && c.coversAsReplacement === 0)
     .sort((a, b) => a.loggedLast30Days - b.loggedLast30Days || a.personName.localeCompare(b.personName, "de"));
   if (holdsNothing.length) return holdsNothing[0];
 
-  const measured = eligible
+  const measured = internal
     .filter((c): c is CandidateLoad & { contractHours: number } => c.contractHours !== null)
     .sort((a, b) => a.contractHours - b.contractHours || a.responsibleFor - b.responsibleFor);
   return measured[0] ?? null;
@@ -207,6 +224,25 @@ function CandidateRow({
             <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)] px-1.5 py-px font-mono text-[9px] tracking-[0.08em] text-[var(--warning,#d99b3d)]">
               <IconPin />
               BEREITS AUF PROJEKT
+            </span>
+          )}
+
+          {/*
+            External contractors are OFFERED, not hidden. Stefan Goelzner was
+            hired partly to cover for Thorsten, so excluding him would remove the
+            very person the cover arrangement depends on.
+
+            But the badge matters: choosing an external commits bought-in
+            capacity rather than reallocating an employee, and it explains why
+            the contract-hours column reads n/a for them. An external on call-off
+            work has no weekly contract, so there is no honest denominator.
+          */}
+          {candidate.isExternal && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)] px-1.5 py-px font-mono text-[9px] tracking-[0.08em] text-[var(--text-secondary)]"
+              title="Externe Kraft — Kapazität wird pro Einsatz beauftragt, kein Wochenvertrag"
+            >
+              EXTERN
             </span>
           )}
 

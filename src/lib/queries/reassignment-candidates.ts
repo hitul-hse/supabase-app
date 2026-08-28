@@ -69,6 +69,18 @@ export type CandidateLoad = {
 
   /** True when this person already holds a role on the project being reassigned. */
   alreadyOnProject: boolean;
+
+  /**
+   * External contractor rather than an employee.
+   *
+   * Worth surfacing rather than hiding. Stefan Goelzner was hired partly TO
+   * cover for Thorsten, so he must be offerable; but a lead choosing cover
+   * should know they are committing external capacity, which is bought per
+   * engagement rather than simply reallocated. It also explains why his
+   * contract hours are null: an external on call-off work has no weekly
+   * contract, so there is no honest utilisation denominator.
+   */
+  isExternal: boolean;
 };
 
 export async function getReassignmentCandidates(
@@ -79,12 +91,12 @@ export async function getReassignmentCandidates(
   // rejects an inactive person, so offering one would be a dead end.
   const { data: people } = await supabase
     .from("people")
-    .select("id, name")
+    .select("id, name, source")
     .eq("is_active", true)
     .order("name", { ascending: true });
 
   if (!people?.length) return [];
-  const ids = (people as { id: string; name: string }[]).map((p) => p.id);
+  const ids = (people as { id: string; name: string; source: string | null }[]).map((p) => p.id);
 
   // Separate reads, never a join. See the fan-out note above.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,7 +176,7 @@ export async function getReassignmentCandidates(
     }
   }
 
-  return (people as { id: string; name: string }[]).map((p) => {
+  return (people as { id: string; name: string; source: string | null }[]).map((p) => {
     const hours = hoursByPerson.get(p.id);
     return {
       personId: p.id,
@@ -176,6 +188,7 @@ export async function getReassignmentCandidates(
       // No source yet. Null is UNKNOWN, and the UI must not read it as "free".
       absence: null,
       alreadyOnProject: onThisProject.has(p.id),
+      isExternal: p.source === "external",
     };
   });
 }

@@ -12,12 +12,13 @@ import { getManagementProjectRisks } from "@/lib/queries/management-project-risk
 import { getManagementMultiServiceMatrix } from "@/lib/queries/management-multi-service-matrix";
 import { getManagementCustomerPortfolio } from "@/lib/queries/management-customer-portfolio";
 import { getManagementChangeRequests } from "@/lib/queries/management-change-requests";
+import { getBrokenCover } from "@/lib/queries/broken-cover";
 import { ManagementMatrix } from "./ManagementMatrix";
 
 export default async function ManagementPage() {
   await requirePermission("/dashboard/management", PERMISSIONS.HR_CONTRACT_READ);
   const supabase = await createManagementReadClient();
-  const [model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests] = await Promise.all([
+  const [model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests, brokenCover] = await Promise.all([
     getManagementContractHours(supabase),
     getEmployeeOwnershipOverview(supabase),
     getManagementDataQuality(supabase),
@@ -25,6 +26,7 @@ export default async function ManagementPage() {
     getManagementMultiServiceMatrix(supabase),
     getManagementCustomerPortfolio(supabase),
     getManagementChangeRequests(supabase),
+    getBrokenCover(supabase),
   ]);
 
   return (
@@ -39,7 +41,7 @@ export default async function ManagementPage() {
         <main className="flex flex-col gap-4 page-shell">
           {model.projectCount === 0 ? (
             <Card><EmptyState title="Keine Vertragsstunden verfügbar" description="Das Read Model liefert aktuell keine sichtbaren Projekte aus public.projects." /></Card>
-          ) : <ManagementMatrix model={model} ownershipRows={ownershipRows} dataQualityRows={dataQualityRows} projectRiskRows={projectRiskRows} multiServiceModel={multiServiceModel} customerPortfolio={customerPortfolio} changeRequests={changeRequests} />}
+          ) : <ManagementMatrix model={model} ownershipRows={ownershipRows} dataQualityRows={dataQualityRows} projectRiskRows={projectRiskRows} multiServiceModel={multiServiceModel} customerPortfolio={customerPortfolio} changeRequests={changeRequests} brokenCover={brokenCover} />}
         </main>
       </div>
     </PageTransition>

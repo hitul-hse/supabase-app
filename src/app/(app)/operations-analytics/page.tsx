@@ -21,20 +21,24 @@ export default async function OperationsAnalyticsPage() {
   await requirePermission("/operations-analytics", PERMISSIONS.HR_CONTRACT_READ);
 
   const supabase = await createClient();
+
+  /*
+   * Fetch inside try, render OUTSIDE it. The react-hooks/error-boundaries rule
+   * forbids constructing JSX within try/catch, and it has a point: React renders
+   * lazily, so a rendering error thrown by FactorialHoursPanel would NOT be
+   * caught here anyway — only the data fetch can actually fail in this block.
+   * Catching exactly that, and deciding which JSX to return afterwards, keeps
+   * the error handling honest about what it can and cannot catch.
+   */
+  let report: Awaited<ReturnType<typeof getFactorialHoursReport>> | null = null;
+  let loadError: string | null = null;
   try {
-    const report = await getFactorialHoursReport(supabase);
-    return (
-      <div className="space-y-6 p-6">
-        <div>
-          <h1 className="text-3xl font-bold">Operations Analytics</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Factorial HR presence (90-day window) vs TrackingTime logged hours.
-          </p>
-        </div>
-        <FactorialHoursPanel report={report} />
-      </div>
-    );
+    report = await getFactorialHoursReport(supabase);
   } catch (error) {
+    loadError = error instanceof Error ? error.message : String(error);
+  }
+
+  if (loadError !== null || report === null) {
     return (
       <div className="space-y-6 p-6">
         <div>
@@ -42,9 +46,21 @@ export default async function OperationsAnalyticsPage() {
           <p className="mt-2 text-sm text-muted-foreground">Error loading report.</p>
         </div>
         <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-          <pre className="text-sm">{error instanceof Error ? error.message : String(error)}</pre>
+          <pre className="text-sm">{loadError ?? "report was empty"}</pre>
         </div>
       </div>
     );
   }
+
+  return (
+    <div className="space-y-6 p-6">
+      <div>
+        <h1 className="text-3xl font-bold">Operations Analytics</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Factorial HR presence (90-day window) vs TrackingTime logged hours.
+        </p>
+      </div>
+      <FactorialHoursPanel report={report} />
+    </div>
+  );
 }

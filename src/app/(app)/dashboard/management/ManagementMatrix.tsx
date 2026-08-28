@@ -12,6 +12,8 @@ import type { ManagementProjectRiskRow } from "@/lib/queries/management-project-
 import type { ManagementMultiServiceMatrix as ManagementMultiServiceMatrixModel } from "@/lib/queries/management-multi-service-matrix";
 import type { ManagementCustomerPortfolio } from "@/lib/queries/management-customer-portfolio";
 import type { ManagementChangeRequest } from "@/lib/queries/management-change-requests";
+import type { BrokenCoverSummary } from "@/lib/queries/broken-cover";
+import { BrokenCoverPanel } from "./BrokenCoverPanel";
 import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
 import { ManagementDataQuality } from "./ManagementDataQuality";
 import { ManagementProjectRisks } from "./ManagementProjectRisks";
@@ -20,7 +22,7 @@ import { ManagementCustomerPortfolio as ManagementCustomerPortfolioView } from "
 
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
 
-export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; changeRequests: ManagementChangeRequest[] }) {
+export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests, brokenCover }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; changeRequests: ManagementChangeRequest[]; brokenCover: BrokenCoverSummary }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   /*
    * The active tab lives in the URL (?tab=), not in useState: a management
@@ -63,6 +65,11 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
 
       {/* Risks and data quality answer the same question ("what needs my
           attention"), so they share a tab. */}
+      {/* Broken cover leads the risks tab: it is the one finding with a repair
+          action attached (the picker on every row), and a pair failing together
+          is more urgent than any single-project risk below. */}
+      {tab === "risks" && <BrokenCoverPanel summary={brokenCover} />}
+
       {tab === "risks" && <ManagementProjectRisks rows={projectRiskRows} />}
 
       {tab === "risks" && <ManagementDataQuality rows={dataQualityRows} />}

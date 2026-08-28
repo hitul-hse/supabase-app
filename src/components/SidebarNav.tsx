@@ -66,6 +66,11 @@ const NAV_GROUPS: NavGroup[] = [
       // matches `startsWith(href)`, so this entry correctly stays highlighted on
       // the nested dashboard route.
       { href: "/time/dashboard", label: "TrackingTime Dashboard"                 },
+      // Factorial HR presence vs TrackingTime logged hours. Exec/HR only, and the
+      // page itself enforces HR_CONTRACT_READ -- the Factorial figures come from a
+      // server API key that RLS never mediates, so hiding this entry is a
+      // convenience, not the access control.
+      { href: "/operations-analytics", label: "Operations Analytics", roles: ["exec", "hr"] },
       { href: "/leave",      label: "Leave & Time Off", tourId: "tour-leave"     },
     ],
   },

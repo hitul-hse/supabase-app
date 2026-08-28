@@ -307,6 +307,21 @@ function IconDataHygiene({ className }: IconProps) {
   );
 }
 
+/**
+ * Operations Analytics: a person beside two bars of different height --
+ * presence vs logged hours, which is the page's whole subject.
+ */
+function IconOperationsAnalytics({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="6" cy="5" r="2.25" />
+      <path d="M2.75 13.25 v-1.5 a3.25 3.25 0 0 1 6.5 0 v1.5" />
+      <path d="M12 13.25 V7.5" />
+      <path d="M15 13.25 V4.75" />
+    </Svg>
+  );
+}
+
 /** Registry keyed by nav href, so SidebarNav stays declarative. */
 export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,
@@ -317,6 +332,7 @@ export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/projects": IconProjects,
   "/timesheets": IconTimesheets,
   "/time/dashboard": IconTrackingTime,
+  "/operations-analytics": IconOperationsAnalytics,
   "/leave": IconLeave,
   "/admin/users": IconUsersRoles,
   "/admin/roles": IconPermissions,

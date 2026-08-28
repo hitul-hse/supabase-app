@@ -119,6 +119,36 @@ if (reconciled) check(true, "grid cells reconcile with the utilisation outlook f
 const zeroed = model.utilisationOutlook.filter((r) => r.boundContractHours === 0);
 if (zeroed.length) console.log(`  note  ${zeroed.length} shown as an honest 0 rather than hidden: ${zeroed.map((r) => r.person).join(", ")}`);
 
+/*
+ * But an honest 0 must be a MEASUREMENT, not a name that resolves to nobody.
+ *
+ * Found by mutation: adding "Nobody Atall" to PEOPLE made this gate print PASS.
+ * The fake name appeared in the grid, the outlook and the drilldown as a 0, so
+ * every coverage assertion above was satisfied by a row that means nothing --
+ * the exact "empty column that merely looks complete" the check at line 96 was
+ * written to prevent, except that check only covers two hardcoded names.
+ *
+ * The distinction that matters: a real colleague with no bound hours SHOULD read
+ * 0 and stay visible. A name matching no row in public.people cannot be
+ * measured at all, and showing it as 0 states a fact about a person who is not
+ * there. So every zero is required to belong to someone who actually exists.
+ */
+{
+  const { data: peopleRows, error } = await supabase.from("people").select("name");
+  if (error) {
+    check(false, "could verify every allowlist name against public.people", error.message);
+  } else {
+    const norm = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+    const known = new Set((peopleRows ?? []).map((p) => norm(p.name)));
+    const phantom = PEOPLE.filter((p) => !known.has(norm(p)));
+    check(phantom.length === 0,
+      "every allowlist name matches a real person, so a 0 is a measurement not a phantom",
+      phantom.length
+        ? `no match in public.people: ${phantom.join(", ")} — these render as an honest 0 for somebody who does not exist`
+        : `all ${PEOPLE.length} resolve`);
+  }
+}
+
 console.log(`\n${failures.length === 0 ? "PASS" : `FAIL (${failures.length})`}`);
 if (failures.length) for (const f of failures) console.log(`  - ${f}`);
 rmSync(dir, { recursive: true, force: true });

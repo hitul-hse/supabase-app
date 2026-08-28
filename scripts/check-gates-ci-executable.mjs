@@ -49,10 +49,18 @@ const files = new Set();
 for (const chain of ["test:db", "check:profile-rls", "check:profile-effective-name"]) {
   for (const f of scriptFiles(chain)) files.add(f);
 }
-// Only gates that mention .env.local can have this failure mode.
-const candidates = [...files].filter((f) => existsSync(f) && readFileSync(f, "utf8").includes(".env.local"));
+/*
+ * Every gate in the chain, not only those mentioning .env.local.
+ *
+ * The first version filtered to files containing ".env.local", which missed
+ * check-management-contract-hours-live: it reads process.env directly and hands
+ * the result to createClient, so it never names the file yet still crashed on a
+ * runner. Filtering by how a gate is WRITTEN misses gates that fail for the same
+ * reason by another route, so run them all.
+ */
+const candidates = [...files].filter((f) => existsSync(f));
 
-console.log(`check-gates-ci-executable: running ${candidates.length} credential-reading gate(s) with no .env.local\n`);
+console.log(`check-gates-ci-executable: running ${candidates.length} gate(s) with no .env.local and no credentials\n`);
 
 // Build a CI-shaped copy: the whole tree minus .env.local, with node_modules
 // linked rather than copied.
@@ -83,12 +91,26 @@ for (const f of candidates) {
     },
   });
   const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
-  // The signature that matters: an unhandled file-not-found for the env file.
-  if (/ENOENT[\s\S]*\.env\.local/.test(out) || /Cannot find module/.test(out)) {
-    crashed.push({ f, why: /ENOENT/.test(out) ? "ENOENT on .env.local" : "module not found" });
-  } else {
-    fine.push(f);
-  }
+  /*
+   * Signatures of failing for the WRONG reason: the gate never got as far as
+   * assessing behaviour because a credential was absent.
+   *
+   * This list grew by observation, and each entry cost a CI round-trip. Fixing
+   * the ENOENT crash revealed pg dialling localhost (ECONNREFUSED), and fixing
+   * that revealed createClient throwing "supabaseUrl is required." All three are
+   * the same defect wearing different clothes: no credentials should mean a
+   * clean SKIP, never a crash.
+   */
+  const wrongReason = [
+    { re: /ENOENT[\s\S]*\.env\.local/, why: "ENOENT on .env.local" },
+    { re: /Cannot find module/, why: "module not found" },
+    { re: /ECONNREFUSED/, why: "ECONNREFUSED (pg defaulted to localhost)" },
+    { re: /supabaseUrl is required/, why: "createClient given an undefined URL" },
+    { re: /supabaseKey is required/, why: "createClient given an undefined key" },
+  ].find((c) => c.re.test(out));
+
+  if (wrongReason) crashed.push({ f, why: wrongReason.why });
+  else fine.push(f);
 }
 
 /*

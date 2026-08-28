@@ -54,6 +54,14 @@ const modFile = await compile("src/lib/queries/reassignment-candidates.ts", "can
 });
 const { getReassignmentCandidates } = require(modFile);
 
+// No credentials means no live database to read. Say so rather than letting
+// createClient throw a bare "supabaseUrl is required.", which on a runner looks
+// like a broken gate instead of an absent secret.
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.log("SKIP: no Supabase credentials, so there is no live database to check");
+  process.exit(0);
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,

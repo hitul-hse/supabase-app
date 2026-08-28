@@ -55,6 +55,19 @@ const contractFile = await compile("src/lib/queries/management-contract-hours.ts
 
 const { getManagementContractHours, PEOPLE } = require(contractFile);
 
+/*
+ * No credentials means no live database to read. Say so and stop.
+ *
+ * createClient throws a bare "supabaseUrl is required." when handed undefined,
+ * which on CI looked like a broken gate rather than an absent secret -- the same
+ * wrong-reason failure as the earlier ENOENT and ECONNREFUSED crashes, just one
+ * layer further in.
+ */
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.log("SKIP: no Supabase credentials, so there is no live database to check");
+  process.exit(0);
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,

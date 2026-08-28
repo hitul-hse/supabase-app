@@ -25,17 +25,28 @@
  * Run: npm run check:admin-user-writes
  */
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { createClient } from "@supabase/supabase-js";
 
 await loadBindings();
 
-const env = {};
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-  const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-  if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+/*
+ * Environment first, .env.local only as a local convenience.
+ *
+ * This gate already knows how to skip without credentials, but the original
+ * read was unconditional, so on a GitHub runner it threw ENOENT on this line
+ * and never reached its own SKIP. That failed the entire test:db job -- it was
+ * the last gate in the chain, so every check before it had already passed and
+ * the job still went red on a missing file rather than a real defect.
+ */
+const env = { ...process.env };
+if (existsSync(".env.local")) {
+  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    if (m && env[m[1]] === undefined) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
 }
 if (!env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: no service-role key");
@@ -66,6 +77,57 @@ async function compile(src, out, rewrites = {}) {
   const file = join(dir, out);
   writeFileSync(file, res.code);
   return file;
+}
+
+/*
+ * Sweep first: delete any probe account left behind by an EARLIER run.
+ *
+ * The try/finally below handles the throw path, and that is proven. It cannot
+ * handle a kill, and on Windows nothing can -- TerminateProcess is immediate and
+ * uncatchable, so neither `finally` nor a SIGTERM handler runs. Every timeout-kill
+ * of this gate therefore stranded one real auth account.
+ *
+ * That was not a tidiness problem. It reached 410 leaked accounts against 22 real
+ * ones and broke this gate's OWN negative control: the "pick any active employee"
+ * query returned the same leaked probe 10 times out of 10, so the assertion that a
+ * non-admin is refused had quietly stopped involving a colleague. It also put
+ * /admin/users at 22.97 screens against a 3-screen budget.
+ *
+ * A start-of-run sweeper is the only thing that closes it, because the next run is
+ * the first moment anything is alive to notice. The previous author identified this
+ * and left it unwired, reasonably, because it means a gate deleting auth rows.
+ * Wiring it now with the constraints that make it safe:
+ *
+ *   - The shape is exact and unforgeable: admin.write.probe.<digits>@example.invalid.
+ *     example.invalid is reserved by RFC 2606, so it can never be a real mailbox.
+ *   - Only rows older than 10 minutes, so a CONCURRENT run's probe is never taken.
+ *   - Anything with a person_id is skipped. A probe is never a colleague.
+ *   - It reports what it removed instead of working silently.
+ *
+ * scripts/purge-probe-accounts.mjs remains the manual, guarded bulk tool.
+ */
+{
+  const SHAPE = /^admin\.write\.probe\.\d+@example\.invalid$/;
+  const CUTOFF = Date.now() - 10 * 60 * 1000;
+  const stale = [];
+  for (let page = 1; ; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) break;
+    for (const u of data?.users ?? []) {
+      if (SHAPE.test(u.email ?? "") && Date.parse(u.created_at) < CUTOFF) stale.push(u);
+    }
+    if (!data?.users || data.users.length < 1000) break;
+  }
+  let swept = 0;
+  for (const u of stale) {
+    const { data: prof } = await admin
+      .from("app_user_profile").select("person_id").eq("user_id", u.id).maybeSingle();
+    if (prof?.person_id) continue; // never a colleague
+    await admin.from("app_user_profile").delete().eq("user_id", u.id);
+    const { error } = await admin.auth.admin.deleteUser(u.id);
+    if (!error) swept++;
+  }
+  if (swept) console.log(`  swept ${swept} probe account(s) stranded by an earlier killed run\n`);
 }
 
 // A probe account to be edited, so no real colleague is touched.
@@ -221,11 +283,39 @@ try {
   // ── 4. A non-admin is still refused ────────────────────────────────────
   // The permission gate is the whole boundary now that RLS is bypassed, so it has to
   // be shown working rather than assumed.
+  /*
+   * `person_id` NOT NULL, and never a probe address.
+   *
+   * This query used to be "any active employee", unordered. That silently
+   * stopped testing a colleague: the leak below had put 356 probe rows with
+   * role_key=employee against 12 real ones, and the query returned the SAME
+   * leaked probe in 10 of 10 replays -- 96.7% of the population was junk.
+   *
+   * How it was caught: one probe account carried a last_sign_in_at of a day
+   * AFTER its creation. Nothing signs a probe in except this gate, so a
+   * yesterday-leak was being selected as today's "employee".
+   *
+   * Why it is worth a constraint rather than a comment. The assertion means "a
+   * real colleague's session is refused admin writes". A probe row has no
+   * person_id and no department, a shape no colleague has, so the check would
+   * keep passing even if the permission logic started reading either field. It
+   * was a negative control testing something that does not exist.
+   *
+   * person_id NOT NULL is the honest definition of a colleague here, and it also
+   * excludes invite.flow.test@gmail.com, another unlinked test row.
+   */
   const { data: employee } = await admin
     .from("app_user_profile").select("user_id").eq("role_key", "employee").eq("is_active", true)
-    .neq("user_id", created.user.id).limit(1).maybeSingle();
+    .not("person_id", "is", null)
+    .neq("user_id", created.user.id)
+    .order("user_id")
+    .limit(1).maybeSingle();
   if (employee) {
     const { data: empUser } = await admin.auth.admin.getUserById(employee.user_id);
+    if (/@example\.invalid$/.test(empUser?.user?.email ?? "")) {
+      check(false, "the non-admin probe is a real colleague, not a leaked test account",
+        `picked ${empUser.user.email} -- run scripts/purge-probe-accounts.mjs --apply`);
+    }
     const { data: empLink } = await admin.auth.admin.generateLink({ type: "magiclink", email: empUser.user.email });
     const { data: empVerified } = await anon.auth.verifyOtp({ type: "magiclink", token_hash: empLink.properties.hashed_token });
 

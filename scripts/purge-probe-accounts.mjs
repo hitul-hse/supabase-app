@@ -81,11 +81,31 @@ if (candidates.length === 0) {
 
 // ── Guards ────────────────────────────────────────────────────────────────────
 const ids = candidates.map((u) => u.id);
-const { data: profiles, error: pErr } = await admin
-  .from("app_user_profile")
-  .select("user_id, role_key, person_id")
-  .in("user_id", ids);
-if (pErr) { console.log(`FAIL: could not read profiles -- ${pErr.message}`); process.exit(1); }
+
+/*
+ * Batched, because a single `.in()` with 410 UUIDs builds a query string longer
+ * than PostgREST will accept and the request dies as a bare "TypeError: fetch
+ * failed" -- no status, no message, nothing pointing at URL length.
+ *
+ * That mattered here: the failure aborted the run at the guard stage, so the
+ * script that exists to clean up 410 accounts could not read the profiles it
+ * needed to clear them safely. It only worked when the leak was smaller than
+ * the URL limit, which is exactly backwards.
+ *
+ * 200 per batch keeps the URL well inside the limit.
+ */
+const profiles = [];
+for (let i = 0; i < ids.length; i += 200) {
+  const { data, error } = await admin
+    .from("app_user_profile")
+    .select("user_id, role_key, person_id")
+    .in("user_id", ids.slice(i, i + 200));
+  if (error) {
+    console.log(`FAIL: could not read profiles (batch at ${i}) -- ${error.message}`);
+    process.exit(1);
+  }
+  profiles.push(...(data ?? []));
+}
 
 const privileged = (profiles ?? []).filter((p) => p.role_key === "exec" || p.role_key === "dept_head");
 if (privileged.length) {

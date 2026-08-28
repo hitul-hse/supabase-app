@@ -10,7 +10,7 @@
  * Every mutation is reverted in a finally block, including on crash.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
 const PAGE = "src/app/(app)/data-hygiene/page.tsx";
 const QUERY = "src/lib/queries/data-hygiene.ts";
@@ -80,6 +80,24 @@ const MUTATIONS = [
 ];
 
 let failures = 0;
+/*
+ * The gate under test needs live credentials. Without them it SKIPs and exits
+ * 0, which is honest for that gate but makes this meta-gate meaningless: a
+ * gate that never ran cannot catch a sabotage, so all 8 mutations would be
+ * reported as "not caught" and CI would fail claiming the gate is broken when
+ * it was simply never exercised.
+ *
+ * Establish first whether the gate actually runs here. If it only skips, say so
+ * and stop, rather than manufacturing 8 false accusations.
+ */
+const probe = spawnSync("node", ["--import", "./scripts/ts-resolve.mjs", "--experimental-strip-types",
+  "scripts/check-data-hygiene-page.mjs"], { encoding: "utf8" });
+if (/^SKIP/m.test(`${probe.stdout ?? ""}${probe.stderr ?? ""}`)) {
+  console.log("SKIP: the gate under test skips without credentials, so sabotaging it proves nothing.");
+  console.log("      Run with .env.local present to exercise this meta-gate.");
+  process.exit(0);
+}
+
 for (const m of MUTATIONS) {
   const original = readFileSync(m.file, "utf8");
   /*
@@ -103,7 +121,7 @@ for (const m of MUTATIONS) {
     writeFileSync(m.file, original.replace(needle, m.to));
     let exit = 0;
     try {
-      execFileSync("node", ["--experimental-strip-types", "scripts/check-data-hygiene-page.mjs"],
+      execFileSync("node", ["--import", "./scripts/ts-resolve.mjs", "--experimental-strip-types", "scripts/check-data-hygiene-page.mjs"],
         { stdio: "pipe", encoding: "utf8" });
     } catch (e) {
       exit = e.status ?? 1;
@@ -119,7 +137,7 @@ for (const m of MUTATIONS) {
 // Belt and braces: the gate must be green again now everything is reverted.
 let cleanExit = 0;
 try {
-  execFileSync("node", ["--experimental-strip-types", "scripts/check-data-hygiene-page.mjs"],
+  execFileSync("node", ["--import", "./scripts/ts-resolve.mjs", "--experimental-strip-types", "scripts/check-data-hygiene-page.mjs"],
     { stdio: "pipe", encoding: "utf8" });
 } catch (e) { cleanExit = e.status ?? 1; }
 console.log(`${cleanExit === 0 ? "PASS" : "FAIL"}: every mutation reverted, gate green again`);

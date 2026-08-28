@@ -35,11 +35,11 @@ import { loadEnv } from "./lib/gate-env.mjs";
 // clearest -- 398h stored, 201.5h actually worked, 24 future entries.
 //
 // That is a defensible product decision, not a bug, but it means a burn figure
-// includes work not yet done. KNOWN_OVERSTATED is pinned at the measured 4 so
 // the count cannot drift; the fabrication test below is the one that must stay
 // at zero.
-const KNOWN_STALE = 3;
-const KNOWN_OVERSTATED = 4;
+// Lowered 3 -> 2 after a refresh: the gate itself prints "understated SHRANK" and
+// asks for this, because a ratchet left loose stops ratcheting.
+const KNOWN_STALE = 2;
 const KNOWN_OVER_CONTRACT = 0;
 // Hours tolerance. Below this a difference is rounding, not staleness.
 const EPSILON = 0.05;
@@ -115,9 +115,42 @@ for (const r of overstated) {
   if (Number(r.stored) - Number(u.unbounded) >= EPSILON) overstatedVsUnbounded.push(r);
 }
 
-check(overstated.length <= KNOWN_OVERSTATED,
-  `orders counting future-dated work have not grown beyond ${KNOWN_OVERSTATED}`,
-  `${overstated.length} store more than their to-date entries support`);
+/*
+ * A COUNT here was the wrong pin, and it went red for the wrong reason.
+ *
+ * 96 time entries were logged over two days. The snapshot went stale, the count
+ * rose 4 -> 5, and the gate reported a defect where the only thing that had
+ * happened was people doing their jobs. The pin measured how many orders have
+ * future-dated work -- a number that moves with the calendar, not with
+ * correctness.
+ *
+ * What must hold is the CAUSE: every overstatement is explained, to the hour, by
+ * future-dated entries. That is the documented all-time-sum behaviour. An
+ * overstatement NOT explained that way is a real bug regardless of the count,
+ * and is what the fabrication check below catches.
+ *
+ * Measured after refreshing: all 5 explained exactly (Netto 180.3h excess vs
+ * 180.3h future, AWB 162.0/162.0, ENERCON 28.0/28.0, Action 20.0/20.0, RTB
+ * 0.4/0.3 rounding). So the count is now reported for information, and the
+ * assertion is that nothing is unexplained.
+ */
+const unexplainedOverstatement = [];
+for (const r of overstated) {
+  const { rows: [f] } = await c.query(`
+    select round(coalesce(sum(e.duration_seconds) filter (where e.started_at >= now()),0)/3600.0, 1) as future_hours
+    from time.project t join time.entry e on e.project_id = t.id
+    where t.hub_project_id = $1`, [r.id]);
+  const excess = Number(r.stored) - Number(r.actual);
+  // 0.15h absorbs the rounding of three separate sums, nothing more.
+  if (Math.abs(excess - Number(f.future_hours)) > 0.15) unexplainedOverstatement.push({ id: r.id, excess, future: Number(f.future_hours) });
+}
+
+console.log(`  note  ${overstated.length} order(s) include future-dated work in their stored hours`);
+check(unexplainedOverstatement.length === 0,
+  "every overstatement is explained by future-dated entries, not by invention",
+  unexplainedOverstatement.length
+    ? `${unexplainedOverstatement.length} unexplained, e.g. ${unexplainedOverstatement[0].id} excess ${unexplainedOverstatement[0].excess.toFixed(1)}h vs ${unexplainedOverstatement[0].future.toFixed(1)}h future`
+    : `all ${overstated.length} match their future-dated hours`);
 
 // THIS is the fabrication test: more hours than exist even counting the future.
 check(overstatedVsUnbounded.length === 0,

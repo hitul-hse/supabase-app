@@ -9,15 +9,21 @@
  * non-empty.
  */
 import { join, resolve } from "node:path";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-  const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-  if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+// Guarded: on a CI runner there is no .env.local and the secrets already
+// arrive as environment variables. The unguarded read threw ENOENT here before
+// the gate could report anything, failing the whole job on a missing file
+// rather than on a real defect.
+if (existsSync(".env.local")) {
+  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
 }
 
 await loadBindings();

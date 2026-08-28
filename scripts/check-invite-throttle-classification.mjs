@@ -8,8 +8,16 @@
  * predicate against the outcomes that matter.
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const src = readFileSync("C:/Supabase/scripts/check-user-management.mjs", "utf8");
+// Repo root resolved from this file, so these paths work on any machine and
+// from any working directory. They were previously hardcoded to C:/Supabase,
+// which existed on exactly one developer's laptop and nowhere else.
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+
+
+const src = readFileSync(join(REPO, "scripts/check-user-management.mjs"), "utf8");
 
 let failures = 0;
 const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };

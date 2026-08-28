@@ -19,11 +19,19 @@
  * rather than discovered by a user.
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Repo root resolved from this file, so these paths work on any machine and
+// from any working directory. They were previously hardcoded to C:/Supabase,
+// which existed on exactly one developer's laptop and nowhere else.
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+
 
 let failures = 0;
 const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
 
-const src = readFileSync("C:/Supabase/src/lib/queries/management-project-risks.ts", "utf8");
+const src = readFileSync(join(REPO, "src/lib/queries/management-project-risks.ts"), "utf8");
 
 /*
  * The predicates, lifted from the reader by regex so they cannot drift from it

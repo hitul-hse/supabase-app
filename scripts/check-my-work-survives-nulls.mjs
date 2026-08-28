@@ -24,11 +24,19 @@
  * floor and not a total, and presenting it bare invites a wrong conclusion.
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Repo root resolved from this file, so these paths work on any machine and
+// from any working directory. They were previously hardcoded to C:/Supabase,
+// which existed on exactly one developer's laptop and nowhere else.
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+
 
 let failures = 0;
 const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
 
-const q = readFileSync("C:/Supabase/src/lib/queries/my-work.ts", "utf8");
+const q = readFileSync(join(REPO, "src/lib/queries/my-work.ts"), "utf8");
 
 /* ------------------------------ the per-row handling must stay null-safe ---- */
 
@@ -97,7 +105,7 @@ check("it is counted from loggedHours, not from contractHours",
 check("the page-level totals carry it too",
   /measuredProjectCount: rows\.filter\(\(r\) => r\.loggedHours !== null\)\.length/.test(q));
 
-const cg = readFileSync("C:/Supabase/src/components/my-work/CustomerGroup.tsx", "utf8");
+const cg = readFileSync(join(REPO, "src/components/my-work/CustomerGroup.tsx"), "utf8");
 check("CustomerGroup renders the coverage when rows are omitted",
   /customer\.measuredProjectCount < customer\.projectCount/.test(cg),
   "the count is dead data unless it reaches the page");

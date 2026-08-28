@@ -65,8 +65,16 @@
  * Run: npm run check:table-scroll-budget
  */
 import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ENV_PATH = "C:/Supabase/.env.local";
+// Repo root resolved from this file, so these paths work on any machine and
+// from any working directory. They were previously hardcoded to C:/Supabase,
+// which existed on exactly one developer's laptop and nowhere else.
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+
+
+const ENV_PATH = join(REPO, ".env.local");
 
 /* ── skip path: no credentials, nothing to measure ─────────────────────── */
 if (!existsSync(".env.local") && !existsSync(ENV_PATH)) {

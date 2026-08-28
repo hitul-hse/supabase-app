@@ -34,6 +34,14 @@
  * Read-only. SKIPs without .env.local so CI runs without credentials.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Repo root resolved from this file, so these paths work on any machine and
+// from any working directory. They were previously hardcoded to C:/Supabase,
+// which existed on exactly one developer's laptop and nowhere else.
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+
 
 let failed = false;
 const check = (name, ok, detail = "") => {
@@ -41,7 +49,7 @@ const check = (name, ok, detail = "") => {
   if (!ok) failed = true;
 };
 
-const ENV = "C:/Supabase/.env.local";
+const ENV = join(REPO, ".env.local");
 if (!existsSync(ENV)) { console.log("SKIP: no .env.local"); process.exit(0); }
 
 const env = Object.fromEntries(

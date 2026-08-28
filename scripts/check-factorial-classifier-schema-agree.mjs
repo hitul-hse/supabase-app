@@ -19,10 +19,18 @@
  * status the classifier can produce, exactly as a sync would write it.
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { classifyEmployee } from "./lib/factorial.mjs";
 
-const sql = readFileSync("C:/Supabase/supabase/migrations/20260826140000_factorial_identity_review.sql", "utf8");
+// Repo root resolved from this file, so these paths work on any machine and
+// from any working directory. They were previously hardcoded to C:/Supabase,
+// which existed on exactly one developer's laptop and nowhere else.
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+
+
+const sql = readFileSync(join(REPO, "supabase/migrations/20260826140000_factorial_identity_review.sql"), "utf8");
 const db = await new PGlite();
 
 let failures = 0;

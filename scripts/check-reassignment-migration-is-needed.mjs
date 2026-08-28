@@ -13,10 +13,18 @@
  * should ask why it is still here.
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 
+// Repo root resolved from this file, so these paths work on any machine and
+// from any working directory. They were previously hardcoded to C:/Supabase,
+// which existed on exactly one developer's laptop and nowhere else.
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+
+
 const original = readFileSync(
-  "C:/Supabase/supabase/migrations/20260823090000_add_project_change_control.sql", "utf8");
+  join(REPO, "supabase/migrations/20260823090000_add_project_change_control.sql"), "utf8");
 const db = await new PGlite();
 
 let failures = 0;

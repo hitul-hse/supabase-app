@@ -25,8 +25,16 @@
  * Run: node scripts/check-projects-admit-unmeasured.mjs
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+
+// Repo root resolved from this file, so these paths work on any machine and
+// from any working directory. They were previously hardcoded to C:/Supabase,
+// which existed on exactly one developer's laptop and nowhere else.
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+
 
 const env = loadEnv();
 
@@ -107,7 +115,7 @@ check("no TT-linked order was nulled out",
 
 /* ------------------------------------------------- the importer must not regress */
 
-const src = readFileSync("C:/Supabase/scripts/import-masterdata-projects.mjs", "utf8");
+const src = readFileSync(join(REPO, "scripts/import-masterdata-projects.mjs"), "utf8");
 check("the importer distinguishes measured from unmeasured",
   /const measured = hits\.length === 1/.test(src),
   "without that flag the next import rewrites the same plausible zeros");

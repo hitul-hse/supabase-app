@@ -30,13 +30,25 @@ const throws = async (label, fn, matcher) => {
   }
 };
 
-/** A transport that serves scripted pages and records the URLs it was asked for. */
+/**
+ * A transport that serves scripted pages and records the URLs AND HEADERS it was
+ * asked for.
+ *
+ * Headers were not recorded before, and that omission let a real defect ship: the
+ * client sent `Authorization: Bearer` for a credential that requires
+ * `x-api-key`, so every live request returned 401 while all 47 assertions here
+ * stayed green. A fake transport that ignores what you send it cannot catch a
+ * wrong header, which is the limit of stubbing and worth stating out loud.
+ */
 const fakeTransport = (pages) => {
   const calls = [];
+  const headers = [];
   return {
     calls,
-    fetch: async (url) => {
+    headers,
+    fetch: async (url, init) => {
       calls.push(String(url));
+      headers.push(init?.headers ?? {});
       const cursor = new URL(url).searchParams.get("after_id");
       const page = pages.find((p) => (p.cursor ?? null) === cursor);
       if (!page) throw new Error(`fake transport: no scripted page for cursor ${cursor}`);
@@ -310,6 +322,49 @@ check("a far-future planned entry is out of bounds", boundedAtToday("2026-12-31"
   "TrackingTime holds entries dated 2026-12-31; an unbounded sum reports them as worked");
 check("a null date is out of bounds rather than silently included",
   boundedAtToday(null, today) === false);
+
+
+/* ====================================================== the auth scheme */
+
+console.log("\n--- the auth header (a wrong scheme is 401 on every real request)\n");
+
+{
+  // Default must be x-api-key: that is the credential that exists.
+  const t = fakeTransport([{ cursor: null, body: { data: [row(1)], meta: { has_next_page: false } } }]);
+  await fetchAllPages({ resource: "r", token: "secret", transport: t.fetch });
+  const h = t.headers[0] ?? {};
+  check("the default auth scheme sends x-api-key",
+    h["x-api-key"] === "secret",
+    `sent: ${Object.keys(h).join(", ")}`);
+  check("and does NOT send Authorization by default",
+    !("Authorization" in h),
+    "Bearer with an API key returns 401 — measured against company 157774");
+}
+
+{
+  // OAuth remains available for when a company token replaces the key.
+  const t = fakeTransport([{ cursor: null, body: { data: [row(1)], meta: { has_next_page: false } } }]);
+  await fetchAllPages({ resource: "r", token: "oauth-tok", auth: "bearer", transport: t.fetch });
+  const h = t.headers[0] ?? {};
+  check("auth:'bearer' sends Authorization: Bearer",
+    h.Authorization === "Bearer oauth-tok",
+    `sent: ${JSON.stringify(h).slice(0, 80)}`);
+  check("and then does NOT also send x-api-key",
+    !("x-api-key" in h),
+    "sending both would mask which scheme actually authenticated");
+}
+
+{
+  // Every page must carry the header, not just the first.
+  const t = fakeTransport([
+    { cursor: null, body: { data: [row(1)], meta: { has_next_page: true, end_cursor: "c1" } } },
+    { cursor: "c1", body: { data: [row(2)], meta: { has_next_page: false } } },
+  ]);
+  await fetchAllPages({ resource: "r", token: "secret", transport: t.fetch });
+  check("every page carries the auth header, not only the first",
+    t.headers.length === 2 && t.headers.every((h) => h["x-api-key"] === "secret"),
+    `${t.headers.length} request(s), ${t.headers.filter((h) => h["x-api-key"] === "secret").length} authenticated`);
+}
 
 console.log(failures === 0
   ? `\nFACTORIAL CLIENT: pages completely or fails loudly. ${MAX_PAGES}-page cap, cursor cycles refused.`

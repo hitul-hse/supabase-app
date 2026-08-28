@@ -97,6 +97,19 @@ export async function fetchAllPages({
   resource,
   params = {},
   token,
+  /*
+   * "api-key" sends `x-api-key`; "bearer" sends `Authorization: Bearer`.
+   *
+   * Measured 2026-08-28 against company 157774: the API key in .env.local gets
+   * HTTP 200 with x-api-key and HTTP 401 with Bearer, on the same URL. This file
+   * shipped Bearer-only, so every real request it made would have failed -- and
+   * its 47 fake-transport assertions all passed, because a fake transport does
+   * not care what header you send it. That is the limit of a stubbed test.
+   *
+   * Default is api-key because that is the credential that exists. OAuth remains
+   * supported for when a company token replaces it.
+   */
+  auth = "api-key",
   base = "https://api.factorialhr.com",
   version = "2026-07-01",
   limit = MAX_LIMIT,
@@ -117,7 +130,12 @@ export async function fetchAllPages({
     const url = buildUrl({ base, version, resource, params, cursor, limit });
 
     const res = await transport(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      headers: {
+        ...(auth === "bearer"
+          ? { Authorization: `Bearer ${token}` }
+          : { "x-api-key": token }),
+        Accept: "application/json",
+      },
     });
 
     /*

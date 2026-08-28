@@ -21,6 +21,15 @@ import { loadEnv } from "./lib/gate-env.mjs";
 
 const env = loadEnv();
 
+// No database URL means no live database to check -- on CI without secrets, or
+// on a clean checkout. Skipping says so; passing pg an undefined connection
+// string makes it default to localhost:5432 and fail with ECONNREFUSED, which
+// reads like a broken gate rather than an absent credential.
+if (!env.SUPABASE_DB_URL) {
+  console.log("SKIP: no SUPABASE_DB_URL, so there is no live database to check");
+  process.exit(0);
+}
+
 // Parse the allowlist out of the source rather than duplicating it, so the gate
 // cannot drift from the thing it is guarding.
 const SOURCE = "src/lib/queries/management-contract-hours.ts";

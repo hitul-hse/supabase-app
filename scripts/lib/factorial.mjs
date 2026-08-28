@@ -322,3 +322,88 @@ export const boundedAtToday = (iso, today = new Date()) => {
   if (!d) return false;
   return d <= today.toISOString().slice(0, 10);
 };
+
+/*
+ * THE FIELD ALLOW-LIST — the compensating control for using an API key.
+ *
+ * check-factorial-auth already tells the reader this exists ("The field
+ * allow-list in scripts/lib/factorial.mjs is the compensating control until
+ * then, and check-factorial-harvest asserts it"). Until now neither the
+ * allow-list nor that gate did. This is the missing half.
+ *
+ * WHY IT IS NEEDED. An API key cannot be scope-limited: it grants total access.
+ * The OpenAPI schema `employees_employee` carries 54 fields, and reading the
+ * list is enough to see the problem -- bank_number, swift_bic,
+ * social_security_number, identifier (national ID) and identifier_expiration_date,
+ * birthday_on, nationality, country_of_birth, birthplace, gender,
+ * disability_percentage_cents, address_line_1/2, personal_email, phone_number.
+ *
+ * Two that are easy to miss and matter most:
+ *   - contact_name / contact_number are the EMERGENCY CONTACT: personal data
+ *     about a third party who never dealt with us at all and cannot have
+ *     consented. Nothing in an hours-and-utilisation product can justify it.
+ *   - postal_code, city, state, country, age_number and pronouns read as
+ *     harmless metadata and are not. A partial address plus a name identifies a
+ *     person, and age_number is birthday_on with one step removed.
+ *
+ * ALLOW, NEVER DENY. The list below names what may be kept; everything else is
+ * dropped, including fields Factorial has not invented yet. A deny-list would
+ * silently start storing whatever the next API version adds, which is exactly
+ * the failure mode a compensating control exists to prevent.
+ *
+ * WHY THESE FIVE. Four are what classifyEmployee() actually reads -- see its
+ * @param, `{ id, login_email, full_name, active }` -- and company_id populates
+ * crm.factorial_identity_review.factorial_company_id, which is NOT NULL. Nothing
+ * else in the integration reads an employee field, so nothing else is kept. Add
+ * to this list only with a stated reason; every addition is a new category of
+ * personal data entering the hub.
+ *
+ * full_name is kept for DISPLAY ONLY and must never be a matching input --
+ * matching on a name is the name-similarity guess ADR-001 forbids. It exists so
+ * a human working the review queue can recognise the colleague, which they
+ * cannot reliably do from an id.
+ */
+export const EMPLOYEE_ALLOWED_FIELDS = Object.freeze([
+  "id",
+  "company_id",
+  "login_email",
+  "full_name",
+  "active",
+]);
+
+/**
+ * Keep only the allow-listed fields of a Factorial employee.
+ *
+ * Returns a NEW object built by picking, not by deleting from the original: a
+ * delete-based filter leaves anything it forgot, and "what did I forget" is the
+ * question this function exists so nobody has to answer.
+ *
+ * A missing allow-listed field yields `undefined` rather than throwing. Absence
+ * is a real answer from this API and the classifier already handles it (no
+ * login_email -> 'unmatched'); throwing here would turn one incomplete record
+ * into a failed sync for everyone.
+ */
+export function projectEmployee(raw) {
+  const out = {};
+  for (const k of EMPLOYEE_ALLOWED_FIELDS) out[k] = raw?.[k];
+  return out;
+}
+
+/**
+ * Fields that must NEVER survive projection, named individually so the gate can
+ * assert each one rather than trusting the allow-list to be complete by
+ * construction. Two independent statements of the same rule catch a typo in
+ * either. Not exhaustive, and not meant to be -- the allow-list is what makes it
+ * safe; this is the tripwire.
+ */
+export const EMPLOYEE_FORBIDDEN_FIELDS = Object.freeze([
+  "bank_number", "swift_bic", "bank_number_format",
+  "social_security_number", "identifier", "identifier_type",
+  "identifier_expiration_date", "birthday_on", "age_number",
+  "nationality", "country_of_birth", "birthplace", "gender", "pronouns",
+  "disability_percentage_cents", "address_line_1", "address_line_2",
+  "postal_code", "city", "state", "country",
+  "personal_email", "phone_number", "birth_name",
+  "contact_name", "contact_number",
+  "termination_reason", "termination_observations",
+]);

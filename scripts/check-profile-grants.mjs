@@ -53,10 +53,24 @@ async function clientFor(userId) {
   const anon = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
     auth: { persistSession: false },
   });
-  const { data: verified } = await anon.auth.verifyOtp({
+  const { data: verified, error: otpErr } = await anon.auth.verifyOtp({
     type: "magiclink",
     token_hash: link.properties.hashed_token,
   });
+  /*
+   * Fail with a sentence rather than a TypeError.
+   *
+   * Reading verified.session.access_token directly threw "Cannot read
+   * properties of null" whenever the OTP did not yield a session -- which is
+   * what happens for an account that cannot sign in, such as one whose email is
+   * unconfirmed. The stack trace named a property, not a cause, and because of
+   * the missing catch below it did not even fail the gate.
+   */
+  if (otpErr || !verified?.session?.access_token) {
+    throw new Error(
+      `could not obtain a session for ${userId}: ${otpErr?.message ?? "verifyOtp returned no session"}`,
+    );
+  }
   return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
     auth: { persistSession: false },
     global: { headers: { Authorization: `Bearer ${verified.session.access_token}` } },
@@ -175,6 +189,21 @@ try {
     (await readProbe()) === null,
     JSON.stringify(await readProbe()),
   );
+} catch (err) {
+  /*
+   * A THROWN error has to fail this gate, and previously it did not.
+   *
+   * With only try/finally, an exception ran the cleanup and then propagated out
+   * of top-level await as an unhandled rejection. Node printed the stack -- so
+   * the crash was visible in the log -- but the process still exited 0, and the
+   * `&&` chain in test:db carried on to the next gate. The suite reported
+   * success over a check that never actually ran.
+   *
+   * Counting it as a failure is the whole point: a gate that cannot complete
+   * has not verified anything.
+   */
+  failed += 1;
+  console.log(`\nFAIL  the gate could not run to completion — ${err.message}`);
 } finally {
   await admin.from("app_user_profile").delete().eq("user_id", created.user.id);
   await admin.auth.admin.deleteUser(created.user.id);

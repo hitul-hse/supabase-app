@@ -164,7 +164,7 @@ export function CustomerPortfolioCharts({
           so prevents the most natural misreading of a customer donut.
         */}
         <ChartNote>
-          Each customer's share of delivered hours. This measures effort, not fee
+          Each customer&apos;s share of delivered hours. This measures effort, not fee
           — rates differ by customer, so the largest slice is not necessarily the
           largest account.
         </ChartNote>

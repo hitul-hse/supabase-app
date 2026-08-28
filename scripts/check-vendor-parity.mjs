@@ -31,13 +31,34 @@
  *
  * Run: node scripts/check-vendor-parity.mjs
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
-const env = {};
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-  const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-  if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+/*
+ * Credentials come from the ENVIRONMENT first, then .env.local as a local
+ * convenience.
+ *
+ * This order is not cosmetic. The original version read .env.local
+ * unconditionally, so on a GitHub runner -- where that file does not and must
+ * not exist -- it threw ENOENT before performing a single check. This step ran
+ * daily from 19 to 26 August and failed every time with the identical crash,
+ * while the sync step above it succeeded and wrote status='ok' to raw.sync_run.
+ *
+ * The result was the worst available outcome: the workflow was RED for eight
+ * consecutive days, the freshness check that follows reported "SYNC FRESHNESS:
+ * OK" because the sync itself had worked, and the drift this script exists to
+ * detect (96 missing events, 100.1h) accumulated unseen behind a green-looking
+ * dashboard.
+ *
+ * A guard that cannot run in the place it is scheduled to run is not a guard.
+ */
+const env = { ...process.env };
+if (existsSync(".env.local")) {
+  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    // Do not let a local file quietly override a secret injected by CI.
+    if (m && env[m[1]] === undefined) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
 }
 const {
   NEXT_PUBLIC_SUPABASE_URL: URL_BASE,
@@ -106,7 +127,7 @@ const ours = [];
   toExcl.setUTCDate(toExcl.getUTCDate() + 1);
   for (let off = 0; ; off += 1000) {
     const { data, error } = await admin.schema("time").from("entry")
-      .select("source_id,duration_seconds,is_calendar,started_at")
+      .select("source_id,duration_seconds,is_calendar,started_at,source_system")
       .gte("started_at", `${FROM}T00:00:00.000Z`)
       .lt("started_at", toExcl.toISOString())
       .not("duration_seconds", "is", null)
@@ -122,21 +143,50 @@ const ours = [];
   }
 }
 
+/*
+ * Split OUR rows by origin before comparing anything.
+ *
+ * Not every entry we hold came from TrackingTime. The Hub lets someone log time
+ * directly, and those rows are written with source_system='manual' and a null
+ * source_id because no vendor event backs them. They are real, deliberate hours
+ * -- as valid as any imported one.
+ *
+ * The first version of this gate ignored that and compared EVERY row against the
+ * vendor's id set. A manually logged hour therefore appeared as "deleted in
+ * TrackingTime but still here, inflating our totals", which is close to the
+ * opposite of the truth: nothing was deleted and nothing was inflated. It also
+ * made the hour-total check fail by exactly that amount forever, since a manual
+ * entry can never appear on the vendor's side.
+ *
+ * Vendor parity is a statement about the SYNCED subset. Locally-authored rows
+ * are reported separately so they stay visible without being called drift.
+ */
+const isVendorRow = (r) => r.source_id != null && r.source_system !== "manual";
+const vendorRows = ours.filter(isVendorRow);
+const localRows = ours.filter((r) => !isVendorRow(r));
+
 const ttSeconds = ttEvents.reduce((a, e) => a + secs(e), 0);
 const ourSeconds = ours.reduce((a, r) => a + (Number(r.duration_seconds) || 0), 0);
+const vendorSeconds = vendorRows.reduce((a, r) => a + (Number(r.duration_seconds) || 0), 0);
+const localSeconds = localRows.reduce((a, r) => a + (Number(r.duration_seconds) || 0), 0);
 const ourCalendar = ours.filter((r) => r.is_calendar).reduce((a, r) => a + (Number(r.duration_seconds) || 0), 0);
 const ourToDate = ours
   .filter((r) => r.started_at.slice(0, 10) <= TODAY)
   .reduce((a, r) => a + (Number(r.duration_seconds) || 0), 0);
 const ourFuture = ourSeconds - ourToDate;
 
-console.log(`comparing ${year}: vendor ${ttEvents.length} events / ${h(ttSeconds)}h · ours ${ours.length} entries / ${h(ourSeconds)}h\n`);
+console.log(`comparing ${year}: vendor ${ttEvents.length} events / ${h(ttSeconds)}h · ours ${ours.length} entries / ${h(ourSeconds)}h`);
+if (localRows.length) {
+  console.log(`  of ours, ${localRows.length} entry(s) / ${h(localSeconds)}h were logged in the Hub itself `
+    + `(source_system='manual'), so they are excluded from the vendor comparison below.`);
+}
+console.log("");
 
-// 1. Row parity, both directions.
-const ourIds = new Set(ours.map((r) => String(r.source_id)));
+// 1. Row parity, both directions, across the SYNCED subset only.
+const ourIds = new Set(vendorRows.map((r) => String(r.source_id)));
 const ttIds = new Set(ttEvents.map((e) => String(e.ID ?? e.id)));
 const missing = ttEvents.filter((e) => !ourIds.has(String(e.ID ?? e.id)));
-const stale = ours.filter((r) => !ttIds.has(String(r.source_id)));
+const stale = vendorRows.filter((r) => !ttIds.has(String(r.source_id)));
 
 check(
   "every TrackingTime event for this year exists in our database",
@@ -154,10 +204,14 @@ check(
 );
 
 // 2. Hours parity: catches a present row with the wrong duration.
+// Compared against the SYNCED subset, since manually logged Hub hours have no
+// vendor counterpart and would otherwise show up as a permanent difference.
 check(
   "total hours match the vendor exactly",
-  Math.abs(ttSeconds - ourSeconds) < 60,
-  `vendor ${h(ttSeconds)}h vs ours ${h(ourSeconds)}h (difference ${h(Math.abs(ttSeconds - ourSeconds))}h)`,
+  Math.abs(ttSeconds - vendorSeconds) < 60,
+  `vendor ${h(ttSeconds)}h vs ours ${h(vendorSeconds)}h from TrackingTime`
+  + `${localRows.length ? ` (+${h(localSeconds)}h logged in the Hub, not vendor data)` : ""}`
+  + ` (difference ${h(Math.abs(ttSeconds - vendorSeconds))}h)`,
 );
 
 // 3+4. The number the user actually compares.

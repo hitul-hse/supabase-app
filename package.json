@@ -81,6 +81,7 @@
                     "sync:trackingtime":  "node scripts/sync-trackingtime.mjs",
                     "sync:full":  "node scripts/sync-trackingtime.mjs --full",
                     "check:sync-freshness":  "node scripts/check-sync-freshness.mjs",
+                    "check:sync-schedule-alive":  "node scripts/check-sync-schedule-alive.mjs",
                     "test:sync-drilldown":  "node scripts/check-sync-and-drilldown.mjs",
                     "test:projects-module":  "node scripts/check-projects-module.mjs",
                     "test:people-module":  "node scripts/check-people-module.mjs",

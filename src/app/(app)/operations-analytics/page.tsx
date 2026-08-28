@@ -1,3 +1,7 @@
+import { PageHeader } from "@/components/PageHeader";
+import PageTransition from "@/components/animations/PageTransition";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/EmptyState";
 import { requirePermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { createClient } from "@/utils/supabase/server";
@@ -6,7 +10,7 @@ import { getFactorialHoursReport } from "@/lib/queries/factorial-hours";
 
 export const metadata = {
   title: "Operations Analytics",
-  description: "Factorial HR vs TrackingTime hours comparison",
+  description: "Factorial HR presence vs TrackingTime hours",
 };
 
 export default async function OperationsAnalyticsPage() {
@@ -23,12 +27,11 @@ export default async function OperationsAnalyticsPage() {
   const supabase = await createClient();
 
   /*
-   * Fetch inside try, render OUTSIDE it. The react-hooks/error-boundaries rule
-   * forbids constructing JSX within try/catch, and it has a point: React renders
-   * lazily, so a rendering error thrown by FactorialHoursPanel would NOT be
-   * caught here anyway — only the data fetch can actually fail in this block.
-   * Catching exactly that, and deciding which JSX to return afterwards, keeps
-   * the error handling honest about what it can and cannot catch.
+   * Fetch inside try, render OUTSIDE it. React renders lazily, so a rendering
+   * error thrown by the panel would not be caught here anyway — only the data
+   * fetch can actually fail in this block, and that is the only thing caught.
+   * A thrown error here means the TRACKINGTIME side failed; Factorial failures
+   * are caught inside the query and reported inline on the panel.
    */
   let report: Awaited<ReturnType<typeof getFactorialHoursReport>> | null = null;
   let loadError: string | null = null;
@@ -38,29 +41,23 @@ export default async function OperationsAnalyticsPage() {
     loadError = error instanceof Error ? error.message : String(error);
   }
 
-  if (loadError !== null || report === null) {
-    return (
-      <div className="space-y-6 p-6">
-        <div>
-          <h1 className="text-3xl font-bold">Operations Analytics</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Error loading report.</p>
-        </div>
-        <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-          <pre className="text-sm">{loadError ?? "report was empty"}</pre>
-        </div>
-      </div>
-    );
-  }
+  const content = report ? (
+    <FactorialHoursPanel report={report} />
+  ) : (
+    <Card>
+      <EmptyState title="Report unavailable" description={loadError ?? "Unknown failure"} />
+    </Card>
+  );
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold">Operations Analytics</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Factorial HR presence (90-day window) vs TrackingTime logged hours.
-        </p>
+    <PageTransition>
+      <div className="flex flex-col">
+        <PageHeader
+          title="Operations Analytics"
+          meta="FACTORIAL PRESENCE · TRACKINGTIME HOURS · 90 DAYS"
+        />
+        <main className="flex flex-col gap-4 page-shell">{content}</main>
       </div>
-      <FactorialHoursPanel report={report} />
-    </div>
+    </PageTransition>
   );
 }

@@ -38,21 +38,47 @@
  * misattribute billable hours and hand one employee another's work through RLS,
  * so a single weak signal is not good enough.
  *
- * PROJECTS use the order number, which is the only strong identifier present.
- * public.projects.id and .code are identical for all 231 rows and have the shape
- * 10121_00359_104_01 (customer_order_service_seq). The rule is therefore an
- * EXACT equality: time.project.code = public.projects.id.
+ * PROJECTS use two rules, applied in order.
+ *
+ * RULE A — the order number, an EXACT equality: time.project.code =
+ * public.projects.id. public.projects.id and .code are identical for all 231 rows
+ * and have the shape 10121_00359_104_01 (customer_order_service_seq). This rule is
+ * now EXHAUSTED: it has already been applied and finds 0 remaining candidates,
+ * because 154 of the 157 still-unbridged rows carry no code at all.
+ *
+ * RULE B — structured inference from time.project.customer_id + service_id, with
+ * the meaning of each learned from the rows that are already bridged, and six
+ * guards that each killed measured false positives. Fully documented at its own
+ * section below. It is deliberately narrow, and its counts move as the bridge
+ * fills, so they are dated rather than stated as standing fact: on 2026-08-26,
+ * against 177 bridged rows, it linked 14 and refused 143; on 2026-08-27, against
+ * 187 bridged rows, it links 0 and refuses all 149 that remain. The script PRINTS
+ * the current numbers -- read those, not this paragraph.
+ *
+ * That it now links nothing is not evidence it is broken. A leave-one-out check
+ * (rebuild the maps from every OTHER bridged row, then ask what this row would
+ * get) reproduces the stored hub_project_id on 111 of the 187 rows, makes no call
+ * on 74, and picks a different order on 2. So the rule agrees with what is in the
+ * table wherever it is willing to speak at all. What it does NOT establish is who
+ * wrote those rows: link-tt-to-hub-projects.mjs and link-tt-round2.mjs also set
+ * hub_project_id, and 96 of the 187 carry a code that differs from their link, so
+ * attribution between the three is not settled here and should not be assumed.
+ *
  * Rules deliberately NOT used, because they were measured and found unsafe:
  *   - time.project.source_id: a TrackingTime numeric id (e.g. 2728565). Zero of
  *     334 match any project id or code. Useless here.
  *   - exact name equality: zero matches out of 334. The two systems name
  *     projects differently ("KIKO Germany GmbH / 26 SiFa" vs "Caseking
  *     (Arbeitsschutz) 25/26").
- *   - the 5-digit customer prefix inside the name: 0 unique hits, 18 ambiguous.
+ *   - the 5-digit customer prefix inside the name: 0 unique hits, 16 ambiguous.
  *     A customer has several concurrent orders, so the customer number cannot
  *     identify an order. This is exactly the guess that must not be made:
  *     picking any one of a customer's orders would silently book hours against
  *     the wrong contract and corrupt budget burn.
+ *   - "the customer happens to have exactly one order in the hub": tested, and
+ *     it produced 11 candidates of which the service-segment check proved 4
+ *     WRONG (e.g. "Arden University / 25/26 BA" onto a SiFa order). Uniqueness
+ *     there reflects an incomplete hub table, not a real one-to-one.
  *   - fuzzy/prefix code matching: three time.project rows carry a code whose
  *     order number does not exist in public.projects (01.03.01 twice, which is a
  *     service code not an order number, and 10178_00028_104_01). They stay NULL.
@@ -427,12 +453,223 @@ for (const p of badCode) {
   console.log(`    code="${p.code}" exists but matches no hub project: "${p.name}" (${p.entries} entries)`);
 }
 
+// ── RULE B: structured customer + service inference ──────────────────────────
+//
+// Rule A above (code == public.projects.id) is now EXHAUSTED: it finds 0 remaining
+// candidates, because 154 of the 157 still-unbridged rows have no code at all.
+// scripts/diagnose-project-bridge.mjs measured every text-based signal on those
+// 154 and every one scored ZERO: source_id vs hub id (0/157), an order number
+// embedded in the name (0), exact name equality (0), leading 5-digit customer
+// number (0 unique, 16 ambiguous). Fuzzy name matching cannot rescue this.
+//
+// But two STRUCTURED foreign keys on time.project were never used: customer_id
+// and service_id. Neither is a guess — both are real ids maintained by the
+// source system. And the rows that are ALREADY bridged are ground truth
+// that tells us what each one means in hub terms:
+//
+//   time.customer_id -> the 5-digit customer number of its hub orders
+//     89 time customers appear in bridged data; 84 map to exactly one hub
+//     customer number, 5 are inconsistent and are therefore not used.
+//
+//   time.service_id  -> the 3-digit SERVICE segment of the order number
+//     service  7 (Grundunterweisung)  -> 701   10/10 = 100%
+//     service  5 (Brandschutzbeauftr.)-> 501    7/7  = 100%
+//     service  1 (SiFa)               -> 104   70/77 =  91%
+//     service  6 (Risk Assessment)    -> 401    5/6  =  83%
+//     service  2 (Betriebsarzt)       -> 205   40/56 =  71%   <- NOT pure
+//
+// An order number is customer_order_SERVICE_seq, so knowing the customer AND the
+// service pins down the order — but only if exactly one hub order has that
+// combination. That is the rule, and it is checked, not assumed.
+//
+// SIX GUARDS, each of which killed real false positives when measured:
+//
+//  1. If the time-side name states its own 5-digit number, it must equal the
+//     inferred customer. This caught 14 rows, including the single most valuable
+//     one: "Enercon W-10842-001-007 WF Georgsdorf" (270.3h). Its customer link
+//     implies 10388, but the name says 10842. Investigating settled it: 10842 is
+//     a wind-TURBINE site code (W-13085, W-13294, W-13019 are others), not a
+//     customer number, and Enercon's three real hub orders are already bridged.
+//     There is no fourth order for Georgsdorf in the hub at all. Those 270 hours
+//     are unbillable because the ORDER IS MISSING UPSTREAM, and the honest
+//     answer is NULL. Under a weaker rule this row would have been the biggest
+//     single mis-attribution in the whole backfill.
+//
+//  2. The hub order must not already be claimed by another time.project. Caught 4.
+//
+//  3. The name must not carry a service word that the ground truth associates
+//     with a DIFFERENT segment. This is what stops "Arden University / 25/26 BA"
+//     being linked to 10259_00128_104_01, a SiFa order: BA is occupational-
+//     physician work, a different service at a different rate.
+//
+//  4. The two customer names must share a distinctive word. A structural
+//     inference that the humans' own labels contradict is not trustworthy.
+//
+//  5. The customer must be unambiguous in ground truth (the 5 inconsistent ones
+//     are refused outright).
+//
+//  6. RUNNER-UP SEGMENT. service 2 maps to 205 only 71% of the time; the other
+//     29% is 203. So "the customer has exactly one 205 order" is not enough —
+//     if that customer ALSO has a 203 order, the true answer could be either and
+//     the row must stay NULL. This guard makes an impure service mapping safe to
+//     use instead of having to discard it.
+//
+// What this rule deliberately does NOT do: it never links travel time or
+// internal/HSE work. Those are 1,495.3h of the 2,418.4h gap and they have no
+// customer order BY DEFINITION — they are not sold under an order number, so no
+// hub_project_id could ever be correct for them. Their NULL is the accurate
+// value, not a defect. The remaining client-work gap is 923.2h, and most of it
+// is orders that simply do not exist in public.projects yet.
+h("3b. PROJECTS — structured customer + service inference (Rule B)");
+
+const bridgedTruth = (await c.query(`
+  select p.customer_id, p.service_id, p.hub_project_id, p.name
+    from time.project p where p.hub_project_id is not null`)).rows;
+
+const custMap = new Map();   // time.customer_id -> Map(hub 5-digit prefix -> count)
+const svcMap = new Map();    // time.service_id  -> Map(hub 3-digit segment -> count)
+const svcWords = new Map();  // hub segment      -> Map(word -> count) seen on the time side
+for (const b of bridgedTruth) {
+  if (b.customer_id != null) {
+    const pre = String(b.hub_project_id).slice(0, 5);
+    if (!custMap.has(b.customer_id)) custMap.set(b.customer_id, new Map());
+    const m = custMap.get(b.customer_id); m.set(pre, (m.get(pre) ?? 0) + 1);
+  }
+  const seg = String(b.hub_project_id).split("_")[2];
+  if (b.service_id != null) {
+    if (!svcMap.has(b.service_id)) svcMap.set(b.service_id, new Map());
+    const m = svcMap.get(b.service_id); m.set(seg, (m.get(seg) ?? 0) + 1);
+  }
+  if (!svcWords.has(seg)) svcWords.set(seg, new Map());
+  const bag = svcWords.get(seg);
+  for (const raw of String(b.name).split(/[^\p{L}\p{N}]+/u)) {
+    const t = norm(raw);
+    if (t.length >= 2 && !/^\d+$/.test(t)) bag.set(t, (bag.get(t) ?? 0) + 1);
+  }
+}
+const segVocab = new Map();
+for (const [seg, bag] of svcWords) {
+  segVocab.set(seg, new Set([...bag.entries()].filter(([, n]) => n >= 2).map(([t]) => t)));
+}
+const takenHub = new Set(bridgedTruth.map((b) => b.hub_project_id));
+
+console.log(`  learned from the ${bridgedTruth.length} already-bridged rows (ground truth, not assumption):`);
+console.log(`    time.customer -> hub customer number : ${[...custMap.values()].filter((m) => m.size === 1).length}` +
+  ` of ${custMap.size} customers map to exactly one (the rest are refused)`);
+console.log("    time.service  -> hub service segment :");
+for (const [sid, m] of [...svcMap.entries()].sort((a, b) => Number(a[0]) - Number(b[0]))) {
+  const tot = [...m.values()].reduce((a, b) => a + b, 0);
+  const ranked = [...m.entries()].sort((a, b) => b[1] - a[1]);
+  console.log(`      service ${String(sid).padStart(2)} -> ${ranked[0][0]}  ${ranked[0][1]}/${tot} = ${((ranked[0][1] / tot) * 100).toFixed(0)}%` +
+    (ranked.length > 1 ? `   (runner-up ${ranked[1][0]} x${ranked[1][1]})` : "   (pure)"));
+}
+
+const unbridgedRows = (await c.query(`
+  select p.id, p.name, p.customer_id, p.service_id, tc.name tc_name,
+         (select count(*)::int from time.entry e where e.project_id=p.id) entries,
+         (select coalesce(sum(e.duration_seconds),0)::bigint from time.entry e where e.project_id=p.id) secs
+    from time.project p left join time.customer tc on tc.id=p.customer_id
+   where p.hub_project_id is null order by 7 desc`)).rows;
+const hubRows = (await c.query(`select id, name, customer from public.projects`)).rows;
+
+const ruleB = [], ruleBRefused = [];
+for (const p of unbridgedRows) {
+  const no = (r) => ruleBRefused.push({ p, r });
+  if (p.customer_id == null || p.service_id == null) { no("no customer_id or service_id on the time row"); continue; }
+
+  const cm = custMap.get(p.customer_id);
+  if (!cm) { no("this customer never appears in the bridged ground truth"); continue; }
+  if (cm.size !== 1) { no(`customer maps to ${cm.size} different hub customer numbers — inconsistent`); continue; }
+  const pre = [...cm.keys()][0];
+  const custSamples = [...cm.values()][0];
+
+  // GUARD 1 — the name's own customer number must not contradict the inference.
+  const own = /(?:^|\D)(\d{5})(?:\D|$)/.exec(String(p.name).trim());
+  if (own && own[1] !== pre) { no(`name states customer ${own[1]} but the customer link implies ${pre} — CONTRADICTION`); continue; }
+
+  const sm = svcMap.get(p.service_id);
+  if (!sm) { no("this service never appears in the bridged ground truth (e.g. travel time, internal)"); continue; }
+  const tot = [...sm.values()].reduce((a, b) => a + b, 0);
+  const ranked = [...sm.entries()].sort((a, b) => b[1] - a[1]);
+  const seg = ranked[0][0], purity = ranked[0][1] / tot;
+
+  const matches = hubRows.filter((x) => String(x.id).startsWith(pre + "_") && String(x.id).split("_")[2] === seg);
+  if (matches.length === 0) { no(`customer ${pre} has no hub order in service segment ${seg} — the order is missing upstream`); continue; }
+  if (matches.length > 1) { no(`${matches.length} hub orders share customer ${pre} + segment ${seg} — ambiguous`); continue; }
+  const hx = matches[0];
+
+  // GUARD 6 — if this service also maps to other segments, and the customer has
+  // an order in one of those too, the answer is genuinely undecidable.
+  const rivals = ranked.slice(1).map(([s]) => s)
+    .filter((s) => hubRows.some((x) => String(x.id).startsWith(pre + "_") && String(x.id).split("_")[2] === s));
+  if (rivals.length) { no(`service ${p.service_id} also maps to segment(s) ${rivals.join("/")} and customer ${pre} has an order there too — undecidable`); continue; }
+
+  // GUARD 2 — do not steal a hub order already bridged elsewhere.
+  if (takenHub.has(hx.id)) { no(`hub order ${hx.id} is already bridged to another time.project`); continue; }
+
+  // GUARD 3 — the name must not name a different service.
+  const mine = new Set(String(p.name).split(/[^\p{L}\p{N}]+/u).map(norm).filter((t) => t.length >= 2 && !/^\d+$/.test(t)));
+  const ownV = segVocab.get(seg) ?? new Set();
+  const foreign = [];
+  for (const [oseg, ov] of segVocab) {
+    if (oseg === seg) continue;
+    for (const t of mine) if (ov.has(t) && !ownV.has(t)) foreign.push(`${t}→${oseg}`);
+  }
+  if (foreign.length) { no(`name carries service words of another segment: ${[...new Set(foreign)].slice(0, 3).join(", ")}`); continue; }
+
+  // GUARD 4 — the humans' own client labels must agree on at least one word.
+  const A = new Set([...String(p.name).split(/[^\p{L}\p{N}]+/u), ...String(p.tc_name ?? "").split(/[^\p{L}\p{N}]+/u)]
+    .map(norm).filter((t) => t.length >= 4 && !/^\d+$/.test(t)));
+  const B = new Set([...String(hx.name).split(/[^\p{L}\p{N}]+/u), ...String(hx.customer ?? "").split(/[^\p{L}\p{N}]+/u)]
+    .map(norm).filter((t) => t.length >= 4 && !/^\d+$/.test(t)));
+  const sharedTok = [...A].filter((t) => B.has(t) ||
+    [...B].some((u) => u.length >= 5 && t.length >= 5 && (u.startsWith(t) || t.startsWith(u))));
+  if (!sharedTok.length) { no(`client names share no distinctive word: "${p.tc_name}" vs "${hx.customer}"`); continue; }
+
+  takenHub.add(hx.id);   // one hub order is claimed at most once by this run
+  ruleB.push({ p, hx, pre, seg, purity, tot, custSamples, sharedTok });
+}
+
+console.log(`\n  ${ruleB.length} row(s) pass all six guards, carrying ${hours(ruleB.reduce((a, x) => a + Number(x.p.secs), 0))}h:`);
+for (const a of ruleB.sort((x, y) => Number(y.p.secs) - Number(x.p.secs))) {
+  console.log(`    LINK ${hours(a.p.secs).padStart(7)}h ${String(a.p.entries).padStart(3)}e  "${a.p.name}" [${a.p.tc_name}]`);
+  console.log(`         → ${a.hx.id} "${a.hx.name}"`);
+  console.log(`         customer ${a.pre} (seen ${a.custSamples}x in ground truth), service ${a.p.service_id}→${a.seg} ` +
+    `(${(a.purity * 100).toFixed(0)}% over ${a.tot}), client word ${JSON.stringify(a.sharedTok.slice(0, 2))}, sole order for that pair`);
+}
+
+console.log(`\n  ${ruleBRefused.length} row(s) refused. Reasons, grouped:`);
+const rg = new Map();
+for (const r of ruleBRefused) {
+  const k = r.r.replace(/\d{5}/g, "NNNNN").replace(/\b\d+\b/g, "N");
+  if (!rg.has(k)) rg.set(k, { n: 0, secs: 0 });
+  const e = rg.get(k); e.n++; e.secs += Number(r.p.secs);
+}
+for (const [k, v] of [...rg.entries()].sort((a, b) => b[1].secs - a[1].secs)) {
+  console.log(`    ${String(v.n).padStart(3)} rows  ${hours(v.secs).padStart(8)}h   ${k}`);
+}
+console.log(`\n  the ten most valuable refusals, so the cost of caution is visible:`);
+for (const r of ruleBRefused.filter((x) => Number(x.p.secs) > 0)
+  .sort((a, b) => Number(b.p.secs) - Number(a.p.secs)).slice(0, 10)) {
+  console.log(`    ${hours(r.p.secs).padStart(7)}h "${r.p.name}" [${r.p.tc_name}]`);
+  console.log(`             ${r.r}`);
+}
+
+
 // ── write ────────────────────────────────────────────────────────────────────
 h("4. WRITE");
+// Rule A and Rule B are disjoint by construction: Rule A only considers rows
+// whose code matches a hub project, Rule B only rows reached via customer+service,
+// and both re-assert "hub_project_id is null" in the UPDATE.
+const projectWrites = [
+  ...[...accepted, ...uncorroborated].map((p) => ({ id: p.id, hub: p.code, rule: "A" })),
+  ...ruleB.map((a) => ({ id: a.p.id, hub: a.hx.id, rule: "B" })),
+];
 if (!APPLY) {
   console.log("  dry run — nothing written.");
   console.log(`  --apply would: set hub_person_id on ${personLinks.length} member(s),` +
-    ` set hub_project_id on ${linkSet.size} project(s),`);
+    ` set hub_project_id on ${projectWrites.length} project(s)` +
+    ` (${projectWrites.filter((x) => x.rule === "A").length} by Rule A, ${projectWrites.filter((x) => x.rule === "B").length} by Rule B),`);
   console.log(`                 create 0 people rows, touch 0 rows in public.timesheet_entries.`);
 } else {
   await c.query("begin");
@@ -447,11 +684,13 @@ if (!APPLY) {
       mUpd += r.rowCount;
     }
     let pUpd = 0;
-    for (const p of [...accepted, ...uncorroborated]) {
+    const byRule = { A: 0, B: 0 };
+    for (const w of projectWrites) {
       const r = await c.query(
         `update time.project set hub_project_id=$1 where id=$2 and hub_project_id is null`,
-        [p.code, p.id]);
+        [w.hub, w.id]);
       pUpd += r.rowCount;
+      byRule[w.rule] += r.rowCount;
     }
     const pr = { rowCount: pUpd };
 
@@ -466,7 +705,8 @@ if (!APPLY) {
       throw new Error(`post-write integrity check failed: ${dangle.mem} dangling member links, ${dangle.proj} dangling project links`);
     }
     await c.query("commit");
-    console.log(`  committed: ${mUpd} time.member rows, ${pr.rowCount} time.project rows.`);
+    console.log(`  committed: ${mUpd} time.member rows, ${pr.rowCount} time.project rows` +
+      ` (${byRule.A} by Rule A, ${byRule.B} by Rule B).`);
     console.log("  post-write integrity: 0 dangling hub_person_id, 0 dangling hub_project_id.");
   } catch (e) {
     await c.query("rollback");

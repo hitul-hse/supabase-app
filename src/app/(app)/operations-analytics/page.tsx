@@ -1,4 +1,5 @@
-import { redirect } from "next/navigation";
+import { requirePermission } from "@/utils/supabase/require-profile";
+import { PERMISSIONS } from "@/lib/permissions";
 import { createClient } from "@/utils/supabase/server";
 import { FactorialHoursPanel } from "@/components/factorial/factorial-hours-panel";
 import { getFactorialHoursReport } from "@/lib/queries/factorial-hours";
@@ -9,10 +10,17 @@ export const metadata = {
 };
 
 export default async function OperationsAnalyticsPage() {
-  const supabase = await createClient();
+  /*
+   * HARD PERMISSION GATE — not just RLS. The TrackingTime figures on this page
+   * are RLS-scoped, but the Factorial presence data is fetched with the server's
+   * API key, which RLS never sees. Without this line, any signed-in colleague
+   * could read everyone's clock-in hours. HR_CONTRACT_READ is the same key that
+   * gates /dashboard/management (contract hours per person), which is the same
+   * sensitivity class: per-person working-time data.
+   */
+  await requirePermission("/operations-analytics", PERMISSIONS.HR_CONTRACT_READ);
 
-  // RLS check: calling any query will fail if user lacks access.
-  // The page itself requires exec role (enforced in the gate check-factorial-hours-page.mjs).
+  const supabase = await createClient();
   try {
     const report = await getFactorialHoursReport(supabase);
     return (

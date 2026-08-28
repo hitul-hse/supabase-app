@@ -89,6 +89,27 @@ if (componentContent.includes("from '@/lib/factorial/client'")) {
   errors.push("❌ Component imports from factorial/client — only queries should touch it");
 }
 
+/*
+ * ACCESS CONTROL: the page fetches Factorial presence with the server API key,
+ * which RLS never mediates. The requirePermission(HR_CONTRACT_READ) call is the
+ * ONLY thing standing between any signed-in colleague and everyone's clock-in
+ * hours. Enforce that it exists, runs before the report is fetched, and uses
+ * the same permission class as /dashboard/management.
+ */
+const pageContent = fs.readFileSync(path.join("src/app/(app)/operations-analytics/page.tsx"), "utf8");
+const permIdx = pageContent.indexOf("requirePermission(");
+const reportIdx = pageContent.indexOf("getFactorialHoursReport(");
+if (permIdx === -1) {
+  errors.push("❌ operations-analytics/page.tsx has no requirePermission() call — Factorial data bypasses RLS");
+} else if (!pageContent.includes("PERMISSIONS.HR_CONTRACT_READ")) {
+  errors.push("❌ operations-analytics gate is not HR_CONTRACT_READ — must match /dashboard/management's sensitivity class");
+} else if (reportIdx !== -1 && reportIdx < permIdx) {
+  errors.push("❌ getFactorialHoursReport() runs BEFORE requirePermission() — data is fetched for unauthorised users");
+}
+if (!pageContent.includes("await requirePermission(")) {
+  errors.push("❌ requirePermission() is not awaited — the redirect never happens");
+}
+
 if (errors.length > 0) {
   console.error("MINIMISATION GATE FAILED\n");
   console.error(errors.join("\n"));

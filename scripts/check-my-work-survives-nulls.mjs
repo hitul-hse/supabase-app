@@ -51,7 +51,7 @@ check("the per-project burn is only computed when BOTH figures are known",
 /* -------------------------- the UI must render unknown as n/a, never 0 ------ */
 
 for (const f of ["src/components/my-work/CustomerGroup.tsx", "src/components/my-work/MyWorkTables.tsx"]) {
-  const s = readFileSync(`C:/Supabase/${f}`, "utf8");
+  const s = readFileSync(join(REPO, f), "utf8");
   check(`${f} renders a null figure as n/a`,
     /if \(n === null\) return "n\/a"/.test(s));
   check(`${f} renders a null burn as n/a rather than 0%`,

@@ -27,28 +27,14 @@ import { readFileSync, existsSync, mkdtempSync, cpSync, rmSync, symlinkSync } fr
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { chainFiles, CI_CHAINS } from "./lib/script-files.mjs";
 
-const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+// Needed to reproduce each gate\u0027s real invocation flags.
+const pkgScripts = JSON.parse(readFileSync("package.json", "utf8")).scripts;
 
-const scriptFiles = (name, seen = new Set()) => {
-  if (seen.has(name)) return [];
-  seen.add(name);
-  const body = pkg.scripts[name];
-  if (!body) return [];
-  const out = [];
-  for (const part of body.split("&&").map((s) => s.trim())) {
-    const run = /^npm run ([\w:-]+)/.exec(part);
-    if (run) { out.push(...scriptFiles(run[1], seen)); continue; }
-    const file = /(scripts\/[\w./-]+\.(?:mjs|cjs))/.exec(part);
-    if (file) out.push(file[1]);
-  }
-  return out;
-};
+// Gate discovery lives in lib/script-files.mjs so every audit sees the same set.
 
-const files = new Set();
-for (const chain of ["test:db", "check:profile-rls", "check:profile-effective-name"]) {
-  for (const f of scriptFiles(chain)) files.add(f);
-}
+const files = new Set(chainFiles(CI_CHAINS));
 /*
  * Every gate in the chain, not only those mentioning .env.local.
  *
@@ -75,10 +61,28 @@ if (existsSync(join(dir, ".env.local"))) {
   process.exit(1);
 }
 
+/*
+ * Run each gate the way package.json runs it, flags included.
+ *
+ * Invoking the file bare reported check-profile-effective-name as "module not
+ * found", because it needs --import ./scripts/ts-resolve.mjs to resolve the
+ * app's extensionless TypeScript imports. That was a defect in this harness
+ * rather than in the gate: a check that does not reproduce the real invocation
+ * will invent failures and, worse, miss real ones.
+ */
+const argsFor = (file) => {
+  const owner = Object.entries(pkgScripts).find(([, body]) => body.includes(file));
+  const body = owner?.[1] ?? "";
+  const flags = [];
+  if (body.includes("--import ./scripts/ts-resolve.mjs")) flags.push("--import", "./scripts/ts-resolve.mjs");
+  if (body.includes("--experimental-strip-types")) flags.push("--experimental-strip-types");
+  return [...flags, file];
+};
+
 const crashed = [];
 const fine = [];
 for (const f of candidates) {
-  const r = spawnSync(process.execPath, [f], {
+  const r = spawnSync(process.execPath, argsFor(f), {
     cwd: dir,
     encoding: "utf8",
     timeout: 120000,

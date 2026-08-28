@@ -8,31 +8,10 @@
 // The correct pattern is: seed from process.env, then treat .env.local as an
 // optional local convenience guarded by existsSync.
 import { readFileSync, existsSync } from "node:fs";
+import { chainFiles, CI_CHAINS } from "./lib/script-files.mjs";
 
-const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-
-// Expand an npm script into the actual .mjs files it runs, following
-// `npm run x && npm run y` chains one level deep.
-const scriptFiles = (name, seen = new Set()) => {
-  if (seen.has(name)) return [];
-  seen.add(name);
-  const body = pkg.scripts[name];
-  if (!body) return [];
-  const out = [];
-  for (const part of body.split("&&").map((s) => s.trim())) {
-    const run = /^npm run ([\w:-]+)/.exec(part);
-    if (run) { out.push(...scriptFiles(run[1], seen)); continue; }
-    const file = /(scripts\/[\w./-]+\.(?:mjs|cjs))/.exec(part);
-    if (file) out.push(file[1]);
-  }
-  return out;
-};
-
-const CHAINS = ["test:db", "check:profile-rls", "check:password-strength", "check:avatar",
-  "check:profile-effective-name", "lint"];
-
-const files = new Set();
-for (const c of CHAINS) for (const f of scriptFiles(c)) files.add(f);
+// Gate discovery lives in lib/script-files.mjs so every audit sees the same set.
+const files = new Set(chainFiles(CI_CHAINS));
 
 console.log(`auditing ${files.size} gate file(s) reachable from CI chains\n`);
 

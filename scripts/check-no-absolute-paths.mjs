@@ -17,6 +17,7 @@
  * Cheap and offline, so it runs in the normal chain.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { chainFiles, CI_CHAINS } from "./lib/script-files.mjs";
 
 /*
  * SCOPE: gates that CI actually runs, not every script in the folder.
@@ -31,27 +32,9 @@ import { readFileSync, existsSync } from "node:fs";
  * runner failure, and that is exactly how the DB Tests job broke after the
  * credential crashes ahead of it were fixed.
  */
-const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+// Gate discovery lives in lib/script-files.mjs so every audit sees the same set.
 
-const scriptFiles = (name, seen = new Set()) => {
-  if (seen.has(name)) return [];
-  seen.add(name);
-  const body = pkg.scripts[name];
-  if (!body) return [];
-  const out = [];
-  for (const part of body.split("&&").map((s) => s.trim())) {
-    const run = /^npm run ([\w:-]+)/.exec(part);
-    if (run) { out.push(...scriptFiles(run[1], seen)); continue; }
-    const file = /(scripts\/[\w./-]+\.(?:mjs|cjs))/.exec(part);
-    if (file) out.push(file[1]);
-  }
-  return out;
-};
-
-const files = new Set();
-for (const chain of ["test:db", "check:profile-rls", "check:profile-effective-name"]) {
-  for (const f of scriptFiles(chain)) files.add(f);
-}
+const files = new Set(chainFiles(CI_CHAINS));
 const targets = [...files].filter((f) => existsSync(f));
 
 const offenders = [];

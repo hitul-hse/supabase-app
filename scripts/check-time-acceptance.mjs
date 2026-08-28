@@ -321,6 +321,41 @@ console.log(`stub Supabase on http://localhost:${PORT}`);
 
 // ── The real Next.js server, built and run against the stub ────────────────
 const APP_PORT = 3111;
+
+/*
+ * The app port needs the same stale-environment guard as the stub port above,
+ * and did not have one.
+ *
+ * What happened without it: another agent session (or my own leftover
+ * `next start`) was already listening on 3111, pointed at the REAL Supabase.
+ * `next start` printed its EADDRINUSE into a captured log nobody read, the
+ * readiness probe fetched /auth/login and got a 200 from the squatter, and the
+ * gate then drove a browser against the wrong server for 40 seconds. Every
+ * signed-in assertion failed, because the stub's token means nothing to the real
+ * project, so it bounced to /auth/login.
+ *
+ * That produced 42 confident failures reading "the page shows 3:30 logged" and
+ * "a signed-in user would NOT see correct hours" -- a total misdiagnosis. The
+ * app was fine; the gate was looking at a different app. Freeing the port took
+ * the same run to 4 failures.
+ *
+ * A wrong answer is worse than no answer, so refuse to measure rather than
+ * measure the wrong server.
+ */
+{
+  const probe = createServer();
+  if (!(await listenOrSkip(probe, APP_PORT))) {
+    console.log(
+      `      NOTE: this gate needs port ${APP_PORT} for its OWN server, pointed at the\n` +
+      `      stub on ${PORT}. Whatever is listening now is a different app, and\n` +
+      `      measuring it would report the app broken when it is not.`,
+    );
+    server.close();
+    process.exit(0);
+  }
+  await new Promise((r) => probe.close(r));
+}
+
 const stubEnv = {
   ...process.env,
   NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${PORT}`,

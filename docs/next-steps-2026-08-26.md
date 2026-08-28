@@ -361,6 +361,43 @@ the hub can attribute that work to a colleague. His address is
 match by luck. **ACTION: set his `hub_person_id`, or say he should not have a
 `people` row.**
 
+**This one really does need you, and that is now proved rather than asserted.**
+`node scripts/diagnose-stefan-identity.mjs` tried every exact key the hub offers —
+`auth.users` by email, `app_user_profile` via that user, `people` by his
+TrackingTime `source_id`, `project_responsibility`, and any `people` row whose id
+or name mentions him. **All five return zero rows.** Nothing in the hub knows him,
+and his address is on a misspelled domain (`hs-expert.com`), so no exact key ever
+can. "Employee, external contractor, or neither" is an HR fact only you hold.
+
+His 139.8h are all ENERCON work: `W-13294 Ostervesede` and `W-13301 Wohlsdorf`,
+one of which links to order `10388_00370_60107_01`.
+
+### 2.8 [TWO NEW FINDINGS] The hub stores less than it knows about its own people
+
+Both surfaced from the Stefan lookup and both are exact-key facts, joined on
+`time.member.hub_person_id` — the hub's own key. Reproduce with
+`npm run check:people-vs-trackingtime`.
+
+**16 of 18 active people are stored under a first name only.** `public.people` has
+`Mathias`, `Stephan`, `Ulf`; `time.member.display_name` has `Mathias Schwenteit`,
+`Stephan Herrmann`, `Ulf Schönemann`. **The surnames are already in the database.**
+
+This is not cosmetic once Factorial lands. The identity design says a Factorial
+`full_name` is display-only and never a matching input — correct — but it also
+means a human reviewing a queue row has to recognise the person from the `people`
+row, and "Mathias" is not enough to distinguish colleagues confidently. **ACTION:
+backfill `people.name` from `time.member.display_name` where they are linked.**
+This is mechanical and safe (exact key, no guessing) but it rewrites 16 rows that
+appear all over the UI, so it wants your nod rather than my initiative.
+
+**`md-serhii` is archived in TrackingTime yet active in the hub — and logged time
+yesterday.** 384 entries, last one 2026-08-25. Archival in the vendor system is
+usually a departure signal, so the two systems disagree about whether he is here.
+**ACTION: confirm whether he has left.** I did not touch it because deactivating a
+person changes who appears in pickers and org charts, and because the recent entry
+argues against a simple departure. The inverse check (active in TrackingTime,
+deactivated in the hub) is clean, which would have been the worse direction.
+
 **2. The schema is written and attacked** (`20260826140000`, gate 85). It adds
 `crm.factorial_identity_review` so an unresolved employee is a reviewable row
 rather than a silent omission, plus provenance columns on the existing mapping

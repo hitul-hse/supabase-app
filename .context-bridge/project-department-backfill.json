@@ -1,16 +1,11 @@
 {
-  "generatedAt": "2026-08-24T15:11:52.228Z",
-  "mode": "apply",
+  "generatedAt": "2026-08-28T07:33:35.264Z",
+  "mode": "dry-run",
   "inferFromService": false,
   "projectsTotal": 231,
-  "populated": 176,
-  "distribution": {
-    "OPERATIONS": 111,
-    "ORGA": 65
-  },
-  "byTier": {
-    "B owner profile": 176
-  },
+  "populated": 0,
+  "distribution": {},
+  "byTier": {},
   "leftNullCount": 55,
   "leftNullReasons": {
     "no owner and no responsible": 55

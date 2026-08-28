@@ -1,0 +1,1276 @@
+{
+  "site": "http://localhost:3111",
+  "at": "2026-08-28T07:33:32.538Z",
+  "roles": [
+    "exec",
+    "employee",
+    "no-person",
+    "no-person-2"
+  ],
+  "findings": [
+    {
+      "role": "exec",
+      "route": "(sign-in)",
+      "kind": "console.error",
+      "visibility": "silent",
+      "detail": "Access to fetch at 'http://localhost:54329/auth/v1/settings' from origin 'http://localhost:3111' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "(sign-in)",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET http://localhost:54329/auth/v1/settings — net::ERR_FAILED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "(sign-in)",
+      "kind": "console.error",
+      "visibility": "silent",
+      "detail": "Failed to load resource: net::ERR_FAILED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "(sign-in)",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /auth/callback?token_hash=489079846050cd6178e4365b7fb672397d55084068657e4eb5245f9a&type=magiclink&next=%2F — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "(sign-in)",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /auth/callback?token_hash=48e13d84244e6dac302260d52217d69e35eb3e53191efc20bdb4fa5d&type=magiclink&next=%2F — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET / — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/my-work",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /my-work — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/my-work",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/my-work",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/projects",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /projects — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/projects",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/projects",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/people",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /people — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/people",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/people",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/leave",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /leave — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/leave",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/leave",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/profile",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /profile — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/profile",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/profile",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/timesheets",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /timesheets — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/timesheets",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/timesheets",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/time",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /time — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/time",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/time",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/time/dashboard",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /time/dashboard — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/time/dashboard",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/time/dashboard",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/team-lead",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /team-lead — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/team-lead",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/team-lead",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/admin/roles",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/roles — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/admin/roles",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/roles",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/admin/users",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/users — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/admin/users",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/users",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/admin/alerts",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/alerts — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/admin/alerts",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/alerts",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/customer-master/import-review",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /customer-master/import-review — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/customer-master/import-review",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/customer-master/import-review",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/dashboard/management?tab=overview",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=overview — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/dashboard/management?tab=overview",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=overview",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/dashboard/management?tab=employees",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=employees — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/dashboard/management?tab=employees",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=employees",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/dashboard/management?tab=customers",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=customers — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/dashboard/management?tab=customers",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=customers",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/dashboard/management?tab=risks",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=risks — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/dashboard/management?tab=risks",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=risks",
+      "phase": "load"
+    },
+    {
+      "role": "exec",
+      "route": "/projects/[id]",
+      "kind": "no-row-to-open",
+      "visibility": "none",
+      "detail": "this role sees no project rows, so the detail route could not be exercised as this role",
+      "phase": "detail"
+    },
+    {
+      "role": "exec",
+      "route": "/ (mobile More sheet)",
+      "kind": "mobile-interaction-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/",
+      "phase": "mobile"
+    },
+    {
+      "role": "employee",
+      "route": "(sign-in)",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /auth/callback?token_hash=96ea4a0d733bc6c4fd9962e1444944fc363664b5809257b96ad795f3&type=magiclink&next=%2F — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET / — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/my-work",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /my-work — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/my-work",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/my-work",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/projects",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /projects — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/projects",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/projects",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/people",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /people — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/people",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/people",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/leave",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /leave — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/leave",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/leave",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/profile",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /profile — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/profile",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/profile",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/timesheets",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /timesheets — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/timesheets",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/timesheets",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/time",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /time — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/time",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/time",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/time/dashboard",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /time/dashboard — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/time/dashboard",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/time/dashboard",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/team-lead",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /team-lead — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/team-lead",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/team-lead",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/admin/roles",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/roles — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/admin/roles",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/roles",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/admin/users",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/users — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/admin/users",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/users",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/admin/alerts",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/alerts — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/admin/alerts",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/alerts",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/customer-master/import-review",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /customer-master/import-review — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/customer-master/import-review",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/customer-master/import-review",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/dashboard/management?tab=overview",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=overview — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/dashboard/management?tab=overview",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=overview",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/dashboard/management?tab=employees",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=employees — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/dashboard/management?tab=employees",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=employees",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/dashboard/management?tab=customers",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=customers — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/dashboard/management?tab=customers",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=customers",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/dashboard/management?tab=risks",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=risks — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/dashboard/management?tab=risks",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=risks",
+      "phase": "load"
+    },
+    {
+      "role": "employee",
+      "route": "/projects/[id]",
+      "kind": "no-row-to-open",
+      "visibility": "none",
+      "detail": "this role sees no project rows, so the detail route could not be exercised as this role",
+      "phase": "detail"
+    },
+    {
+      "role": "employee",
+      "route": "/ (mobile More sheet)",
+      "kind": "mobile-interaction-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/",
+      "phase": "mobile"
+    },
+    {
+      "role": "no-person",
+      "route": "(sign-in)",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /auth/callback?token_hash=c06e361281fe047275b25fe20ed2dd2b1a2194ea9fdcc51f5f95f7ac&type=magiclink&next=%2F — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET / — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/my-work",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /my-work — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/my-work",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/my-work",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/projects",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /projects — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/projects",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/projects",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/people",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /people — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/people",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/people",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/leave",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /leave — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/leave",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/leave",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/profile",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /profile — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/profile",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/profile",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/timesheets",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /timesheets — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/timesheets",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/timesheets",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/time",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /time — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/time",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/time",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/time/dashboard",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /time/dashboard — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/time/dashboard",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/time/dashboard",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/team-lead",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /team-lead — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/team-lead",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/team-lead",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/admin/roles",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/roles — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/admin/roles",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/roles",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/admin/users",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/users — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/admin/users",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/users",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/admin/alerts",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/alerts — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/admin/alerts",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/alerts",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/customer-master/import-review",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /customer-master/import-review — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/customer-master/import-review",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/customer-master/import-review",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/dashboard/management?tab=overview",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=overview — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/dashboard/management?tab=overview",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=overview",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/dashboard/management?tab=employees",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=employees — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/dashboard/management?tab=employees",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=employees",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/dashboard/management?tab=customers",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=customers — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/dashboard/management?tab=customers",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=customers",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/dashboard/management?tab=risks",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /dashboard/management?tab=risks — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/dashboard/management?tab=risks",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/dashboard/management?tab=risks",
+      "phase": "load"
+    },
+    {
+      "role": "no-person",
+      "route": "/projects/[id]",
+      "kind": "no-row-to-open",
+      "visibility": "none",
+      "detail": "this role sees no project rows, so the detail route could not be exercised as this role",
+      "phase": "detail"
+    },
+    {
+      "role": "no-person",
+      "route": "/ (mobile More sheet)",
+      "kind": "mobile-interaction-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/",
+      "phase": "mobile"
+    },
+    {
+      "role": "no-person-2",
+      "route": "(sign-in)",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /auth/callback?token_hash=d6de959aad901c5799006df0d82467ca33d0cc78bece022ded33aaf5&type=magiclink&next=%2F — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET / — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/my-work",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /my-work — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/my-work",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/my-work",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/projects",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /projects — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/projects",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/projects",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/people",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /people — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/people",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/people",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/leave",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /leave — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/leave",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/leave",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/profile",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /profile — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/profile",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/profile",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/timesheets",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /timesheets — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/timesheets",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/timesheets",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/time",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /time — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/time",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/time",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/time/dashboard",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /time/dashboard — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/time/dashboard",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/time/dashboard",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/team-lead",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /team-lead — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/team-lead",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/team-lead",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/admin/roles",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET /admin/roles — net::ERR_CONNECTION_REFUSED",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/admin/roles",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3111/admin/roles",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/admin/users",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: Navigation to \"http://localhost:3111/admin/users\" is interrupted by another navigation to \"chrome-error://chromewebdata/\"",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/admin/alerts",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: Navigation to \"http://localhost:3111/admin/alerts\" is interrupted by another navigation to \"http://localhost:3111/auth/login?redirect_to=%2Fadmin%2Fusers\"",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/customer-master/import-review",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: Navigation to \"http://localhost:3111/customer-master/import-review\" is interrupted by another navigation to \"http://localhost:3111/auth/login?redirect_to=%2Fadmin%2Falerts\"",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/dashboard/management?tab=overview",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: Navigation to \"http://localhost:3111/dashboard/management?tab=overview\" is interrupted by another navigation to \"http://localhost:3111/auth/login?redirect_to=%2Fcustomer-master%2Fimport-review\"",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/dashboard/management?tab=employees",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: Navigation to \"http://localhost:3111/dashboard/management?tab=employees\" is interrupted by another navigation to \"http://localhost:3111/auth/login?tab=overview&redirect_to=%2Fdashboard%2Fmanagement\"",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/dashboard/management?tab=customers",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: Navigation to \"http://localhost:3111/dashboard/management?tab=customers\" is interrupted by another navigation to \"http://localhost:3111/auth/login?tab=employees&redirect_to=%2Fdashboard%2Fmanagement\"",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/dashboard/management?tab=risks",
+      "kind": "navigation-failed",
+      "visibility": "visible",
+      "detail": "page.goto: Navigation to \"http://localhost:3111/dashboard/management?tab=risks\" is interrupted by another navigation to \"http://localhost:3111/auth/login?tab=customers&redirect_to=%2Fdashboard%2Fmanagement\"",
+      "phase": "load"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/projects/[id]",
+      "kind": "no-row-to-open",
+      "visibility": "none",
+      "detail": "this role sees no project rows, so the detail route could not be exercised as this role",
+      "phase": "detail"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/ (mobile More sheet)",
+      "kind": "console.error",
+      "visibility": "silent",
+      "detail": "Access to fetch at 'http://localhost:54329/auth/v1/settings' from origin 'http://localhost:3111' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.",
+      "phase": "mobile"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/ (mobile More sheet)",
+      "kind": "request-failed",
+      "visibility": "silent",
+      "detail": "GET http://localhost:54329/auth/v1/settings — net::ERR_FAILED",
+      "phase": "mobile"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/ (mobile More sheet)",
+      "kind": "console.error",
+      "visibility": "silent",
+      "detail": "Failed to load resource: net::ERR_FAILED",
+      "phase": "mobile"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/ (mobile More sheet)",
+      "kind": "console.error",
+      "visibility": "silent",
+      "detail": "Access to fetch at 'http://localhost:54329/auth/v1/settings' from origin 'http://localhost:3111' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.",
+      "phase": "mobile"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/ (mobile More sheet)",
+      "kind": "console.error",
+      "visibility": "silent",
+      "detail": "Failed to load resource: net::ERR_FAILED",
+      "phase": "mobile"
+    },
+    {
+      "role": "no-person-2",
+      "route": "/ (mobile More sheet)",
+      "kind": "no-mobile-tab-bar",
+      "visibility": "visible",
+      "detail": "no [data-testid=mobile-tab-bar] More button at 390x844 — the phone navigation is absent for this role",
+      "phase": "mobile"
+    }
+  ]
+}

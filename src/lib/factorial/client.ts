@@ -129,34 +129,50 @@ export async function fetchFactorialTeams(): Promise<FactorialTeam[]> {
 /**
  * Attendance minutes per person for [from, to], inclusive ISO dates.
  *
- * One request: the endpoint returns the entire date-bounded set (measured:
- * 2,288 rows for 90 days, ~7s cold). The projection keeps employee_id, minutes
- * and the day — clock times, geolocation and workplace fields do not survive.
+ * CHUNKED, MEASURED 2026-08-28: one 90-day read stalls until undici's body
+ * timeout kills it (~300s, "terminated ... UND_ERR_BODY_TIMEOUT"), while
+ * 15-day chunks return in 0.6–69s each (306–463 rows per chunk, 2,292 total).
+ * The endpoint is unpaged by contract, so the only safe way to bound response
+ * time is to bound the DATE window per request. Chunks run in parallel; each
+ * chunk still verifies its own envelope.
  */
 export async function fetchFactorialPresence(fromIso: string, toIso: string): Promise<FactorialPresence[]> {
-  const body = await get(`/resources/attendance/shifts?start_on=${fromIso}&end_on=${toIso}`);
-  const rows = dataOf(body);
+  const CHUNK_DAYS = 15;
+  const DAY = 86400000;
+  const start = new Date(`${fromIso}T00:00:00Z`).getTime();
+  const end = new Date(`${toIso}T00:00:00Z`).getTime();
+  const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 
-  // The response is unpaged by contract; verify the envelope agrees, because if
-  // Factorial ever starts paging this endpoint a silent first-page read would
-  // undercount everyone's presence.
-  const meta = (body as { meta?: { total?: number; has_next_page?: boolean } }).meta;
-  if (meta?.has_next_page) {
-    throw new FactorialUnavailableError("attendance/shifts began paginating — the single-read contract no longer holds");
+  const windows: [string, string][] = [];
+  for (let a = start; a <= end; a += CHUNK_DAYS * DAY) {
+    const b = Math.min(a + (CHUNK_DAYS - 1) * DAY, end);
+    windows.push([iso(a), iso(b)]);
   }
-  if (typeof meta?.total === "number" && meta.total !== rows.length) {
-    throw new FactorialUnavailableError(`attendance/shifts returned ${rows.length} rows but claims total ${meta.total}`);
-  }
+
+  const chunks = await Promise.all(windows.map(async ([a, b]) => {
+    const body = await get(`/resources/attendance/shifts?start_on=${a}&end_on=${b}`);
+    const rows = dataOf(body);
+    const meta = (body as { meta?: { total?: number; has_next_page?: boolean } }).meta;
+    if (meta?.has_next_page) {
+      throw new FactorialUnavailableError("attendance/shifts began paginating — the single-read-per-window contract no longer holds");
+    }
+    if (typeof meta?.total === "number" && meta.total !== rows.length) {
+      throw new FactorialUnavailableError(`attendance/shifts ${a}..${b} returned ${rows.length} rows but claims total ${meta.total}`);
+    }
+    return rows;
+  }));
 
   const byPerson = new Map<string, { minutes: number; days: Set<string> }>();
-  for (const row of rows) {
-    const id = String(row.employee_id);
-    const minutes = Number(row.minutes ?? 0);
-    if (!Number.isFinite(minutes) || minutes <= 0) continue;
-    const cur = byPerson.get(id) ?? { minutes: 0, days: new Set<string>() };
-    cur.minutes += minutes;
-    if (row.date) cur.days.add(String(row.date));
-    byPerson.set(id, cur);
+  for (const rows of chunks) {
+    for (const row of rows) {
+      const id = String(row.employee_id);
+      const minutes = Number(row.minutes ?? 0);
+      if (!Number.isFinite(minutes) || minutes <= 0) continue;
+      const cur = byPerson.get(id) ?? { minutes: 0, days: new Set<string>() };
+      cur.minutes += minutes;
+      if (row.date) cur.days.add(String(row.date));
+      byPerson.set(id, cur);
+    }
   }
   return [...byPerson].map(([factorialId, v]) => ({
     factorialId,

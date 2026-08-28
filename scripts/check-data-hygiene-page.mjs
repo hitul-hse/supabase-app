@@ -280,4 +280,17 @@ ok(/clean\.push\(/.test(querySrc),
 console.log(failures === 0
   ? "\nDATA HYGIENE PAGE IS HONEST: counts recount independently, capped lists disclosed, exec-gated"
   : `\n${failures} honesty check(s) failed on the data-hygiene page`);
-process.exit(failures === 0 ? 0 : 1);
+/*
+ * exitCode, not process.exit().
+ *
+ * Caught by an audit for this exact crash class: under CONTENTION this gate hit
+ * the Windows libuv assert (UV_HANDLE_CLOSING, 0xC0000409) in 7 of 24 runs,
+ * always after printing its verdict. Run alone it was 20/20 clean, which is why
+ * it never showed up in targeted runs -- socket teardown is a race, so a quiet
+ * machine hides it and a full suite does not.
+ *
+ * The Supabase client leaves undici keep-alive sockets open; process.exit()
+ * tears the loop down on top of them. Setting exitCode lets Node drain them and
+ * exit with the same status. Same fix as check-management-contract-hours-live.
+ */
+process.exitCode = failures === 0 ? 0 : 1;

@@ -128,4 +128,7 @@ if (cleanExit !== 0) failures += 1;
 console.log(failures === 0
   ? `\nGATE DISCRIMINATES: all ${MUTATIONS.length} mutations caught, sources restored`
   : `\n${failures} problem(s) — the gate does not catch everything it claims to`);
-process.exit(failures === 0 ? 0 : 1);
+// exitCode, not process.exit(): the Supabase/Playwright clients leave sockets
+// open, and exiting on top of them trips a Windows libuv assert under
+// contention. See check-data-hygiene-page.mjs for the measured numbers.
+process.exitCode = failures === 0 ? 0 : 1;

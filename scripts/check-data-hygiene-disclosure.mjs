@@ -190,4 +190,7 @@ try {
 console.log(failures === 0
   ? "\nHYGIENE DISCLOSURE WORKS: shut on a phone with its count stated, opens on activation, desktop untouched"
   : `\n${failures} check(s) failed`);
-process.exit(failures === 0 ? 0 : 1);
+// exitCode, not process.exit(): the Supabase/Playwright clients leave sockets
+// open, and exiting on top of them trips a Windows libuv assert under
+// contention. See check-data-hygiene-page.mjs for the measured numbers.
+process.exitCode = failures === 0 ? 0 : 1;

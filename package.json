@@ -202,6 +202,7 @@
                     "check:factorial-identity-baseline":  "node scripts/check-factorial-identity-baseline.mjs",
                     "check:factorial-identity-migration":  "node scripts/check-factorial-identity-migration.mjs",
                     "check:factorial-pager":  "node scripts/check-factorial-pager.mjs",
+                    "check:factorial-auth":  "node scripts/check-factorial-auth.mjs",
                     "check:factorial-classifier-schema":  "node scripts/check-factorial-classifier-schema-agree.mjs",
                     "check:shared-mailbox-pattern":  "node scripts/check-shared-mailbox-pattern.mjs",
                     "check:new-gates-can-fail":  "node scripts/check-new-gates-can-fail.mjs",

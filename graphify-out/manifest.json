@@ -1,7 +1,7 @@
 {
   ".claude/settings.json": {
-    "mtime": 1788171821.3056228,
-    "seen": 1788197674.7091994,
+    "mtime": 1788199110.7730403,
+    "seen": 1788201247.787523,
     "ast_hash": "ffb5b521f698e393414b73d5851dd40d",
     "semantic_hash": ""
   },
@@ -3504,9 +3504,9 @@
     "semantic_hash": ""
   },
   "src/components/BiometricSignIn.tsx": {
-    "mtime": 1788160024.3515449,
-    "seen": 1788197674.7097883,
-    "ast_hash": "2bc170d331cea4b3976fb2d997125598",
+    "mtime": 1788201175.8879008,
+    "seen": 1788201247.78804,
+    "ast_hash": "e029fc44f018fb0e9c5123b7e0cf1737",
     "semantic_hash": ""
   },
   "src/components/MobileDisclosure.tsx": {

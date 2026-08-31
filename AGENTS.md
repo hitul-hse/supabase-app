@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # Use the knowledge graph first
 
 This project is mapped into a graphify knowledge graph committed at
-`graphify-out/` (2,758 nodes / 4,291 edges / 227 named communities, built from
+`graphify-out/` (6,050 nodes / 8,546 edges / 563 communities, built from
 tree-sitter AST so it is deterministic and costs nothing to rebuild).
 
 **Before grepping or opening files to answer a question about this codebase,
@@ -33,6 +33,23 @@ any commit that touches code (AST only, no API key, no cost), and a git merge
 driver union-merges `graph.json` so parallel commits never conflict. If you
 ever need it by hand: `graphify update .`
 
+**Neither is automatic in a fresh clone** — `.git/hooks/` and the merge
+driver's `git config` half are per-clone and cannot be committed. Run
+`graphify hook install` once per machine, and `graphify hook status` to check;
+all three lines should read installed/registered. This clone silently had
+none of it for a while, and the graph went stale without any symptom other
+than answers that quietly described older code.
+
+**On WSL, install graphify natively — do not rely on the Windows binary.**
+`graphifyy` on PyPI is pure Python (`uv tool install 'graphifyy[sql]==0.9.48'`,
+pinned to match the Windows checkout). The Windows .exe run through WSL can
+answer queries, which makes it look fine, but it cannot write: `update`
+lowercases paths, so `DESIGN.md` is sought as `design.md` and every
+capitalised file fails on a case-sensitive filesystem, aborting the rebuild
+with graph.json untouched; and `hook install` shells out to Windows git, which
+refuses the `\\wsl.localhost` path as dubious ownership. The `[sql]` extra is
+required here — see the note below about the 45 SQL files.
+
 Two things about the setup that are deliberate and should not be "fixed":
 
 - `.graphifyignore` excludes the five vendored agent-skill trees (`.claude/`,
@@ -40,12 +57,14 @@ Two things about the setup that are deliberate and should not be "fixed":
   god-node ranking is dominated by the bundled "impeccable" skill's own helpers
   and the graph describes the tooling instead of this product.
   `.github/workflows/` is deliberately NOT excluded: the CI is ours.
-- `graphifyy[sql]` must be installed or the 17 SQL files (including
+- `graphifyy[sql]` must be installed or the 45 SQL files (including
   `supabase/schema.sql`, i.e. the entire RLS model) parse to nothing, silently.
 
 `graph.json`, `GRAPH_REPORT.md` and `manifest.json` are committed on purpose so
-every session starts from the same map; `graph.html`, `cache/` and the
-per-machine pointers are gitignored.
+every session starts from the same map; `graph.html`, `cache/`, the per-machine
+pointers and the dated backup directories are gitignored. Those backups are a
+local undo buffer written on every rebuild at ~5MB each — 34MB of them had been
+committed by accident before the ignore rule existed.
 
 ## Installed agent toolkits: gstack, everything-claude-code, graphify
 

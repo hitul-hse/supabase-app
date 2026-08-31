@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@source not "../../scripts/check-design-system.mjs";
+@source not "../../scripts";
 
 :root {
   color-scheme: dark;

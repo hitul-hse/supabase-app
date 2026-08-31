@@ -96,7 +96,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         The arithmetic changed when the bar started FLOATING, and it has to be
         derived rather than guessed:
-             12px  gap below the pill  (its `bottom-[calc(12px+env(...))]`)
+             12px  gap below the pill  (its `bottom-[calc(12px+env(safe-area-inset-bottom))]`)
           +  56px  pill height         (`min-h-[56px]` on each tab)
           +  12px  breathing room above it
           +  env(safe-area-inset-bottom)

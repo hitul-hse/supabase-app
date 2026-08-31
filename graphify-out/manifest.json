@@ -3504,9 +3504,9 @@
     "semantic_hash": ""
   },
   "src/components/BiometricSignIn.tsx": {
-    "mtime": 1788201175.8879008,
-    "seen": 1788201247.78804,
-    "ast_hash": "e029fc44f018fb0e9c5123b7e0cf1737",
+    "mtime": 1788201592.39051,
+    "seen": 1788201603.449937,
+    "ast_hash": "2bc170d331cea4b3976fb2d997125598",
     "semantic_hash": ""
   },
   "src/components/MobileDisclosure.tsx": {

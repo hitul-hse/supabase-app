@@ -22,7 +22,7 @@
  *
  * Run: node scripts/check-factorial-harvest.mjs
  */
-import { readFileSync, existsSync } from "node:fs";
+import { loadEnv } from "./lib/gate-env.mjs";
 import {
   EMPLOYEE_ALLOWED_FIELDS,
   EMPLOYEE_FORBIDDEN_FIELDS,
@@ -131,14 +131,11 @@ check(sparse.login_email === undefined && sparse.active === undefined,
   "absence preserved");
 
 // 6. Live spec drift -- only when a credential exists.
-const envPath = "C:/Supabase/.env.local";
-const env = {};
-if (existsSync(envPath)) {
-  for (const l of readFileSync(envPath, "utf8").split(/\r?\n/)) {
-    const m = /^([A-Z0-9_]+)=(.*)$/.exec(l.trim());
-    if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-  }
-}
+// Via the shared loader: process.env first (so CI secrets win), then a
+// .env.local found by walking up from this file. The hardcoded C:/Supabase
+// path this replaces could only ever resolve on one Windows machine, so the
+// live half below was dead everywhere else -- silently, as a skip.
+const env = loadEnv();
 const KEY = env.FACTORIAL_API_KEY ?? env.FACTORIAL_KEY ?? "";
 const BEARER = env.FACTORIAL_ACCESS_TOKEN ?? env.FACTORIAL_TOKEN ?? "";
 

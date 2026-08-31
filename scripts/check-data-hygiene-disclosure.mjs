@@ -47,6 +47,14 @@ import { chromium } from "playwright";
 import { loadEnv } from "./lib/gate-env.mjs";
 
 const env = loadEnv();
+// The guard has to sit above the browser launch. The only skip path used to be
+// inside openPage(), which runs after the browser is already up -- so with no
+// service-role key (CI, and any laptop without one) this gate did not skip, it
+// crashed, and it took the whole `npm run test:db` chain down with it.
+if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.log("SKIP: need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
+  process.exit(0);
+}
 
 const SITE = process.env.SITE ?? "http://localhost:3100";
 let failures = 0;

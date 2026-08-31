@@ -1,10 +1,23 @@
 # graphify knowledge graph — paths here are relative to this folder.
 #
-# graph.json, GRAPH_REPORT.md and manifest.json ARE committed on purpose: the
-# point is that everyone (and every agent) starts from the same map, and the
-# post-commit hook keeps them current for free (AST only, no API cost).
+# GRAPH_REPORT.md and manifest.json ARE committed on purpose: the point is that
+# everyone (and every agent) starts from the same map, and the post-commit hook
+# keeps them current for free (AST only, no API cost).
+#
+# graph.json is NOT, as of 2026-08-31. It is 5.2MB of generated JSON that the
+# hook rewrites after every code commit, and clustering reshuffles communities
+# even when the node and edge counts are identical — so it arrived as a
+# multi-thousand-line diff on unrelated commits, went stale on any branch that
+# was not rebuilt, and needed a merge driver to survive parallel work. It is
+# derived data: `graphify update .` rebuilds it from the AST in under a minute,
+# with no API key and no cost.
+#
+# What makes that cheap is that .graphify_labels.json IS still committed, so a
+# local rebuild reuses the prose community names rather than falling back to
+# bare filenames. Fresh clone: run `graphify update .` once (see AGENTS.md).
 #
 # Local-only below:
+graph.json
 
 # Per-machine interpreter/root pointers.
 .graphify_python

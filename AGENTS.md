@@ -29,9 +29,12 @@ Then fall back to reading files for the specific lines you need to change.
 `graphify-out/GRAPH_REPORT.md` is for broad architecture review.
 
 Keeping it current is automatic: a `post-commit` hook rebuilds the graph after
-any commit that touches code (AST only, no API key, no cost), and a git merge
-driver union-merges `graph.json` so parallel commits never conflict. If you
-ever need it by hand: `graphify update .`
+any commit that touches code (AST only, no API key, no cost). If you ever need
+it by hand: `graphify update .`
+
+**On a fresh clone the graph does not exist yet — run `graphify update .`
+once.** `graph.json` is deliberately not committed (see below), so it is built
+locally on first use. It takes well under a minute and costs nothing.
 
 **Neither is automatic in a fresh clone** — `.git/hooks/` and the merge
 driver's `git config` half are per-clone and cannot be committed. Run
@@ -60,11 +63,21 @@ Two things about the setup that are deliberate and should not be "fixed":
 - `graphifyy[sql]` must be installed or the 45 SQL files (including
   `supabase/schema.sql`, i.e. the entire RLS model) parse to nothing, silently.
 
-`graph.json`, `GRAPH_REPORT.md` and `manifest.json` are committed on purpose so
-every session starts from the same map; `graph.html`, `cache/`, the per-machine
-pointers and the dated backup directories are gitignored. Those backups are a
-local undo buffer written on every rebuild at ~5MB each — 34MB of them had been
-committed by accident before the ignore rule existed.
+`GRAPH_REPORT.md`, `manifest.json` and `.graphify_labels.json` are committed on
+purpose so every session starts from the same map and the same community names;
+`graph.html`, `cache/`, the per-machine pointers and the dated backup
+directories are gitignored. Those backups are a local undo buffer written on
+every rebuild at ~5MB each — 34MB of them had been committed by accident before
+the ignore rule existed.
+
+`graph.json` stopped being committed on 2026-08-31. It is 5.2MB of generated
+JSON that the hook rewrites after every code commit, and clustering reshuffles
+communities even when the node and edge counts come out identical — so it
+landed as a multi-thousand-line diff on unrelated commits, went stale on any
+branch that had not been rebuilt, and needed a git merge driver to survive
+parallel work. That merge driver is gone with it. Committing
+`.graphify_labels.json` is what keeps the local rebuild cheap: the prose
+community names come back with it instead of degrading to bare filenames.
 
 ## Installed agent toolkits: gstack, everything-claude-code, graphify
 

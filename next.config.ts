@@ -39,6 +39,28 @@ const nextConfig: NextConfig = {
   // the build output lean in production.
   reactStrictMode: true,
 
+  // ─── Reaching the dev server from the tailnet (phone, laptop) ─────────────
+  //
+  // Next blocks cross-origin requests to /_next/* dev assets by default, and
+  // the block is INVISIBLE in the browser: the HTML renders fine, every JS
+  // chunk is refused, and the page looks correct while no button does
+  // anything. That is exactly how it presented -- a login page that rendered
+  // on the phone but would neither submit an email nor open Google sign-in --
+  // while the only evidence sat in the dev log:
+  //
+  //     Blocked cross-origin request to Next.js dev resource
+  //     /_next/static/chunks/... from "100.90.113.99".
+  //
+  // Both entries are needed and they cover different paths. The tailnet IP is
+  // for hitting the dev server directly on :3000; the MagicDNS name is for
+  // `tailscale serve`, which proxies from 127.0.0.1 but forwards the original
+  // Host header, so it reads as cross-origin too.
+  //
+  // Development only -- Next ignores this in a production build, so it grants
+  // nothing on Vercel. The values are this machine's (jarvis); another clone
+  // on another tailnet node needs its own and is unaffected by these.
+  allowedDevOrigins: ["100.90.113.99", "jarvis.tailf1e5c8.ts.net"],
+
   // ─── Deployment skew: keep an open tab talking to the build it was served ──
   //
   // THE REPORTED BUG. While recording the org chart ("Björn is CEO, everyone

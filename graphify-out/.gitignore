@@ -31,3 +31,6 @@ cost.json
 # accumulate daily. graph.json is committed and its history is in git already,
 # which is the actual safety net; these are a local undo buffer.
 20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+
+# Transient lock written while a hook-triggered rebuild is in flight.
+.rebuild.lock

@@ -53,6 +53,23 @@ with graph.json untouched; and `hook install` shells out to Windows git, which
 refuses the `\\wsl.localhost` path as dubious ownership. The `[sql]` extra is
 required here — see the note below about the 45 SQL files.
 
+**Neither is automatic in a fresh clone** — `.git/hooks/` and the merge
+driver's `git config` half are per-clone and cannot be committed. Run
+`graphify hook install` once per machine, and `graphify hook status` to check;
+all three lines should read installed/registered. This clone silently had
+none of it for a while, and the graph went stale without any symptom other
+than answers that quietly described older code.
+
+**On WSL, install graphify natively — do not rely on the Windows binary.**
+`graphifyy` on PyPI is pure Python (`uv tool install 'graphifyy[sql]==0.9.48'`,
+pinned to match the Windows checkout). The Windows .exe run through WSL can
+answer queries, which makes it look fine, but it cannot write: `update`
+lowercases paths, so `DESIGN.md` is sought as `design.md` and every
+capitalised file fails on a case-sensitive filesystem, aborting the rebuild
+with graph.json untouched; and `hook install` shells out to Windows git, which
+refuses the `\\wsl.localhost` path as dubious ownership. The `[sql]` extra is
+required here — see the note below about the 45 SQL files.
+
 Two things about the setup that are deliberate and should not be "fixed":
 
 - `.graphifyignore` excludes the five vendored agent-skill trees (`.claude/`,

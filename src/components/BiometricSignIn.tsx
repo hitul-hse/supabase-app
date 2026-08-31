@@ -4,11 +4,22 @@
  * BiometricSignIn — "Sign in with Face ID / Touch ID / Windows Hello", via a
  * Supabase passkey.
  *
- * IT RENDERS NOTHING UNLESS ALL THREE OF THESE HOLD. This is the whole design,
+ * IT RENDERS NOTHING UNLESS ALL FOUR OF THESE HOLD. This is the whole design,
  * because the alternative — a button that is always there — is worse than no
  * button: somebody taps it, nothing happens or an SDK error appears, and they
  * now distrust the sign-in page they are standing on.
  *
+ *   0. NEXT_PUBLIC_ENABLE_PASSKEYS is exactly "true". This gate exists to keep
+ *      the other three off the network. Gate 3 is a cross-origin GET, and it
+ *      ran on every single sign-in page load — for every visitor, signed in or
+ *      not — purely to be told `passkeys_enabled: false`, which is what this
+ *      project has always returned. Worse, when Supabase is unreachable (a
+ *      local stack that is not up, a bad URL) the browser logs the failure to
+ *      the console before our .catch() ever sees it, so a misconfigured
+ *      environment makes the sign-in page look broken while behaving fine.
+ *      Same build-time-flag shape as NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN; it
+ *      is inlined at build time, so turning passkeys on is a flag flip in the
+ *      Supabase dashboard AND a rebuild, not a dashboard flip alone.
  *   1. The browser HAS a platform authenticator. `isUserVerifyingPlatform
  *      AuthenticatorAvailable()` is the real check. A desktop Chrome with no
  *      Hello enrolled returns false, and offering Face ID there is a lie.
@@ -17,8 +28,9 @@
  *   3. The SERVER has passkeys switched on. Measured on this project today:
  *      GET /auth/v1/settings returns passkeys_enabled=false, and
  *      /auth/v1/webauthn/* 404s. So right now this component renders null in
- *      production, correctly, and starts working the moment the flag is turned
- *      on in the Supabase dashboard — with no code change.
+ *      production, correctly. Gate 0 does not replace this check — the server
+ *      is still asked before any button appears, so setting the flag early can
+ *      never produce a button GoTrue would refuse to honour.
  *
  * WHAT IT IS NOT. It is NOT "unlock a remembered session behind a biometric
  * prompt". That pattern calls navigator.credentials.get() purely for the
@@ -75,6 +87,13 @@ export function BiometricSignIn({
 
     (async () => {
       try {
+        // (0) Build-time opt-in, checked first because it is the only gate that
+        // costs nothing and the only one that keeps us off the network.
+        if (process.env.NEXT_PUBLIC_ENABLE_PASSKEYS !== "true") {
+          if (active) setAvailability("unavailable");
+          return;
+        }
+
         // (2) Secure context / API present. `?.` because PublicKeyCredential
         // is undefined entirely on http, not merely unsupported.
         const pkc = typeof window !== "undefined"
@@ -92,9 +111,9 @@ export function BiometricSignIn({
           return;
         }
 
-        // (3) The server actually offers passkeys. Read from the same settings
-        // endpoint the OAuth buttons use for provider flags, so this never
-        // disagrees with what GoTrue will do.
+        // (3) The server actually offers passkeys. Read straight from GoTrue's
+        // own settings endpoint, so this never disagrees with what GoTrue will
+        // do. Only reached when gate 0 is on, so it is not on the default path.
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         if (!url || !key) {

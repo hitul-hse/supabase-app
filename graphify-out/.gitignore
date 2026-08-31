@@ -25,3 +25,9 @@ cost.json
 .graphify_cached.json
 .graphify_uncached.txt
 .graphify_semantic_new.json
+
+# Dated backups of the curated graph, written automatically on every rebuild
+# (~5MB each). The post-commit hook rebuilds on every code commit, so these
+# accumulate daily. graph.json is committed and its history is in git already,
+# which is the actual safety net; these are a local undo buffer.
+20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/

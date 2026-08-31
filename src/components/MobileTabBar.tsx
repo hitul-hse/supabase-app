@@ -90,7 +90,7 @@ export function MobileTabBar({
         that silently stops being a pill the moment the bar's height changes.
 
         THE SAFE AREA MOVED, and this is the part that breaks if you skim it.
-        While the bar was flush to the bottom it needed pb-[env(...)] INSIDE
+        While the bar was flush to the bottom it needed pb-[env(safe-area-inset-bottom)] INSIDE
         itself, or its labels sat under the home indicator. A floating bar
         does not touch the bottom edge, so the inset belongs BELOW it instead:
         bottom-[calc(12px+env(safe-area-inset-bottom))]. Keeping the old inner

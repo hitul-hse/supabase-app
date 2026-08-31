@@ -112,6 +112,24 @@ const nextConfig: NextConfig = {
   // Correct MIME types and cache headers for media assets.
   async headers() {
     return [
+      // ─── Baseline hardening ────────────────────────────────────────────
+      // Measured 2026-08-31: production served only Strict-Transport-Security
+      // (Vercel adds that itself). The rest below close the classic gaps:
+      // clickjacking (nothing on this portal is meant to be iframed), MIME
+      // sniffing, referrer leakage of authenticated URLs to third parties,
+      // and browser features no page here uses. A full Content-Security-Policy
+      // is deliberately NOT set in this pass: Next inlines styles and scripts,
+      // so a strict CSP needs nonce plumbing and its own test cycle rather
+      // than a config drive-by.
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
       {
         source: "/:path*.webm",
         headers: [

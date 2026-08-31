@@ -27,6 +27,17 @@
  *   5. Both duplicate directions the user reported are probed, and each probe is
  *      proven able to FIRE -- a probe that can only ever report zero is
  *      reassurance, not a check.
+ *   6. Paging reaches rows that page 1 does not. The panels are no longer capped
+ *      samples but paged tables, and "it is paged" is exactly the claim a
+ *      screenshot of page 1 cannot distinguish from a pager that re-serves the
+ *      same ten rows forever.
+ *
+ * The exhaustive paging properties -- every row reachable, pages disjoint,
+ * out-of-range clamped, panels independent -- are asserted against a FIXTURE in
+ * check-data-hygiene-paging.mjs, which needs no credentials and can therefore
+ * walk all fourteen pages of a finding without fourteen full reads of the live
+ * order book. What is checked HERE is the part a fixture cannot vouch for: that
+ * paging behaves the same way over the real data.
  *
  * READ-ONLY. Uses the service role deliberately: the point is ground truth,
  * unfiltered by RLS, which is also the exec view the page is gated to.
@@ -72,6 +83,22 @@ ok(
 ok(
   /export const dynamic = "force-dynamic"/.test(page),
   "page is force-dynamic, so findings are never served stale",
+);
+/*
+ * The query module can page all it likes; if the page never reads a page number
+ * out of the URL, every panel is permanently on page 1 and the paging is
+ * unreachable. Checked in source because there is no runtime observation of
+ * "where did this number come from" available to a node gate.
+ */
+ok(
+  /searchParams/.test(page) && /getDataHygiene\(supabase, \{ pages \}\)/.test(page),
+  "the page reads its page numbers from searchParams and passes them to the query",
+  "paging that is not driven by the URL breaks the back button, refresh and shared links",
+);
+ok(
+  /scroll=\{false\}/.test(page) && /aria-current=\{current \? "page" : undefined\}/.test(page),
+  "pager links are server-rendered <Link>s that mark the current page for assistive tech",
+  "a row of anchors where the current one is merely a different colour announces as identical links",
 );
 ok(
   !/exactCount \+ suspectCount/.test(page) && /kind === "heuristic"/.test(page),
@@ -135,15 +162,15 @@ console.log(`        measured: ${h.findings.length} finding type(s), ${h.clean.l
     overCap.map((f) => `${f.key}: ${f.rows.length} rows`).join(" | "));
 
   /*
-   * And the cap must be DISCLOSED, not silent. At least one finding currently
-   * exceeds it, so the "showing N of M" path must be live -- if nothing were
-   * capped, that branch would never render and its correctness would be
-   * unobserved.
+   * And the page bound must be DISCLOSED, not silent. At least one finding
+   * currently exceeds one page, so the "showing N of M" path must be live -- if
+   * nothing spilled past a page, that branch would never render and its
+   * correctness would be unobserved.
    */
   const capped = h.findings.filter((f) => f.count > f.rows.length);
   ok(capped.length > 0,
-    `${capped.length} finding(s) are capped, so the disclosure line is exercised`,
-    "no finding is capped: the 'showing N of M' branch is never rendered and untested");
+    `${capped.length} finding(s) span more than one page, so the disclosure line is exercised`,
+    "no finding exceeds a page: the 'showing N of M' branch is never rendered and untested");
 }
 
 /* 3. remedy, and row identity. */
@@ -265,6 +292,70 @@ console.log(`        measured: ${h.findings.length} finding type(s), ${h.clean.l
     ok(Boolean(numF) && numF.count > 0,
       "the known Lexware 10305 multi-company case reaches the page",
       "10305 spans multiple companies in the data but no finding reports it");
+  }
+}
+
+/* 6. paging over the LIVE data.
+ *
+ * Only three pages are walked -- first, second, last -- rather than all of them.
+ * Each call is a full read of the order book, and the exhaustive walk already
+ * happens against a fixture in check-data-hygiene-paging.mjs. What these three
+ * catch is the failure a fixture cannot rule out for real data: a pager that
+ * serves page 1 whatever it is asked for, which looks completely correct until
+ * somebody compares two screenshots.
+ */
+{
+  const target = h.findings
+    .filter((f) => f.pageCount > 1)
+    .sort((a, b) => b.count - a.count)[0];
+
+  ok(Boolean(target),
+    "at least one finding spans more than one page over live data",
+    "every finding fits on one page today, so nothing here exercises the pager");
+
+  if (target) {
+    console.log(`        paging ${target.key}: ${target.count} rows over ${target.pageCount} pages`);
+
+    const at = async (n) => {
+      const res = await getDataHygiene(supabase, { pages: { [target.key]: n } });
+      return res.findings.find((f) => f.key === target.key);
+    };
+
+    const p1 = await at(1);
+    const p2 = await at(2);
+    const last = await at(target.pageCount);
+
+    ok(p2.page === 2 && last.page === target.pageCount,
+      "the module returns the page it was asked for",
+      `asked 2 and ${target.pageCount}, got ${p2.page} and ${last.page}`);
+
+    /*
+     * The one that matters. Identical ids on page 1 and page 2 is what a broken
+     * pager produces, and it is indistinguishable from a working one at a
+     * glance -- the rows are plausible either way.
+     */
+    const ids1 = new Set(p1.rows.map((r) => r.id));
+    const overlap = p2.rows.filter((r) => ids1.has(r.id));
+    ok(overlap.length === 0,
+      `page 2 of ${target.key} shows rows page 1 did not`,
+      `${overlap.length} row(s) repeated from page 1 — the pager is re-serving the same slice`);
+
+    ok(p2.rowStart === p1.rowStart + p1.rows.length,
+      `page 2 starts where page 1 stopped (row ${p2.rowStart})`,
+      `page 1 covered rows ${p1.rowStart}..${p1.rowStart + p1.rows.length - 1}, page 2 starts at ${p2.rowStart}`);
+
+    // The total must not move as the reader pages, or one of the two numbers on
+    // screen is a restatement of the visible slice rather than a real total.
+    ok(p1.count === target.count && p2.count === target.count && last.count === target.count,
+      "the stated total is identical on every page",
+      `${target.count} / ${p1.count} / ${p2.count} / ${last.count}`);
+
+    // A stale bookmark degrades to the last page rather than to an empty table,
+    // which on this page would read as "nothing left to fix".
+    const beyond = await at(9999);
+    ok(beyond.page === target.pageCount && beyond.rows.length > 0,
+      `an out-of-range page clamps to the last page and still renders rows`,
+      `landed on page ${beyond.page} with ${beyond.rows.length} rows`);
   }
 }
 

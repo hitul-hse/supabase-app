@@ -1,7 +1,7 @@
 # Graph Report - supabase-app  (2026-08-31)
 
 ## Corpus Check
-- 728 files · ~1,277,440 words
+- 728 files · ~1,277,641 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `51ae88c6`
+- Built from commit: `8d263487`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2070,20 +2070,20 @@ Cohesion: 0.11
 Nodes (24): groupByTeam(), h(), TeamAnalysis(), TeamAnalysisSection(), TeamBlock, h(), TeamLeadCharts(), TeamChoice (+16 more)
 
 ## Knowledge Gaps
-- **3047 isolated node(s):** `PageHeaderProps`, `ManagementReadClient`, `FactorialPerson`, `FactorialPresence`, `FactorialTeam` (+3042 more)
+- **3047 isolated node(s):** `This is NOT the Next.js you know`, `Skill routing: reach for these by default, not on request`, `These sit ON TOP of this repo's checks, never instead of them`, `UI work: read docs/UI-CONVENTIONS.md first`, `PageHeaderProps` (+3042 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **124 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `t()` connect `t` to `profile-dashboard-render.mjs`, `check-apply-modules.mjs`, `check-stranger-cannot-read.mjs`, `verify-identity-links.mjs`, `audit-timesheet-links.mjs`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
 - **Why does `Database` connect `database.types.ts` to `types.ts`, `factorial-hours.ts`, `projects/[id]/page.tsx`, `time-dashboard.ts`, `contract-actions.ts`, `management-data-quality.ts`, `server.ts`, `time/page.tsx`, `people-live.ts`, `team-lead-live.ts`, `overview-live.ts`, `OrgChartView.tsx`, `management-project-risks.ts`, `ManagementMatrix.tsx`, `ManagementCustomerPortfolio.tsx`, `profile-admin.ts`, `AuthShell.tsx`, `management-customer-portfolio.ts`, `management-multi-service-matrix.ts`, `projects-live.ts`, `dashboard/page.tsx`, `management-service-overview.ts`, `broken-cover.ts`, `alerts/page.tsx`, `createAdminClient`, `data-hygiene.ts`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
-- **Why does `label()` connect `label` to `audit-runtime-errors.mjs`, `import-masterdata-projects.mjs`, `measure-latency-variance.mjs`, `check-dashboard-acceptance.mjs`, `check-time-acceptance.mjs`, `time/page.tsx`, `SSO Provider Check`, `check-oauth-success-path-live.mjs`?**
-  _High betweenness centrality (0.017) - this node is a cross-community bridge._
-- **What connects `PageHeaderProps`, `ManagementReadClient`, `FactorialPerson` to the rest of the system?**
+  _High betweenness centrality (0.019) - this node is a cross-community bridge._
+- **Why does `loadEnv()` connect `gate-env.mjs` to `check-adr001-rule-discriminates.mjs`, `check-responsibility-encodings-agree.mjs`, `check-data-hygiene-disclosure.mjs`, `check-order-hours-freshness.mjs`, `check-replacement-coverage.mjs`, `check-factorial-harvest.mjs`, `check-handover-chain-live.mjs`, `Charts UI Check`, `People And Filters UI Check`, `Team Analysis UI Check`, `check-external-staff-assignable.mjs`, `Theme And Figures Check`, `check-projects-admit-unmeasured.mjs`, `check-management-people-complete.mjs`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **Why does `createClient()` connect `createClient` to `dashboard/page.tsx`, `types.ts`, `OrgChartView.tsx`, `(app)/layout.tsx`, `require-profile.ts`, `projects/[id]/page.tsx`, `nav-icons.tsx`, `ManagementCustomerPortfolio.tsx`, `projects/actions.ts`, `contract-actions.ts`, `TeamLeadBoard.tsx`, `Card.tsx`, `time/actions.ts`, `alerts/page.tsx`, `time/page.tsx`, `createAdminClient`, `profile-actions.ts`, `server.ts`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **What connects `This is NOT the Next.js you know`, `Skill routing: reach for these by default, not on request`, `These sit ON TOP of this repo's checks, never instead of them` to the rest of the system?**
   _3047 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `scripts` be split into smaller, more focused modules?**
   _Cohesion score 0.009478672985781991 - nodes in this community are weakly interconnected._

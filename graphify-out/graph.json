@@ -38025,7 +38025,7 @@
       "node_kind": "heading",
       "norm_label": "installed agent toolkits: gstack, everything-claude-code, graphify",
       "source_file": "AGENTS.md",
-      "source_location": "L50"
+      "source_location": "L69"
     },
     {
       "id": "agents_skill_routing_reach_for_these_by_default_not_on_request",
@@ -38037,7 +38037,7 @@
       "node_kind": "heading",
       "norm_label": "skill routing: reach for these by default, not on request",
       "source_file": "AGENTS.md",
-      "source_location": "L114"
+      "source_location": "L133"
     },
     {
       "id": "agents_these_sit_on_top_of_this_repo_s_checks_never_instead_of_them",
@@ -38049,7 +38049,7 @@
       "node_kind": "heading",
       "norm_label": "these sit on top of this repo's checks, never instead of them",
       "source_file": "AGENTS.md",
-      "source_location": "L139"
+      "source_location": "L158"
     },
     {
       "id": "agents_this_is_not_the_next_js_you_know",
@@ -38073,7 +38073,7 @@
       "node_kind": "heading",
       "norm_label": "ui work: read docs/ui-conventions.md first",
       "source_file": "AGENTS.md",
-      "source_location": "L160"
+      "source_location": "L179"
     },
     {
       "id": "agents_use_the_knowledge_graph_first",
@@ -106232,7 +106232,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "AGENTS.md",
-      "source_location": "L114",
+      "source_location": "L133",
       "weight": 1.0
     },
     {
@@ -106243,7 +106243,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "AGENTS.md",
-      "source_location": "L139",
+      "source_location": "L158",
       "weight": 1.0
     },
     {
@@ -106254,7 +106254,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "AGENTS.md",
-      "source_location": "L160",
+      "source_location": "L179",
       "weight": 1.0
     },
     {
@@ -106265,7 +106265,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "AGENTS.md",
-      "source_location": "L50",
+      "source_location": "L69",
       "weight": 1.0
     },
     {
@@ -166816,5 +166816,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "51ae88c6680b9a9678731742556c2d1256a6d688"
+  "built_at_commit": "8d263487e9135e37d33a7e207e110d19212a92cf"
 }

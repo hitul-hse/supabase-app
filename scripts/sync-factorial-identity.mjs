@@ -69,11 +69,12 @@ await db.connect();
 
 try {
   /* ── 1. Factorial side: fetch, then immediately forget what we may not keep */
-  const raw = await fetchAllPages({
+  const { rows: raw, truncated } = await fetchAllPages({
     resource: "employees/employees",
     token: env.FACTORIAL_API_KEY,
     params: {},
   });
+  if (truncated) throw new Error("employee paging truncated at the page cap - refusing a partial identity sync");
   const employees = raw.map(projectEmployee);
   console.log(`factorial: ${employees.length} employees (projected to allow-list)`);
 

@@ -51,6 +51,13 @@ export function ReviewRow({ row, people }: { row: ReviewRowData; people: PersonO
         <div>
           <span className="font-medium text-[var(--text-primary)]">{row.factorial_full_name ?? "(no name)"}</span>
           <span className="ml-2 text-sm text-[var(--text-muted)]">{row.factorial_login_email ?? "no email"}</span>
+      {row.status === "unmatched" && row.factorial_active !== false && (
+        <p className="mt-1 text-sm text-[var(--text-faint)]">
+          In Factorial but has no TrackingTime account — usually a live colleague the hub
+          doesn&apos;t track yet. Current stage links hub ↔ TrackingTime ↔ Factorial only, so
+          leaving this row open is the correct call until that changes.
+        </p>
+      )}
           {inactive && (
             <span className="ml-2 rounded px-1.5 py-0.5 text-xs bg-[var(--warning-wash)] text-[var(--warning)]">
               former employee

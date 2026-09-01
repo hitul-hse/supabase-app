@@ -28,6 +28,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import type {
   OverviewPreset,
   OverviewRange,
@@ -35,13 +36,18 @@ import type {
   OverviewTeamOption,
 } from "@/lib/queries/overview-live";
 
-const PRESETS: { key: OverviewPreset; label: string }[] = [
-  { key: "4w", label: "4 weeks" },
-  { key: "12w", label: "12 weeks" },
-  { key: "26w", label: "26 weeks" },
-  { key: "month", label: "This month" },
-  { key: "prev-month", label: "Last month" },
-  { key: "year", label: "This year" },
+/*
+ * Presets in display order. The label for each lives in messages/{en,de}.json
+ * under `overview.filters.presets.<key>`, so the key doubles as the message
+ * path; the URL value stays the key, in both languages.
+ */
+const PRESETS: { key: OverviewPreset }[] = [
+  { key: "4w" },
+  { key: "12w" },
+  { key: "26w" },
+  { key: "month" },
+  { key: "prev-month" },
+  { key: "year" },
 ];
 
 /** The preset the page shows when nothing is asked for. */
@@ -59,6 +65,7 @@ export function OverviewFilters({
   coverage: OverviewTeamCoverage;
 }) {
   const router = useRouter();
+  const t = useTranslations("overview.filters");
   const [pending, startTransition] = useTransition();
 
   /*
@@ -100,12 +107,12 @@ export function OverviewFilters({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-          PERIOD
+          {t("period")}
           <span
             aria-live="polite"
             className={`ml-2 text-[var(--accent)] transition-opacity ${pending ? "opacity-100" : "opacity-0"}`}
           >
-            UPDATING…
+            {t("updating")}
           </span>
         </span>
 
@@ -123,7 +130,7 @@ export function OverviewFilters({
                     : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                {p.label}
+                {t(`presets.${p.key}`)}
               </button>
             ))}
           </div>
@@ -140,7 +147,7 @@ export function OverviewFilters({
               type="date"
               value={range.from}
               max={range.to}
-              aria-label="Period from date"
+              aria-label={t("fromDate")}
               onChange={(e) => {
                 if (e.target.value) go({ from: e.target.value, to: range.to });
               }}
@@ -155,7 +162,7 @@ export function OverviewFilters({
               type="date"
               value={range.to}
               min={range.from}
-              aria-label="Period to date"
+              aria-label={t("toDate")}
               onChange={(e) => {
                 if (e.target.value) go({ from: range.from, to: e.target.value });
               }}
@@ -169,7 +176,7 @@ export function OverviewFilters({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--divider)] pt-2">
         <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-          TEAM
+          {t("team")}
         </span>
 
         <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
@@ -186,7 +193,7 @@ export function OverviewFilters({
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
             }`}
           >
-            All teams
+            {t("allTeams")}
           </button>
           {teamOptions.map((option) => (
             <button
@@ -220,23 +227,26 @@ export function OverviewFilters({
         The coverage sentence. This is the whole reason the team filter is safe
         to ship: with 5 of 19 people carrying a team, a filtered page shows
         genuinely tiny numbers, and without this line they are indistinguishable
-        from a catastrophe.
+        from a catastrophe. The "x of y" headcount is the emphasised span; the
+        partial-coverage clause is appended only when TrackingTime holds a team
+        for fewer than everyone.
       */}
       {team !== null && (
         <p role="status" className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-          <span className="font-mono font-semibold text-[var(--warning)]">
-            {activeCount ?? 0} of {coverage.totalPeople}
-          </span>{" "}
-          people have this team recorded
-          {coverage.withTeam < coverage.totalPeople && (
-            <>
-              {" "}
-              — TrackingTime holds a team for only {coverage.withTeam} of{" "}
-              {coverage.totalPeople}, so team-scoped figures cover part of the
-              roster, not a smaller business
-            </>
-          )}
-          .
+          {t.rich("coverage.recorded", {
+            count: activeCount ?? 0,
+            total: coverage.totalPeople,
+            partial:
+              coverage.withTeam < coverage.totalPeople
+                ? t("coverage.partial", {
+                    withTeam: coverage.withTeam,
+                    total: coverage.totalPeople,
+                  })
+                : "",
+            strong: (chunks) => (
+              <span className="font-mono font-semibold text-[var(--warning)]">{chunks}</span>
+            ),
+          })}
         </p>
       )}
     </div>

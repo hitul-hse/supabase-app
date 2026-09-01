@@ -25,6 +25,169 @@
   "common": {
     "logOut": "Abmelden",
     "switchLanguage": "Language: English",
-    "notAvailable": "k. A."
+    "notAvailable": "k. A.",
+    "sync": {
+      "label": "SYNC",
+      "trackingTime": "TRACKINGTIME {age}",
+      "neverRun": "NIE GELAUFEN",
+      "underOneHour": "VOR < 1H",
+      "hoursAgo": "VOR {hours}H",
+      "daysAgo": "VOR {days}D",
+      "running": "SYNC LÄUFT",
+      "failedSince": "{count} FEHLGESCHLAGEN SEITDEM",
+      "rows": "{count} ZEILEN"
+    }
+  },
+  "overview": {
+    "title": "Übersicht",
+    "header": {
+      "meta": "{quarter} · {people} MITARBEITER · {projects} AKTIVE PROJEKTE · {customers} KUNDEN",
+      "fullDashboard": "Gesamtes Dashboard"
+    },
+    "weekLabel": "KW{week}",
+    "period": {
+      "noWeeks": "KEINE WOCHEN IM ZEITRAUM",
+      "range": "{first}–{last} · {count} WOCHEN",
+      "widened": "ZEITRAUM AUF GANZE ISO-WOCHEN ERWEITERT ({period}) — WOCHENSUMMEN SIND NICHT TAGGENAU VERFÜGBAR"
+    },
+    "qualifiers": {
+      "allTime": "GESAMTZEITRAUM",
+      "trackingTime": "TRACKINGTIME",
+      "topByHours": "TOP {count} NACH STUNDEN",
+      "forTeam": " für {team}"
+    },
+    "unlinked": {
+      "message": "{count, plural, one {<strong>#</strong> von {total} Mitarbeitern hat} other {<strong>#</strong> von {total} Mitarbeitern haben}} noch keinen Hub-Zugang — ihre Stunden zählen hier, sie können sie aber nicht sehen.",
+      "review": "Mitarbeiter prüfen"
+    },
+    "tiles": {
+      "openDetails": "{label} — Details öffnen",
+      "billableShare": {
+        "label": "ABRECHENBARER ANTEIL",
+        "noHours": "KEINE STUNDEN IM ZEITFENSTER",
+        "ofHours": "{billable} H VON {total} H"
+      },
+      "hoursLogged": {
+        "label": "ERFASSTE STUNDEN",
+        "weeksEntries": "{weeks, plural, one {# WOCHE} other {# WOCHEN}} · {entries} {entryCount, plural, one {EINTRAG} other {EINTRÄGE}}",
+        "noData": "NOCH KEINE DATEN IMPORTIERT",
+        "noHoursForTeam": "KEINE STUNDEN FÜR DIESES TEAM IM ZEITRAUM"
+      },
+      "capacity": {
+        "label": "ERFASSTE / VERTRAGSSTUNDEN",
+        "ofNominal": "{percent}% VON {weeks, plural, one {# WOCHE} other {# WOCHEN}} NOMINAL",
+        "noContract": "KEINE VERTRAGSSTUNDEN HINTERLEGT"
+      },
+      "activePeople": {
+        "label": "AKTIVE MITARBEITER",
+        "peak": "WOCHENSPITZE · {roster} IN DER BELEGSCHAFT",
+        "nobody": "NIEMAND HAT ZEIT ERFASST"
+      },
+      "budgetRisk": {
+        "label": "PROJEKTE ÜBER BUDGET",
+        "noProjects": "KEINE PROJEKTE MIT ERFASSTER ZEIT",
+        "allTime": "GESAMTZEITRAUM · TOP {count} NACH STUNDEN · {noBudget} OHNE BUDGET"
+      }
+    },
+    "filters": {
+      "period": "ZEITRAUM",
+      "updating": "AKTUALISIERE…",
+      "fromDate": "Zeitraum von",
+      "toDate": "Zeitraum bis",
+      "team": "TEAM",
+      "allTeams": "Alle Teams",
+      "noTeam": "Kein Team hinterlegt",
+      "presets": {
+        "4w": "4 Wochen",
+        "12w": "12 Wochen",
+        "26w": "26 Wochen",
+        "month": "Dieser Monat",
+        "prev-month": "Letzter Monat",
+        "year": "Dieses Jahr"
+      },
+      "coverage": {
+        "recorded": "<strong>{count} von {total}</strong> Mitarbeitern haben dieses Team hinterlegt{partial}.",
+        "partial": " — TrackingTime hält nur für {withTeam} von {total} ein Team, teambezogene Zahlen decken also einen Teil der Belegschaft ab, nicht ein kleineres Unternehmen"
+      }
+    },
+    "hero": {
+      "dialogLabel": "Woche {week} im Detail",
+      "weekOf": "WOCHE {week}",
+      "totals": "{billable}h abrechenbar von {total}h · {people, plural, one {{people} Mitarbeiter} other {{people} Mitarbeiter}} · {entries, plural, one {{entries} Eintrag} other {{entries} Einträge}}",
+      "close": "Wochendetail schließen",
+      "esc": "ESC",
+      "fetching": "Woche wird geladen …",
+      "byPerson": "NACH MITARBEITER",
+      "byProject": "NACH PROJEKT",
+      "nothingLogged": "Nichts erfasst.",
+      "footer": "JE TOP 8 NACH STUNDEN · GLEICHER UMFANG WIE DAS DIAGRAMM · ZUKÜNFTIG DATIERTE EINTRÄGE AUSGESCHLOSSEN"
+    },
+    "billableShare": {
+      "title": "Abrechenbarer Anteil",
+      "legend": "ABRECHENBAR %",
+      "noHoursTeam": "Keine Stunden von {team} in diesem Zeitraum erfasst.",
+      "noHoursPeriod": "Keine Stunden in diesem Zeitraum erfasst.",
+      "noImport": "Noch keine Stunden importiert — TrackingTime-Sync ausführen.",
+      "latestWeek": "LETZTE WOCHE",
+      "acrossPeriod": " · {share}% IM GESAMTEN ZEITRAUM",
+      "readout": "{week}: {share}% abrechenbar · {billable}h von {total}h",
+      "chartLabel": "Abrechenbarer Anteil je Woche über {period}{forTeam}, von {from} bis {to}. Woche anklicken für die Aufschlüsselung."
+    },
+    "utilisationByPerson": {
+      "title": "Auslastung nach Mitarbeiter",
+      "nobodyTeam": "Niemand mit hinterlegtem Team {team} hat Zeit erfasst.",
+      "noMembers": "Keine Mitarbeiter mit erfasster Zeit.",
+      "basis": "BASIS",
+      "basisNote": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, über die Wochen, in denen die Person aktiv war. TrackingTime hält keine Vertragsstunden. Diese Prozentwerte gelten für den Gesamtzeitraum, nicht für den gewählten Zeitraum — die Ansicht je Mitarbeiter ist nicht datumsgebunden."
+    },
+    "disclosure": {
+      "title": "Abrechenbar-Aufteilung & Auslastung",
+      "summary": "{billable} abrechenbar · {utilisation} Auslastung · {hours}h erfasst"
+    },
+    "billableSplit": {
+      "title": "Abrechenbar-Aufteilung",
+      "noHoursPeriod": "Keine Stunden in diesem Zeitraum.",
+      "noHoursYet": "Noch keine Stunden.",
+      "billable": "Abrechenbar",
+      "nonBillable": "Nicht abrechenbar",
+      "centreLabel": "abrechenbar",
+      "chartLabel": "Abrechenbar-Aufteilung über {period}{forTeam}: {share}% von {hours} Stunden abrechenbar",
+      "legendBillable": "{hours} H ABRECHENBAR",
+      "legendNonBillable": "{hours} H NICHT ABRECHENBAR",
+      "note": "Abrechenbare Stunden als Anteil aller erfassten Stunden in diesem Zeitraum. Der Nenner ist tatsächlich erfasste Zeit, nicht vertragliche Kapazität — das beantwortet die Auslastung in der Karte daneben."
+    },
+    "utilisation": {
+      "title": "Auslastung",
+      "rosterAverage": "DURCHSCHNITT BELEGSCHAFT",
+      "teamAverage": "DURCHSCHNITT {team}",
+      "noBasisTeam": "Keine Berechnungsgrundlage — niemand mit hinterlegtem Team {team} hat einen Auslastungswert.",
+      "noBasis": "Keine Berechnungsgrundlage — noch niemand hat Stunden erfasst.",
+      "centreLabel": "einer 40h-Woche",
+      "chartLabel": "Durchschnittliche Auslastung über {count} aktive Mitarbeiter: {percent} Prozent einer nominellen 40-Stunden-Woche",
+      "note": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, gemittelt über Mitarbeiter, die im Zeitraum Zeit erfasst haben. Mitarbeiter ohne Stunden bleiben außen vor statt als null zu zählen — dies ist also der Durchschnitt der Arbeitenden."
+    },
+    "thisPeriod": {
+      "title": "Dieser Zeitraum",
+      "hoursLogged": "ERFASSTE STUNDEN",
+      "billable": "ABRECHENBAR",
+      "peopleOnRoster": "MITARBEITER IN DER BELEGSCHAFT"
+    },
+    "projectLedger": {
+      "title": "Projektübersicht",
+      "qualifier": "TOP {count} NACH STUNDEN · GESAMTZEITRAUM",
+      "allProjects": "Alle Projekte",
+      "empty": "Noch keine Projekte mit erfasster Zeit.",
+      "noBudget": "kein Budget",
+      "noCustomer": "Kein Kunde",
+      "loggedH": "{hours} H ERFASST",
+      "billableH": "{hours} H ABRECHENBAR",
+      "columns": {
+        "project": "PROJEKT",
+        "customer": "KUNDE",
+        "budgetH": "BUDGET H",
+        "loggedH": "ERFASST H",
+        "burn": "VERBRAUCH"
+      }
+    }
   }
 }

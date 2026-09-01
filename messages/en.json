@@ -25,6 +25,169 @@
   "common": {
     "logOut": "Log out",
     "switchLanguage": "Sprache: Deutsch",
-    "notAvailable": "n/a"
+    "notAvailable": "n/a",
+    "sync": {
+      "label": "SYNC",
+      "trackingTime": "TRACKINGTIME {age}",
+      "neverRun": "NEVER RUN",
+      "underOneHour": "< 1H AGO",
+      "hoursAgo": "{hours}H AGO",
+      "daysAgo": "{days}D AGO",
+      "running": "SYNC RUNNING",
+      "failedSince": "{count} FAILED SINCE",
+      "rows": "{count} ROWS"
+    }
+  },
+  "overview": {
+    "title": "Overview",
+    "header": {
+      "meta": "{quarter} · {people} PEOPLE · {projects} ACTIVE PROJECTS · {customers} CUSTOMERS",
+      "fullDashboard": "Full dashboard"
+    },
+    "weekLabel": "W{week}",
+    "period": {
+      "noWeeks": "NO WEEKS IN PERIOD",
+      "range": "{first}–{last} · {count} WEEKS",
+      "widened": "PERIOD WIDENED TO WHOLE ISO WEEKS ({period}) — WEEKLY TOTALS ARE NOT AVAILABLE PER DAY"
+    },
+    "qualifiers": {
+      "allTime": "ALL TIME",
+      "trackingTime": "TRACKINGTIME",
+      "topByHours": "TOP {count} BY HOURS",
+      "forTeam": " for {team}"
+    },
+    "unlinked": {
+      "message": "{count, plural, one {<strong>#</strong> of {total} people has} other {<strong>#</strong> of {total} people have}} no Hub sign-in yet — their hours count here, but they cannot see them.",
+      "review": "Review people"
+    },
+    "tiles": {
+      "openDetails": "{label} — open details",
+      "billableShare": {
+        "label": "BILLABLE SHARE",
+        "noHours": "NO HOURS IN WINDOW",
+        "ofHours": "{billable} H OF {total} H"
+      },
+      "hoursLogged": {
+        "label": "HOURS LOGGED",
+        "weeksEntries": "{weeks, plural, one {# WEEK} other {# WEEKS}} · {entries} {entryCount, plural, one {ENTRY} other {ENTRIES}}",
+        "noData": "NO DATA IMPORTED YET",
+        "noHoursForTeam": "NO HOURS FOR THIS TEAM IN PERIOD"
+      },
+      "capacity": {
+        "label": "TRACKED / CONTRACTED",
+        "ofNominal": "{percent}% OF {weeks, plural, one {# WEEK} other {# WEEKS}} NOMINAL",
+        "noContract": "NO CONTRACTED HOURS ON RECORD"
+      },
+      "activePeople": {
+        "label": "ACTIVE PEOPLE",
+        "peak": "PEAK IN ANY WEEK · {roster} ON ROSTER",
+        "nobody": "NOBODY LOGGED TIME"
+      },
+      "budgetRisk": {
+        "label": "PROJECTS OVER BUDGET",
+        "noProjects": "NO PROJECTS WITH LOGGED TIME",
+        "allTime": "ALL TIME · TOP {count} BY HOURS · {noBudget} WITH NO BUDGET"
+      }
+    },
+    "filters": {
+      "period": "PERIOD",
+      "updating": "UPDATING…",
+      "fromDate": "Period from date",
+      "toDate": "Period to date",
+      "team": "TEAM",
+      "allTeams": "All teams",
+      "noTeam": "No team recorded",
+      "presets": {
+        "4w": "4 weeks",
+        "12w": "12 weeks",
+        "26w": "26 weeks",
+        "month": "This month",
+        "prev-month": "Last month",
+        "year": "This year"
+      },
+      "coverage": {
+        "recorded": "<strong>{count} of {total}</strong> people have this team recorded{partial}.",
+        "partial": " — TrackingTime holds a team for only {withTeam} of {total}, so team-scoped figures cover part of the roster, not a smaller business"
+      }
+    },
+    "hero": {
+      "dialogLabel": "Week of {week} in detail",
+      "weekOf": "WEEK OF {week}",
+      "totals": "{billable}h billable of {total}h · {people, plural, one {{people} person} other {{people} people}} · {entries, plural, one {{entries} entry} other {{entries} entries}}",
+      "close": "Close week detail",
+      "esc": "ESC",
+      "fetching": "Fetching the week…",
+      "byPerson": "BY PERSON",
+      "byProject": "BY PROJECT",
+      "nothingLogged": "Nothing logged.",
+      "footer": "TOP 8 EACH, BY HOURS · SAME SCOPE AS THE CHART · FUTURE-DATED ENTRIES EXCLUDED"
+    },
+    "billableShare": {
+      "title": "Billable share",
+      "legend": "BILLABLE %",
+      "noHoursTeam": "No hours logged by {team} in this period.",
+      "noHoursPeriod": "No hours logged in this period.",
+      "noImport": "No hours imported yet — run the TrackingTime sync.",
+      "latestWeek": "LATEST WEEK",
+      "acrossPeriod": " · {share}% ACROSS THE PERIOD",
+      "readout": "{week}: {share}% billable · {billable}h of {total}h",
+      "chartLabel": "Billable share per week over {period}{forTeam}, from {from} to {to}. Click a week for its breakdown."
+    },
+    "utilisationByPerson": {
+      "title": "Utilisation by person",
+      "nobodyTeam": "Nobody with {team} recorded has logged time.",
+      "noMembers": "No members with logged time.",
+      "basis": "BASIS",
+      "basisNote": "Tracked hours against a nominal 40-hour week, across the weeks each person was active. TrackingTime holds no contracted hours. These percentages are all-time, not for the selected period — the per-person view is not date-bounded."
+    },
+    "disclosure": {
+      "title": "Billable split & utilisation",
+      "summary": "{billable} billable · {utilisation} utilisation · {hours}h logged"
+    },
+    "billableSplit": {
+      "title": "Billable split",
+      "noHoursPeriod": "No hours in this period.",
+      "noHoursYet": "No hours yet.",
+      "billable": "Billable",
+      "nonBillable": "Non-billable",
+      "centreLabel": "billable",
+      "chartLabel": "Billable split over {period}{forTeam}: {share}% of {hours} hours billable",
+      "legendBillable": "{hours} H BILLABLE",
+      "legendNonBillable": "{hours} H NON-BILLABLE",
+      "note": "Billable hours as a share of all tracked hours in this period. The denominator is time actually logged, not contracted capacity — utilisation, in the card beside this one, answers that instead."
+    },
+    "utilisation": {
+      "title": "Utilisation",
+      "rosterAverage": "ROSTER AVERAGE",
+      "teamAverage": "{team} AVERAGE",
+      "noBasisTeam": "No basis to compute — nobody with {team} recorded has a utilisation figure.",
+      "noBasis": "No basis to compute — nobody has tracked hours yet.",
+      "centreLabel": "of a 40h week",
+      "chartLabel": "Average utilisation across {count} active people: {percent} percent of a nominal 40-hour week",
+      "note": "Tracked hours against a nominal 40-hour week, averaged over people who logged time in the period. People with no hours are left out rather than counted as zero, so this is the average of those working."
+    },
+    "thisPeriod": {
+      "title": "This period",
+      "hoursLogged": "HOURS LOGGED",
+      "billable": "BILLABLE",
+      "peopleOnRoster": "PEOPLE ON ROSTER"
+    },
+    "projectLedger": {
+      "title": "Project ledger",
+      "qualifier": "TOP {count} BY HOURS · ALL TIME",
+      "allProjects": "All projects",
+      "empty": "No projects with logged time yet.",
+      "noBudget": "no budget",
+      "noCustomer": "No customer",
+      "loggedH": "{hours} H LOGGED",
+      "billableH": "{hours} H BILLABLE",
+      "columns": {
+        "project": "PROJECT",
+        "customer": "CUSTOMER",
+        "budgetH": "BUDGET H",
+        "loggedH": "LOGGED H",
+        "burn": "BURN"
+      }
+    }
   }
 }

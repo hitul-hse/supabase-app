@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { TrendFigure, type AreaPoint } from "@/components/ui/Charts";
 import { getWeekDrilldown, type WeekDrilldown } from "./week-drilldown";
 
@@ -22,6 +23,8 @@ export function OverviewHero({
   label: string;
   team: string | null;
 }) {
+  const t = useTranslations("overview.hero");
+  const tc = useTranslations("common");
   const [open, setOpen] = useState<WeekDrilldown | null>(null);
   const [openLabel, setOpenLabel] = useState<string>("");
   const [pending, startTransition] = useTransition();
@@ -63,24 +66,27 @@ export function OverviewHero({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={`Week of ${openLabel} in detail`}
+            aria-label={t("dialogLabel", { week: openLabel })}
             className="rise-in card-elev-raised w-full max-w-2xl rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
               <div>
                 <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-                  WEEK OF {openLabel.toUpperCase()}
+                  {t("weekOf", { week: openLabel.toUpperCase() })}
                 </span>
                 {open && !open.error && (
                   <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="font-mono text-[26px] font-semibold leading-none text-[var(--text-primary)]">
-                      {open.totals.share === null ? "n/a" : `${open.totals.share}%`}
+                      {open.totals.share === null ? tc("notAvailable") : `${open.totals.share}%`}
                     </span>
                     <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-                      {open.totals.billableHours.toLocaleString("de-DE")}h billable of{" "}
-                      {open.totals.hours.toLocaleString("de-DE")}h · {open.totals.people} people ·{" "}
-                      {open.totals.entries} entries
+                      {t("totals", {
+                        billable: open.totals.billableHours.toLocaleString("de-DE"),
+                        total: open.totals.hours.toLocaleString("de-DE"),
+                        people: open.totals.people,
+                        entries: open.totals.entries,
+                      })}
                     </span>
                   </div>
                 )}
@@ -89,17 +95,17 @@ export function OverviewHero({
                 type="button"
                 onClick={close}
                 autoFocus
-                aria-label="Close week detail"
+                aria-label={t("close")}
                 className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2.5 py-1 font-mono text-[11px] text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               >
-                ESC
+                {t("esc")}
               </button>
             </div>
 
             <div className="px-5 py-4">
               {pending && !open && (
                 <p className="py-8 text-center font-mono text-[11px] text-[var(--text-faint)]">
-                  Fetching the week…
+                  {t("fetching")}
                 </p>
               )}
               {open?.error && (
@@ -107,14 +113,14 @@ export function OverviewHero({
               )}
               {open && !open.error && (
                 <div className="stagger grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <DrillList title="BY PERSON" rows={open.byPerson} totalHours={open.totals.hours} />
-                  <DrillList title="BY PROJECT" rows={open.byProject} totalHours={open.totals.hours} />
+                  <DrillList title={t("byPerson")} rows={open.byPerson} totalHours={open.totals.hours} />
+                  <DrillList title={t("byProject")} rows={open.byProject} totalHours={open.totals.hours} />
                 </div>
               )}
             </div>
 
             <div className="border-t border-[var(--border)] px-5 py-3 font-mono text-[10px] text-[var(--text-faint)]">
-              TOP 8 EACH, BY HOURS · SAME SCOPE AS THE CHART · FUTURE-DATED ENTRIES EXCLUDED
+              {t("footer")}
             </div>
           </div>
         </div>
@@ -132,13 +138,14 @@ function DrillList({
   rows: { name: string; hours: number; billableHours: number }[];
   totalHours: number;
 }) {
+  const t = useTranslations("overview.hero");
   return (
     <div>
       <h3 className="mb-2 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
         {title}
       </h3>
       {rows.length === 0 ? (
-        <p className="font-mono text-[11px] text-[var(--text-faint)]">Nothing logged.</p>
+        <p className="font-mono text-[11px] text-[var(--text-faint)]">{t("nothingLogged")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {rows.map((row) => {

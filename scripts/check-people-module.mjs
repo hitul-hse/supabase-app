@@ -198,10 +198,15 @@ try {
   );
 
   const overviewSrc = code(OVERVIEW);
+  // The note's wording lives in messages/en.json (next-intl); the page must
+  // reference the key and the English text must still say "nominal".
+  const basisNote =
+    JSON.parse(readFileSync("messages/en.json", "utf8")).overview?.utilisationByPerson?.basisNote ?? "";
   check(
     "R4: the Overview basis note does not claim contracted hours",
-    /nominal 40-hour week/i.test(code("src/app/(app)/page.tsx")) &&
-      !/over contracted hours/i.test(code("src/app/(app)/page.tsx")),
+    /utilisationByPerson\.basisNote/.test(code("src/app/(app)/page.tsx")) &&
+      /nominal 40-hour week/i.test(basisNote) &&
+      !/over contracted hours/i.test(basisNote),
   );
   check(
     "R3: the Overview headcount uses the roster count, not raw member rows",

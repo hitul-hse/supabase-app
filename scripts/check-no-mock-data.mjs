@@ -91,6 +91,13 @@ for (const rel of REPORTING_FILES) {
 console.log("\n--- 2. The landing page reads real TrackingTime ---");
 
 const page = read("src/app/(app)/page.tsx");
+/*
+ * Wording lives in messages/en.json (next-intl): each wording rule pins the
+ * message KEY in stripped source AND the English text behind it.
+ */
+const en = JSON.parse(read("messages/en.json") ?? "{}");
+const enText = (path) =>
+  path.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), en) ?? "";
 if (page) {
   check(
     "landing page calls getLiveOverview",
@@ -172,7 +179,8 @@ if (syncBar) {
   // none at all, so the "never ran" wording is part of the contract.
   check(
     'SyncBar distinguishes "never run" from "0 hours ago"',
-    /hoursSince === null\)\s*return\s*"NEVER RUN"/.test(syncBarCode),
+    /hoursSince === null\)\s*return\s*t\("neverRun"\)/.test(syncBarCode) &&
+      enText("common.sync.neverRun") === "NEVER RUN",
     "null hoursSince rendering as a duration would claim a sync that never happened",
   );
   check(
@@ -229,12 +237,14 @@ if (page) {
   // matching that comment would let the JSX beneath it regress unnoticed.
   check(
     'utilisation renders "n/a", not 0%, with no contract',
-    /team\.percent !== null \? `\$\{team\.percent\}%` : ["']n\/a["']/.test(pageCode),
+    /team\.percent !== null \? `\$\{team\.percent\}%` : tc\("notAvailable"\)/.test(pageCode) &&
+      enText("common.notAvailable") === "n/a",
     "`${team.percent ?? 0}%` would render an idle-looking 0% for an unknown ratio",
   );
   check(
     "the empty chart says so rather than drawing something",
-    /No hours imported yet/.test(page),
+    /t\("billableShare\.noImport"\)/.test(pageCode) &&
+      /No hours imported yet/.test(enText("overview.billableShare.noImport")),
     "an empty chart with invented bars is the bug this replaces",
   );
 }

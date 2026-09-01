@@ -188,12 +188,27 @@ export type OverviewScopeNotes = {
  * a red bar and a green bar look identical to a colourblind reader and to a
  * printed page.
  */
+/**
+ * A user-visible string as a message-catalogue reference rather than English
+ * text: the key under `overview` in messages/{en,de}.json plus the values the
+ * message interpolates. The page renders it through next-intl, so the query
+ * layer never has to know which language the reader chose.
+ *
+ * Numbers that must render exactly (de-DE thousands separators) are passed
+ * PRE-FORMATTED as strings; bare numbers are passed only where ICU needs them
+ * for plural selection.
+ */
+export type OverviewMessage = {
+  key: string;
+  values?: Record<string, string | number>;
+};
+
 export type OverviewMetric = {
   key: string;
-  label: string;
+  label: OverviewMessage;
   /** Pre-formatted for display, or null when there is no data behind it. */
   value: string | null;
-  subtext: string;
+  subtext: OverviewMessage;
   tone: "neutral" | "good" | "warning" | "critical";
   /** 0-100 for a progress bar, or null for a plain figure. */
   progressPercent: number | null;
@@ -391,12 +406,18 @@ export async function getLiveOverview(
   const metrics: OverviewMetric[] = [
     {
       key: "billable-share",
-      label: "BILLABLE SHARE",
+      label: { key: "tiles.billableShare.label" },
       value: totals.billablePercent === null ? null : `${totals.billablePercent}%`,
       subtext:
         totals.billablePercent === null
-          ? "NO HOURS IN WINDOW"
-          : `${fmtHours(totals.billableHours)} H OF ${fmtHours(totals.totalHours)} H`,
+          ? { key: "tiles.billableShare.noHours" }
+          : {
+              key: "tiles.billableShare.ofHours",
+              values: {
+                billable: fmtHours(totals.billableHours),
+                total: fmtHours(totals.totalHours),
+              },
+            },
       // Deliberately not colour-coded against a target. There is no agreed
       // company target in the data, and inventing one here would put us right
       // back where we started.
@@ -405,30 +426,43 @@ export async function getLiveOverview(
     },
     {
       key: "hours-logged",
-      label: "HOURS LOGGED",
+      label: { key: "tiles.hoursLogged.label" },
       value: totals.totalHours > 0 ? fmtHours(totals.totalHours) : null,
       subtext:
         totals.weeksCovered > 0
-          ? `${totals.weeksCovered} WEEKS · ${totals.entryCount.toLocaleString("de-DE")} ENTRIES`
+          ? {
+              key: "tiles.hoursLogged.weeksEntries",
+              values: {
+                weeks: totals.weeksCovered,
+                entries: totals.entryCount.toLocaleString("de-DE"),
+                entryCount: totals.entryCount,
+              },
+            }
           : team === null
-            ? "NO DATA IMPORTED YET"
+            ? { key: "tiles.hoursLogged.noData" }
             : // A team filter emptying a figure is a different fact from an
               // empty database, and it must not read as one.
-              "NO HOURS FOR THIS TEAM IN PERIOD",
+              { key: "tiles.hoursLogged.noHoursForTeam" },
       tone: "neutral",
       progressPercent: null,
     },
     {
       key: "capacity",
-      label: "TRACKED / CONTRACTED",
+      label: { key: "tiles.capacity.label" },
       value:
         contractedHours > 0
           ? `${fmtHours(totals.trackedSeconds / 3600)} / ${fmtHours(contractedHours)}`
           : null,
       subtext:
         contractedHours > 0
-          ? `${Math.round((totals.trackedSeconds / 3600 / contractedHours) * 100)}% OF ${rangeWeekCount} WEEKS NOMINAL`
-          : "NO CONTRACTED HOURS ON RECORD",
+          ? {
+              key: "tiles.capacity.ofNominal",
+              values: {
+                percent: Math.round((totals.trackedSeconds / 3600 / contractedHours) * 100),
+                weeks: rangeWeekCount,
+              },
+            }
+          : { key: "tiles.capacity.noContract" },
       tone: "neutral",
       progressPercent:
         contractedHours > 0
@@ -440,31 +474,34 @@ export async function getLiveOverview(
     },
     {
       key: "active-people",
-      label: "ACTIVE PEOPLE",
+      label: { key: "tiles.activePeople.label" },
       value: totals.activeMembers > 0 ? String(totals.activeMembers) : null,
       subtext:
         totals.activeMembers > 0
           ? // `memberRows.length` counted every member record including the
             // info@ and jobs@ inboxes. The roster count is people.
-            `PEAK IN ANY WEEK · ${roster.activePeople} ON ROSTER`
-          : "NOBODY LOGGED TIME",
+            { key: "tiles.activePeople.peak", values: { roster: roster.activePeople } }
+          : { key: "tiles.activePeople.nobody" },
       tone: "neutral",
       progressPercent: null,
     },
     {
       key: "budget-risk",
-      label: "PROJECTS OVER BUDGET",
+      label: { key: "tiles.budgetRisk.label" },
       value: projectRows.length > 0 ? String(overBudget) : null,
       subtext:
         projectRows.length === 0
-          ? "NO PROJECTS WITH LOGGED TIME"
+          ? { key: "tiles.budgetRisk.noProjects" }
           : // Naming the unbudgeted count matters: "0 over budget" sounds like
             // health, but it is meaningless if most projects have no budget to
             // exceed. The reader needs the denominator's caveat.
             // "ALL TIME" is not decoration: project_summary is not period-bounded,
             // so this count sits beside period figures and would otherwise be read
             // as one of them.
-            `ALL TIME · TOP ${projectRows.length} BY HOURS · ${noBudget} WITH NO BUDGET`,
+            {
+              key: "tiles.budgetRisk.allTime",
+              values: { count: projectRows.length, noBudget },
+            },
       tone: overBudget > 0 ? "critical" : "neutral",
       progressPercent: null,
     },

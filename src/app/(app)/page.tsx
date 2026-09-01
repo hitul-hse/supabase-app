@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader, ChartNote, StatTile } from "@/components/ui/Card";
@@ -11,8 +12,10 @@ import { MobileDisclosure } from "@/components/MobileDisclosure";
 import { createClient } from "@/utils/supabase/server";
 import {
   getLiveOverview,
+  NO_TEAM,
   parseOverviewRange,
   parseOverviewTeam,
+  type OverviewMessage,
 } from "@/lib/queries/overview-live";
 import { OverviewFilters } from "./OverviewFilters";
 import { OverviewHero } from "./OverviewHero";
@@ -30,6 +33,11 @@ import { requireUser } from "@/utils/supabase/require-user";
  *
  * The rule that shapes this file: a missing number renders "n/a", never 0 and
  * never a plausible substitute.
+ *
+ * Every user-visible string comes from messages/{en,de}.json under `overview`
+ * (next-intl, cookie-selected locale). Numbers keep their de-DE formatting and
+ * are passed to the messages pre-formatted, so the catalogue never reformats
+ * a figure the reader has already learned to read.
  */
 export default async function OverviewPage({
   searchParams,
@@ -38,6 +46,8 @@ export default async function OverviewPage({
 }) {
   await requireUser("/");
   const supabase = await createClient();
+  const t = await getTranslations("overview");
+  const tc = await getTranslations("common");
 
   /*
    * The period and team come from the URL, so a scoped view is shareable and
@@ -61,6 +71,18 @@ export default async function OverviewPage({
     scopeNotes,
   } = await getLiveOverview(supabase, { range, team });
 
+  /** A message reference from the query layer, rendered in the reader's locale. */
+  const msg = (m: OverviewMessage) => t(m.key, m.values);
+
+  /**
+   * The no-team bucket is the one option whose label is prose rather than a
+   * stored team name, so it is translated here at the server boundary; the
+   * query module keeps the English literal as its fallback.
+   */
+  const localisedTeamOptions = teamOptions.map((option) =>
+    option.key === NO_TEAM ? { ...option, label: t("filters.noTeam") } : option,
+  );
+
   /*
    * How the period is named everywhere on the page, once.
    *
@@ -71,21 +93,34 @@ export default async function OverviewPage({
    */
   const periodLabel =
     coveredWeeks === null
-      ? "NO WEEKS IN PERIOD"
+      ? t("period.noWeeks")
       : coveredWeeks.count === 1
         ? `${coveredWeeks.first}`
-        : `${coveredWeeks.first}–${coveredWeeks.last} · ${coveredWeeks.count} WEEKS`;
+        : t("period.range", {
+            first: coveredWeeks.first,
+            last: coveredWeeks.last,
+            count: coveredWeeks.count,
+          });
 
   const teamLabelForScope =
     team === null
       ? null
-      : (teamOptions.find((t) => t.key === team)?.label ?? team);
+      : (localisedTeamOptions.find((t) => t.key === team)?.label ?? team);
+
+  /** " for Tech" / " für Tech", or nothing when the page is unscoped. */
+  const forTeam = teamLabelForScope ? t("qualifiers.forTeam", { team: teamLabelForScope }) : "";
 
   /** The qualifier under a card title: period, plus the team when one is set. */
   const scopedQualifier = (extra?: string) =>
     [periodLabel, teamLabelForScope?.toUpperCase(), extra]
       .filter(Boolean)
       .join(" · ");
+
+  /** "W32" / "KW32": the ISO week, named the way the reader's language names it. */
+  const weekLabel = (weekStart: string) => {
+    const week = isoWeekNumber(weekStart);
+    return week === null ? "—" : t("weekLabel", { week });
+  };
 
   // (chartMax is gone: it scaled the old bar strip, and the area chart owns its own scale.)
 
@@ -103,9 +138,14 @@ export default async function OverviewPage({
       const share = Math.round((w.billableHours / w.totalHours) * 100);
       return {
         key: w.weekStart,
-        label: formatWeekLabel(w.weekStart),
+        label: weekLabel(w.weekStart),
         value: share,
-        readout: `${formatWeekLabel(w.weekStart)}: ${share}% billable · ${w.billableHours.toLocaleString("de-DE")}h of ${w.totalHours.toLocaleString("de-DE")}h`,
+        readout: t("billableShare.readout", {
+          week: weekLabel(w.weekStart),
+          share,
+          billable: w.billableHours.toLocaleString("de-DE"),
+          total: w.totalHours.toLocaleString("de-DE"),
+        }),
       };
     });
 
@@ -143,7 +183,7 @@ export default async function OverviewPage({
   const axisTicks = tickIndexes
     .map((index) => weeks[index])
     .filter((week): week is NonNullable<typeof week> => week !== undefined)
-    .map((week) => formatWeekLabel(week.weekStart));
+    .map((week) => weekLabel(week.weekStart));
 
   const toneColour = (tone: string) =>
     tone === "critical"
@@ -159,12 +199,17 @@ export default async function OverviewPage({
       <SyncBar />
 
       <PageHeader
-        title="Overview"
-        meta={`${counts.currentQuarter} · ${counts.activeMembers} PEOPLE · ${counts.activeProjects} ACTIVE PROJECTS · ${counts.customers} CUSTOMERS`}
+        title={t("title")}
+        meta={t("header.meta", {
+          quarter: counts.currentQuarter,
+          people: counts.activeMembers,
+          projects: counts.activeProjects,
+          customers: counts.customers,
+        })}
         chrome={<TopBarChrome />}
         actions={
           <ButtonLink variant="primary" href="/time/dashboard">
-            Full dashboard
+            {t("header.fullDashboard")}
           </ButtonLink>
         }
       />
@@ -178,7 +223,7 @@ export default async function OverviewPage({
         <OverviewFilters
           range={range}
           team={team}
-          teamOptions={teamOptions}
+          teamOptions={localisedTeamOptions}
           coverage={teamCoverage}
         />
 
@@ -189,8 +234,7 @@ export default async function OverviewPage({
         */}
         {scopeNotes.snappedToWholeWeeks && (
           <p className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-            PERIOD WIDENED TO WHOLE ISO WEEKS ({periodLabel}) — WEEKLY TOTALS ARE
-            NOT AVAILABLE PER DAY
+            {t("period.widened", { period: periodLabel })}
           </p>
         )}
         {/*
@@ -204,18 +248,22 @@ export default async function OverviewPage({
             <span className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
               <IconWarning className="flex-none text-[var(--warning)]" />
               <span>
-                <span className="font-mono font-semibold text-[var(--warning)]">
-                  {unlinkedPeople}
-                </span>{" "}
-                of {counts.activeMembers} people have no Hub sign-in yet — their
-                hours count here, but they cannot see them.
+                {t.rich("unlinked.message", {
+                  count: unlinkedPeople,
+                  total: counts.activeMembers,
+                  strong: (chunks) => (
+                    <span className="font-mono font-semibold text-[var(--warning)]">
+                      {chunks}
+                    </span>
+                  ),
+                })}
               </span>
             </span>
             <Link
               href="/people"
               className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium text-[var(--accent)] hover:underline"
             >
-              Review people
+              {t("unlinked.review")}
               <IconArrowRight className="flex-none" />
             </Link>
           </Card>
@@ -245,20 +293,21 @@ export default async function OverviewPage({
               "budget-risk": "/projects",
             };
             const href = drill[metric.key];
+            const label = msg(metric.label);
             const tile = (
               <StatTile
                 key={href ? undefined : metric.key}
                 data-metric={metric.key}
-                label={metric.label}
+                label={label}
                 value={metric.value}
-                hint={metric.subtext}
+                hint={msg(metric.subtext)}
                 tone={metric.tone}
                 progressPercent={metric.progressPercent}
                 className={href ? "h-full cursor-pointer" : undefined}
               />
             );
             return href ? (
-              <Link key={metric.key} href={href} aria-label={`${metric.label} — open details`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+              <Link key={metric.key} href={href} aria-label={t("tiles.openDetails", { label })} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
                 {tile}
               </Link>
             ) : (
@@ -279,11 +328,11 @@ export default async function OverviewPage({
           */}
           <Card tone="hero" className="flex flex-col lg:col-span-7">
             <CardHeader
-              title="Billable share"
-              qualifier={scopedQualifier("TRACKINGTIME")}
+              title={t("billableShare.title")}
+              qualifier={scopedQualifier(t("qualifiers.trackingTime"))}
               actions={
                 <div className="flex items-center gap-3">
-                  <LegendDot color="var(--accent)">BILLABLE %</LegendDot>
+                  <LegendDot color="var(--accent)">{t("billableShare.legend")}</LegendDot>
                 </div>
               }
             />
@@ -298,10 +347,10 @@ export default async function OverviewPage({
                     one sends the reader to fix something that is not broken.
                   */}
                   {team !== null
-                    ? `No hours logged by ${teamLabelForScope} in this period.`
+                    ? t("billableShare.noHoursTeam", { team: teamLabelForScope ?? "" })
                     : coveredWeeks !== null
-                      ? "No hours logged in this period."
-                      : "No hours imported yet — run the TrackingTime sync."}
+                      ? t("billableShare.noHoursPeriod")
+                      : t("billableShare.noImport")}
                 </p>
               ) : (
                 <>
@@ -312,8 +361,9 @@ export default async function OverviewPage({
                       {trendPoints[trendPoints.length - 1].value}%
                     </span>
                     <span className="font-mono text-[10px] text-[var(--text-secondary)]">
-                      LATEST WEEK
-                      {billableShareAll !== null && ` · ${billableShareAll}% ACROSS THE PERIOD`}
+                      {t("billableShare.latestWeek")}
+                      {billableShareAll !== null &&
+                        t("billableShare.acrossPeriod", { share: billableShareAll })}
                     </span>
                   </div>
 
@@ -324,7 +374,12 @@ export default async function OverviewPage({
                       points={trendPoints}
                       yDomain={[0, 100]}
                       team={team}
-                      label={`Billable share per week over ${periodLabel.toLowerCase()}${teamLabelForScope ? ` for ${teamLabelForScope}` : ""}, from ${trendPoints[0].label} to ${trendPoints[trendPoints.length - 1].label}. Click a week for its breakdown.`}
+                      label={t("billableShare.chartLabel", {
+                        period: periodLabel.toLowerCase(),
+                        forTeam,
+                        from: trendPoints[0].label,
+                        to: trendPoints[trendPoints.length - 1].label,
+                      })}
                     />
                   </div>
 
@@ -348,10 +403,10 @@ export default async function OverviewPage({
               appear -- so both facts are stated.
             */}
             <CardHeader
-              title="Utilisation by person"
+              title={t("utilisationByPerson.title")}
               qualifier={[
-                "TOP 6 BY HOURS",
-                scopeNotes.utilisationAllTime ? "ALL TIME" : null,
+                t("qualifiers.topByHours", { count: 6 }),
+                scopeNotes.utilisationAllTime ? t("qualifiers.allTime") : null,
                 teamLabelForScope?.toUpperCase(),
               ]
                 .filter(Boolean)
@@ -362,8 +417,8 @@ export default async function OverviewPage({
               {teams.length === 0 ? (
                 <p className="font-mono text-[11px] text-[var(--text-faint)]">
                   {team !== null
-                    ? `Nobody with ${teamLabelForScope} recorded has logged time.`
-                    : "No members with logged time."}
+                    ? t("utilisationByPerson.nobodyTeam", { team: teamLabelForScope ?? "" })
+                    : t("utilisationByPerson.noMembers")}
                 </p>
               ) : (
                 teams.map((team) => (
@@ -387,7 +442,7 @@ export default async function OverviewPage({
                           "n/a" not "0%": no contracted hours means the ratio is
                           undefined, and 0% would read as somebody idle.
                         */}
-                        {team.percent !== null ? `${team.percent}%` : "n/a"}
+                        {team.percent !== null ? `${team.percent}%` : tc("notAvailable")}
                       </span>
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
@@ -421,7 +476,7 @@ export default async function OverviewPage({
 
             <div className="mt-auto flex flex-col gap-1 border-t border-[var(--divider)] px-4 pb-4 pt-3">
               <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                BASIS
+                {t("utilisationByPerson.basis")}
               </span>
               {/*
                 "Nominal 40-hour week", not "contracted". Every TrackingTime
@@ -430,10 +485,7 @@ export default async function OverviewPage({
                 as a fact about someone's employment.
               */}
               <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                Tracked hours against a nominal 40-hour week, across the weeks
-                each person was active. TrackingTime holds no contracted hours.
-                These percentages are all-time, not for the selected period —
-                the per-person view is not date-bounded.
+                {t("utilisationByPerson.basisNote")}
               </p>
             </div>
           </Card>
@@ -462,44 +514,53 @@ export default async function OverviewPage({
           a bare wrapper and the desktop grid is unchanged.
         */}
         <MobileDisclosure
-          title="Billable split & utilisation"
-          summary={
-            `${billableShareAll === null ? "—" : `${billableShareAll}%`} billable` +
-            ` · ${avgUtilisation === null ? "—" : `${avgUtilisation}%`} utilisation` +
-            ` · ${Math.round(totalHoursAll).toLocaleString("de-DE")}h logged`
-          }
+          title={t("disclosure.title")}
+          summary={t("disclosure.summary", {
+            billable: billableShareAll === null ? "—" : `${billableShareAll}%`,
+            utilisation: avgUtilisation === null ? "—" : `${avgUtilisation}%`,
+            hours: Math.round(totalHoursAll).toLocaleString("de-DE"),
+          })}
         >
         <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-3">
           <Card className="flex flex-col">
-            <CardHeader title="Billable split" qualifier={scopedQualifier()} />
+            <CardHeader title={t("billableSplit.title")} qualifier={scopedQualifier()} />
             <div className="flex flex-1 flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 pb-5">
               {billableShareAll === null ? (
                 <p className="font-mono text-[11px] text-[var(--text-faint)]">
                   {team !== null || coveredWeeks !== null
-                    ? "No hours in this period."
-                    : "No hours yet."}
+                    ? t("billableSplit.noHoursPeriod")
+                    : t("billableSplit.noHoursYet")}
                 </p>
               ) : (
                 <>
                   <Donut
                     slices={[
-                      { label: "Billable", value: billableHoursAll, color: "var(--accent)" },
+                      { label: t("billableSplit.billable"), value: billableHoursAll, color: "var(--accent)" },
                       {
-                        label: "Non-billable",
+                        label: t("billableSplit.nonBillable"),
                         value: Math.max(0, totalHoursAll - billableHoursAll),
                         color: "var(--text-faint)",
                       },
                     ]}
                     centre={`${billableShareAll}%`}
-                    centreLabel="billable"
-                    label={`Billable split over ${periodLabel.toLowerCase()}${teamLabelForScope ? ` for ${teamLabelForScope}` : ""}: ${billableShareAll}% of ${Math.round(totalHoursAll).toLocaleString("de-DE")} hours billable`}
+                    centreLabel={t("billableSplit.centreLabel")}
+                    label={t("billableSplit.chartLabel", {
+                      period: periodLabel.toLowerCase(),
+                      forTeam,
+                      share: billableShareAll,
+                      hours: Math.round(totalHoursAll).toLocaleString("de-DE"),
+                    })}
                   />
                   <div className="flex flex-col gap-2">
                     <LegendDot color="var(--accent)">
-                      {Math.round(billableHoursAll).toLocaleString("de-DE")} H BILLABLE
+                      {t("billableSplit.legendBillable", {
+                        hours: Math.round(billableHoursAll).toLocaleString("de-DE"),
+                      })}
                     </LegendDot>
                     <LegendDot color="var(--text-faint)">
-                      {Math.round(totalHoursAll - billableHoursAll).toLocaleString("de-DE")} H NON-BILLABLE
+                      {t("billableSplit.legendNonBillable", {
+                        hours: Math.round(totalHoursAll - billableHoursAll).toLocaleString("de-DE"),
+                      })}
                     </LegendDot>
                   </div>
                 </>
@@ -511,11 +572,7 @@ export default async function OverviewPage({
           numbers from the same week. Stating which one stops a reader taking
           63% of logged time as 63% of their working week.
         */}
-        <ChartNote>
-          Billable hours as a share of all tracked hours in this period. The
-          denominator is time actually logged, not contracted capacity —
-          utilisation, in the card beside this one, answers that instead.
-        </ChartNote>
+        <ChartNote>{t("billableSplit.note")}</ChartNote>
           </Card>
 
           <Card className="flex flex-col">
@@ -523,26 +580,31 @@ export default async function OverviewPage({
                 their scope exactly -- all-time, team-filtered when one is set --
                 and must not imply otherwise by saying "ROSTER AVERAGE". */}
             <CardHeader
-              title="Utilisation"
+              title={t("utilisation.title")}
               qualifier={[
-                team === null ? "ROSTER AVERAGE" : `${teamLabelForScope?.toUpperCase()} AVERAGE`,
-                "ALL TIME",
+                team === null
+                  ? t("utilisation.rosterAverage")
+                  : t("utilisation.teamAverage", { team: (teamLabelForScope ?? "").toUpperCase() }),
+                t("qualifiers.allTime"),
               ].join(" · ")}
             />
             <div className="flex flex-1 items-center justify-center px-4 pb-5">
               {avgUtilisation === null ? (
                 <p className="font-mono text-[11px] text-[var(--text-faint)]">
                   {team !== null
-                    ? `No basis to compute — nobody with ${teamLabelForScope} recorded has a utilisation figure.`
-                    : "No basis to compute — nobody has tracked hours yet."}
+                    ? t("utilisation.noBasisTeam", { team: teamLabelForScope ?? "" })
+                    : t("utilisation.noBasis")}
                 </p>
               ) : (
                 <Gauge
                   value={avgUtilisation}
                   max={100}
                   color={gaugeColor}
-                  centreLabel="of a 40h week"
-                  label={`Average utilisation across ${utilised.length} active people: ${avgUtilisation} percent of a nominal 40-hour week`}
+                  centreLabel={t("utilisation.centreLabel")}
+                  label={t("utilisation.chartLabel", {
+                    count: utilised.length,
+                    percent: avgUtilisation,
+                  })}
                 />
               )}
             </div>
@@ -552,26 +614,22 @@ export default async function OverviewPage({
           1,304 planned hours a year at 75% billable. A reader comparing the two
           figures needs to know they rest on different bases.
         */}
-        <ChartNote>
-          Tracked hours against a nominal 40-hour week, averaged over people who
-          logged time in the period. People with no hours are left out rather
-          than counted as zero, so this is the average of those working.
-        </ChartNote>
+        <ChartNote>{t("utilisation.note")}</ChartNote>
           </Card>
 
           <Card className="flex flex-col sm:col-span-2 lg:col-span-1">
-            <CardHeader title="This period" qualifier={scopedQualifier()} />
+            <CardHeader title={t("thisPeriod.title")} qualifier={scopedQualifier()} />
             {/* The plain numbers beside the two figures, so the strip answers
                 magnitude as well as proportion without a trip back to the tiles. */}
             <div className="flex flex-1 flex-col justify-center gap-3 px-4 pb-5">
               <div className="flex items-baseline justify-between">
-                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">HOURS LOGGED</span>
+                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">{t("thisPeriod.hoursLogged")}</span>
                 <span className="font-mono text-[18px] font-semibold text-[var(--text-primary)]">
                   {Math.round(totalHoursAll).toLocaleString("de-DE")}
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">BILLABLE</span>
+                <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">{t("thisPeriod.billable")}</span>
                 <span className="font-mono text-[18px] font-semibold text-[var(--accent)]">
                   {Math.round(billableHoursAll).toLocaleString("de-DE")}
                 </span>
@@ -583,7 +641,7 @@ export default async function OverviewPage({
                   period totals.
                 */}
                 <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                  PEOPLE ON ROSTER
+                  {t("thisPeriod.peopleOnRoster")}
                 </span>
                 <span className="font-mono text-[18px] font-semibold text-[var(--text-primary)]">
                   {counts.activeMembers}
@@ -597,16 +655,16 @@ export default async function OverviewPage({
         {/* Project ledger — real projects, ranked by hours logged */}
         <Card className="overflow-hidden">
           <CardHeader
-            title="Project ledger"
+            title={t("projectLedger.title")}
             /* All time, and said so: project_summary is not date-bounded, so
                this ledger does not move with the period filter above it. */
-            qualifier={`TOP ${projects.length} BY HOURS · ALL TIME`}
+            qualifier={t("projectLedger.qualifier", { count: projects.length })}
             actions={
               <Link
                 href="/projects"
                 className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--accent)] hover:underline"
               >
-                All projects
+                {t("projectLedger.allProjects")}
                 <IconArrowRight className="flex-none" />
               </Link>
             }
@@ -614,7 +672,7 @@ export default async function OverviewPage({
 
           {projects.length === 0 ? (
             <p className="p-4 font-mono text-[11px] text-[var(--text-faint)]">
-              No projects with logged time yet.
+              {t("projectLedger.empty")}
             </p>
           ) : (
             <>
@@ -633,11 +691,11 @@ export default async function OverviewPage({
                         className="shrink-0 font-mono text-[11px] font-semibold"
                         style={{ color: toneColour(prj.tone) }}
                       >
-                        {prj.burnPercent !== null ? `${prj.burnPercent}%` : "no budget"}
+                        {prj.burnPercent !== null ? `${prj.burnPercent}%` : t("projectLedger.noBudget")}
                       </span>
                     </div>
                     <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                      {prj.customerName ?? "No customer"}
+                      {prj.customerName ?? t("projectLedger.noCustomer")}
                     </span>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
                       {prj.burnPercent !== null ? (
@@ -651,8 +709,8 @@ export default async function OverviewPage({
                       ) : null}
                     </div>
                     <div className="flex gap-4 font-mono text-[10px] text-[var(--text-secondary)]">
-                      <span>{prj.loggedHours.toLocaleString("de-DE")} H LOGGED</span>
-                      <span>{prj.billableHours.toLocaleString("de-DE")} H BILLABLE</span>
+                      <span>{t("projectLedger.loggedH", { hours: prj.loggedHours.toLocaleString("de-DE") })}</span>
+                      <span>{t("projectLedger.billableH", { hours: prj.billableHours.toLocaleString("de-DE") })}</span>
                     </div>
                   </div>
                 ))}
@@ -661,11 +719,11 @@ export default async function OverviewPage({
               {/* Desktop table */}
               <div className="hidden overflow-x-auto sm:block">
                 <div className="grid min-w-[700px] grid-cols-12 gap-3 border-y border-[var(--divider)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                  <span className="col-span-4">PROJECT</span>
-                  <span className="col-span-3">CUSTOMER</span>
-                  <span className="col-span-1 text-right">BUDGET H</span>
-                  <span className="col-span-1 text-right">LOGGED H</span>
-                  <span className="col-span-3">BURN</span>
+                  <span className="col-span-4">{t("projectLedger.columns.project")}</span>
+                  <span className="col-span-3">{t("projectLedger.columns.customer")}</span>
+                  <span className="col-span-1 text-right">{t("projectLedger.columns.budgetH")}</span>
+                  <span className="col-span-1 text-right">{t("projectLedger.columns.loggedH")}</span>
+                  <span className="col-span-3">{t("projectLedger.columns.burn")}</span>
                 </div>
 
                 {projects.map((prj) => (
@@ -719,7 +777,7 @@ export default async function OverviewPage({
                         }
                         className="w-[74px] shrink-0 justify-center"
                       >
-                        {prj.burnPercent !== null ? `${prj.burnPercent}%` : "no budget"}
+                        {prj.burnPercent !== null ? `${prj.burnPercent}%` : t("projectLedger.noBudget")}
                       </Pill>
                     </div>
                   </div>
@@ -734,22 +792,21 @@ export default async function OverviewPage({
 }
 
 /**
- * "2026-08-03" -> "W32". ISO week, matching how the team refers to weeks.
+ * "2026-08-03" -> 32. The ISO week number, matching how the team refers to
+ * weeks; the page names it "W32" or "KW32" through the message catalogue.
  *
  * Parsed as UTC on purpose. `new Date("2026-08-03")` is already UTC, but
  * `.getMonth()`/`.getDate()` on it are LOCAL, and in Berlin a Monday-00:00 UTC
  * date reads as the previous Sunday — shifting the whole label by a week.
  */
-function formatWeekLabel(weekStart: string): string {
+function isoWeekNumber(weekStart: string): number | null {
   const date = new Date(`${weekStart}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return null;
 
   const thursday = thursdayOf(date);
   const jan4 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
   const firstThursday = thursdayOf(jan4);
-  const week =
-    1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000);
-  return `W${week}`;
+  return 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000);
 }
 
 /** The Thursday of the ISO week containing `date`. */

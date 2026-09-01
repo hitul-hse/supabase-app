@@ -81,7 +81,16 @@ try {
 
   const countLabel = await page
     .locator('span:text-matches("^\\\\d+ OF \\\\d+")').first().innerText().catch(() => "(not found)");
-  check("the count states what is visible over the total", /^10 OF 19/.test(countLabel), `label reads "${countLabel}"`);
+  // The roster is live data, so the total is read from the label rather than
+  // pinned: this used to assert "10 OF 19" and went red the night the roster
+  // changed to 17, on correct behaviour. What is asserted is the shape --
+  // ten visible over a larger total -- and below, that page 2 holds the rest.
+  const total = Number(/^10 OF (\d+)/.exec(countLabel)?.[1] ?? NaN);
+  check(
+    "the count states what is visible over the total",
+    Number.isFinite(total) && total > 10,
+    `label reads "${countLabel}"`,
+  );
 
   /*
    * PAGED, NOT APPENDED -- and this check used to demand the opposite.
@@ -118,9 +127,10 @@ try {
   await page.waitForTimeout(700);
 
   const afterPage = await rosterCount();
+  const expectedPage2 = Number.isFinite(total) ? Math.min(10, total - 10) : -1;
   check(
-    "advancing shows the remaining people (19 total, so page 2 holds 9)",
-    afterPage === 9,
+    `advancing shows the remaining people (${total} total, so page 2 holds ${expectedPage2})`,
+    afterPage === expectedPage2,
     `rendered ${afterPage} rows on page 2`,
   );
   const columnHeightAfter = await page.evaluate(() => {

@@ -53,7 +53,10 @@ try {
   const skip = page.locator('button:has-text("Skip tour")');
   if (await skip.count()) { await skip.first().click().catch(() => {}); await page.waitForTimeout(400); }
 
-  const toggle = page.locator('[data-testid="theme-toggle"]');
+  // TopBarChrome renders once per breakpoint (desktop bar and phone bar), so two
+  // toggles exist in the DOM and one is display:none. Pick the visible one, or a
+  // strict-mode locator throws before the first assertion runs.
+  const toggle = page.locator('[data-testid="theme-toggle"]:visible').first();
   check("the theme toggle is in the top bar", (await toggle.count()) > 0);
 
   const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);

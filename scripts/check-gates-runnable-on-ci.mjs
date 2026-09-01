@@ -36,7 +36,11 @@ for (const f of [...files].sort()) {
    * no .env.local present, which is what scripts/check-gates-ci-executable.mjs
    * does; this one is the cheap pre-filter.
    */
+  // Importing the shared loader is the canonical guard (scripts/lib/gate-env.mjs
+  // walks up with existsSync and never throws), so a gate that uses it must not
+  // be reported as a crash just because the existsSync lives in the helper.
   const guarded = /existsSync\(/.test(src)
+    || /from "\.\/lib\/gate-env\.mjs"/.test(src)
     || /try\s*\{[\s\S]{0,400}?\.env\.local/.test(src)
     || /function read\b|const read =/.test(src);
   const seedsEnv = /\{\s*\.\.\.process\.env\s*\}/.test(src) || /process\.env\[/.test(src)

@@ -20,7 +20,8 @@
     "usersRoles": "Users & Roles",
     "rolePermissions": "Role Permissions",
     "budgetAlerts": "Budget Alerts",
-    "factorialIdentity": "Factorial Identity"
+    "factorialIdentity": "Factorial Identity",
+    "systemHealth": "System Health"
   },
   "common": {
     "logOut": "Log out",

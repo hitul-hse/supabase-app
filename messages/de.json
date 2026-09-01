@@ -20,7 +20,8 @@
     "usersRoles": "Benutzer & Rollen",
     "rolePermissions": "Rollenberechtigungen",
     "budgetAlerts": "Budget-Warnungen",
-    "factorialIdentity": "Factorial-Identität"
+    "factorialIdentity": "Factorial-Identität",
+    "systemHealth": "Systemzustand"
   },
   "common": {
     "logOut": "Abmelden",

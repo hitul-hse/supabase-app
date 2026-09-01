@@ -89,6 +89,10 @@ const NAV_GROUPS: NavGroup[] = [
       // Budget alerts. Deliberately in ADMIN rather than beside Projects: these
       // are commercial exceptions somebody must act on, not a project record.
       { href: "/admin/alerts", label: "Budget Alerts",    roles: ["exec", "dept_head", "project_manager", "hr"] },
+      // Last in ADMIN and exec-only: the developer health portal reads
+      // pg_catalog and auth.users directly. The route itself is gated on
+      // admin:roles:write in the database; this filter only draws the link.
+      { href: "/admin/system-health", label: "System Health", roles: ["exec"] },
     ],
   },
 ];
@@ -96,7 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
 // Sidebar labels stay English literals in NAV_GROUPS (greppable by what the
 // default locale shows); these maps carry them to messages/{en,de}.json keys.
 // A label missing here falls back to its English literal rather than crashing.
-const NAV_LABEL_KEYS: Record<string, string> = {"Overview": "overview", "Management": "management", "Team Lead View": "teamLead", "My Work": "myWork", "People": "people", "Projects": "projects", "Timesheets": "timesheets", "TrackingTime Dashboard": "timeDashboard", "Operations Analytics": "operationsAnalytics", "Leave & Time Off": "leave", "Customer Master": "customerMaster", "Data Hygiene": "dataHygiene", "Users & Roles": "usersRoles", "Role Permissions": "rolePermissions", "Budget Alerts": "budgetAlerts"};
+const NAV_LABEL_KEYS: Record<string, string> = {"Overview": "overview", "Management": "management", "Team Lead View": "teamLead", "My Work": "myWork", "People": "people", "Projects": "projects", "Timesheets": "timesheets", "TrackingTime Dashboard": "timeDashboard", "Operations Analytics": "operationsAnalytics", "Leave & Time Off": "leave", "Customer Master": "customerMaster", "Data Hygiene": "dataHygiene", "Users & Roles": "usersRoles", "Role Permissions": "rolePermissions", "Budget Alerts": "budgetAlerts", "System Health": "systemHealth"};
 const NAV_TITLE_KEYS: Record<string, string> = {"ANALYSE": "sections.analyse", "RECORDS": "sections.records", "ADMIN": "sections.admin"};
 
 export function SidebarNav({ roleKey }: { roleKey: string | null }) {

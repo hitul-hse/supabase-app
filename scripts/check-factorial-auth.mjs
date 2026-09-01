@@ -8,15 +8,15 @@
 // human actions; a present-but-wrong credential exits 1 (fail).
 //
 // Nothing here writes to the database, and the token is never printed.
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { loadEnv } from "./lib/gate-env.mjs";
 
-const ENV_PATH = "C:/Supabase/.env.local";
-const fileEnv = existsSync(ENV_PATH)
-  ? Object.fromEntries(
-      readFileSync(ENV_PATH, "utf8").split(/\r?\n/)
-        .filter((l) => l && !l.startsWith("#") && l.includes("="))
-        .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }))
-  : {};
+/* The shared loader: process.env first, then the repo's own .env.local found
+ * by walking up from CWD. This file used to read C:/Supabase/.env.local -- an
+ * absolute path from the machine it was written on -- so on any other machine
+ * it reported "no credential" while a perfectly good key sat in the repo's
+ * .env.local: precisely the defect the comment below warns about. */
+const fileEnv = loadEnv();
 
 /*
  * The process environment wins over the file. Reading only .env.local was a real

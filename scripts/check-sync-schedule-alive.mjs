@@ -28,8 +28,15 @@
 import { readFileSync, existsSync } from "node:fs";
 import pg from "pg";
 
+// Relative to the repo, like every other gate. This used to read
+// C:/Supabase/.env.local, a path that exists on exactly one Windows machine,
+// so on any other checkout the gate died with ENOENT before checking anything
+// -- which check-no-absolute-paths did not catch because this gate is not in
+// the CI list it scans.
+const ENV_FILE = existsSync(".env.local") ? ".env.local" : null;
+if (!ENV_FILE) { console.log("SYNC SCHEDULE: skipped — no .env.local in the working directory"); process.exit(0); }
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(ENV_FILE, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 

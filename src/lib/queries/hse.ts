@@ -4,7 +4,6 @@ import type {
   ProjectTaskRow,
   PersonProfile,
   ApprovalDecisionRow,
-  TimesheetDayEntry,
   PendingTimesheetWeek,
   OrgChartNode,
   TaskComment,

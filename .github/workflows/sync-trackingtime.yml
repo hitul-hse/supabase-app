@@ -119,6 +119,21 @@ jobs:
           TRACKINGTIME_ACCOUNT_ID: ${{ secrets.TRACKINGTIME_ACCOUNT_ID }}
         run: node scripts/check-vendor-parity.mjs
 
+      - name: Refresh order hours
+        # The management overview reads public.projects.logged_hours, a stored
+        # sum that nothing kept current: the import writes time.entry, and this
+        # script is the only thing that folds those entries back into the order.
+        # Left out of this job it ran only when someone remembered, and
+        # check-order-hours-freshness found 15 orders understating their burn
+        # (one at 104% of contract showing 89%) after a week of clean syncs.
+        # Recomputed from source every night, so a stale figure now means a
+        # failed run, which is visible, rather than a forgotten step, which is not.
+        if: success()
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/refresh-order-hours.mjs
+
       - name: Report freshness
         # Runs even when the sync failed -- that is exactly when someone wants to
         # know how old the data now is. The failure is already recorded in

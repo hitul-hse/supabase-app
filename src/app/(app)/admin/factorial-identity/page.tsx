@@ -55,7 +55,8 @@ export default async function FactorialIdentityPage() {
     decided = decidedRes.data ?? [];
     people = (peopleRes.data ?? []) as PersonOption[];
   } catch (e) {
-    loadError = e instanceof Error ? e.message : String(e);
+    const m = e && typeof e === "object" && "message" in e ? (e as { message: string }).message : null;
+    loadError = m ?? (e instanceof Error ? e.message : JSON.stringify(e));
   }
 
   return (

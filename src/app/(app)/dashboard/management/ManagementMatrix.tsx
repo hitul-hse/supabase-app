@@ -13,6 +13,7 @@ import type { ManagementMultiServiceMatrix as ManagementMultiServiceMatrixModel 
 import type { ManagementCustomerPortfolio } from "@/lib/queries/management-customer-portfolio";
 import type { ManagementChangeRequest } from "@/lib/queries/management-change-requests";
 import type { BrokenCoverSummary } from "@/lib/queries/broken-cover";
+import { ManagementDrilldown, type Drill } from "./ManagementDrilldown";
 import { BrokenCoverPanel } from "./BrokenCoverPanel";
 import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
 import { ManagementDataQuality } from "./ManagementDataQuality";
@@ -24,6 +25,7 @@ const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionD
 
 export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests, brokenCover }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; changeRequests: ManagementChangeRequest[]; brokenCover: BrokenCoverSummary }) {
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
+  const [drill, setDrill] = useState<Drill | null>(null);
   /*
    * The active tab lives in the URL (?tab=), not in useState: a management
    * reader shares "the risk view" as a link, and a reload must not dump them
@@ -47,12 +49,81 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
       (model.utilisationOutlook.length * ANNUAL_PLAN_HOURS)) * 1000,
   ) / 10;
 
+  // Drill-down builders: pure re-projections of the read model already on the
+  // client, so the popup can never disagree with the table it opened from.
+  const openContractHoursDrill = () => {
+    // The tile counts ALL contract hours; the service rows only count hours
+    // bound to the core team via person_assignments. The difference is real
+    // (projects nobody is assigned to) and must appear as its own row --
+    // bars that silently do not add up to the headline are a lie.
+    const assignedTotal = model.rows.reduce((sum, row) => sum + row.totalHours, 0);
+    const unassigned = Math.round((model.totalContractHours - assignedTotal) * 10) / 10;
+    const rows: { name: string; hours: number }[] = [...model.rows]
+      .sort((left, right) => right.totalHours - left.totalHours)
+      .map((row) => ({ name: row.service as string, hours: row.totalHours }));
+    if (unassigned > 0.05) {
+      rows.push({ name: "Ohne Personen-Zuordnung", hours: unassigned });
+    }
+    setDrill({
+      kicker: "VERTRAGSSTUNDEN",
+      title: "Gesamt nach Service",
+      headline: `${fmt(model.totalContractHours)} h`,
+      subline: `${model.rows.length} Services · ${model.projectCount} Projekte`,
+      rows,
+      footer: "SERVICE-ZEILEN = STUNDEN MIT ASSIGNMENT · „OHNE PERSONEN-ZUORDNUNG“ = VERTRAGSSTUNDEN OHNE ASSIGNMENT",
+    });
+  };
+
+  const openUtilisationDrill = () =>
+    setDrill({
+      kicker: "AUSLASTUNGSAUSBLICK",
+      title: "Auslastung nach Mitarbeiter",
+      headline: `${fmt(overallUtilisation)}%`,
+      subline: `${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} Planstunden/Jahr je Mitarbeiter`,
+      rows: [...model.utilisationOutlook]
+        .sort((left, right) => right.utilisationPercent - left.utilisationPercent)
+        .map((row) => ({ name: row.person, hours: row.boundContractHours, percent: row.utilisationPercent })),
+      footer: "AMPEL: <50% UNTERAUSLASTUNG · 50\u201390% GESUND · >90% KAPAZIT\u00c4TSRISIKO",
+    });
+
+  const openPersonDrill = (person: ManagementPerson, boundContractHours: number, utilisationPercent: number) => {
+    const projects = [...model.drilldown[person]].sort(
+      (left, right) => right.allocatedHours - left.allocatedHours,
+    );
+    setDrill({
+      kicker: "MITARBEITER",
+      title: person,
+      headline: `${fmt(boundContractHours)} h`,
+      subline: `${fmt(utilisationPercent)}% Auslastung · ${projects.length} Projekte`,
+      rows: projects.map((project) => ({
+        name: project.projectName,
+        sub: project.customerName,
+        hours: project.allocatedHours,
+      })),
+      footer: "GEBUNDENE VERTRAGSSTUNDEN JE PROJEKT · READ MODEL",
+    });
+  };
+
+  const openServiceDrill = (service: string, cells: Record<ManagementPerson, number>, totalHours: number) => {
+    const rows = PEOPLE.map((person) => ({ name: person, hours: cells[person] }))
+      .filter((row) => row.hours > 0)
+      .sort((left, right) => right.hours - left.hours);
+    setDrill({
+      kicker: "SERVICE",
+      title: service,
+      headline: `${fmt(totalHours)} h`,
+      subline: `${rows.length} Mitarbeiter beteiligt`,
+      rows,
+      footer: "VERTRAGSSTUNDEN × ASSIGNMENT-ANTEIL JE MITARBEITER",
+    });
+  };
+
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
       <div className="grid gap-[var(--card-gap)] sm:grid-cols-3">
-        <StatTile label="GESAMT VERTRAGSSTUNDEN" value={fmt(model.totalContractHours)} unit="h" tone="good" data-metric="management-contract-hours" />
+        <button type="button" onClick={openContractHoursDrill} aria-label="Gesamt Vertragsstunden \u2014 Details \u00f6ffnen" className="card-elev block w-full cursor-pointer text-left"><StatTile label="GESAMT VERTRAGSSTUNDEN" value={fmt(model.totalContractHours)} unit="h" tone="good" data-metric="management-contract-hours" hint="ANTIPPEN F\u00dcR DETAILS" /></button>
         <StatTile label="PROJEKTE IM READ MODEL" value={model.projectCount} hint="public.projects · keine Dummy-Daten" />
-        <StatTile label="AUSLASTUNGSAUSBLICK" value={fmt(overallUtilisation)} unit="%" hint="1.304 Planstunden/Jahr je Mitarbeiter" data-metric="management-utilisation-outlook" />
+        <button type="button" onClick={openUtilisationDrill} aria-label="Auslastungsausblick \u2014 Details \u00f6ffnen" className="card-elev block w-full cursor-pointer text-left"><StatTile label="AUSLASTUNGSAUSBLICK" value={fmt(overallUtilisation)} unit="%" hint="1.304 Planstunden/Jahr je Mitarbeiter" data-metric="management-utilisation-outlook" /></button>
       </div>
 
       <Segmented
@@ -100,8 +171,20 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
                     ? "bg-[var(--good-wash)] text-[var(--good)]"
                     : "bg-[var(--warning-wash)] text-[var(--warning)]";
                 return (
-                  <tr key={row.person} className="border-t border-[var(--divider)]">
-                    <th className="px-4 py-3 font-medium text-[var(--text-primary)]">{row.person}</th>
+                  <tr
+                    key={row.person}
+                    className="cursor-pointer border-t border-[var(--divider)] transition-colors hover:bg-[var(--surface-hover)]"
+                    onClick={() => openPersonDrill(row.person, row.boundContractHours, row.utilisationPercent)}
+                  >
+                    <th className="px-4 py-3 font-medium text-[var(--text-primary)]">
+                      <button
+                        type="button"
+                        className="cursor-pointer text-left underline-offset-4 hover:text-[var(--accent)] hover:underline"
+                        onClick={() => openPersonDrill(row.person, row.boundContractHours, row.utilisationPercent)}
+                      >
+                        {row.person}
+                      </button>
+                    </th>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmt(row.planHoursPerYear)}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmt(row.boundContractHours)} h</td>
                     <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-[var(--text-primary)]">{fmt(row.utilisationPercent)}%</td>
@@ -132,8 +215,20 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
             </thead>
             <tbody>
               {model.rows.map((row) => (
-                <tr key={row.service} className="border-t border-[var(--divider)]">
-                  <th className="sticky left-0 bg-[var(--surface)] px-4 py-3 font-medium text-[var(--text-primary)]">{row.service}</th>
+                <tr
+                  key={row.service}
+                  className="cursor-pointer border-t border-[var(--divider)] transition-colors hover:bg-[var(--surface-hover)]"
+                  onClick={() => openServiceDrill(row.service, row.cells, row.totalHours)}
+                >
+                  <th className="sticky left-0 bg-[var(--surface)] px-4 py-3 font-medium text-[var(--text-primary)]">
+                    <button
+                      type="button"
+                      className="cursor-pointer text-left underline-offset-4 hover:text-[var(--accent)] hover:underline"
+                      onClick={() => openServiceDrill(row.service, row.cells, row.totalHours)}
+                    >
+                      {row.service}
+                    </button>
+                  </th>
                   {PEOPLE.map((person) => (
                     <td key={person} className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmt(row.cells[person])}</td>
                   ))}
@@ -186,6 +281,8 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
         </div>
       </Card>
       )}
+
+      {drill && <ManagementDrilldown drill={drill} onClose={() => setDrill(null)} />}
 
       {model.unmappedContractHours > 0 && <p className="text-[11px] text-[var(--warning)]">{fmt(model.unmappedContractHours)} h sind aktuell nicht über `time.project.hub_project_id` einem Service zugeordnet.</p>}
     </div>

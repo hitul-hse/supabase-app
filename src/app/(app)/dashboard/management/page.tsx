@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import PageTransition from "@/components/animations/PageTransition";
 import { EmptyState } from "@/components/EmptyState";
@@ -15,8 +16,14 @@ import { getManagementChangeRequests } from "@/lib/queries/management-change-req
 import { getBrokenCover } from "@/lib/queries/broken-cover";
 import { ManagementMatrix } from "./ManagementMatrix";
 
+/*
+ * Wording comes from messages/{en,de}.json under `management`. The German is
+ * the canonical source (this dashboard was German before the catalogue
+ * existed); the English follows the glossary shared with `overview`.
+ */
 export default async function ManagementPage() {
   await requirePermission("/dashboard/management", PERMISSIONS.HR_CONTRACT_READ);
+  const t = await getTranslations("management");
   const supabase = await createManagementReadClient();
   const [model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests, brokenCover] = await Promise.all([
     getManagementContractHours(supabase),
@@ -35,12 +42,12 @@ export default async function ManagementPage() {
         {/* The page grew from one panel to seven; the header names the page,
             the panels name themselves. */}
         <PageHeader
-          title="Management"
-          meta="VERTRAGSSTUNDEN · SERVICES · PORTFOLIO · RISIKEN · READ MODEL"
+          title={t("title")}
+          meta={t("header.meta")}
         />
         <main className="flex flex-col gap-4 page-shell">
           {model.projectCount === 0 ? (
-            <Card><EmptyState title="Keine Vertragsstunden verfügbar" description="Das Read Model liefert aktuell keine sichtbaren Projekte aus public.projects." /></Card>
+            <Card><EmptyState title={t("empty.title")} description={t("empty.description")} /></Card>
           ) : <ManagementMatrix model={model} ownershipRows={ownershipRows} dataQualityRows={dataQualityRows} projectRiskRows={projectRiskRows} multiServiceModel={multiServiceModel} customerPortfolio={customerPortfolio} changeRequests={changeRequests} brokenCover={brokenCover} />}
         </main>
       </div>

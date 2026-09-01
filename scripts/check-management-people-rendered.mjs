@@ -63,7 +63,7 @@ for (const name of EXPECTED) {
 }
 
 // The two numbers the fix was supposed to surface.
-for (const marker of ["125,6", "125.6", "114,1", "114.1", "Kapazitätsrisiko"]) {
+for (const marker of ["125,6", "125.6", "114,1", "114.1", "Kapazitätsrisiko", "Capacity risk"]) {
   if (text.includes(marker)) console.log(`  found  "${marker}"`);
 }
 

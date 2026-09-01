@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
 import { Segmented } from "@/components/ui/Segmented";
 import type { ManagementContractHours, ManagementPerson } from "@/lib/queries/management-contract-hours";
@@ -20,10 +21,14 @@ import { ManagementDataQuality } from "./ManagementDataQuality";
 import { ManagementProjectRisks } from "./ManagementProjectRisks";
 import { ManagementMultiServiceMatrix } from "./ManagementMultiServiceMatrix";
 import { ManagementCustomerPortfolio as ManagementCustomerPortfolioView } from "./ManagementCustomerPortfolio";
+import { STATUS_KEY } from "./management-i18n";
 
+// Numbers stay de-DE in both languages (house rule): 1.304, not 1,304.
 const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(value);
+const planHours = ANNUAL_PLAN_HOURS.toLocaleString("de-DE");
 
 export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests, brokenCover }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; changeRequests: ManagementChangeRequest[]; brokenCover: BrokenCoverSummary }) {
+  const t = useTranslations("management");
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
   const [drill, setDrill] = useState<Drill | null>(null);
   /*
@@ -33,10 +38,10 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
    * than rendering nothing.
    */
   const TABS = [
-    { key: "overview", label: "Auslastung" },
-    { key: "employees", label: "Mitarbeiter" },
-    { key: "customers", label: "Kunden" },
-    { key: "risks", label: "Risiken & Qualität" },
+    { key: "overview", label: t("tabs.overview") },
+    { key: "employees", label: t("tabs.employees") },
+    { key: "customers", label: t("tabs.customers") },
+    { key: "risks", label: t("tabs.risks") },
   ] as const;
   const params = useSearchParams();
   const requested = params.get("tab");
@@ -62,28 +67,28 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
       .sort((left, right) => right.totalHours - left.totalHours)
       .map((row) => ({ name: row.service as string, hours: row.totalHours }));
     if (unassigned > 0.05) {
-      rows.push({ name: "Ohne Personen-Zuordnung", hours: unassigned });
+      rows.push({ name: t("drill.contractHours.unassigned"), hours: unassigned });
     }
     setDrill({
-      kicker: "VERTRAGSSTUNDEN",
-      title: "Gesamt nach Service",
+      kicker: t("drill.contractHours.kicker"),
+      title: t("drill.contractHours.title"),
       headline: `${fmt(model.totalContractHours)} h`,
-      subline: `${model.rows.length} Services · ${model.projectCount} Projekte`,
+      subline: t("drill.contractHours.subline", { services: String(model.rows.length), projects: String(model.projectCount) }),
       rows,
-      footer: "SERVICE-ZEILEN = STUNDEN MIT ASSIGNMENT · „OHNE PERSONEN-ZUORDNUNG“ = VERTRAGSSTUNDEN OHNE ASSIGNMENT",
+      footer: t("drill.contractHours.footer"),
     });
   };
 
   const openUtilisationDrill = () =>
     setDrill({
-      kicker: "AUSLASTUNGSAUSBLICK",
-      title: "Auslastung nach Mitarbeiter",
+      kicker: t("drill.utilisation.kicker"),
+      title: t("drill.utilisation.title"),
       headline: `${fmt(overallUtilisation)}%`,
-      subline: `${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} Planstunden/Jahr je Mitarbeiter`,
+      subline: t("drill.utilisation.subline", { hours: planHours }),
       rows: [...model.utilisationOutlook]
         .sort((left, right) => right.utilisationPercent - left.utilisationPercent)
         .map((row) => ({ name: row.person, hours: row.boundContractHours, percent: row.utilisationPercent })),
-      footer: "AMPEL: <50% UNTERAUSLASTUNG · 50\u201390% GESUND · >90% KAPAZIT\u00c4TSRISIKO",
+      footer: t("drill.utilisation.footer"),
     });
 
   const openPersonDrill = (person: ManagementPerson, boundContractHours: number, utilisationPercent: number) => {
@@ -91,16 +96,16 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
       (left, right) => right.allocatedHours - left.allocatedHours,
     );
     setDrill({
-      kicker: "MITARBEITER",
+      kicker: t("drill.person.kicker"),
       title: person,
       headline: `${fmt(boundContractHours)} h`,
-      subline: `${fmt(utilisationPercent)}% Auslastung · ${projects.length} Projekte`,
+      subline: t("drill.person.subline", { percent: fmt(utilisationPercent), projects: String(projects.length) }),
       rows: projects.map((project) => ({
         name: project.projectName,
         sub: project.customerName,
         hours: project.allocatedHours,
       })),
-      footer: "GEBUNDENE VERTRAGSSTUNDEN JE PROJEKT · READ MODEL",
+      footer: t("drill.person.footer"),
     });
   };
 
@@ -109,25 +114,25 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
       .filter((row) => row.hours > 0)
       .sort((left, right) => right.hours - left.hours);
     setDrill({
-      kicker: "SERVICE",
+      kicker: t("drill.service.kicker"),
       title: service,
       headline: `${fmt(totalHours)} h`,
-      subline: `${rows.length} Mitarbeiter beteiligt`,
+      subline: t("drill.service.subline", { count: String(rows.length) }),
       rows,
-      footer: "VERTRAGSSTUNDEN × ASSIGNMENT-ANTEIL JE MITARBEITER",
+      footer: t("drill.service.footer"),
     });
   };
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
       <div className="grid gap-[var(--card-gap)] sm:grid-cols-3">
-        <button type="button" onClick={openContractHoursDrill} aria-label="Gesamt Vertragsstunden \u2014 Details \u00f6ffnen" className="card-elev block w-full cursor-pointer text-left"><StatTile label="GESAMT VERTRAGSSTUNDEN" value={fmt(model.totalContractHours)} unit="h" tone="good" data-metric="management-contract-hours" hint="ANTIPPEN F\u00dcR DETAILS" /></button>
-        <StatTile label="PROJEKTE IM READ MODEL" value={model.projectCount} hint="public.projects · keine Dummy-Daten" />
-        <button type="button" onClick={openUtilisationDrill} aria-label="Auslastungsausblick \u2014 Details \u00f6ffnen" className="card-elev block w-full cursor-pointer text-left"><StatTile label="AUSLASTUNGSAUSBLICK" value={fmt(overallUtilisation)} unit="%" hint="1.304 Planstunden/Jahr je Mitarbeiter" data-metric="management-utilisation-outlook" /></button>
+        <button type="button" onClick={openContractHoursDrill} aria-label={t("tiles.contractHours.aria")} className="card-elev block w-full cursor-pointer text-left"><StatTile label={t("tiles.contractHours.label")} value={fmt(model.totalContractHours)} unit="h" tone="good" data-metric="management-contract-hours" hint={t("tiles.contractHours.hint")} /></button>
+        <StatTile label={t("tiles.projects.label")} value={model.projectCount} hint={t("tiles.projects.hint")} />
+        <button type="button" onClick={openUtilisationDrill} aria-label={t("tiles.outlook.aria")} className="card-elev block w-full cursor-pointer text-left"><StatTile label={t("tiles.outlook.label")} value={fmt(overallUtilisation)} unit="%" hint={t("tiles.outlook.hint", { hours: planHours })} data-metric="management-utilisation-outlook" /></button>
       </div>
 
       <Segmented
-        ariaLabel="Management-Bereiche"
+        ariaLabel={t("tabs.ariaLabel")}
         current={`/dashboard/management?tab=${tab}`}
         options={TABS.map(({ key, label }) => ({ href: `/dashboard/management?tab=${key}`, label }))}
       />
@@ -151,20 +156,22 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
 
       {tab === "overview" && (<>
       <Card className="overflow-hidden">
-        <CardHeader title="Auslastungsausblick" qualifier={`GEBUNDENE VERTRAGSSTUNDEN / ${ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} PLANSTUNDEN · 75% BILLABLE CAPACITY`} />
+        <CardHeader title={t("outlook.title")} qualifier={t("outlook.qualifier", { hours: planHours })} />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] border-collapse text-left text-[12px]">
             <thead className="bg-[var(--surface-2)] font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]">
               <tr>
-                <th className="px-4 py-3 font-medium">MITARBEITER</th>
-                <th className="px-4 py-3 text-right font-medium">PLANSTUNDEN / JAHR</th>
-                <th className="px-4 py-3 text-right font-medium">GEBUNDEN</th>
-                <th className="px-4 py-3 text-right font-medium">AUSLASTUNG</th>
-                <th className="px-4 py-3 text-right font-medium">STATUS</th>
+                <th className="px-4 py-3 font-medium">{t("outlook.columns.person")}</th>
+                <th className="px-4 py-3 text-right font-medium">{t("outlook.columns.planHours")}</th>
+                <th className="px-4 py-3 text-right font-medium">{t("outlook.columns.bound")}</th>
+                <th className="px-4 py-3 text-right font-medium">{t("outlook.columns.utilisation")}</th>
+                <th className="px-4 py-3 text-right font-medium">{t("outlook.columns.status")}</th>
               </tr>
             </thead>
             <tbody>
               {model.utilisationOutlook.map((row) => {
+                // The status value is the query module's German and is compared
+                // as such; only its rendering goes through the catalogue.
                 const statusClass = row.status === "Kapazitätsrisiko"
                   ? "bg-[var(--critical-wash)] text-[var(--critical)]"
                   : row.status === "Gesunde Auslastung"
@@ -188,7 +195,7 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmt(row.planHoursPerYear)}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmt(row.boundContractHours)} h</td>
                     <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-[var(--text-primary)]">{fmt(row.utilisationPercent)}%</td>
-                    <td className="px-4 py-3 text-right"><span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-medium ${statusClass}`}>{row.status}</span></td>
+                    <td className="px-4 py-3 text-right"><span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-medium ${statusClass}`}>{t(STATUS_KEY[row.status])}</span></td>
                   </tr>
                 );
               })}
@@ -196,21 +203,21 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
           </table>
         </div>
         <p className="border-t border-[var(--divider)] px-4 py-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
-          Ampel: &lt;50% Unterauslastung · 50–90% Gesunde Auslastung · &gt;90% Kapazitätsrisiko. Die {ANNUAL_PLAN_HOURS.toLocaleString("de-DE")} Planstunden entsprechen 75% billable capacity.
+          {t("outlook.footnote", { hours: planHours })}
         </p>
       </Card>
 
       <Card className="overflow-hidden">
-        <CardHeader title="Service × Mitarbeiter" qualifier="VERTRAGSSTUNDEN · ASSIGNMENT-ANTEIL" />
+        <CardHeader title={t("matrix.title")} qualifier={t("matrix.qualifier")} />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-left text-[12px]">
             <thead className="bg-[var(--surface-2)] font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]">
               <tr>
-                <th className="sticky left-0 z-10 bg-[var(--surface-2)] px-4 py-3 font-medium">SERVICE</th>
+                <th className="sticky left-0 z-10 bg-[var(--surface-2)] px-4 py-3 font-medium">{t("matrix.columns.service")}</th>
                 {PEOPLE.map((person) => (
                   <th key={person} className="px-3 py-3 text-right font-medium">{person.toUpperCase()}</th>
                 ))}
-                <th className="px-4 py-3 text-right font-medium">SUM</th>
+                <th className="px-4 py-3 text-right font-medium">{t("matrix.columns.sum")}</th>
               </tr>
             </thead>
             <tbody>
@@ -236,7 +243,7 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
                 </tr>
               ))}
               <tr className="border-t border-[var(--border-strong)] bg-[var(--surface-2)] font-semibold">
-                <th className="sticky left-0 bg-[var(--surface-2)] px-4 py-3 text-[var(--text-primary)]">TOTAL</th>
+                <th className="sticky left-0 bg-[var(--surface-2)] px-4 py-3 text-[var(--text-primary)]">{t("matrix.total")}</th>
                 {PEOPLE.map((person) => (
                   <td key={person} className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-primary)]">{fmt(totalByPerson[person])}</td>
                 ))}
@@ -246,7 +253,7 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
           </table>
         </div>
         <p className="border-t border-[var(--divider)] px-4 py-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
-          Zellen = Projekt-Vertragsstunden × `person_assignments.share_percent`. Projekte ohne belastbare Service-Verknüpfung werden separat als „Nicht zugeordnet“ ausgewiesen.
+          {t("matrix.footnote")}
         </p>
       </Card>
 
@@ -254,7 +261,7 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
 
       {tab === "employees" && (
       <Card>
-        <CardHeader title="Drilldown" qualifier="MITARBEITER → PROJEKTE → KUNDEN" />
+        <CardHeader title={t("drilldown.title")} qualifier={t("drilldown.qualifier")} />
         <div className="divide-y divide-[var(--divider)]">
           {PEOPLE.map((person) => {
             const projects = model.drilldown[person];
@@ -263,11 +270,11 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
               <div key={person}>
                 <button type="button" className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--surface-hover)]" onClick={() => setExpanded(isOpen ? null : person)} aria-expanded={isOpen}>
                   <span className="font-medium text-[var(--text-primary)]">{person}</span>
-                  <span className="font-mono text-[11px] text-[var(--text-muted)]">{projects.length} Projekte · {fmt(totalByPerson[person])} h <span className="ml-2 text-[var(--accent)]">{isOpen ? "−" : "+"}</span></span>
+                  <span className="font-mono text-[11px] text-[var(--text-muted)]">{t("drilldown.projectsHours", { count: String(projects.length), hours: fmt(totalByPerson[person]) })} <span className="ml-2 text-[var(--accent)]">{isOpen ? "−" : "+"}</span></span>
                 </button>
                 {isOpen && (
                   <div className="bg-[var(--surface-2)] px-4 pb-3">
-                    {projects.length === 0 ? <p className="py-2 text-[11px] text-[var(--text-muted)]">Keine zugeordneten Vertragsstunden im Read Model.</p> : projects.map((project) => (
+                    {projects.length === 0 ? <p className="py-2 text-[11px] text-[var(--text-muted)]">{t("drilldown.empty")}</p> : projects.map((project) => (
                       <div key={`${person}-${project.projectId}`} className="flex items-center justify-between gap-4 border-t border-[var(--divider)] py-2 text-[11px]">
                         <span className="min-w-0 truncate text-[var(--text-secondary)]"><span className="text-[var(--text-primary)]">{project.projectName}</span><span className="ml-2 text-[var(--text-faint)]">{project.customerName}</span></span>
                         <span className="shrink-0 font-mono tabular-nums text-[var(--text-muted)]">{fmt(project.allocatedHours)} h</span>
@@ -284,7 +291,7 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
 
       {drill && <ManagementDrilldown drill={drill} onClose={() => setDrill(null)} />}
 
-      {model.unmappedContractHours > 0 && <p className="text-[11px] text-[var(--warning)]">{fmt(model.unmappedContractHours)} h sind aktuell nicht über `time.project.hub_project_id` einem Service zugeordnet.</p>}
+      {model.unmappedContractHours > 0 && <p className="text-[11px] text-[var(--warning)]">{t("matrix.unmapped", { hours: fmt(model.unmappedContractHours) })}</p>}
     </div>
   );
 }

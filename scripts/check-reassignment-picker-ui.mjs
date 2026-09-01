@@ -44,6 +44,22 @@ try {
 }
 
 const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
+
+/*
+ * The picker's wording lives in messages/{en,de}.json (management.picker) and
+ * the page renders in the viewer's language, so every text probe below accepts
+ * the English OR the German behind a key — never a loosened pattern, the exact
+ * catalogue strings.
+ */
+const catalogues = ["en", "de"].map((l) => JSON.parse(readFileSync(`messages/${l}.json`, "utf8")));
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const msg = (path, flags = "i") => new RegExp(
+  catalogues.map((m) => path.split(".").reduce((o, k) => o?.[k], m)).filter(Boolean).map(escapeRe).join("|"), flags);
+const ABSENCE_UNKNOWN = msg("management.picker.absenceUnknown");
+const ALREADY_ON_PROJECT = msg("management.picker.alreadyOnProject");
+const LEAST_LOADED = msg("management.picker.leastLoaded");
+const SUBMIT = msg("management.picker.submit");
+const BADGES = new RegExp(`${ALREADY_ON_PROJECT.source}|${LEAST_LOADED.source}`, "g");
 const EMAIL = process.env.GATE_EMAIL ?? "bjoern.schoenemann@hs-experts.com";
 
 let failed = 0;
@@ -138,11 +154,11 @@ try {
   );
 
   // 2. the unknown-absence state, on EVERY row
-  const withAbsence = parsed.filter((p) => /Abwesenheit unbekannt/i.test(p.text));
+  const withAbsence = parsed.filter((p) => ABSENCE_UNKNOWN.test(p.text));
   check(
     "every candidate row states that absence is UNKNOWN",
     withAbsence.length === parsed.length,
-    `${withAbsence.length}/${parsed.length} rows carry "Abwesenheit unbekannt"`,
+    `${withAbsence.length}/${parsed.length} rows carry the absence-unknown line`,
   );
 
   // 3. and nothing claims availability
@@ -183,7 +199,7 @@ try {
   );
 
   // 6. already-on-project marking
-  const marked = parsed.filter((p) => /BEREITS AUF PROJEKT/i.test(p.text));
+  const marked = parsed.filter((p) => ALREADY_ON_PROJECT.test(p.text));
   check(
     "candidates already on the project are visibly marked",
     marked.length > 0,
@@ -191,7 +207,7 @@ try {
   );
 
   // 7. a suggestion, and NOTHING auto-selected
-  const suggested = parsed.filter((p) => /GERINGSTE LAST/i.test(p.text));
+  const suggested = parsed.filter((p) => LEAST_LOADED.test(p.text));
   check("exactly one least-loaded suggestion is surfaced", suggested.length === 1, `${suggested.length} suggestion(s)`);
   check(
     "nothing is auto-selected -- the lead must choose",
@@ -200,10 +216,10 @@ try {
   );
 
   // 8. the mandatory reason is enforced before the server sees it
-  const submit = page.getByRole("button", { name: /Änderungsantrag erstellen/i }).first();
+  const submit = page.getByRole("button", { name: SUBMIT }).first();
   check("submit is disabled with nothing chosen", await submit.isDisabled(), "");
 
-  await rows[suggested.length ? parsed.findIndex((p) => /GERINGSTE LAST/i.test(p.text)) : 0]
+  await rows[suggested.length ? parsed.findIndex((p) => LEAST_LOADED.test(p.text)) : 0]
     .locator('input[type="radio"]')
     .check();
   check("submit is STILL disabled with a person but no reason", await submit.isDisabled(), "the RPC rejects reasons under 3 chars");
@@ -219,7 +235,7 @@ try {
 
   console.log("\nas rendered (name | resp | cover | contract-h | logged-30d | absence):");
   for (const p of parsed) {
-    const name = p.text.split("\n")[0].replace(/BEREITS AUF PROJEKT|GERINGSTE LAST/g, "").trim();
+    const name = p.text.split("\n")[0].replace(BADGES, "").trim();
     console.log(
       "  " +
         name.padEnd(20) +
@@ -228,9 +244,9 @@ try {
         p.contract.padStart(12) +
         p.logged.padStart(9) +
         "   " +
-        (/Abwesenheit unbekannt/.test(p.text) ? "unbekannt" : "!! NOT UNKNOWN !!") +
-        (/BEREITS AUF PROJEKT/.test(p.text) ? "  [on-project]" : "") +
-        (/GERINGSTE LAST/.test(p.text) ? "  [suggested]" : ""),
+        (ABSENCE_UNKNOWN.test(p.text) ? "unbekannt" : "!! NOT UNKNOWN !!") +
+        (ALREADY_ON_PROJECT.test(p.text) ? "  [on-project]" : "") +
+        (LEAST_LOADED.test(p.text) ? "  [suggested]" : ""),
     );
   }
 } finally {

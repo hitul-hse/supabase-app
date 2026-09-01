@@ -276,5 +276,427 @@
       }
     },
     "projectCount": "{count, plural, one {# project} other {# projects}}"
+  },
+  "management": {
+    "title": "Management",
+    "header": {
+      "meta": "CONTRACT HOURS · SERVICES · PORTFOLIO · RISKS · READ MODEL"
+    },
+    "empty": {
+      "title": "No contract hours available",
+      "description": "The read model currently returns no visible projects from public.projects."
+    },
+    "status": {
+      "underutilised": "Under-utilised",
+      "healthy": "Healthy utilisation",
+      "capacityRisk": "Capacity risk"
+    },
+    "rating": {
+      "critical": "Critical",
+      "review": "Review"
+    },
+    "values": {
+      "notAvailable": "n/a",
+      "notAssigned": "Not assigned",
+      "notResolved": "Not resolved",
+      "none": "None",
+      "missing": "Missing",
+      "mappingMissing": "Mapping missing",
+      "hours": "{hours} h",
+      "customerMappingNa": "Customer mapping n/a",
+      "serviceMappingNa": "Service mapping n/a"
+    },
+    "tiles": {
+      "contractHours": {
+        "label": "TOTAL CONTRACT HOURS",
+        "hint": "TAP FOR DETAILS",
+        "aria": "Total contract hours — open details"
+      },
+      "projects": {
+        "label": "PROJECTS IN THE READ MODEL",
+        "hint": "public.projects · no dummy data"
+      },
+      "outlook": {
+        "label": "UTILISATION OUTLOOK",
+        "hint": "{hours} plan hours/year per person",
+        "aria": "Utilisation outlook — open details"
+      }
+    },
+    "tabs": {
+      "ariaLabel": "Management sections",
+      "overview": "Utilisation",
+      "employees": "People",
+      "customers": "Customers",
+      "risks": "Risks & quality"
+    },
+    "outlook": {
+      "title": "Utilisation outlook",
+      "qualifier": "BOUND CONTRACT HOURS / {hours} PLAN HOURS · 75% BILLABLE CAPACITY",
+      "columns": {
+        "person": "PERSON",
+        "planHours": "PLAN HOURS / YEAR",
+        "bound": "BOUND",
+        "utilisation": "UTILISATION",
+        "status": "STATUS"
+      },
+      "footnote": "Traffic light: <50% under-utilised · 50–90% healthy utilisation · >90% capacity risk. The {hours} plan hours correspond to 75% billable capacity."
+    },
+    "matrix": {
+      "title": "Service × person",
+      "qualifier": "CONTRACT HOURS · ASSIGNMENT SHARE",
+      "columns": {
+        "service": "SERVICE",
+        "sum": "SUM"
+      },
+      "total": "TOTAL",
+      "footnote": "Cells = project contract hours × `person_assignments.share_percent`. Projects without a reliable service link are reported separately as “Not assigned”.",
+      "unmapped": "{hours} h are currently not mapped to a service via `time.project.hub_project_id`."
+    },
+    "drilldown": {
+      "title": "Drilldown",
+      "qualifier": "PEOPLE → PROJECTS → CUSTOMERS",
+      "projectsHours": "{count} projects · {hours} h",
+      "empty": "No assigned contract hours in the read model."
+    },
+    "drill": {
+      "dialogLabel": "{title} in detail",
+      "close": "Close detail",
+      "esc": "ESC",
+      "empty": "No assigned data in the read model.",
+      "back": "← BACK",
+      "next": "NEXT →",
+      "page": "PAGE {page} / {count}",
+      "contractHours": {
+        "kicker": "CONTRACT HOURS",
+        "title": "Total by service",
+        "subline": "{services} services · {projects} projects",
+        "unassigned": "Without person assignment",
+        "footer": "SERVICE ROWS = HOURS WITH AN ASSIGNMENT · “WITHOUT PERSON ASSIGNMENT” = CONTRACT HOURS WITHOUT AN ASSIGNMENT"
+      },
+      "utilisation": {
+        "kicker": "UTILISATION OUTLOOK",
+        "title": "Utilisation by person",
+        "subline": "{hours} plan hours/year per person",
+        "footer": "TRAFFIC LIGHT: <50% UNDER-UTILISED · 50–90% HEALTHY · >90% CAPACITY RISK"
+      },
+      "person": {
+        "kicker": "PERSON",
+        "subline": "{percent}% utilisation · {projects} projects",
+        "footer": "BOUND CONTRACT HOURS PER PROJECT · READ MODEL"
+      },
+      "service": {
+        "kicker": "SERVICE",
+        "subline": "{count} people involved",
+        "footer": "CONTRACT HOURS × ASSIGNMENT SHARE PER PERSON"
+      }
+    },
+    "employees": {
+      "title": "Employee overview",
+      "qualifier": "CUSTOMER OWNERSHIP · COVER CAPABILITY",
+      "columns": {
+        "person": "PERSON",
+        "openProjects": "OPEN PROJECTS",
+        "contractHours": "CONTRACT HOURS",
+        "services": "SERVICES",
+        "coverage": "REPLACEMENT COVERAGE",
+        "withoutReplacement": "WITHOUT REPLACEMENT"
+      },
+      "footnote": {
+        "withRelation": "Replacement from the master data: an assignment with a 0% share is the named cover (assigned, carries no hours). Coverage = projects with a named cover / open projects.",
+        "withoutRelation": "No replacement assignment exists in the current read model; coverage and shortfall are shown as n/a."
+      },
+      "portfolio": {
+        "title": "Owner portfolio · {person}",
+        "qualifier": "OPEN PROJECTS",
+        "columns": {
+          "customer": "CUSTOMER",
+          "project": "PROJECT",
+          "service": "SERVICE",
+          "contractHours": "CONTRACT HOURS",
+          "responsible": "RESPONSIBLE",
+          "replacement": "REPLACEMENT"
+        },
+        "empty": "No open projects in the read model."
+      }
+    },
+    "dataQuality": {
+      "title": "Data quality",
+      "hint": "OPERATIONAL CONTROLLABILITY · READ MODEL",
+      "columns": {
+        "check": "CHECK",
+        "count": "COUNT",
+        "rating": "RATING",
+        "meaning": "MEANING"
+      },
+      "searchPlaceholder": "Check, meaning…",
+      "empty": "No checks in the current read model.",
+      "totals": "Total across all {total} checks: {critical} critical · {findings} findings",
+      "unknown": " ({count} checks without a reliable basis: n/a)",
+      "naNote": "n/a means the underlying confirmed relation is not available in the current read model; no value is estimated.",
+      "checks": {
+        "openWithoutOwner": "Open projects without a responsible person",
+        "openWithoutReplacement": "Open projects without a replacement",
+        "openWithoutOrderNumber": "Open projects without an order number",
+        "openWithoutCustomerMapping": "Open projects without a customer mapping",
+        "withoutContractStatus": "Projects without a contract status",
+        "withoutServiceMapping": "Projects without a service mapping",
+        "withoutProjectLink": "Projects without an unambiguous project link"
+      }
+    },
+    "risks": {
+      "title": "Project risks",
+      "hint": "OPERATIONAL RISKS · READ MODEL · Click a risk for the affected projects",
+      "columns": {
+        "risk": "RISK",
+        "count": "COUNT",
+        "rating": "RATING",
+        "projects": "AFFECTED PROJECTS",
+        "responsible": "RESPONSIBLE",
+        "service": "SERVICE",
+        "contractHours": "CONTRACT HOURS"
+      },
+      "titles": {
+        "risk": "Show affected projects, responsible people and services",
+        "projects": "Sorted by number of affected projects · click a risk for the full list"
+      },
+      "nouns": {
+        "projects": "projects",
+        "people": "people",
+        "services": "services"
+      },
+      "searchPlaceholder": "Risk, project, person…",
+      "empty": "No risks in the current read model.",
+      "totals": "Total across all {total} risks: {critical} critical · {affected} affected cases",
+      "unknown": " ({count} risks without a reliable basis: n/a)",
+      "totalHours": " · {hours} h contract hours",
+      "note": "High-dependency and replacement risks are only computed once the thresholds and the service-related relation have been validated by the business. Missing bases are reported as n/a.",
+      "detail": {
+        "kicker": "PROJECT RISKS · {risk} · {count}",
+        "close": "CLOSE ×",
+        "responsible": "RESPONSIBLE · {count}",
+        "services": "SERVICES · {count}",
+        "columns": {
+          "customer": "CUSTOMER",
+          "project": "PROJECT",
+          "service": "SERVICE",
+          "responsible": "RESPONSIBLE",
+          "replacement": "REPLACEMENT",
+          "contractHours": "CONTRACT HOURS",
+          "status": "STATUS"
+        }
+      }
+    },
+    "riskNames": {
+      "budgetOverrun": "Contract hours exceeded",
+      "projectWithoutOwner": "Project without a responsible person",
+      "projectWithoutStatus": "Project without a status",
+      "projectWithoutCustomerMapping": "Project without a customer mapping",
+      "projectWithoutServiceMapping": "Project without a service mapping",
+      "highDependencyPerson": "High dependency on one person",
+      "replacementRisk": "Replacement risk",
+      "multiServiceHours": "Multi-service assignment: hours cannot be distributed unambiguously",
+      "contractHoursIncomplete": "Contract hours incomplete"
+    },
+    "meanings": {
+      "budgetOverrunLive": "Logged hours exceed the contractually agreed hours. Renegotiate the budget, extend the contract or stop the work.",
+      "budgetOverrunFallback": "Logged hours could not be checked against contract hours.",
+      "withoutOwnerLive": "An open project without owner_person_id cannot be controlled unambiguously in operations.",
+      "withoutOwnerFallback": "Open projects cannot be controlled unambiguously without an owner.",
+      "withoutStatusLive": "A missing status prevents a reliable open/closed evaluation.",
+      "withoutStatusFallback": "Without a status the open/closed evaluation is not reliable.",
+      "withoutCustomerMappingLive": "The project has no stable customer-master legal-entity reference.",
+      "withoutCustomerMappingFallback": "A stable customer-master legal entity could not be checked.",
+      "withoutServiceMappingLive": "The project is not mapped to a reliable time.service assignment.",
+      "withoutServiceMappingFallback": "Service-related control is limited without a service mapping.",
+      "highDependency": "A hard threshold for project count or contract volume has not yet been validated by the business.",
+      "replacementRisk": "No confirmed service-related replacement relation is available in the current data model.",
+      "dqWithoutOwner": "The project cannot be controlled unambiguously in operations.",
+      "dqWithoutReplacementLive": "Cover and outage risk; no confirmed service-related replacement relation exists.",
+      "dqWithoutReplacementFallback": "Cover and outage risk; no confirmed replacement relation exists.",
+      "dqWithoutOrderNumber": "Unambiguous project identification is missing.",
+      "dqWithoutCustomerMapping": "The project is not assigned to a customer-master legal entity.",
+      "dqWithoutContractStatus": "The open/closed evaluation is not reliable.",
+      "dqWithoutServiceMapping": "Service-related control is not fully possible.",
+      "dqWithoutProjectLink": "The project cannot be matched to an unambiguous TrackingTime/Hub reference."
+    },
+    "brokenCover": {
+      "kinds": {
+        "mutual": "MUTUAL",
+        "self": "SELF-COVER"
+      },
+      "empty": "No broken cover: nobody covers themselves, and no pair covers each other exclusively.",
+      "title": "Broken cover",
+      "summary": "{mutual} projects with mutual cover (fail as a pair), {self} with self-cover (cover = responsible person). Affected: {people}.",
+      "collapseSelf": "Collapse self-cover",
+      "showSelf": "Show {count} self-cover rows",
+      "pairTitle": "This many projects fail together if this pair is absent at the same time",
+      "pairSize": "×{count} in the pair",
+      "cover": "{responsible} · Cover: {replacement}",
+      "samePerson": " (the same person)"
+    },
+    "portfolio": {
+      "title": "Customer portfolio",
+      "hint": "CUSTOMERS · LEGAL ENTITIES · OPERATIONAL CONTROL · Click a customer for detail",
+      "columns": {
+        "customer": "CUSTOMER",
+        "legalEntity": "LEGAL ENTITY",
+        "activeServices": "ACTIVE SERVICES",
+        "projects": "PROJECTS",
+        "contractHours": "CONTRACT H",
+        "responsible": "RESPONSIBLE",
+        "risks": "RISKS"
+      },
+      "titles": {
+        "customer": "Open detail for services, projects and links",
+        "activeServices": "Sorted by number of active services"
+      },
+      "searchPlaceholder": "Customer, service, person…",
+      "summary": "{customers} customers · {projects} projects · {hours} h · {withRisks} with risks",
+      "empty": {
+        "noRows": "No active, stably mapped customer projects available.",
+        "noMapping": "Customer-master mapping not available."
+      },
+      "totals": "Total across all {customers} customers: {projects} projects · {hours} h contract hours",
+      "unknownHours": " ({count} customers without reliable hours: n/a)",
+      "withRisks": " · {count} customers with risks",
+      "note": "Only projects with an active/open status and a stable legal-entity mapping are aggregated into customer rows.",
+      "dataQuality": "Data quality: {customer} · {service}.",
+      "withoutCustomerMapping": "{count} projects without a customer mapping",
+      "withoutServiceMapping": "{count} projects without a service mapping",
+      "detail": {
+        "kicker": "DETAIL · {customer}",
+        "close": "CLOSE ×",
+        "masterData": "MASTER DATA",
+        "legalEntity": "Legal entity: {name}",
+        "locations": "LOCATIONS",
+        "locationsNa": "n/a · location model not available",
+        "risks": "RISKS",
+        "noRisks": "No risks detected",
+        "services": "SERVICES · {count}",
+        "projects": "PROJECTS · {count}",
+        "columns": {
+          "service": "SERVICE",
+          "contractHours": "CONTRACT H",
+          "responsible": "RESPONSIBLE",
+          "project": "PROJECT",
+          "hours": "HOURS",
+          "status": "STATUS",
+          "replacement": "REPLACEMENT"
+        },
+        "openOrder": "Open order detail",
+        "links": "OPERATIONAL LINKS · DISPLAY ONLY",
+        "linkNa": "{label}: n/a",
+        "linksNote": "The current project read model has no reliable URL fields for these link types.",
+        "replacementNa": "Replacement: n/a",
+        "replacementTitle": "Replacement needs a confirmed service-related model"
+      }
+    },
+    "multiService": {
+      "title": "Multi-service matrix",
+      "hint": "CUSTOMERS / LEGAL ENTITIES × ACTIVE SERVICES",
+      "columns": {
+        "customer": "CUSTOMER / LEGAL ENTITY",
+        "services": "SERVICES",
+        "projects": "PROJECTS",
+        "contractHours": "CONTRACT H",
+        "missing": "POSSIBLY MISSING"
+      },
+      "titles": {
+        "customer": "Customer or legal entity",
+        "service": "Active/open projects for {label}",
+        "services": "Number of active services",
+        "contractHours": "Contract hours of the active projects",
+        "missing": "Transparent cross-selling hint, not sales logic"
+      },
+      "searchPlaceholder": "Search customers…",
+      "summary": "{customers} customers · {projects} active projects · {hours} h",
+      "empty": {
+        "noRows": "No active, stably mapped customer projects available.",
+        "noMapping": "Customer-master mapping not available."
+      },
+      "totals": "Total across all {customers} customers: {projects} active projects · {hours} h contract hours",
+      "unknownHours": " ({count} customers without reliable hours: n/a)",
+      "singleService": " · {count} customers with only one service",
+      "note": "A cell shows the number of the customer's active/open projects for the service. “Possibly missing” is a transparent cross-selling hint, not sales logic.",
+      "dataQuality": "Data quality: {customer} · {service}.",
+      "withoutCustomerMapping": "{count} active projects without a customer mapping",
+      "withoutServiceMapping": "{count} active projects without a service mapping"
+    },
+    "changeRequests": {
+      "none": "CHANGE REQUESTS · NO OPEN REQUESTS",
+      "heading": "OPEN CHANGE REQUESTS · FOUR-EYES APPROVAL · {count}",
+      "oldestNa": "AGE N/A",
+      "oldest": "OLDEST OPEN FOR {days} DAYS",
+      "note": "Until a second authorised person approves, the responsibility is unchanged — the project still points at the previous person. Requesters cannot approve their own request.",
+      "item": {
+        "meta": "new responsible person: {person} · Reason: {reason}",
+        "openSinceNa": "OPEN SINCE N/A",
+        "openSince": "OPEN FOR {days} DAYS",
+        "reasonLabel": "DECISION REASON · REQUIRED",
+        "reasonPlaceholder": "Decision reason",
+        "reject": "Reject",
+        "approve": "Approve",
+        "reasonHint": "Give a decision reason (at least 3 characters) — it is logged with the decision."
+      }
+    },
+    "picker": {
+      "alreadyOnProject": "ALREADY ON PROJECT",
+      "external": "EXTERNAL",
+      "externalTitle": "External contractor — capacity is commissioned per engagement, no weekly contract",
+      "leastLoaded": "LOWEST LOAD",
+      "absenceUnknown": "Absence unknown · no leave data in the system",
+      "absent": "Absent {from}–{to} · {kind}",
+      "titles": {
+        "responsibleFor": "Projects this person is responsible for",
+        "coversAsReplacement": "Projects in which this person is named as replacement",
+        "noContractHours": "No reliable contract hours in this portfolio",
+        "contractHours": "Contract hours of the projects held",
+        "logged30": "Logged hours of the last 30 days",
+        "resp": "Responsible for",
+        "cov": "Named as replacement"
+      },
+      "heading": "NEW RESPONSIBLE PERSON · CANDIDATE LOAD",
+      "count": "{count} active people · highest load first",
+      "columns": {
+        "person": "PERSON",
+        "resp": "RESP",
+        "cov": "COV",
+        "contractHours": "CONTRACT H",
+        "logged30": "LOG 30D"
+      },
+      "radiogroup": "Candidates for the handover, highest load first",
+      "loading": "Loading load …",
+      "loadFailed": "Candidates could not be loaded.",
+      "noCandidates": "No active candidates available.",
+      "legend": {
+        "colour": "Colour shows contract hours relative to the highest value in this list, not a utilisation rate: weekly hours are a TrackingTime default of 40.0 h for everyone and therefore not a reliable denominator.",
+        "unmeasured": "{count} people without reliable contract hours (n/a).",
+        "absence": "Absences are not known for anyone — leave and sick-leave data are missing from the system; the judgement rests with the manager."
+      },
+      "reasonLabel": "CHANGE REASON · REQUIRED · MIN. {min} CHARACTERS",
+      "reasonPlaceholder": "Reason, e.g. leave / leaving the company",
+      "reasonHint": {
+        "empty": "The reason is logged in the change request and shown to the approver.",
+        "ok": "Reason sufficient.",
+        "short": "{count} more characters to reach the minimum length."
+      },
+      "submit": "Create change request",
+      "blocked": {
+        "both": "Select a person and give a reason.",
+        "person": "Select a person.",
+        "reason": "Give a reason."
+      }
+    },
+    "actions": {
+      "noPermissionLoad": "No permission to load candidates.",
+      "noProject": "No project given.",
+      "loadFailed": "Candidates could not be loaded.",
+      "noPermission": "No permission or no authenticated session.",
+      "requestFieldsRequired": "Project, person and a change reason are required.",
+      "requestCreated": "Change request created. A second authorised person must approve it.",
+      "decisionFieldsRequired": "Request and decision reason are required.",
+      "changeApplied": "Change applied.",
+      "requestRejected": "Change request rejected."
+    }
   }
 }

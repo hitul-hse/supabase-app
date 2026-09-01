@@ -137,8 +137,10 @@ if (pickerFile) {
 
   // Honest nulls again: a person whose whole portfolio is unmeasured must not
   // read as having zero contracted work.
+  // Since the management i18n pass the literal lives in the catalogue as
+  // management.values.notAvailable; the source references the key.
   check("a null contract-hours total renders as n/a, not 0",
-    /n\/a/i.test(src));
+    /n\/a|notAvailable/i.test(src));
 
   check("no emoji or unicode glyphs in the picker",
     !/[\u{1F300}-\u{1FAFF}\u{2190}-\u{21FF}\u{2500}-\u{27BF}]/u.test(src));

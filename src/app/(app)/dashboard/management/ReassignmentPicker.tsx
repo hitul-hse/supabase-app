@@ -15,13 +15,14 @@
  * ---------------------------------------
  * `CandidateLoad.absence` is ALWAYS null right now, because
  * `public.leave_requests` has 0 rows. Null therefore means UNKNOWN, and this
- * renders it as "Abwesenheit unbekannt" in muted text — never as a green light,
- * a blank cell, or an "available" badge. Rendering an empty absence table as
- * availability would be the most expensive lie this screen could tell: the whole
- * point of a handover is that somebody is off, and claiming to know who is free
- * when nothing is known would invert the decision. Factorial time-off fills this
- * later (see the query's header comment); the label switches from "unbekannt" to
- * a real range and nothing else here has to change.
+ * renders it as "Abwesenheit unbekannt" / "Absence unknown" in muted text —
+ * never as a green light, a blank cell, or an "available" badge. Rendering an
+ * empty absence table as availability would be the most expensive lie this
+ * screen could tell: the whole point of a handover is that somebody is off, and
+ * claiming to know who is free when nothing is known would invert the decision.
+ * Factorial time-off fills this later (see the query's header comment); the
+ * label switches from "unbekannt" to a real range and nothing else here has to
+ * change.
  *
  * WHY NO PERCENT BAR
  * ------------------
@@ -41,6 +42,7 @@
 
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import type { CandidateLoad } from "@/lib/queries/reassignment-candidates";
 import type { CustomerPortfolioRow } from "@/lib/queries/management-customer-portfolio";
@@ -49,15 +51,16 @@ import {
   requestResponsibleChange,
   type ManagementChangeActionState,
 } from "./actions";
+import { translateList } from "./management-i18n";
 
 const IDLE: ManagementChangeActionState = { status: "idle" };
 
 const LABEL = "font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]";
 const NUM = "font-mono tabular-nums";
 
-/** Hours to one decimal, and `n/a` for an honest null — never a plausible 0. */
-const hours = (value: number | null) =>
-  value === null ? "n/a" : new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+/** Hours to one decimal (de-DE in both languages), and the honest null for a missing value — never a plausible 0. */
+const hours = (value: number | null, notAvailable: string) =>
+  value === null ? notAvailable : new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 
 /** The minimum the RPC accepts. Enforced here so nobody meets it as a server error. */
 const REASON_MIN = 3;
@@ -187,6 +190,8 @@ function CandidateRow({
   onSelect: (id: string) => void;
   groupName: string;
 }) {
+  const t = useTranslations("management.picker");
+  const na = useTranslations("management")("values.notAvailable");
   /*
    * A radio, not a select option: the whole point is that each choice carries
    * five numbers, and an <option> can only carry a string. The <label> wraps the
@@ -223,7 +228,7 @@ function CandidateRow({
           {candidate.alreadyOnProject && (
             <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)] px-1.5 py-px font-mono text-[9px] tracking-[0.08em] text-[var(--warning,#d99b3d)]">
               <IconPin />
-              BEREITS AUF PROJEKT
+              {t("alreadyOnProject")}
             </span>
           )}
 
@@ -240,16 +245,16 @@ function CandidateRow({
           {candidate.isExternal && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)] px-1.5 py-px font-mono text-[9px] tracking-[0.08em] text-[var(--text-secondary)]"
-              title="Externe Kraft — Kapazität wird pro Einsatz beauftragt, kein Wochenvertrag"
+              title={t("externalTitle")}
             >
-              EXTERN
+              {t("external")}
             </span>
           )}
 
           {suggested && (
             <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)] px-1.5 py-px font-mono text-[9px] tracking-[0.08em] text-[var(--accent)]">
               <IconIdea />
-              GERINGSTE LAST
+              {t("leastLoaded")}
             </span>
           )}
         </span>
@@ -261,26 +266,26 @@ function CandidateRow({
         */}
         <span className="mt-0.5 text-[10px] text-[var(--text-faint)]">
           {candidate.absence === null
-            ? "Abwesenheit unbekannt · keine Urlaubsdaten im System"
-            : `Abwesend ${candidate.absence.from}–${candidate.absence.to} · ${candidate.absence.kind}`}
+            ? t("absenceUnknown")
+            : t("absent", { from: candidate.absence.from, to: candidate.absence.to, kind: candidate.absence.kind })}
         </span>
       </span>
 
-      <span className={`${NUM} w-8 flex-none text-right text-[var(--text-secondary)]`} title="Projekte, für die diese Person verantwortlich ist">
+      <span className={`${NUM} w-8 flex-none text-right text-[var(--text-secondary)]`} title={t("titles.responsibleFor")}>
         {candidate.responsibleFor}
       </span>
-      <span className={`${NUM} w-8 flex-none text-right text-[var(--text-secondary)]`} title="Projekte, in denen diese Person als Replacement benannt ist">
+      <span className={`${NUM} w-8 flex-none text-right text-[var(--text-secondary)]`} title={t("titles.coversAsReplacement")}>
         {candidate.coversAsReplacement}
       </span>
       <span
         className={`${NUM} w-16 flex-none text-right`}
         style={{ color: loadTone(candidate, heaviest) }}
-        title={candidate.contractHours === null ? "Keine belastbaren Vertragsstunden in diesem Portfolio" : "Vertragsstunden der verantworteten Projekte"}
+        title={candidate.contractHours === null ? t("titles.noContractHours") : t("titles.contractHours")}
       >
-        {hours(candidate.contractHours)}
+        {hours(candidate.contractHours, na)}
       </span>
-      <span className={`${NUM} w-14 flex-none text-right text-[var(--text-muted)]`} title="Erfasste Stunden der letzten 30 Tage">
-        {hours(candidate.loggedLast30Days)}
+      <span className={`${NUM} w-14 flex-none text-right text-[var(--text-muted)]`} title={t("titles.logged30")}>
+        {hours(candidate.loggedLast30Days, na)}
       </span>
     </label>
   );
@@ -291,6 +296,8 @@ export function ReassignmentPicker({
 }: {
   project: CustomerPortfolioRow["projects"][number];
 }) {
+  const t = useTranslations("management.picker");
+  const tm = useTranslations("management");
   const [state, action, pending] = useActionState(requestResponsibleChange, IDLE);
   const [open, setOpen] = useState(false);
   const [candidates, setCandidates] = useState<CandidateLoad[] | null>(null);
@@ -309,6 +316,7 @@ export function ReassignmentPicker({
 
   // Fetch once, on first open. Re-opening the panel reuses what was loaded;
   // a successful request refreshes the route anyway, which remounts this.
+  const loadFailed = t("loadFailed");
   useEffect(() => {
     if (!open || requested.current) return;
     requested.current = true;
@@ -318,9 +326,9 @@ export function ReassignmentPicker({
         if (result.status === "ok") setCandidates(result.candidates);
         else setLoadError(result.message);
       })
-      .catch(() => setLoadError("Kandidaten konnten nicht geladen werden."))
+      .catch(() => setLoadError(loadFailed))
       .finally(() => setLoading(false));
-  }, [open, project.projectId]);
+  }, [open, project.projectId, loadFailed]);
 
   const ordered = candidates ? [...candidates].sort(worstFirst) : [];
   const hint = candidates ? leastLoaded(candidates) : null;
@@ -337,7 +345,7 @@ export function ReassignmentPicker({
       onToggle={(event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
     >
       <summary className="flex cursor-pointer list-none items-center gap-1 text-[var(--accent)] underline-offset-2 hover:underline">
-        {project.responsible.join(", ") || "Nicht zugeordnet"}
+        {translateList(tm, project.responsible).join(", ") || tm("values.notAssigned")}
         <IconChevron open={open} />
       </summary>
 
@@ -350,10 +358,10 @@ export function ReassignmentPicker({
         <input type="hidden" name="person_id" value={selected} />
 
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p className={LABEL}>NEUER VERANTWORTLICHER · AUSLASTUNG DER KANDIDATEN</p>
+          <p className={LABEL}>{t("heading")}</p>
           <p className="text-[10px] text-[var(--text-faint)]">
             {ordered.length > 0
-              ? `${ordered.length} aktive Personen · höchste Last zuerst`
+              ? t("count", { count: String(ordered.length) })
               : ""}
           </p>
         </div>
@@ -361,22 +369,22 @@ export function ReassignmentPicker({
         {/* Column key, so the four number columns are not four mystery figures. */}
         <div className={`flex items-center gap-2 px-2 ${LABEL}`}>
           <span className="w-3 flex-none" />
-          <span className="min-w-0 flex-1">PERSON</span>
-          <span className="w-8 flex-none text-right" title="Verantwortlich für">VER</span>
-          <span className="w-8 flex-none text-right" title="Als Replacement benannt">COV</span>
-          <span className="w-16 flex-none text-right">VERTRAGSH</span>
-          <span className="w-14 flex-none text-right">LOG 30T</span>
+          <span className="min-w-0 flex-1">{t("columns.person")}</span>
+          <span className="w-8 flex-none text-right" title={t("titles.resp")}>{t("columns.resp")}</span>
+          <span className="w-8 flex-none text-right" title={t("titles.cov")}>{t("columns.cov")}</span>
+          <span className="w-16 flex-none text-right">{t("columns.contractHours")}</span>
+          <span className="w-14 flex-none text-right">{t("columns.logged30")}</span>
         </div>
 
         <div
           className="max-h-[15rem] overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)]"
           role="radiogroup"
-          aria-label="Kandidaten für die Übernahme, höchste Last zuerst"
+          aria-label={t("radiogroup")}
         >
-          {loading && <p className="px-2 py-3 text-[11px] text-[var(--text-muted)]">Auslastung wird geladen …</p>}
+          {loading && <p className="px-2 py-3 text-[11px] text-[var(--text-muted)]">{t("loading")}</p>}
           {loadError && <p className="px-2 py-3 text-[11px] text-[var(--critical)]">{loadError}</p>}
           {!loading && !loadError && ordered.length === 0 && (
-            <p className="px-2 py-3 text-[11px] text-[var(--text-muted)]">Keine aktiven Kandidaten verfügbar.</p>
+            <p className="px-2 py-3 text-[11px] text-[var(--text-muted)]">{t("noCandidates")}</p>
           )}
           {ordered.map((candidate) => (
             <CandidateRow
@@ -397,23 +405,21 @@ export function ReassignmentPicker({
         */}
         {ordered.length > 0 && (
           <p className="text-[10px] leading-relaxed text-[var(--text-faint)]">
-            Farbe zeigt die Vertragsstunden relativ zum höchsten Wert dieser Liste, keine Auslastungsquote:
-            Wochenstunden sind für alle Personen ein TrackingTime-Default von 40,0 h und damit kein belastbarer Nenner.
-            {unmeasured > 0 ? ` ${unmeasured} Personen ohne belastbare Vertragsstunden (n/a).` : ""} Abwesenheiten sind
-            für niemanden bekannt — Urlaubs- und Krankdaten fehlen im System, die Einschätzung liegt bei der Führungskraft.
+            {t("legend.colour")}
+            {unmeasured > 0 ? ` ${t("legend.unmeasured", { count: String(unmeasured) })}` : ""} {t("legend.absence")}
           </p>
         )}
 
         <div className="flex flex-col gap-1">
           <label htmlFor={reasonId} className={LABEL}>
-            ÄNDERUNGSGRUND · PFLICHTFELD · MIND. {REASON_MIN} ZEICHEN
+            {t("reasonLabel", { min: String(REASON_MIN) })}
           </label>
           <input
             id={reasonId}
             name="reason"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Grund, z. B. Urlaub / Ausscheiden"
+            placeholder={t("reasonPlaceholder")}
             minLength={REASON_MIN}
             required
             aria-describedby={`${reasonId}-hint`}
@@ -426,15 +432,15 @@ export function ReassignmentPicker({
           */}
           <p id={`${reasonId}-hint`} className="text-[10px] text-[var(--text-faint)]">
             {reason.trim().length === 0
-              ? "Der Grund wird im Änderungsantrag protokolliert und der freigebenden Person angezeigt."
+              ? t("reasonHint.empty")
               : reasonOk
-                ? "Grund ausreichend."
-                : `Noch ${REASON_MIN - reason.trim().length} Zeichen bis zur Mindestlänge.`}
+                ? t("reasonHint.ok")
+                : t("reasonHint.short", { count: String(REASON_MIN - reason.trim().length) })}
           </p>
         </div>
 
         <Button type="submit" variant="primary" size="sm" disabled={!canSubmit} busy={pending}>
-          Änderungsantrag erstellen
+          {t("submit")}
         </Button>
 
         {/*
@@ -444,10 +450,10 @@ export function ReassignmentPicker({
         {!pending && !canSubmit && (
           <p className="text-[10px] text-[var(--text-faint)]">
             {!selected && !reasonOk
-              ? "Person auswählen und Grund angeben."
+              ? t("blocked.both")
               : !selected
-                ? "Person auswählen."
-                : "Grund angeben."}
+                ? t("blocked.person")
+                : t("blocked.reason")}
           </p>
         )}
 

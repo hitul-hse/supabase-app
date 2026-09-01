@@ -17,6 +17,7 @@
 //
 // READ-ONLY.
 import { readFileSync } from "node:fs";
+import { loadEnv } from "./lib/gate-env.mjs";
 import pg from "pg";
 import xlsx from "xlsx";
 
@@ -51,10 +52,9 @@ const KNOWN_AMBIGUOUS = 2;
 const KNOWN_NO_MATCH = 6;
 const KNOWN_MALFORMED = 5;
 
-const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
+// Credentials via the shared loader (process.env first, then .env.local found by
+// walking up); the old C:/Supabase/.env.local read only worked on one machine.
+const env = loadEnv();
 
 // The importer's own normaliser (import-masterdata-projects.mjs:115). Matching
 // the DB the same way it was written is the point.

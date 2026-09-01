@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { requirePermission, userHasPermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
-import { createAdminClient } from "@/utils/supabase/admin";
+import { withDb } from "./db";
 import { ReviewRow, type PersonOption, type ReviewRowData } from "./ReviewRow";
 
 /**
@@ -26,37 +26,47 @@ export default async function FactorialIdentityPage() {
   await requirePermission("/admin/factorial-identity", PERMISSIONS.ADMIN_USERS_READ);
   const canDecide = await userHasPermission(PERMISSIONS.ADMIN_USERS_WRITE);
 
-  const admin = createAdminClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const crm = (admin as any).schema("crm");
 
-  let open: ReviewRowData[] = [];
-  let decided: ReviewRowData[] = [];
-  let people: PersonOption[] = [];
   let loadError: string | null = null;
+  let loaded: { open: ReviewRowData[]; decided: ReviewRowData[]; people: PersonOption[] } | null = null;
 
   try {
-    const [openRes, decidedRes, peopleRes] = await Promise.all([
-      crm.from("factorial_identity_review")
-        .select("id, factorial_login_email, factorial_full_name, factorial_active, candidate_person_id, candidate_count, status, status_reason, last_seen_at")
-        .in("status", OPEN)
-        .order("last_seen_at", { ascending: false }),
-      crm.from("factorial_identity_review")
-        .select("id, factorial_login_email, factorial_full_name, factorial_active, candidate_person_id, candidate_count, status, status_reason, last_seen_at")
-        .not("status", "in", `(${OPEN.join(",")})`)
-        .order("last_seen_at", { ascending: false })
-        .limit(50),
-      admin.from("people").select("id, name").order("name"),
-    ]);
-    if (openRes.error) throw openRes.error;
-    if (decidedRes.error) throw decidedRes.error;
-    if (peopleRes.error) throw peopleRes.error;
-    open = openRes.data ?? [];
-    decided = decidedRes.data ?? [];
-    people = (peopleRes.data ?? []) as PersonOption[];
+    loaded = await withDb(async (db) => {
+      const [openRes, decidedRes, peopleRes] = await Promise.all([
+        db.query(
+          `select id, factorial_login_email, factorial_full_name, factorial_active,
+                  candidate_person_id, candidate_count, status, status_reason,
+                  last_seen_at::text
+             from crm.factorial_identity_review
+            where status = any($1)
+            order by last_seen_at desc`,
+          [OPEN],
+        ),
+        db.query(
+          `select id, factorial_login_email, factorial_full_name, factorial_active,
+                  candidate_person_id, candidate_count, status, status_reason,
+                  last_seen_at::text
+             from crm.factorial_identity_review
+            where not (status = any($1))
+            order by last_seen_at desc
+            limit 50`,
+          [OPEN],
+        ),
+        db.query("select id, name from public.people order by name"),
+      ]);
+      return {
+        open: openRes.rows as ReviewRowData[],
+        decided: decidedRes.rows as ReviewRowData[],
+        people: peopleRes.rows as PersonOption[],
+      };
+    });
   } catch (e) {
-    loadError = e instanceof Error ? e.message : String(e);
+    const m = e && typeof e === "object" && "message" in e ? (e as { message: string }).message : null;
+    loadError = m ?? JSON.stringify(e);
   }
+  const open = loaded?.open ?? [];
+  const decided = loaded?.decided ?? [];
+  const people = loaded?.people ?? [];
 
   return (
     <div className="space-y-6">

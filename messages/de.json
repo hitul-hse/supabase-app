@@ -87,7 +87,7 @@
       "budgetRisk": {
         "label": "PROJEKTE ÜBER BUDGET",
         "noProjects": "KEINE PROJEKTE MIT ERFASSTER ZEIT",
-        "allTime": "GESAMTZEITRAUM · TOP {count} NACH STUNDEN · {noBudget} OHNE BUDGET"
+        "allTime": "GESAMTZEITRAUM · {count} AKTIVE PROJEKTE · {noBudget} OHNE BUDGET"
       }
     },
     "filters": {
@@ -188,6 +188,91 @@
         "budgetH": "BUDGET H",
         "loggedH": "ERFASST H",
         "burn": "VERBRAUCH"
+      }
+    }
+  },
+  "drill": {
+    "open": "Details zu {title} öffnen",
+    "dialogLabel": "{title} im Detail",
+    "close": "Details schließen",
+    "esc": "ESC",
+    "fetching": "Wird geladen …",
+    "nothingLogged": "Nichts erfasst.",
+    "page": "SEITE {page} / {count}",
+    "back": "← ZURÜCK",
+    "next": "WEITER →",
+    "noProject": "(ohne Projekt)",
+    "noCustomer": "(ohne Kunde)",
+    "noTask": "(ohne Aufgabe)",
+    "unknownPerson": "Unbekannt",
+    "morePeople": "{count, plural, one {# weitere Person} other {# weitere Personen}}",
+    "moreTasks": "{count, plural, one {# weitere Aufgabe} other {# weitere Aufgaben}}",
+    "byPerson": "NACH MITARBEITER",
+    "byTask": "NACH AUFGABE",
+    "entries": "{count, plural, one {# Eintrag} other {# Einträge}}",
+    "people": "{count, plural, one {# Person} other {# Personen}}",
+    "projects": {
+      "count": {
+        "title": "Projekte nach Kunde",
+        "footer": "PROJEKTE JE KUNDE IM AKTUELLEN FILTER · JEDES PROJEKT ZÄHLT EINMAL",
+        "value": "{count, plural, one {# Projekt} other {# Projekte}}"
+      },
+      "hours": {
+        "title": "Erfasste Stunden nach Kunde",
+        "footer": "ERFASSTE STUNDEN JE KUNDE IM AKTUELLEN FILTER, GESAMTER ZEITRAUM · KALENDERZEIT ENTHALTEN, WIE IM LEDGER"
+      },
+      "billable": {
+        "title": "Abrechenbare Stunden nach Projekt",
+        "subline": "{billable}h abrechenbar von {total}h",
+        "footer": "ABRECHENBARE STUNDEN JE PROJEKT IM AKTUELLEN FILTER · PROJEKTE OHNE ABRECHENBARE ZEIT TRAGEN NICHTS BEI UND FEHLEN"
+      },
+      "over": {
+        "title": "Projekte über Budget",
+        "footer": "ERFASSTE STUNDEN ÜBER 100% DER SCHÄTZUNG · SCHLIMMSTE ZUERST · EINE ZEILE ÖFFNET DEN PROJEKTDATENSATZ"
+      },
+      "noBudget": {
+        "title": "Projekte ohne Budget",
+        "footer": "KEINE SCHÄTZUNG, ALSO IST DER VERBRAUCH UNBEKANNT — NICHT NULL · NACH ERFASSTEN STUNDEN · EINE ZEILE ÖFFNET DEN PROJEKTDATENSATZ"
+      },
+      "ledger": {
+        "kicker": "ERFASSTE STUNDEN",
+        "subline": "{billable}h abrechenbar · {people, plural, one {# Person} other {# Personen}} · {entries, plural, one {# Eintrag} other {# Einträge}}",
+        "footer": "JE TOP 8 NACH STUNDEN, REST IN EINER ZEILE · GESAMTER ZEITRAUM, KALENDERZEIT ENTHALTEN · ZUKÜNFTIG DATIERTE EINTRÄGE AUSGESCHLOSSEN",
+        "gap": "Differenz zur Ledger-Zahl",
+        "needsPermission": "Wer diese Stunden erfasst hat, ist nur mit der Berechtigung „Alle Stundenzettel sehen“ sichtbar."
+      }
+    },
+    "days": "{count, plural, one {# Tag} other {# Tage}}",
+    "billableShare": "{percent}% abrechenbar",
+    "time": {
+      "totalHours": {
+        "title": "Stunden nach Projekt",
+        "footer": "JEDES PROJEKT DIESER AUSWAHL · GLEICHE FILTER WIE DIE KENNZAHLEN · ZEIT OHNE PROJEKT ALS EIGENE ZEILE"
+      },
+      "people": {
+        "title": "Personen mit erfasster Zeit",
+        "footer": "EINE ZEILE JE PERSON MIT MINDESTENS EINEM EINTRAG · GLEICHE FILTER WIE DIE KENNZAHLEN"
+      },
+      "projects": {
+        "title": "Projekte mit erfasster Zeit",
+        "footer": "EINE ZEILE JE PROJEKT · ZEIT OHNE PROJEKT IST KEIN PROJEKT UND WIRD HIER NICHT GEZÄHLT"
+      },
+      "avgDay": {
+        "title": "Stunden nach aktivem Tag",
+        "subline": "{hours}h über {days, plural, one {# aktiven Tag} other {# aktive Tage}}",
+        "footer": "EINE ZEILE JE TAG MIT MINDESTENS EINEM EINTRAG · DER DURCHSCHNITT IST DIE SUMME DIESER ZEILEN DURCH IHRE ANZAHL"
+      },
+      "personProjects": {
+        "title": "{name} nach Projekt",
+        "footer": "ERFASSTE STUNDEN DIESER PERSON JE PROJEKT · GLEICHE AUSWAHL WIE DIE KAPAZITÄTSBALKEN"
+      },
+      "customerProjects": {
+        "title": "{name} nach Projekt",
+        "footer": "STUNDEN DIESES KUNDEN JE PROJEKT · GLEICHE AUSWAHL WIE DAS WAFFELDIAGRAMM"
+      },
+      "otherCustomers": {
+        "title": "Alles Übrige, nach Kunde",
+        "footer": "DIE KUNDEN HINTER „ALLES ÜBRIGE“ · GLEICHE AUSWAHL WIE DAS WAFFELDIAGRAMM"
       }
     }
   }

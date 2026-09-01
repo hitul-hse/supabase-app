@@ -167,8 +167,8 @@ check(
 );
 check(
   "the over-budget KPI is labelled ALL TIME",
-  /key: "tiles\.budgetRisk\.allTime",\s*\n?\s*values: \{ count: projectRows\.length, noBudget \}/.test(queriesCode) &&
-    /^ALL TIME · TOP \{count\} BY HOURS/.test(enText("overview.tiles.budgetRisk.allTime")),
+  /key: "tiles\.budgetRisk\.allTime",\s*\n?\s*values: \{ count: activeProjects, noBudget \}/.test(queriesCode) &&
+    /^ALL TIME · \{count\} ACTIVE PROJECTS/.test(enText("overview.tiles.budgetRisk.allTime")),
   "it sits in a strip of period figures",
 );
 check(

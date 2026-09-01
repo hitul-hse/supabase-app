@@ -303,6 +303,43 @@ function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
  * the old behaviour: empty now renders "n/a", where before it silently
  * substituted invented numbers.
  */
+
+/**
+ * Budget posture across the WHOLE active portfolio, not the ledger's top 8.
+ *
+ * The over-budget tile links to /projects, and /projects counts every active
+ * project with `actualHours > estimatedHours` (projects-live.ts `isOver`).
+ * Counting only the eight ledger rows here produced "2" on the tile and "11"
+ * on the page it opens -- the exact contradiction a KPI must not have. Same
+ * rule as /projects: strictly over, and only projects that HAVE a budget.
+ * `burn_percent` is actual/estimate*100, so "> 100" is that rule in view terms.
+ *
+ * Paged read per the house rule: .order() before .range(), no bare limit.
+ */
+async function getBudgetPosture(
+  supabase: SupabaseTyped,
+): Promise<{ activeProjects: number; overBudget: number; noBudget: number } | null> {
+  try {
+    const { data, error } = await timeSchema(supabase)
+      .from("project_summary")
+      .select("project_id, burn_percent, estimated_hours")
+      .eq("is_archived", false)
+      .order("project_id", { ascending: true })
+      .range(0, 9999);
+    if (error || !data) return null;
+    const rows = data as { burn_percent: number | null; estimated_hours: number | null }[];
+    return {
+      activeProjects: rows.length,
+      // The view writes "no budget" as 0, not null (84 of 338 rows), and its
+      // burn_percent is null for those -- so a budget is real only when > 0.
+      overBudget: rows.filter((r) => Number(r.estimated_hours) > 0 && Number(r.burn_percent) > 100).length,
+      noBudget: rows.filter((r) => !(Number(r.estimated_hours) > 0)).length,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getLiveOverview(
   supabase: SupabaseTyped,
   opts: { range?: OverviewRange; team?: string | null } = {},
@@ -325,7 +362,7 @@ export async function getLiveOverview(
   const snappedToWholeWeeks =
     firstMonday !== range.from || !isSundayOfWeek(range.to <= today ? range.to : today);
 
-  const [rangedWeeks, projectRows, memberRows, memberMeta, customerCount, projectCount, roster] =
+  const [rangedWeeks, projectRows, memberRows, memberMeta, customerCount, projectCount, roster, budgetPosture] =
     await Promise.all([
       /*
        * The default window still goes through getOrgWeeks(supabase,
@@ -353,6 +390,7 @@ export async function getLiveOverview(
       // inboxes. Counting them as staff inflates the headcount on the page the
       // whole company reads.
       getRosterCounts(supabase),
+      getBudgetPosture(supabase),
     ]);
 
   /*
@@ -398,10 +436,11 @@ export async function getLiveOverview(
     contractedHours += m.weeklyHours * Math.min(m.weeksActive, rangeWeekCount);
   }
 
-  const overBudget = projectRows.filter(
-    (p) => p.burnPercent !== null && p.burnPercent >= 100,
-  ).length;
-  const noBudget = projectRows.filter((p) => p.estimatedHours === null).length;
+  // Portfolio-wide (see getBudgetPosture). The ledger rows are a top-8 slice
+  // and must not be the denominator of a KPI that links to the full list.
+  const overBudget = budgetPosture?.overBudget ?? null;
+  const noBudget = budgetPosture?.noBudget ?? 0;
+  const activeProjects = budgetPosture?.activeProjects ?? 0;
 
   const metrics: OverviewMetric[] = [
     {
@@ -488,9 +527,9 @@ export async function getLiveOverview(
     {
       key: "budget-risk",
       label: { key: "tiles.budgetRisk.label" },
-      value: projectRows.length > 0 ? String(overBudget) : null,
+      value: overBudget === null ? null : String(overBudget),
       subtext:
-        projectRows.length === 0
+        overBudget === null
           ? { key: "tiles.budgetRisk.noProjects" }
           : // Naming the unbudgeted count matters: "0 over budget" sounds like
             // health, but it is meaningless if most projects have no budget to
@@ -500,9 +539,9 @@ export async function getLiveOverview(
             // as one of them.
             {
               key: "tiles.budgetRisk.allTime",
-              values: { count: projectRows.length, noBudget },
+              values: { count: activeProjects, noBudget },
             },
-      tone: overBudget > 0 ? "critical" : "neutral",
+      tone: overBudget !== null && overBudget > 0 ? "critical" : "neutral",
       progressPercent: null,
     },
   ];

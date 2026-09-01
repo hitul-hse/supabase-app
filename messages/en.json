@@ -87,7 +87,7 @@
       "budgetRisk": {
         "label": "PROJECTS OVER BUDGET",
         "noProjects": "NO PROJECTS WITH LOGGED TIME",
-        "allTime": "ALL TIME · TOP {count} BY HOURS · {noBudget} WITH NO BUDGET"
+        "allTime": "ALL TIME · {count} ACTIVE PROJECTS · {noBudget} WITH NO BUDGET"
       }
     },
     "filters": {
@@ -188,6 +188,91 @@
         "budgetH": "BUDGET H",
         "loggedH": "LOGGED H",
         "burn": "BURN"
+      }
+    }
+  },
+  "drill": {
+    "open": "Open details for {title}",
+    "dialogLabel": "{title} in detail",
+    "close": "Close details",
+    "esc": "ESC",
+    "fetching": "Fetching…",
+    "nothingLogged": "Nothing logged.",
+    "page": "PAGE {page} / {count}",
+    "back": "← BACK",
+    "next": "NEXT →",
+    "noProject": "(no project)",
+    "noCustomer": "(no customer)",
+    "noTask": "(no task)",
+    "unknownPerson": "Unknown",
+    "morePeople": "{count, plural, one {# more person} other {# more people}}",
+    "moreTasks": "{count, plural, one {# more task} other {# more tasks}}",
+    "byPerson": "BY PERSON",
+    "byTask": "BY TASK",
+    "entries": "{count, plural, one {# entry} other {# entries}}",
+    "people": "{count, plural, one {# person} other {# people}}",
+    "projects": {
+      "count": {
+        "title": "Projects by customer",
+        "footer": "PROJECTS PER CUSTOMER IN THE CURRENT FILTER · ONE PROJECT COUNTS ONCE",
+        "value": "{count, plural, one {# project} other {# projects}}"
+      },
+      "hours": {
+        "title": "Tracked hours by customer",
+        "footer": "ALL-TIME TRACKED HOURS PER CUSTOMER IN THE CURRENT FILTER · CALENDAR TIME INCLUDED, AS IN THE LEDGER"
+      },
+      "billable": {
+        "title": "Billable hours by project",
+        "subline": "{billable}h billable of {total}h",
+        "footer": "BILLABLE HOURS PER PROJECT IN THE CURRENT FILTER · PROJECTS WITH NO BILLABLE TIME ADD NOTHING AND ARE OMITTED"
+      },
+      "over": {
+        "title": "Projects over budget",
+        "footer": "LOGGED HOURS ABOVE 100% OF THE ESTIMATE · WORST FIRST · A ROW OPENS THE PROJECT RECORD"
+      },
+      "noBudget": {
+        "title": "Projects without a budget",
+        "footer": "NO ESTIMATE SET, SO BURN IS UNKNOWABLE — NOT ZERO · SORTED BY LOGGED HOURS · A ROW OPENS THE PROJECT RECORD"
+      },
+      "ledger": {
+        "kicker": "LOGGED HOURS",
+        "subline": "{billable}h billable · {people, plural, one {# person} other {# people}} · {entries, plural, one {# entry} other {# entries}}",
+        "footer": "TOP 8 EACH BY HOURS, REST FOLDED INTO ONE ROW · ALL-TIME, CALENDAR TIME INCLUDED · FUTURE-DATED ENTRIES EXCLUDED",
+        "gap": "Difference to the ledger figure",
+        "needsPermission": "Seeing who logged these hours needs the “View All Timesheets” permission."
+      }
+    },
+    "days": "{count, plural, one {# day} other {# days}}",
+    "billableShare": "{percent}% billable",
+    "time": {
+      "totalHours": {
+        "title": "Hours by project",
+        "footer": "EVERY PROJECT IN THIS SELECTION · SAME FILTERS AS THE STRIP · TIME WITHOUT A PROJECT IS ITS OWN ROW"
+      },
+      "people": {
+        "title": "People with logged time",
+        "footer": "ONE ROW PER PERSON WITH AT LEAST ONE ENTRY · SAME FILTERS AS THE STRIP"
+      },
+      "projects": {
+        "title": "Projects with logged time",
+        "footer": "ONE ROW PER DISTINCT PROJECT · TIME WITHOUT A PROJECT IS NOT A PROJECT AND IS NOT COUNTED HERE"
+      },
+      "avgDay": {
+        "title": "Hours by active day",
+        "subline": "{hours}h over {days, plural, one {# active day} other {# active days}}",
+        "footer": "ONE ROW PER DAY WITH AT LEAST ONE ENTRY · THE AVERAGE IS THESE ROWS DIVIDED BY THEIR COUNT"
+      },
+      "personProjects": {
+        "title": "{name} by project",
+        "footer": "THIS PERSON'S TRACKED HOURS BY PROJECT · SAME SELECTION AS THE CAPACITY BARS"
+      },
+      "customerProjects": {
+        "title": "{name} by project",
+        "footer": "THIS CUSTOMER'S HOURS BY PROJECT · SAME SELECTION AS THE WAFFLE"
+      },
+      "otherCustomers": {
+        "title": "Everything else, by customer",
+        "footer": "THE CUSTOMERS FOLDED INTO “EVERYTHING ELSE” · SAME SELECTION AS THE WAFFLE"
       }
     }
   }

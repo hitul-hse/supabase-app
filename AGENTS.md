@@ -64,7 +64,8 @@ Two things about the setup that are deliberate and should not be "fixed":
   `supabase/schema.sql`, i.e. the entire RLS model) parse to nothing, silently.
 
 `GRAPH_REPORT.md`, `manifest.json` and `.graphify_labels.json` are committed on
-purpose so every session starts from the same map and the same community names;
+purpose so every session starts from the same map (the community names travel
+with them, but only hold on the clone that generated them — see below);
 `graph.html`, `cache/`, the per-machine pointers and the dated backup
 directories are gitignored. Those backups are a local undo buffer written on
 every rebuild at ~5MB each — 34MB of them had been committed by accident before
@@ -75,9 +76,32 @@ JSON that the hook rewrites after every code commit, and clustering reshuffles
 communities even when the node and edge counts come out identical — so it
 landed as a multi-thousand-line diff on unrelated commits, went stale on any
 branch that had not been rebuilt, and needed a git merge driver to survive
-parallel work. That merge driver is gone with it. Committing
-`.graphify_labels.json` is what keeps the local rebuild cheap: the prose
-community names come back with it instead of degrading to bare filenames.
+parallel work. That merge driver is gone with it.
+
+Decommitting it had one unadvertised consequence, found on 2026-09-01 and
+worth knowing before you trust a community name. `graph.json` was also the
+shared clustering anchor: while it was committed, every rebuild passed it to
+`remap_communities_to_previous()`, memberships stayed put, the signatures in
+`.graphify_labels.json.sig` still matched, and the prose names were reused.
+Without it each clone re-clusters from scratch, community ids get reassigned,
+and `watch.py` drops every label whose membership signature has changed. That
+guard is right and should stay -- cid 30 can now cover a completely different
+community, so reusing its old name would launder a stale name in as current --
+but it means **committing `.graphify_labels.json` does NOT preserve the prose
+names on another machine.** They survive rebuilds on the clone that generated
+them and degrade to bare filenames exactly once anywhere else.
+
+So treat the committed names as a per-machine convenience, not a shared
+guarantee. On a fresh clone, after the first `graphify update .`, run:
+
+```
+graphify label . --backend=ollama --model=qwen2.5-coder:14b
+```
+
+Local model, no API cost, a few minutes. Verify with a second `graphify
+update .` -- the prose count should not move. If it drops sharply (503 to 59
+was the observed failure), the labels and the local clustering disagree and
+the `label` run above is the repair.
 
 ## Installed agent toolkits: gstack, everything-claude-code, graphify
 

@@ -17,7 +17,7 @@
  *
  * READ-ONLY. It writes nothing and needs no Factorial token.
  */
-import { readFileSync } from "node:fs";
+import { loadEnv } from "./lib/gate-env.mjs";
 import pg from "pg";
 /*
  * The classifier is imported, not re-implemented. It lives in lib/factorial.mjs
@@ -27,10 +27,19 @@ import pg from "pg";
  */
 import { classifyEmployee, normaliseEmail, SHARED_MAILBOX_RE } from "./lib/factorial.mjs";
 
-const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
+/*
+ * Env comes from process.env first, then the repo's .env.local -- the shared
+ * loader every other gate uses. This file used to read C:/Supabase/.env.local,
+ * an absolute Windows path from the machine it was written on, which meant the
+ * gate could only ever run there: on WSL or CI it crashed with ENOENT before
+ * printing a word. A gate that needs live credentials SKIPS without them; it
+ * does not require the author's filesystem.
+ */
+const env = loadEnv();
+if (!env.SUPABASE_DB_URL) {
+  console.log("skip: SUPABASE_DB_URL not set (see .env.local.example) — this gate measures the live DB.");
+  process.exit(0);
+}
 
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
 await c.connect();

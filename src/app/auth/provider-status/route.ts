@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { proxiedOrigin } from "@/utils/proxied-origin";
 
 /**
  * Is an OAuth provider actually usable right now?
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
   // The URI Supabase will present to the provider. This is the value that has to be
   // registered provider-side, so it is what any hint must quote.
   const callbackUri = `${base.replace(/\/$/, "")}/auth/v1/callback`;
-  const redirectTo = `${request.nextUrl.origin}/auth/callback`;
+  const redirectTo = `${proxiedOrigin(request)}/auth/callback`;
   const authorize =
     `${base.replace(/\/$/, "")}/auth/v1/authorize?provider=${encodeURIComponent(provider)}` +
     `&redirect_to=${encodeURIComponent(redirectTo)}`;

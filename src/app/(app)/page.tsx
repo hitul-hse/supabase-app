@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader, ChartNote, StatTile } from "@/components/ui/Card";
-import { TrendFigure, Donut, Gauge, LegendDot } from "@/components/ui/Charts";
+import { Donut, Gauge, LegendDot } from "@/components/ui/Charts";
 import { Pill } from "@/components/ui/Segmented";
 import { TopBarChrome } from "@/components/TopBarChrome";
 import { IconWarning, IconArrowRight } from "@/components/nav-icons";
@@ -15,6 +15,7 @@ import {
   parseOverviewTeam,
 } from "@/lib/queries/overview-live";
 import { OverviewFilters } from "./OverviewFilters";
+import { OverviewHero } from "./OverviewHero";
 import { requireUser } from "@/utils/supabase/require-user";
 
 /**
@@ -232,17 +233,38 @@ export default async function OverviewPage({
           exactly where fused grids acquire a missing rule on one breakpoint.
         */}
         <div className="stagger grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-5">
-          {metrics.map((metric) => (
-            <StatTile
-              key={metric.key}
-              data-metric={metric.key}
-              label={metric.label}
-              value={metric.value}
-              hint={metric.subtext}
-              tone={metric.tone}
-              progressPercent={metric.progressPercent}
-            />
-          ))}
+          {metrics.map((metric) => {
+            /* Every figure answers "where do I see more?" -- the tile IS the
+               link. Wrapping keeps data-metric on the tile itself, which is
+               what the deployed-page checks select on. */
+            const drill: Record<string, string> = {
+              "billable-share": "/time/dashboard",
+              "hours-logged": "/timesheets",
+              capacity: "/time/dashboard",
+              "active-people": "/people",
+              "budget-risk": "/projects",
+            };
+            const href = drill[metric.key];
+            const tile = (
+              <StatTile
+                key={href ? undefined : metric.key}
+                data-metric={metric.key}
+                label={metric.label}
+                value={metric.value}
+                hint={metric.subtext}
+                tone={metric.tone}
+                progressPercent={metric.progressPercent}
+                className={href ? "h-full cursor-pointer" : undefined}
+              />
+            );
+            return href ? (
+              <Link key={metric.key} href={href} aria-label={`${metric.label} — open details`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+                {tile}
+              </Link>
+            ) : (
+              tile
+            );
+          })}
         </div>
 
         <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
@@ -298,11 +320,11 @@ export default async function OverviewPage({
                   {/* min-h keeps the figure honest on short viewports; flex-1 is what
                       lets it use the card's height on tall ones. */}
                   <div className="min-h-[180px] flex-1">
-                    <TrendFigure
-                      id="overview-billable-share"
+                    <OverviewHero
                       points={trendPoints}
                       yDomain={[0, 100]}
-                      label={`Billable share per week over ${periodLabel.toLowerCase()}${teamLabelForScope ? ` for ${teamLabelForScope}` : ""}, from ${trendPoints[0].label} to ${trendPoints[trendPoints.length - 1].label}`}
+                      team={team}
+                      label={`Billable share per week over ${periodLabel.toLowerCase()}${teamLabelForScope ? ` for ${teamLabelForScope}` : ""}, from ${trendPoints[0].label} to ${trendPoints[trendPoints.length - 1].label}. Click a week for its breakdown.`}
                     />
                   </div>
 

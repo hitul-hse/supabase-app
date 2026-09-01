@@ -340,6 +340,79 @@ async function getBudgetPosture(
   }
 }
 
+/**
+ * Future-dated entries, per ISO week, inside the window.
+ *
+ * TrackingTime lets people pre-log time for days that have not happened, and
+ * `org_week` aggregates those like any worked hour. getOrgWeeks already drops
+ * whole FUTURE WEEKS (see time-dashboard.ts), but the current part-week and a
+ * chosen period can still carry entries dated after now(). The week popup
+ * (week-drilldown.ts) excludes them with `started_at <= now()`, so the tile
+ * and its own drill-down disagreed by exactly those hours (live: 70 h of
+ * 2.857 h, 54 of them billable). A KPI must not count work not yet done.
+ *
+ * Read from time.entry, subtracted per week below. Paged read per the house
+ * rule (.order before .range); the row count is tiny by construction.
+ */
+async function getFutureEntryAdjustments(
+  supabase: SupabaseTyped,
+  firstMonday: string,
+  lastMonday: string,
+): Promise<Map<string, { seconds: number; billable: number; entries: number }>> {
+  const out = new Map<string, { seconds: number; billable: number; entries: number }>();
+  const nowIso = new Date().toISOString();
+  const windowEnd = new Date(`${lastMonday}T00:00:00Z`);
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 7);
+  try {
+    const { data, error } = await timeSchema(supabase)
+      .from("entry")
+      .select("started_at, duration_seconds, is_billable")
+      .not("duration_seconds", "is", null)
+      .gt("started_at", nowIso)
+      .gte("started_at", `${firstMonday}T00:00:00Z`)
+      .lt("started_at", windowEnd.toISOString())
+      .order("id", { ascending: true })
+      .range(0, 9999);
+    if (error || !data) return out;
+    for (const r of data as { started_at: string; duration_seconds: number; is_billable: boolean | null }[]) {
+      const d = new Date(r.started_at);
+      const dow = (d.getUTCDay() + 6) % 7; // Monday = 0
+      d.setUTCDate(d.getUTCDate() - dow);
+      const key = d.toISOString().slice(0, 10);
+      const acc = out.get(key) ?? { seconds: 0, billable: 0, entries: 0 };
+      acc.seconds += num(r.duration_seconds);
+      if (r.is_billable) acc.billable += num(r.duration_seconds);
+      acc.entries += 1;
+      out.set(key, acc);
+    }
+  } catch {
+    // On failure the tile keeps the view's figure; the truth check will flag it.
+  }
+  return out;
+}
+
+function excludeFutureEntries(
+  weeks: OrgWeekRow[],
+  adjustments: Map<string, { seconds: number; billable: number; entries: number }>,
+): OrgWeekRow[] {
+  if (adjustments.size === 0) return weeks;
+  return weeks.map((w) => {
+    const a = adjustments.get(w.weekStart);
+    if (!a) return w;
+    const totalSeconds = Math.max(0, w.totalSeconds - a.seconds);
+    const billableSeconds = Math.max(0, w.billableSeconds - a.billable);
+    return {
+      ...w,
+      totalSeconds,
+      billableSeconds,
+      trackedSeconds: Math.max(0, w.trackedSeconds - a.seconds),
+      entryCount: Math.max(0, w.entryCount - a.entries),
+      totalHours: secondsToHours(totalSeconds),
+      billableHours: secondsToHours(billableSeconds),
+    };
+  });
+}
+
 export async function getLiveOverview(
   supabase: SupabaseTyped,
   opts: { range?: OverviewRange; team?: string | null } = {},
@@ -362,7 +435,7 @@ export async function getLiveOverview(
   const snappedToWholeWeeks =
     firstMonday !== range.from || !isSundayOfWeek(range.to <= today ? range.to : today);
 
-  const [rangedWeeks, projectRows, memberRows, memberMeta, customerCount, projectCount, roster, budgetPosture] =
+  const [rangedWeeksRaw, projectRows, memberRows, memberMeta, customerCount, projectCount, roster, budgetPosture, futureAdjustments] =
     await Promise.all([
       /*
        * The default window still goes through getOrgWeeks(supabase,
@@ -391,6 +464,7 @@ export async function getLiveOverview(
       // whole company reads.
       getRosterCounts(supabase),
       getBudgetPosture(supabase),
+      getFutureEntryAdjustments(supabase, firstMonday, lastMonday),
     ]);
 
   /*
@@ -410,6 +484,8 @@ export async function getLiveOverview(
   const teamMemberIds =
     team === null ? null : memberIdsForTeam(memberMeta, team);
 
+  // Same rule as the week drill-down: nothing dated after now() counts.
+  const rangedWeeks = excludeFutureEntries(rangedWeeksRaw, futureAdjustments);
   const weeks =
     teamMemberIds === null
       ? rangedWeeks
@@ -795,6 +871,8 @@ async function getTeamWeeks(
         .in("member_id", [...memberIds])
         .gte("started_at", `${firstMonday}T00:00:00Z`)
         .lte("started_at", `${to}T23:59:59Z`)
+        // Future-dated entries are excluded here too (see getFutureEntryAdjustments).
+        .lte("started_at", new Date().toISOString())
         // Ordered so paging is deterministic: an unordered range() walk can
         // repeat and skip rows (measured: 299 duplicates in a 5,299-row read).
         .order("id", { ascending: true })

@@ -78,7 +78,7 @@ export default async function FactorialIdentityPage() {
       {loadError && (
         <Card>
           <CardHeader title="Queue unavailable" />
-          <p className="px-4 pb-4 text-sm text-[var(--muted)]">
+          <p className="px-4 pb-4 text-sm text-[var(--text-muted)]">
             {loadError}. If this mentions a missing relation, migration
             20260826140000 has not been applied to this database yet — apply it,
             then run <code>npm run sync:factorial-identity</code>.
@@ -100,10 +100,10 @@ export default async function FactorialIdentityPage() {
                 canDecide
                   ? <ReviewRow key={row.id} row={row} people={people} />
                   : (
-                    <div key={row.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+                    <div key={row.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
                       <span className="font-medium">{row.factorial_full_name ?? "(no name)"}</span>
-                      <span className="ml-2 text-sm text-[var(--muted)]">{row.factorial_login_email}</span>
-                      <p className="mt-1 text-sm text-[var(--muted)]">{row.status_reason}</p>
+                      <span className="ml-2 text-sm text-[var(--text-muted)]">{row.factorial_login_email}</span>
+                      <p className="mt-1 text-sm text-[var(--text-muted)]">{row.status_reason}</p>
                     </div>
                   )
               ))}
@@ -118,7 +118,7 @@ export default async function FactorialIdentityPage() {
             <div className="px-4 pb-4">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-[var(--muted)]">
+                  <tr className="text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
                     <th className="py-2 pr-4">Factorial</th>
                     <th className="py-2 pr-4">Status</th>
                     <th className="py-2">Why</th>
@@ -129,14 +129,14 @@ export default async function FactorialIdentityPage() {
                     <tr key={row.id} className="border-t border-[var(--border)]">
                       <td className="py-2 pr-4">
                         {row.factorial_full_name ?? "—"}
-                        <span className="ml-2 text-[var(--muted)]">{row.factorial_login_email}</span>
+                        <span className="ml-2 text-[var(--text-muted)]">{row.factorial_login_email}</span>
                       </td>
                       <td className="py-2 pr-4">{row.status}</td>
-                      <td className="py-2 text-[var(--muted)]">{row.status_reason}</td>
+                      <td className="py-2 text-[var(--text-muted)]">{row.status_reason}</td>
                     </tr>
                   ))}
                   {decided.length === 0 && (
-                    <tr><td colSpan={3} className="py-3 text-[var(--muted)]">No decisions yet.</td></tr>
+                    <tr><td colSpan={3} className="py-3 text-[var(--text-muted)]">No decisions yet.</td></tr>
                   )}
                 </tbody>
               </table>

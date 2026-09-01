@@ -27,6 +27,7 @@
  * that makes it correct is asserted in check-oauth-callback.mjs instead.
  */
 import { existsSync } from "node:fs";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 
 if (!existsSync(".next")) {
   console.log("SKIP: no production build — run `npm run build` first");
@@ -58,8 +59,10 @@ const check = (name, ok, detail = "") => {
   if (!ok) failed = true;
 };
 
-const { chromium } = await import("playwright");
-const browser = await chromium.launch();
+// Not a bare chromium.launch(): on this rig the default compositor's frame
+// clock is erratic, and Playwright cannot click without one. See
+// scripts/lib/launch-chromium.mjs for the measurements.
+const browser = await launchChromium();
 
 /**
  * Click a provider button and report what happened.

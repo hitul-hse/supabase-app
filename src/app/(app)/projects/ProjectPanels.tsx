@@ -12,8 +12,12 @@
  */
 import type { BurnPoint, ProjectContributor, ProjectTaskRow } from "@/lib/queries/projects-live";
 import { Card, StatTile } from "@/components/ui/Card";
+import { DrillTrigger, type Drill } from "@/components/DrillDialog";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+
+/** The five tiles of the totals strip, as the keys a caller supplies drills under. */
+export type ProjectTotalsTile = "projects" | "hours" | "billable" | "over" | "noBudget";
 
 /** Red over budget, amber approaching it, green healthy, grey when unbudgeted. */
 export function burnColor(percent: number | null): string {
@@ -51,28 +55,46 @@ export function ProjectTotalsStrip({
   billableHours,
   overBudget,
   noBudget,
+  drills,
 }: {
   projectCount: number;
   totalHours: number;
   billableHours: number;
   overBudget: number;
   noBudget: number;
+  /**
+   * What sits behind each tile, built by the explorer from the SAME filtered
+   * rows these five figures are folded from. A tile with a drill becomes a
+   * button (card-elev, like the Management tiles); without one it stays the
+   * plain StatTile it was, so the strip renders identically for a caller that
+   * has nothing to open.
+   */
+  drills?: Partial<Record<ProjectTotalsTile, Drill>>;
 }) {
   // Billable share of tracked time. Guarded against a zero denominator, which
   // is not hypothetical: a filtered view can legitimately contain no hours, and
   // 0/0 renders as "NaN%" — a number-shaped thing that looks like a bug.
   const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : null;
 
-  const cells = [
-    { label: "PROJECTS", value: projectCount.toLocaleString("en-GB"), hint: "in this view" },
-    { label: "TRACKED HOURS", value: h(totalHours), unit: "h", hint: "logged to date" },
+  const cells: {
+    key: ProjectTotalsTile;
+    label: string;
+    value: string;
+    unit?: string;
+    hint: string;
+    tone?: "critical";
+  }[] = [
+    { key: "projects", label: "PROJECTS", value: projectCount.toLocaleString("en-GB"), hint: "in this view" },
+    { key: "hours", label: "TRACKED HOURS", value: h(totalHours), unit: "h", hint: "logged to date" },
     {
+      key: "billable",
       label: "BILLABLE",
       value: billablePercent === null ? "—" : String(billablePercent),
       unit: billablePercent === null ? undefined : "%",
       hint: `${h(billableHours)} h billable`,
     },
     {
+      key: "over",
       label: "OVER BUDGET",
       value: overBudget.toLocaleString("en-GB"),
       // Only paint it red when there is something to act on. A permanent red
@@ -82,6 +104,7 @@ export function ProjectTotalsStrip({
       hint: overBudget > 0 ? "needs attention" : "all within budget",
     },
     {
+      key: "noBudget",
       label: "NO BUDGET SET",
       value: noBudget.toLocaleString("en-GB"),
       hint: "burn unknowable",
@@ -103,17 +126,34 @@ export function ProjectTotalsStrip({
        * carries a hint so the five cards keep equal height on one row -- the
        * two-with-hints version had a visibly ragged row.
        */}
-      {cells.map((c) => (
-        <StatTile
-          key={c.label}
-          data-tile={c.label}
-          label={c.label}
-          value={c.value}
-          unit={c.unit}
-          hint={c.hint}
-          tone={c.tone ?? "neutral"}
-        />
-      ))}
+      {cells.map((c) => {
+        const tile = (
+          <StatTile
+            data-tile={c.label}
+            label={c.label}
+            value={c.value}
+            unit={c.unit}
+            hint={c.hint}
+            tone={c.tone ?? "neutral"}
+            // Inside a button the tile must fill it, or the hit target and the
+            // card outline disagree about where the tile ends.
+            className={drills?.[c.key] ? "h-full" : ""}
+          />
+        );
+        const drill = drills?.[c.key];
+        return drill ? (
+          <DrillTrigger
+            key={c.label}
+            drill={drill}
+            id={`projects-${c.key}`}
+            className="card-elev block w-full rounded-[var(--radius-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          >
+            {tile}
+          </DrillTrigger>
+        ) : (
+          <div key={c.label}>{tile}</div>
+        );
+      })}
     </div>
   );
 }

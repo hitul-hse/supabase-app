@@ -2,7 +2,8 @@
  * The dashboard's non-tabular panels: the KPI strip and the freshness banner.
  *
  * Server Components, both of them — pure formatting over data the page already
- * fetched, so nothing here ships to the browser. The tables moved to
+ * fetched, so nothing here ships to the browser except the small trigger that
+ * opens a tile's composition (DrillTrigger, fed plain data). The tables moved to
  * ReportTables.tsx when they gained sorting and paging (which need state), and
  * the trend chart to TrendChart.tsx when its tooltip became interactive. What
  * stays here is everything that is genuinely just text.
@@ -12,8 +13,12 @@
  * different statements, and rendering the first as the second is a quiet lie.
  */
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import type { Totals } from "@/lib/queries/trackingtime-report";
 import type { SyncFreshness } from "@/lib/queries/time-dashboard";
+import { secondsToHours } from "@/lib/time-transform";
+import { DrillTrigger, type Drill, type DrillRow } from "@/components/DrillDialog";
+import type { DrillDatum, TimeTileDrillData } from "./drill-data";
 
 function hrs(h: number): string {
   return `${h.toLocaleString("en-GB", { maximumFractionDigits: 1 })}h`;
@@ -28,6 +33,8 @@ function Kpi({
   strong = false,
   title,
   href,
+  drill,
+  drillId,
 }: {
   label: string;
   value: string;
@@ -36,6 +43,15 @@ function Kpi({
   title?: string;
   /** When set, the whole tile filters the report. */
   href?: string;
+  /**
+   * When set instead, the tile opens its composition in place. A popup rather
+   * than a filter because these figures (total, people, projects, per-day) are
+   * what the reader is comparing; narrowing the report would cost the context
+   * that made them curious. Plain data, so this stays a Server Component and
+   * only the trigger ships to the browser.
+   */
+  drill?: Drill;
+  drillId?: string;
 }) {
   const body = (
     <>
@@ -56,24 +72,56 @@ function Kpi({
   const shell =
     "flex flex-col gap-0.5 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 transition-colors card-elev";
 
-  // Only the tiles that MEAN a filter are links. Making every tile clickable
-  // would promise a drill-down from "avg per active day", which is a derived
-  // figure with no rows of its own to show.
-  return href ? (
-    <Link
-      href={href}
-      scroll={false}
-      data-tile={label}
-      title={title}
-      className={`${shell} hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`}
-    >
-      {body}
-    </Link>
-  ) : (
+  const interactive = `${shell} hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`;
+
+  // Only the tiles that MEAN a filter are links; the tiles that HAVE a
+  // composition open it in place. "Avg per active day" used to be the inert
+  // one, on the grounds that a derived figure has no rows of its own -- but it
+  // does: the active days, and listing them is exactly how a reader checks
+  // whether one long day is dragging the average.
+  if (href) {
+    return (
+      <Link href={href} scroll={false} data-tile={label} title={title} className={interactive}>
+        {body}
+      </Link>
+    );
+  }
+  if (drill) {
+    return (
+      <DrillTrigger drill={drill} id={drillId} data-tile={label} className={`${interactive} w-full`}>
+        {body}
+      </DrillTrigger>
+    );
+  }
+  return (
     <div className={shell} data-tile={label} title={title}>
       {body}
     </div>
   );
+}
+
+/** A row of the popup from one folded datum, formatted like the tile it opened from. */
+function hoursRow(
+  d: DrillDatum,
+  fallbackName: string,
+  billableLabel: (percent: number) => string,
+): DrillRow {
+  const share = d.seconds > 0 ? Math.round((d.billableSeconds / d.seconds) * 100) : 0;
+  return {
+    name: d.name ?? fallbackName,
+    sub: d.sub ?? undefined,
+    value: `${hrs(secondsToHours(d.seconds))} · ${billableLabel(share)}`,
+    // Unrounded: the rows must add up to the headline, and per-row rounding
+    // would drift by up to a tenth per row.
+    magnitude: d.seconds / 3600,
+    tone: d.name === null ? "muted" : "accent",
+  };
+}
+
+function dayLabel(isoDay: string): string {
+  const d = new Date(`${isoDay}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return isoDay;
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 /**
@@ -84,13 +132,14 @@ function Kpi({
  * finding the segmented control below. `hrefFor` is supplied by the page because
  * only the page knows the rest of the filter state that must be preserved.
  */
-export function TotalsStrip({
+export async function TotalsStrip({
   totals,
   billableHref,
   nonBillableHref,
   groupLabel,
   calendarExcludedSeconds = 0,
   includeCalendarHref,
+  drills,
 }: {
   totals: Totals;
   billableHref?: string;
@@ -106,13 +155,90 @@ export function TotalsStrip({
   calendarExcludedSeconds?: number;
   /** Same report with calendar time switched on. */
   includeCalendarHref?: string;
+  /**
+   * The composition behind the four non-filter tiles, folded by the page from
+   * the SAME entries `totals` was summarised from (drill-data.ts). Optional so
+   * the strip still renders as plain tiles when a caller has nothing to open.
+   */
+  drills?: TimeTileDrillData;
 }) {
+  const t = await getTranslations("drill");
   // Average over ACTIVE days, not calendar days in the range. Dividing by the
   // full span would report a part-time consultant who works Tuesdays as though
   // they were idle four days a week, which is a different claim entirely.
   const perDay = totals.activeDays > 0 ? totals.totalHours / totals.activeDays : null;
   const nonBillableHours = Math.round((totals.nonBillableSeconds / 3600) * 10) / 10;
   const calendarExcludedHours = Math.round((calendarExcludedSeconds / 3600) * 10) / 10;
+
+  const billableLabel = (percent: number) => t("billableShare", { percent });
+  const noProject = t("noProject");
+
+  /*
+   * The four drill-downs, each a re-projection of the entries behind `totals`:
+   *
+   *   TOTAL HOURS   -> hours by project, the no-project bucket as its own row,
+   *                    so the rows SUM to the tile.
+   *   PEOPLE        -> one row per person: the row COUNT is the tile.
+   *   PROJECTS      -> one row per distinct project: the COUNT is the tile. Time
+   *                    without a project is not a project and is not a row here
+   *                    (summarise() does not count it either).
+   *   AVG / DAY     -> one row per active day: the MEAN of the rows is the tile.
+   *
+   * `check` states which relation holds, so the deployed-page gate can add the
+   * rows up itself rather than trust this comment.
+   */
+  const totalHoursDrill: Drill | undefined = drills && {
+    kicker: "TOTAL HOURS",
+    title: t("time.totalHours.title"),
+    headline: hrs(totals.totalHours),
+    headlineValue: totals.totalHours,
+    check: "sum",
+    subline: `${t("projectCount", { count: totals.projectCount })} · ${t("entries", { count: totals.entryCount })}`,
+    rows: drills.byProject.map((d) => hoursRow(d, noProject, billableLabel)),
+    footer: t("time.totalHours.footer"),
+  };
+  const peopleDrill: Drill | undefined = drills && {
+    kicker: "PEOPLE",
+    title: t("time.people.title"),
+    headline: String(totals.memberCount),
+    headlineValue: totals.memberCount,
+    check: "count",
+    subline: `${hrs(totals.totalHours)} · ${t("entries", { count: totals.entryCount })}`,
+    rows: drills.byMember.map((d) => hoursRow(d, t("unknownPerson"), billableLabel)),
+    footer: t("time.people.footer"),
+  };
+  const projectsDrill: Drill | undefined = drills && {
+    kicker: "PROJECTS",
+    title: t("time.projects.title"),
+    headline: String(totals.projectCount),
+    headlineValue: totals.projectCount,
+    check: "count",
+    subline: `${totals.customerCount} ${totals.customerCount === 1 ? "customer" : "customers"}`,
+    rows: drills.byProject
+      .filter((d) => d.id !== null)
+      .map((d) => hoursRow(d, noProject, billableLabel)),
+    footer: t("time.projects.footer"),
+  };
+  const avgDayDrill: Drill | undefined =
+    drills && perDay !== null
+      ? {
+          kicker: "AVG / ACTIVE DAY",
+          title: t("time.avgDay.title"),
+          headline: hrs(Math.round(perDay * 10) / 10),
+          headlineValue: perDay,
+          check: "mean",
+          subline: t("time.avgDay.subline", {
+            hours: totals.totalHours.toLocaleString("en-GB", { maximumFractionDigits: 1 }),
+            days: totals.activeDays,
+          }),
+          rows: drills.byDay.map((d) => ({
+            name: dayLabel(d.day),
+            value: `${hrs(secondsToHours(d.seconds))} · ${t("entries", { count: d.entries })}`,
+            magnitude: d.seconds / 3600,
+          })),
+          footer: t("time.avgDay.footer"),
+        }
+      : undefined;
 
   return (
     <>
@@ -123,6 +249,8 @@ export function TotalsStrip({
         sub={`${totals.entryCount.toLocaleString("en-GB")} entries`}
         strong
         title={groupLabel}
+        drill={totalHoursDrill}
+        drillId="time-total-hours"
       />
       <Kpi
         label="BILLABLE"
@@ -143,18 +271,24 @@ export function TotalsStrip({
         value={String(totals.memberCount)}
         sub={`over ${totals.activeDays} active ${totals.activeDays === 1 ? "day" : "days"}`}
         title="Distinct people with at least one entry in this selection"
+        drill={peopleDrill}
+        drillId="time-people"
       />
       <Kpi
         label="PROJECTS"
         value={String(totals.projectCount)}
         sub={`${totals.customerCount} ${totals.customerCount === 1 ? "customer" : "customers"}`}
         title="Distinct projects with at least one entry in this selection"
+        drill={projectsDrill}
+        drillId="time-projects"
       />
       <Kpi
         label="AVG / ACTIVE DAY"
         value={perDay === null ? "—" : hrs(Math.round(perDay * 10) / 10)}
         sub="hours per day worked"
         title="Total hours divided by the number of days that actually have entries, not by the length of the period"
+        drill={avgDayDrill}
+        drillId="time-avg-day"
       />
     </div>
 

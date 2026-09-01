@@ -219,7 +219,7 @@
       },
       "hours": {
         "title": "Erfasste Stunden nach Kunde",
-        "footer": "ERFASSTE STUNDEN JE KUNDE IM AKTUELLEN FILTER, GESAMTER ZEITRAUM · KALENDERZEIT ENTHALTEN, WIE IM LEDGER"
+        "footer": "ERFASSTE STUNDEN JE KUNDE IM AKTUELLEN FILTER, GESAMTER ZEITRAUM · KALENDERZEIT ENTHALTEN, WIE IM LEDGER · KUNDEN OHNE STUNDEN TRAGEN NICHTS BEI UND FEHLEN"
       },
       "billable": {
         "title": "Abrechenbare Stunden nach Projekt",
@@ -274,6 +274,7 @@
         "title": "Alles Übrige, nach Kunde",
         "footer": "DIE KUNDEN HINTER „ALLES ÜBRIGE“ · GLEICHE AUSWAHL WIE DAS WAFFELDIAGRAMM"
       }
-    }
+    },
+    "projectCount": "{count, plural, one {# Projekt} other {# Projekte}}"
   }
 }

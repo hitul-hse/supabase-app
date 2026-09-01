@@ -101,10 +101,39 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
    */
   const cardFile = await compile("src/components/ui/Card.tsx", "Card.cjs", {});
 
+  /*
+   * The drill-down dialog the totals strip and the ledger open. Compiled for
+   * real (it is what turns a tile into a button, and the checks below assert on
+   * that button), with next-intl replaced by an identity translator: the hook
+   * needs a provider that only exists inside a Next request, and the CHROME
+   * strings it resolves are not what this gate is about. The stub returns the
+   * key, so a wrong key would surface as "drill.open" in the markup rather than
+   * pass silently.
+   */
+  const intlStub = join(dir, "intl-stub.cjs");
+  writeFileSync(
+    intlStub,
+    `const t = (key) => key;
+t.rich = t; t.raw = t; t.has = () => true;
+module.exports = { __esModule: true, useTranslations: () => t };`,
+  );
+  const drillFile = await compile("src/components/DrillDialog.tsx", "DrillDialog.cjs", {
+    "next-intl": posix(intlStub),
+    "next/link": posix(linkStub),
+  });
+  // The ledger's LOGGED popup asks the server; outside a request the action is
+  // never called (the dialog opens on click), so an unresolvable stub is enough.
+  const actionStub = join(dir, "project-drilldown-stub.cjs");
+  writeFileSync(
+    actionStub,
+    `module.exports = { __esModule: true, getProjectHoursDrilldown: async () => ({ error: "not available in the gate" }) };`,
+  );
+
   const panelsFile = await compile("src/app/(app)/projects/ProjectPanels.tsx", "ProjectPanels.cjs", {
     "@/lib/queries/projects-live": posix(stub),
     "next/link": posix(linkStub),
     "@/components/ui/Card": posix(cardFile),
+    "@/components/DrillDialog": posix(drillFile),
   });
   const panels = require(panelsFile);
 
@@ -148,6 +177,10 @@ module.exports = {
       // The ledger table is a Card now, so the gate needs the real module here
       // too -- an unmapped alias kills the whole gate rather than one check.
       "@/components/ui/Card": posix(cardFile),
+      "@/components/DrillDialog": posix(drillFile),
+      "@/lib/time-transform": posix(transformFile),
+      "./project-drilldown": posix(actionStub),
+      "next-intl": posix(intlStub),
     }),
   );
 
@@ -170,6 +203,8 @@ module.exports = {
       "@/components/ui/Field": posix(fieldFile),
       "@/components/ui/Button": posix(buttonFile),
       "@/components/MobileDisclosure": posix(mobileDisclosureFile),
+      "@/components/DrillDialog": posix(drillFile),
+      "next-intl": posix(intlStub),
     }),
   );
 
@@ -295,6 +330,31 @@ module.exports = {
   const tableHtml = render(ledger.ProjectsLedger, { rows: live.sortProjects(rows, "burn") });
   // The filter surface lives in the explorer now; render it over the same rows.
   const explorerHtml = render(explorer.ProjectsExplorer, { rows });
+
+  /* ─────────────── the numbers are tappable (drill-downs) ─────────────── */
+
+  // Every tile of the totals strip opens its composition, and the tile keeps
+  // its data-tile handle INSIDE the button so the deployed-page checks that
+  // select on it still find it.
+  const tileTriggers = (explorerHtml.match(/data-drill-trigger="projects-/g) ?? []).length;
+  check("all five totals tiles are drill triggers", tileTriggers === 5, `${tileTriggers} triggers`);
+  check(
+    "a drill trigger wraps its tile rather than replacing it",
+    /data-drill-trigger="projects-over"[^>]*>[\s\S]{0,400}?data-tile="OVER BUDGET"/.test(explorerHtml),
+  );
+  check(
+    "drill triggers announce that they open a dialog",
+    (explorerHtml.match(/aria-haspopup="dialog"/g) ?? []).length >= 5,
+  );
+  // The ledger's LOGGED figure is tappable only where there is something behind
+  // it: the four projects with hours get a trigger, the untouched one does not.
+  const hoursTriggers = (tableHtml.match(/data-drill-trigger="ledger-hours-/g) ?? []).length;
+  check("every logged-hours figure in the ledger is a drill trigger", hoursTriggers === 4, `${hoursTriggers} of 4`);
+  check(
+    "a zero-hour row's figure is plain text, not an empty promise",
+    !/data-drill-trigger="ledger-hours-5"/.test(tableHtml),
+  );
+  check("no dialog is open before anyone clicks", !/data-drill-dialog/.test(explorerHtml + tableHtml));
 
   // Exactly two rows are unbudgeted, and each must say "n/a". A genuine 0% (the
   // Untouched project, which HAS a 50h budget) is correct and must survive —

@@ -1,15 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useTransition } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/EmptyState";
 import { SortHeader, type SortDirection } from "@/components/ui/Field";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { Pager, usePager } from "@/components/Pager";
+import { DrillDialog, type Drill, type DrillRow } from "@/components/DrillDialog";
+import { secondsToHours } from "@/lib/time-transform";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
 // and the detail page end up disagreeing about whether a project is "at risk".
 import { burnColor } from "./ProjectPanels";
 import { Card } from "@/components/ui/Card";
+import {
+  getProjectHoursDrilldown,
+  type ProjectHoursRest,
+  type ProjectHoursRow,
+} from "./project-drilldown";
 
 /**
  * The projects ledger — 334 real projects, made reachable without scrolling.
@@ -174,6 +182,84 @@ export function ProjectsLedger({
   const [sortDir, setSortDir] = useState<SortDirection>(initialSort === "name" ? "asc" : "desc");
   /** Phone only: has the reader asked for the rest of this page? */
   const [mobileExpanded, setMobileExpanded] = useState(false);
+
+  /*
+   * The LOGGED figure opens who logged it and on what. The ledger carries one
+   * aggregate per project, not the entries, so this is the one drill-down on
+   * the page that has to ask the server (project-drilldown.ts, bounded exactly
+   * as the row is). The row's own figure stays the headline; the server's rows
+   * are made to add up to it -- top 8 each, the rest folded into one labelled
+   * row, and any difference to the ledger figure stated as a row of its own
+   * rather than hidden.
+   */
+  const t = useTranslations("drill");
+  const [drill, setDrill] = useState<Drill | null>(null);
+  const [, startTransition] = useTransition();
+
+  const openHours = (p: ProjectListRow) => {
+    const base = {
+      kicker: t("projects.ledger.kicker"),
+      title: p.name,
+      headline: `${h(p.actualHours)}h`,
+      headlineValue: p.actualHours,
+      check: "sum" as const,
+      footer: t("projects.ledger.footer"),
+    };
+    setDrill({ ...base, loading: true });
+    startTransition(async () => {
+      const d = await getProjectHoursDrilldown(p.id);
+      if (d.error) {
+        setDrill({ ...base, error: d.error });
+        return;
+      }
+      const fetchedHours = secondsToHours(d.totals.seconds);
+      const gap = Math.round((p.actualHours - fetchedHours) * 100) / 100;
+      const section = (
+        rows: ProjectHoursRow[],
+        rest: ProjectHoursRest,
+        moreKey: "morePeople" | "moreTasks",
+        fallback: string,
+      ): DrillRow[] => {
+        const out: DrillRow[] = rows.map((r) => ({
+          name: r.name ?? fallback,
+          value: `${h(secondsToHours(r.seconds))}h · ${t("billableShare", {
+            percent: r.seconds > 0 ? Math.round((r.billableSeconds / r.seconds) * 100) : 0,
+          })}`,
+          magnitude: r.seconds / 3600,
+          tone: r.name === null ? ("muted" as const) : ("accent" as const),
+        }));
+        if (rest.count > 0) {
+          out.push({
+            name: t(moreKey, { count: rest.count }),
+            value: `${h(secondsToHours(rest.seconds))}h`,
+            magnitude: rest.seconds / 3600,
+            tone: "muted",
+          });
+        }
+        if (gap !== 0) {
+          out.push({
+            name: t("projects.ledger.gap"),
+            value: `${gap > 0 ? "+" : "−"}${h(Math.abs(gap))}h`,
+            magnitude: gap,
+            tone: "critical",
+          });
+        }
+        return out;
+      };
+      setDrill({
+        ...base,
+        subline: t("projects.ledger.subline", {
+          billable: h(secondsToHours(d.totals.billableSeconds)),
+          people: d.totals.people,
+          entries: d.totals.entries,
+        }),
+        sections: [
+          { title: t("byPerson"), rows: section(d.byPerson, d.byPersonRest, "morePeople", t("unknownPerson")) },
+          { title: t("byTask"), rows: section(d.byTask, d.byTaskRest, "moreTasks", t("noTask")) },
+        ],
+      });
+    });
+  };
 
   const sorted = sortRows(rows, sortKey, sortDir);
 
@@ -355,9 +441,25 @@ export function ProjectsLedger({
               <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
                 {p.estimatedHours && p.estimatedHours > 0 ? h(p.estimatedHours) : "—"}
               </span>
-              <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-primary)]">
-                {h(p.actualHours)}
-              </span>
+              {/* Tappable only when there is something behind it: a zero
+                  stays plain text, because an empty popup is a promise the
+                  figure cannot keep. */}
+              {p.actualHours > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => openHours(p)}
+                  aria-haspopup="dialog"
+                  aria-label={t("open", { title: p.name })}
+                  data-drill-trigger={`ledger-hours-${p.id}`}
+                  className="col-span-1 cursor-pointer text-right font-mono text-[11px] text-[var(--text-primary)] underline-offset-4 hover:text-[var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                >
+                  {h(p.actualHours)}
+                </button>
+              ) : (
+                <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-primary)]">
+                  {h(p.actualHours)}
+                </span>
+              )}
               <div className="col-span-2 flex items-center gap-2">
                 <div className="h-1 flex-1 bg-[var(--border)]">
                   <div
@@ -387,6 +489,8 @@ export function ProjectsLedger({
 
         <Pager state={pager} total={sorted.length} noun="projects" anchorRef={tableRef} />
       </Card>
+
+      {drill && <DrillDialog drill={drill} onClose={() => setDrill(null)} />}
     </div>
   );
 }

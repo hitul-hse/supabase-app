@@ -219,7 +219,7 @@
       },
       "hours": {
         "title": "Tracked hours by customer",
-        "footer": "ALL-TIME TRACKED HOURS PER CUSTOMER IN THE CURRENT FILTER · CALENDAR TIME INCLUDED, AS IN THE LEDGER"
+        "footer": "ALL-TIME TRACKED HOURS PER CUSTOMER IN THE CURRENT FILTER · CALENDAR TIME INCLUDED, AS IN THE LEDGER · CUSTOMERS WITH NO HOURS ADD NOTHING AND ARE OMITTED"
       },
       "billable": {
         "title": "Billable hours by project",
@@ -274,6 +274,7 @@
         "title": "Everything else, by customer",
         "footer": "THE CUSTOMERS FOLDED INTO “EVERYTHING ELSE” · SAME SELECTION AS THE WAFFLE"
       }
-    }
+    },
+    "projectCount": "{count, plural, one {# project} other {# projects}}"
   }
 }

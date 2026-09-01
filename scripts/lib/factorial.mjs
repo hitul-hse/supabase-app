@@ -369,6 +369,12 @@ export const EMPLOYEE_ALLOWED_FIELDS = Object.freeze([
   "login_email",
   "full_name",
   "active",
+  // Employment truth, per the harvest plan (doc §7 row 1): 'active' is an
+  // app-access flag, not employment status -- the owner confirmed live
+  // colleagues carrying active=false. terminated_on is the honest signal:
+  // null means employed.
+  "terminated_on",
+  "is_terminating",
 ]);
 
 /**

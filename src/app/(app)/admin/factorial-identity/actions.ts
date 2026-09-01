@@ -196,10 +196,10 @@ export async function createPersonAndLink(
           const candidate = i === 0 ? `fq-${slug}` : `fq-${slug}-${i + 1}`;
           const ins = await db.query(
             `insert into public.people (id, name, is_active, factorial_employee_id, source)
-             values ($1, $2, coalesce($3, true), $4, 'factorial-queue')
+             values ($1, $2, true, $3, 'factorial-queue')
              on conflict (id) do nothing
              returning id`,
-            [candidate, rawName, r.factorial_active, r.factorial_employee_id],
+            [candidate, rawName, r.factorial_employee_id],
           );
           if (ins.rowCount === 1) personId = candidate;
         }

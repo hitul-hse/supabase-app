@@ -60,7 +60,7 @@ export function ReviewRow({ row, people }: { row: ReviewRowData; people: PersonO
       )}
           {inactive && (
             <span className="ml-2 rounded px-1.5 py-0.5 text-xs bg-[var(--warning-wash)] text-[var(--warning)]">
-              former employee
+              inactive in Factorial
             </span>
           )}
           {(row.member_hours ?? 0) > 0 && (
@@ -78,8 +78,8 @@ export function ReviewRow({ row, people }: { row: ReviewRowData; people: PersonO
       {inactive && (
         <p className="mt-1 text-sm text-[var(--text-faint)]">
           {(row.member_hours ?? 0) > 0
-            ? `Left ${row.member_hours}h of logged work behind — create the person (they arrive inactive) so that history finally attributes to a name.`
-            : "Not in Factorial's active roster and no logged hours to attribute — “No longer our employee” is the honest call; don't force a match."}
+            ? `${row.member_hours}h of logged work needs a name to attribute to — Create & link keeps that history analysable. (Factorial's active flag is app access, not employment; the owner confirms status by deciding.)`
+            : "No Factorial app access and no logged hours. If they've truly left, “No longer our employee”; if they're a current colleague without accounts, leave open for the later stage."}
         </p>
       )}
 

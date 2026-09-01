@@ -7,7 +7,7 @@
  * the real route with a real magic-link session, following probe-route.mjs.
  */
 import { readFileSync } from "node:fs";
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 
 const env = Object.fromEntries(
   readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
@@ -31,7 +31,7 @@ const check = (label, ok, detail = "") => {
  * route is fine. So the session is established with backoff and then PROVEN by a
  * positive signal before anything is measured.
  */
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
 

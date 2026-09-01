@@ -7,7 +7,7 @@
  *  3. The dashboard trend renders the area, not week-wide bar slabs.
  *  4. The interactions survived: focusable points with accessible names.
  */
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./lib/gate-env.mjs";
 
@@ -45,7 +45,7 @@ for (let i = 0, n = 0; i < encoded.length; i += CHUNK, n += 1) {
   cookies.push({ name: `sb-${ref}-auth-token.${n}`, value: encoded.slice(i, i + CHUNK), domain: new URL(SITE).hostname, path: "/" });
 }
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 1674, height: 971 } });
 await ctx.addCookies(cookies);
 const page = await ctx.newPage();

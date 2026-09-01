@@ -11,7 +11,7 @@
  * page that is in fact fine.
  */
 import { readFileSync } from "node:fs";
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 
 const env = Object.fromEntries(
   readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
@@ -38,7 +38,7 @@ const b = await gen.json();
 const hashed = b?.properties?.hashed_token ?? b?.hashed_token;
 if (!hashed) { console.log("could not mint a magic link:", JSON.stringify(b).slice(0, 300)); process.exit(2); }
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
 

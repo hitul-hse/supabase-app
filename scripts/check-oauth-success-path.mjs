@@ -303,7 +303,7 @@ if (!up) {
 
 console.log(`stub auth on :${PORT}, app on :${APP_PORT}\n`);
 
-const { chromium } = await import("playwright");
+const { launchChromium } = await import("./lib/launch-chromium.mjs");
 
 /**
  * Hit /auth/callback the way a provider does, and report where we end up.
@@ -330,7 +330,7 @@ async function arriveFromProvider(query, { startFlow = true } = {}) {
   // the next one, and removePKCEVerifier deletes the shared legacy key. Paying
   // for a browser launch per scenario buys determinism, which is worth far more
   // than the second it costs.
-  const browser = await chromium.launch();
+  const browser = await launchChromium();
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
 

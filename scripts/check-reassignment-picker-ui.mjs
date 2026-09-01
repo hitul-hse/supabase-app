@@ -35,9 +35,9 @@ if (!KEY) {
   process.exit(0);
 }
 
-let chromium;
+let launchChromium;
 try {
-  ({ chromium } = await import("playwright"));
+  ({ launchChromium } = await import("./lib/launch-chromium.mjs"));
 } catch {
   console.log("SKIP: playwright not installed");
   process.exit(0);
@@ -64,7 +64,7 @@ if (!hashed) {
   process.exit(0);
 }
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
 

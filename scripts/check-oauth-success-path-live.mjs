@@ -89,8 +89,8 @@ const stamp = Date.now();
 const STRANGER = `oauth.stranger.probe.${stamp}@hs-experts.com`;
 let strangerId = null;
 
-const { chromium } = await import("playwright");
-const browser = await chromium.launch();
+const { launchChromium } = await import("./lib/launch-chromium.mjs");
+const browser = await launchChromium();
 
 try {
   // ── 1. A provisioned user reaches the app ────────────────────────────────

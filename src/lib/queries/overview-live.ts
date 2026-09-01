@@ -312,7 +312,7 @@ function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
  * Counting only the eight ledger rows here produced "2" on the tile and "11"
  * on the page it opens -- the exact contradiction a KPI must not have. Same
  * rule as /projects: strictly over, and only projects that HAVE a budget.
- * `burn_percent` is actual/estimate*100, so "> 100" is that rule in view terms.
+ * Worked hours exclude future-dated (planned) entries, exactly as /projects does.
  *
  * Paged read per the house rule: .order() before .range(), no bare limit.
  */
@@ -322,17 +322,39 @@ async function getBudgetPosture(
   try {
     const { data, error } = await timeSchema(supabase)
       .from("project_summary")
-      .select("project_id, burn_percent, estimated_hours")
+      .select("project_id, total_seconds, estimated_hours")
       .eq("is_archived", false)
       .order("project_id", { ascending: true })
       .range(0, 9999);
     if (error || !data) return null;
-    const rows = data as { burn_percent: number | null; estimated_hours: number | null }[];
+    const rows = data as { project_id: number; total_seconds: number | null; estimated_hours: number | null }[];
+
+    // project_summary counts PLANNED entries dated into the future (Netto / 26
+    // SiFa: 398 h in the view, 217.7 h actually worked). /projects excludes
+    // anything after today and so must this count, or the tile says 12 and
+    // the page it opens says 11. Future-dated seconds per project are few by
+    // construction; paged read per the house rule.
+    const futureByProject = new Map<number, number>();
+    const { data: future } = await timeSchema(supabase)
+      .from("entry")
+      .select("project_id, duration_seconds")
+      .not("duration_seconds", "is", null)
+      .not("project_id", "is", null)
+      .gt("started_at", new Date().toISOString())
+      .order("id", { ascending: true })
+      .range(0, 9999);
+    for (const e of (future ?? []) as { project_id: number; duration_seconds: number }[]) {
+      futureByProject.set(e.project_id, (futureByProject.get(e.project_id) ?? 0) + num(e.duration_seconds));
+    }
+    const workedHours = (r: { project_id: number; total_seconds: number | null }) =>
+      secondsToHours(Math.max(0, num(r.total_seconds) - (futureByProject.get(r.project_id) ?? 0)));
+
     return {
       activeProjects: rows.length,
-      // The view writes "no budget" as 0, not null (84 of 338 rows), and its
-      // burn_percent is null for those -- so a budget is real only when > 0.
-      overBudget: rows.filter((r) => Number(r.estimated_hours) > 0 && Number(r.burn_percent) > 100).length,
+      // The view writes "no budget" as 0, not null (84 of 338 rows) -- a budget
+      // is real only when > 0. Same rule as projects-live.ts isOver:
+      // strictly more worked hours than the estimate.
+      overBudget: rows.filter((r) => Number(r.estimated_hours) > 0 && workedHours(r) > Number(r.estimated_hours)).length,
       noBudget: rows.filter((r) => !(Number(r.estimated_hours) > 0)).length,
     };
   } catch {

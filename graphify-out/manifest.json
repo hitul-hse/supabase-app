@@ -2112,9 +2112,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1788251863.6289256,
-    "seen": 1788253819.8784087,
-    "ast_hash": "c905016f9149c2587ceb9a06e17d00d2",
+    "mtime": 1788263981.3466642,
+    "seen": 1788263998.6422665,
+    "ast_hash": "7f41cc2e6d4d9ca4b73e858cdeda6272",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -3966,9 +3966,9 @@
     "semantic_hash": ""
   },
   "scripts/check-factorial-auth.mjs": {
-    "mtime": 1788160024.3118026,
-    "seen": 1788197674.7093396,
-    "ast_hash": "bd530d7c19416b8ee0753786d371fd0d",
+    "mtime": 1788263192.1353834,
+    "seen": 1788263998.6417325,
+    "ast_hash": "46999109bd20d9a31552258fbd03bdc3",
     "semantic_hash": ""
   },
   "scripts/check-management-contract-hours-live.mjs": {
@@ -4554,9 +4554,27 @@
     "semantic_hash": ""
   },
   "scripts/sync-factorial-identity.mjs": {
-    "mtime": 1788253740.337285,
-    "seen": 1788253819.8781433,
-    "ast_hash": "102a0fc123f227f528aeec86c923d046",
+    "mtime": 1788263192.1359715,
+    "seen": 1788263998.642028,
+    "ast_hash": "75fd3aee04fbb4b7e80e9aecc91a8985",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/factorial-identity/ReviewRow.tsx": {
+    "mtime": 1788256405.4605746,
+    "seen": 1788263998.6420517,
+    "ast_hash": "b33d60e8eccb88a5e2f89feeb92ad7f0",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/factorial-identity/actions.ts": {
+    "mtime": 1788256405.4674006,
+    "seen": 1788263998.6420524,
+    "ast_hash": "6ccf1234f4ecefee44e400296f7fb0e5",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/factorial-identity/page.tsx": {
+    "mtime": 1788256405.4674006,
+    "seen": 1788263998.6420534,
+    "ast_hash": "1bd2a490290b0cdb4d48e38b829cde40",
     "semantic_hash": ""
   }
 }

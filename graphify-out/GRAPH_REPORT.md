@@ -4,153 +4,152 @@
 - cluster-only mode — file stats not available
 
 ## Summary
-- 6067 nodes · 8590 edges · 556 communities (436 shown, 120 thin omitted)
+- 6058 nodes · 8563 edges · 568 communities (443 shown, 125 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 125 edges (avg confidence: 0.85)
-- Token cost: 24,692 input · 8,002 output
+- Token cost: 24,937 input · 7,913 output
 
 ## Graph Freshness
-- Built from commit: `0868dc7e`
+- Built from commit: `a2ea96cf`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- next.config.ts
+- Next Config
 - Project Management
 - React Components
 - Time Tracking
 - Budget Alerts
-- Budget Panel
-- Customer Group
+- HSE Data
+- Customer Management
 - Mobile Shell
-- Role Permissions
-- Build System
+- Role Management
+- Time Integration Check
 - Design System
-- Audit System
-- Report Filters
+- Factorial Client
+- Dashboard
 - Org Chart
 - Team Analysis
-- Management Dashboard
-- Projects
-- Alerts
+- Dashboard Architecture
+- Projects Management
+- People Directory
 - Employee Ownership
 - DOM Utilities
 - Time Hub
 - Management Actions
 - Overview Filters
-- Access Pending
+- Avatar Management
 - Brand Mark
 - Timesheets
 - Dashboard Panels
-- Audit Permission
+- Audit Permissions
 - Vendor Parity
-- Inventory Check
-- User Permissions
-- People Directory
+- Inventory Management
+- Alert System
+- Customer Portfolio
 - Profile Management
-- Auth Pages
+- Authentication
 - SQL Editor
 - Customer Import
-- Customer Import Bjoern
-- toggleRolePermission
+- Customer Import
+- Permissions
 - Database
-- Management Multi Service Matrix
+- Multi Service Matrix
 - Customer Import Review
 - Entity Resolution
-- Management Dashboard V2
+- Management Dashboard
 - Budget Alerts
-- Mobile Tabs
+- Mobile Tabs Shared
 - Design Guidelines
-- SSO Enablement
-- HSE Operations Dashboard
-- Recheck Dashboard
+- SSO Setup
+- HSE Dashboard
+- Dashboard Claims
 - Import Review
-- Import Masterdata Projects
+- Masterdata Import
 - App Layout
 - Board Range Filter
-- External Staff Migration
-- Org Chart
-- Contract Watchlist
+- Data Hygiene
+- Org Actions
+- Contract Management
 - Customer Master Foundation
-- Schema
-- Playwright Checks
-- People Overview Checks
-- Tracking Time Dashboard
-- Customer Portfolio
+- Schema Definitions
+- check-live-dashboard.mjs
+- People Overview Check
+- Navigation Icons
+- Project Panels
 - Next Steps
-- Data Table Checks
-- Gates CI Checks
+- Data Table Check
+- Gates CI Check
 - Data Hygiene
-- Management Project Risks
+- Project Risks Management
 - Customer Master Target Model
-- Electric SQL
+- Development Tools
 - Factorial Pager
-- People Live Source Checks
-- Sidebar Collapse Checks
-- Time Page Render Checks
-- Diagnose Missing Events
-- Diagnose Project Bridge
-- Recheck Paging and Tables
-- Management Customer Mapping
-- Agent Skills Checks
-- Overview Range Narrows Checks
-- Reconcile Masterdata
+- People Live Source Check
+- Sidebar Collapse Check
+- Time Page Render Check
+- Missing Events Diagnosis
+- Project Bridge Diagnosis
+- Paging and Tables Recheck
+- Customer Mapping
+- Agent Skills Check
+- Overview Range Narrows Check
+- Masterdata Reconciliation
 - Data Hygiene
-- Framer Motion
-- Asana Backlog Checks
-- Time Acceptance Checks
-- Link User Identities
-- Capacity Panel
-- Analysis Spec
+- Dependencies
+- Asana Backlog Check
+- Time Acceptance Check
+- User Identity Linking
+- Team Analysis
+- Analysis Specification
 - Audit Runtime Errors
-- Dashboard Tables Checks
-- Management Data Checks
-- Order Project Matching Checks
-- Risk Panel Survives Nulls Checks
-- Trackingtime Parity Checks
+- Dashboard Tables Check
+- Management Data Check
+- Order Project Matching Check
+- Risk Panel Survives Nulls Check
+- Tracking Time Parity Check
 - User Management
-- Profile Actions
-- Project Risk Resolution Actions
+- Profile Management
+- Project Risk Resolution
 - Project Risks Model
 - Module Depth Research
 - Factorial Identity Baseline
-- No Mockup People Checks
-- OAuth Success Path Checks
-- Team Select Checks
-- Factorial Minimisation Checks
-- Report Tables
+- No Mockup People Check
+- OAuth Success Path Check
+- Team Select Check
+- Factorial Minimization
+- Task Management
 - Customer Master SSOT
 - User Profile Design
-- Customer Agreement Rule
-- Factorial Join Check
+- ADR001 Rule Discrimination
+- Factorial Join Viability
 - Overview Filters
-- ThemeToggle.tsx
+- Types
 - Server Action Auth
 - Profile Dashboard Render
 - My Work Scoping
-- Request Cache
-- Demo Page
-- Management Service Overview
+- Tracking Time Report
+- Demo Page V4
 - Responsibility Coverage Findings
-- Broken Cover Live Check
+- Broken Cover Live
 - Identity Linking
-- Management Contract Hours Live Check
-- Management People Complete Check
-- Latency Variance Measurement
-- Leave Actions
+- Management Contract Hours Live
+- Management People Complete
+- Trend Chart
+- Leave Management
 - People Live
 - Discovery Tracking Time
-- Schema Documentation
+- HSE Hub Data Model
 - Customer Portfolio Excel Mapping
-- No Mock Data Check
-- Reassignment Candidates Live Check
+- No Mock Data
+- Reassignment Candidates Live
 - Dedupe Legal Entities
 - Factorial Absence Diagnosis
 - Sync Tracking Time
-- Portal Architecture & Design
+- HSE Hub Portal Architecture
 - Analytics Core Schema
 - Contract Periods Check
-- Factorial Harvest Check
-- Invite OAuth Model Check
+- Factorial Harvest
+- Invite OAuth Model
 - OAuth Callback Check
 - Import Project Responsibility
 - Link Time Members
@@ -161,12 +160,12 @@
 - Task for V3Code
 - User Profile Implementation
 - Product Context
-- Employee Ownership Live Check
-- Live Overview Deployed Check
-- Order Hours Freshness Check
+- Employee Ownership Live
+- Live Overview Deployed
+- Order Hours Freshness
 - Profile RLS Check
-- Replacement Coverage Check
-- Sync and Drilldown Check
+- Replacement Coverage
+- Sync and Drilldown
 - Trend Window Check
 - User Management
 - Feature Completeness
@@ -181,48 +180,48 @@
 - Effective Dating
 - Platform Architecture
 - Factorial API Integration
-- Dashboard Handoff
-- Real Hub Design
-- Policy Verification
-- Project Policy Hoisting
-- Timesheet Audit
+- Management Dashboard Handoff
+- Real Hub Replacement
+- Policy Verification Paths
+- Apply Project Policy
+- Audit Timesheet Links
 - Entry Policy Equivalence
 - Profile Actions
-- Stranger Read Check
+- Stranger Cannot Read
 - Cover Availability
 - Factorial Absence Approval
-- Project Customer Link
-- Stale Total Trace
-- Task Board Attachment
+- Link Project Customers
+- Trace Stale Total
+- Attach Task Board
 - HSE Hub Portal
 - Factorial Hours Comparison
 - Machine Transfer
-- Agent References Check
+- Agent References
 - Approval Error Handling
-- Contract UI Check
+- Contract UI
 - Customer Master Foundation
 - Invite Throttle Classification
-- Mobile Sheet Check
-- Work Survives Nulls
-- Org Chart Check
+- Mobile Sheet
+- My Work Survives Nulls
+- Org Chart
 - Reimport Safety
-- Schema Execution Check
-- Sync Schedule Check
+- Schema Executes
+- Sync Schedule Alive
 - Table Scroll Budget
 - Broken Cover Panel
 - Time Write Path
-- Absence Responsibility
-- Member Provisioning
+- Absence vs Responsibility
+- Provision Members
 - BillableRatePanel.tsx
-- SSO Setup
-- Deployment Setup
-- Contract Migrations
-- RLS Hoisting
+- SSO Google Microsoft
+- Deployment
+- Apply Contract Migrations
+- Apply RLS Hoisting
 - Audit App Quality
-- Admin User Writes
+- Admin Checks
 - Duration Parsing
 - Factorial Identity Migration
-- Google Client Manageable
+- Google Client Management
 - Order Detail Live
 - Schema Order
 - SSO Providers
@@ -237,90 +236,96 @@
 - Recheck Agent Claim
 - App Loading
 - Colleague Branch Review
-- TASK for v3code Tables
-- MODULE GO LIVE
+- Task for V3Code Tables
+- Module Go Live
 - Current State
 - Order Name Corruption
-- Stale Entry
-- Unlawful TT Links
-- Drop Netflix Demo
-- Link TT to Hub Projects
-- Recheck Agent Claim
-- App Loading
-- App Role
-- Request Cache
-- Colleague Branch Review
-- TASK for v3code Tables
-- MODULE GO LIVE
-- Current State
-- Order Name Corruption
-- Stale Entry
-- Unlawful TT Links
-- Drop Netflix Demo
-- Link TT to Hub Projects
-- Recheck Agent Claim
-- App Loading
-- App Role
-- Request Cache
-- Colleague Branch Review
-- TASK for v3code Tables
-- MODULE GO LIVE
-- Current State
-- Stale Entry
-- Unlawful TT Links
-- Drop Netflix Demo
-- Link TT to Hub Projects
-- Recheck Agent Claim
-- App Loading
-- App Role
-- Request Cache
-- Colleague Branch Review
-- TASK for v3code Tables
-- Billable Report
-- Current State
-- Order Name Corruption
-- Stale Entry
-- Unlawful TT Links
-- Drop Netflix Demo
-- Link TT to Hub Projects
-- Recheck Agent Claim
-- App Loading
-- App Role
-- Request Cache
+- Sandbox
+- Add Overview Chart Notes
+- Audit Data Inefficiencies
+- Audit Pipeline
+- Backfill Project Department
+- Check Agent Claims
+- Permission Enforcement
+- Change Control
+- Dashboard Acceptance
+- Economics Scope
+- External Staff Assignable
+- Factorial Classifier Schema Agree
+- Lint Scope
+- Login Redirect
+- OAuth Success Path Live
+- Page Length
+- Parallel Paging
+- Paste SQL
+- People Filters Live
+- Permissions
+- Report Panels
+- App Layout
+- PG Types
+- Apply Permissions
+- Add Project Change Control
+- People Module
+- AGENTS
+- TrackingTime API Questions
+- Asana README
+- Phased Implementation Plan
+- Live People Data Map
+- Diagnose Google Error
+- Apply Modules
+- Auth Gates
+- Charts UI
+- Content Width
+- Latency Variance
+- Data Hygiene Disclosure
+- Data Hygiene Gate Discriminates
+- My Work Browser Flow
+- Order Detail Page
+- People and Filters UI
+- Records Tabs
+- Redirect Allowlist
+- Team Analysis UI
+- Brand Mark
+- Time Dashboard Render
+- Factorial Contract Hours
 - Time Dashboard
-- MODULE GO LIVE
-- Current State
-- Order Name Corruption
-- Stale Entry
-- Drop Netflix Demo
-- Link TT to Hub Projects
-- Recheck Agent Claim
-- App Loading
-- App Role
-- Request Cache
-- Colleague Branch Review
-- TASK for v3code Tables
-- Order Name Corruption
-- Stale Entry
-- Unlawful TT Links
-- Drop Netflix Demo
-- Link TT to Hub Projects
-- Recheck Agent Claim
-- App Loading
-- App Role
-- Request Cache
-- Colleague Branch Review
-- TASK for v3code Tables
-- MODULE GO LIVE
-- Current State
-- Order Name Corruption
-- Stale Entry
+- Promote Customer Master
+- Prove View Gate Catches Bug
+- Report Customer Matching
+- Run All Gates
+- Verify Magic Link Flow
+- Proxy
+- Password Strength
+- Status Badge
+- Apply These Migrations
+- check-people-and-filters-ui.mjs
+- check-records-tabs.mjs
+- check-redirect-allowlist.mjs
+- check-team-analysis-ui.mjs
+- MobileSidebar.tsx
+- diagnose-factorial-contract-hours.mjs
+- diagnose-factorial-credential-shape.mjs
+- StatusBadge.tsx
+- promote-customer-master.mjs
+- prove-view-gate-catches-bug.mjs
+- report-customer-matching.mjs
+- run-all-gates.mjs
+- verify-magic-link-flow.mjs
+- proxy.ts
+- APPLY-THESE-MIGRATIONS.md
+- Identity Resolution
+- OAuth2 Authentication
+- Versioning and URLs
+- Contract and Compensation
+- Database Schema
 - UI Conventions
-- Timesheet and Project Data
+- Timesheet and Projects
 - Add Work Permission
 - Apply View Privilege Fix
+- Audit Live DB
 - Audit Performance and Permissions
-- Check Feature Reachability
+- Check Feature Reachable
+- Check Factorial Auth
 - Check HR Role Migration
 - Check New Gates
 - Check Paste SQL
@@ -352,12 +357,12 @@
 - Shot This Year
 - Verify Migrations Applied
 - Verify Policy Gate Fails
-- Project Permissions
+- Person Permissions
 - Dashboard Wireframes
-- Indexes and Security
+- Cross-cutting Concerns
 - Layered Architecture
-- Ingestion and Sync
-- App, Auth, and Audit
+- Ingestion & Sync
+- App, Auth & Audit
 - Pagination Contract
 - Add Team Analysis Note
 - Audit Mobile
@@ -390,7 +395,7 @@
 - Verify Chart Notes Render
 - Verify Contract Behaviour Live
 - Webhooks vs Polling
-- App User Profile Guard
+- Profile Guard Privileged Columns
 - Apply and Verify View Fix
 - Audit Chart Labels
 - Audit Charts
@@ -400,116 +405,124 @@
 - Audit Netflix and Factorial
 - Audit Orphaned Views
 - Audit RLS as Mathias
-- Audit Stray Views
+- Audit Views
 - Audit Timer Bar
 - Audit Timer Destination
-- Audit View Repair Feasibility
+- Audit View Repair
 - Capture Mobile Nav
 - Check Encodings Assertions
 - Check Middleware Bypass
 - Check Profile Action Auth
 - Check Time Analytics
-- SQL Migration
-- Assignment Diagnostics
-- Blind Accounts
-- Budget Alert Diagnostics
-- Detail Page RLS
-- Logged Hours Freshness
-- Work Role Gap
-- Order Detail Shape
-- People vs Tracking Time
-- Projects Hour Nullability
-- Recency Status
-- Replacement Readpaths
-- Replacement Visibility
-- Responsibility Table Gap
-- Tracking Time Freshness
-- Unlinked Billable Members
-- Frontend Agent
-- Permission Gate Fix
-- Machine State Export
-- Management Tabs Measure
-- Probe Accounts Purge
-- Bypasses Revert
-- Links Survey
-- Schema Survey
-- Dead View Trace
+- Check Unmeasured Hours Migration
+- Diagnose Assignment Count Views
+- Diagnose Blind Accounts
+- Diagnose Budget Alert Leak
+- Diagnose Detail Page RLS
+- Diagnose Logged Hours Freshness
+- Diagnose My Work Role Gap
+- Diagnose Order Detail Shape
+- Diagnose People vs Tracking Time
+- Diagnose Projects Hour Nullability
+- Diagnose Recency Status
+- Diagnose Replacement Readpaths
+- Diagnose Replacement Visibility
+- Diagnose Responsibility Table Gap
+- Diagnose Tracking Time Freshness
+- Diagnose Unlinked Billable Members
+- Grade Frontend Agent
+- Fix Permission Gate Regex
+- Export Machine State
+- Measure Management Tabs
+- Purge Probe Accounts
+- Revert Deliberate Bypasses
+- Survey Links
+- Survey Schema
+- Trace Dead View Usage
 - Traceability Run
-- Dead Views Verify
-- Timer Bar Verify
-- Timesheet Verdict
-- Worker Claims Verify
+- Verify Dead Views Unreachable
+- Verify Timer Bar Removed
+- Verify Timesheet Verdict
+- Verify Worker Claims
 - Provider Status Route
+- Check Projects Module
 - Factorial Identity Review
-- Member Hierarchy Add
-- Member Utilisation Bound
+- Add Member Hierarchy
+- Bound Member Utilisation
 - Task Template
-- Project Sections
-- Dashboard Tile Apply
-- My Work Module Apply
-- Orphan Assignments Audit
+- Public Project Sections
+- Apply Dashboard Tile
+- Apply My Work Module
+- Audit Orphan Assignments
 - Grant Extra
-- Backslash Redirect Check
-- Member Hierarchy Migration
+- Check Backslash Redirect
+- Check Member Hierarchy Migration
 - Contrast
-- Open Redirect Check
-- Policy Count Control
-- YPog Ambiguity Migration
-- OAuth Diagnose
-- Management Tabs Inspect
-- Mobile Nav Inspect
-- Page Shape Inspect
-- Table Scroll Apply
-- Mobile Sheet Make
-- Timer Bar Cost Measure
-- With Server Measure
-- OpenAI Probe
-- Gemini Key Setup
-- Global Timer Bar Remove
-- UI Gates Run
-- View Gate Wire
+- Check Open Redirect
+- Check Policy Count Control
+- Check Ypog Ambiguity Migration
+- Diagnose OAuth
+- Inspect Management Tabs
+- Inspect Mobile Nav
+- Inspect Page Shape
+- Apply Table Scroll Scripts
+- Make Mobile Sheet
+- Measure Timer Bar Cost
+- Measure With Server
+- Probe OpenAI
+- Setup Gemini Key
+- Remove Global Timer Bar
+- Run UI Gates
+- Wire View Gate
 - Window Tabs
-- Org Chart View Add
-- Overbooking Alerts Add
-- Claude
-- Claude
-- v3code Deployment Note
+- Add Org Chart View
+- Add Overbooking Alerts
+- CLAUDE
+- CLAUDE
+- Note for v3code Deployment
 - Development Read Mode
-- Netflix Demo Data Backup
-- ESLint Config
-- MCP JSON
+- Netflix Data Backup
+- ESLint Configuration
+- Supabase Config
 - PostCSS Config
-- Chart Note Add
-- Profile Teams Align
-- Paste SQL Build
-- Paste SQL Build 2
-- Hex
-- Sheet Assertion Debug
-- Double H1 Diagnose
-- Sheet Transform Diagnose
-- Rerun After Edit Grade
-- Sheet Check Extend
-- Chart Label Extraction
-- Dismissal Assertion Fix
-- Work Scoping Gate Fix
-- Sheet Layering Fix
-- Work Measurement
-- Route Probing
-- People Department Propagation
-- Request Cache Refresh
-- Masterdata People Relabeling
-- Person Reference Factorization
+- Add Chart Note
+- Align Profile Teams
+- Build Paste SQL
+- Build Paste SQL 2
+- Hex Token
+- Debug Sheet Assertion
+- Diagnose Double H1
+- Diagnose Sheet Transform
+- Grade Rerun After Edit
+- Extend Sheet Check
+- Extract Chart Labels
+- Fix Dismissal Assertion
+- Fix My Work Scoping
+- Fix Sheet Layering
+- Measure My Work
+- Probe Route
+- Propagate People Departments
+- Refresh Request Cache
+- Relabel Masterdata People
+- CRM Person Reference
+- Diagnose Null Assignments
 - Project Timeline
 - App User Profile
 - Overbooking Alert
 - Project Responsibility
 - Weekly Employee Summary
-- Vendor Record
-- Vendor Record
-- Projects
-- Projects
+- Set Sync Secrets
+- Raw Vendor Record
+- Raw Vendor Record
+- Public Projects
+- Public Projects
 - Time Member
-- Project Person Policies Hoist
+- Check OAuth Diagnosis
+- Access Pending Page
+- Budget Panel
+- Read Prod Total
+- Check Reassignment Picker UI
+- check-projects-admit-unmeasured.mjs
 
 ## God Nodes (most connected - your core abstractions)
 1. `scripts` - 212 edges
@@ -524,23 +537,23 @@
 10. `PERMISSIONS` - 24 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `render()` --indirect_call--> `DataTable()`  [INFERRED]
-  scripts/check-data-table-primitive.mjs → src/components/data-table/DataTable.tsx
 - `rest()` --indirect_call--> `key()`  [INFERRED]
   scripts/audit-live-db.mjs → src/lib/factorial/client.ts
 - `get()` --indirect_call--> `key()`  [INFERRED]
   scripts/diagnose-null-assignments.mjs → src/lib/factorial/client.ts
 - `rest()` --indirect_call--> `key()`  [INFERRED]
   scripts/inspect-live-db.mjs → src/lib/factorial/client.ts
+- `render()` --indirect_call--> `DataTable()`  [INFERRED]
+  scripts/check-data-table-primitive.mjs → src/components/data-table/DataTable.tsx
 - `render()` --indirect_call--> `UserRow()`  [INFERRED]
   scripts/check-team-select.mjs → src/app/(app)/admin/users/UserRow.tsx
 
 ## Import Cycles
 - None detected.
 
-## Communities (556 total, 120 thin omitted)
+## Communities (568 total, 125 thin omitted)
 
-### Community 0 - "next.config.ts"
+### Community 0 - "Next Config"
 Cohesion: 0.50
 Nodes (3): nextConfig, NOTE: do NOT add an `env: { NEXT_PUBLIC_SITE_URL: ... }` block here., requiredEnvVars
 
@@ -553,68 +566,68 @@ Cohesion: 0.06
 Nodes (75): boot(), bundledBlob(), cdnScriptFor(), collectProps(), compileAttr(), compileTemplate(), contentKey(), createComponentFactory() (+67 more)
 
 ### Community 3 - "Time Tracking"
-Cohesion: 0.06
-Nodes (60): args, DRY_RUN, ENV, get(), getAllPaged(), getEventsByMonth(), HEADERS, idMap() (+52 more)
+Cohesion: 0.05
+Nodes (62): args, DRY_RUN, ENV, get(), getAllPaged(), getEventsByMonth(), HEADERS, idMap() (+54 more)
 
 ### Community 4 - "Budget Alerts"
 Cohesion: 0.06
-Nodes (60): already, approaching, atThreshold, belowThreshold, crossing, custom, justOver, msg (+52 more)
+Nodes (57): already, approaching, atThreshold, belowThreshold, crossing, custom, justOver, msg (+49 more)
 
-### Community 5 - "Budget Panel"
-Cohesion: 0.07
-Nodes (27): BudgetPanel(), euro(), getProjectDetail(), getTaskComments(), getTimeProjectBoard(), nestTasks(), BillableTrend, BillableTrendPoint (+19 more)
+### Community 5 - "HSE Data"
+Cohesion: 0.13
+Nodes (10): getProjectDetail(), getTaskComments(), getTimeProjectBoard(), nestTasks(), LeaveRequestWithPerson, OrgChartNode, PersonProfile, ProjectDetail (+2 more)
 
-### Community 6 - "Customer Group"
-Cohesion: 0.12
-Nodes (25): burnClass(), CustomerGroup(), hours(), MyWorkSummary(), RoleBadge(), STYLE, assembleMyWork(), AssignmentRowLite (+17 more)
+### Community 6 - "Customer Management"
+Cohesion: 0.10
+Nodes (33): burnClass(), CustomerGroup(), hours(), MyWorkSummary(), burnClass(), hours(), MyWorkTables(), rank() (+25 more)
 
 ### Community 7 - "Mobile Shell"
 Cohesion: 0.04
 Nodes (43): alphas, bandGradient, bannedOnBar, barMin, baseSolid, bio, blurPx, CAPSULE_FILES (+35 more)
 
-### Community 8 - "Role Permissions"
-Cohesion: 0.09
-Nodes (36): WHY: the hand-rolled matrix rendered all 37 permissions unpaged, with no, Role, RolePermissionMatrix(), ManagementDataQuality(), fmt(), ManagementProjectRisks(), WHY: measured at 1440×900 this card was 3,052px on its own — 10 rows in, RiskDetail() (+28 more)
+### Community 8 - "Role Management"
+Cohesion: 0.08
+Nodes (42): render(), WHY: the hand-rolled matrix rendered all 37 permissions unpaged, with no, Role, RolePermissionMatrix(), ManagementCustomerPortfolio(), ManagementDataQuality(), fmt(), labelOf() (+34 more)
 
-### Community 9 - "Build System"
-Cohesion: 0.04
-Nodes (26): dir, require, dir, require, alias, anon, days, dir (+18 more)
+### Community 9 - "Time Integration Check"
+Cohesion: 0.11
+Nodes (13): alias, anon, days, dir, env, queries, require, supabase (+5 more)
 
 ### Community 10 - "Design System"
 Cohesion: 0.05
 Nodes (43): APP_SHELL, authInput, authShell, buttonSrc, card, chartsSrc, check(), chrome (+35 more)
 
-### Community 11 - "Audit System"
-Cohesion: 0.05
-Nodes (38): counts, env, findings, rest(), REQUIRED_GRANTS, ROUTES, env, g (+30 more)
+### Community 11 - "Factorial Client"
+Cohesion: 0.23
+Nodes (14): dataOf(), FactorialPerson, FactorialPresence, FactorialTeam, FactorialUnavailableError, fetchFactorialPeople(), fetchFactorialPresence(), fetchFactorialTeams() (+6 more)
 
-### Community 12 - "Report Filters"
-Cohesion: 0.13
-Nodes (20): Option, ReportFilters(), DEFAULT_FILTERS, fetchAllEntries(), fetchExcludedCalendarSeconds(), FetchResult, FilterOptions, getFilterOptions() (+12 more)
+### Community 12 - "Dashboard"
+Cohesion: 0.11
+Nodes (32): bucketRange(), BUCKETS, GROUPS, one(), TrackingTimeDashboardPage(), Option, ReportFilters(), capacityByMember() (+24 more)
 
 ### Community 13 - "Org Chart"
 Cohesion: 0.06
 Nodes (34): admin, anon, cookies, env, errors, subordinate, time, member_clear_supervisor_source (+26 more)
 
 ### Community 14 - "Team Analysis"
-Cohesion: 0.07
-Nodes (40): formatWeekLabel(), OverviewPage(), thursdayOf(), groupByTeam(), h(), TeamAnalysis(), TeamAnalysisSection(), TeamBlock (+32 more)
+Cohesion: 0.10
+Nodes (24): groupByTeam(), h(), TeamAnalysis(), TeamAnalysisSection(), TeamBlock, h(), TeamLeadCharts(), TeamChoice (+16 more)
 
-### Community 15 - "Management Dashboard"
+### Community 15 - "Dashboard Architecture"
 Cohesion: 0.05
 Nodes (40): 1. Ziel und Zweck, 2. Abgrenzung, 3. Aktuelle Module, 4. Datenquellen, 5. KPI-Definitionen, 6. Architekturprinzipien, 7. Offene Datenmodelle, 8. Roadmap (+32 more)
 
-### Community 16 - "Projects"
-Cohesion: 0.12
-Nodes (27): addComment(), addSubtask(), createSection(), createTask(), CreateTaskState, deleteComment(), deleteTask(), insertTask() (+19 more)
-
-### Community 17 - "Alerts"
+### Community 16 - "Projects Management"
 Cohesion: 0.17
-Nodes (17): acknowledgeAlert(), AlertActionResult, AlertCard(), AlertList(), h(), tone(), when(), alertKindLabel() (+9 more)
+Nodes (18): addComment(), addSubtask(), createSection(), CreateTaskState, deleteComment(), deleteTask(), insertTask(), moveTaskToSection() (+10 more)
+
+### Community 17 - "People Directory"
+Cohesion: 0.15
+Nodes (21): bandOf(), CAPACITY_BANDS, CapacityBand, initialsOf(), PeopleDirectory(), SortKey, sortPeople(), Facet (+13 more)
 
 ### Community 18 - "Employee Ownership"
-Cohesion: 0.09
-Nodes (34): EmployeeOwnershipOverview(), fmt(), fmt(), ManagementMatrix(), ALL_SERVICES, ANNUAL_PLAN_HOURS, canonicalService(), emptyCells() (+26 more)
+Cohesion: 0.08
+Nodes (36): EmployeeOwnershipOverview(), fmt(), fmt(), ManagementMatrix(), ALL_SERVICES, ANNUAL_PLAN_HOURS, canonicalService(), emptyCells() (+28 more)
 
 ### Community 19 - "DOM Utilities"
 Cohesion: 0.05
@@ -626,29 +639,29 @@ Nodes (34): accepted, APPLY, badCode, byHub, c, custAgrees(), custMap, env (+26 
 
 ### Community 21 - "Management Actions"
 Cohesion: 0.10
-Nodes (29): authorisedWriter(), CandidateLoadState, decideResponsibleChange(), loadReassignmentCandidates(), ManagementChangeActionState, requestResponsibleChange(), ageInDays(), ChangeRequestItem() (+21 more)
+Nodes (27): authorisedWriter(), CandidateLoadState, decideResponsibleChange(), loadReassignmentCandidates(), ManagementChangeActionState, requestResponsibleChange(), ageInDays(), ChangeRequestItem() (+19 more)
 
 ### Community 22 - "Overview Filters"
-Cohesion: 0.10
-Nodes (33): OverviewFilters(), PRESETS, buildTeamOptions(), burnTone(), countRows(), fmtHours(), getLiveOverview(), getMemberTeams() (+25 more)
+Cohesion: 0.09
+Nodes (34): OverviewFilters(), PRESETS, buildTeamOptions(), burnTone(), countRows(), fmtHours(), getLiveOverview(), getMemberTeams() (+26 more)
 
-### Community 23 - "Access Pending"
-Cohesion: 0.14
-Nodes (15): metadata, PortalPage(), BrandMark(), BrandMarkProps, PIECES, LogoutButton(), MobileSidebarDrawer(), MobileSidebarProps (+7 more)
+### Community 23 - "Avatar Management"
+Cohesion: 0.12
+Nodes (17): metadata, PortalPage(), Avatar(), getUserInfo(), Sidebar(), getServerSnapshot(), getSnapshot(), subscribe() (+9 more)
 
 ### Community 24 - "Brand Mark"
 Cohesion: 0.06
 Nodes (28): AUTH, AUTH_C, authMarks, CSS, CSS_C, dAttrs, froms, heroIdx (+20 more)
 
 ### Community 25 - "Timesheets"
-Cohesion: 0.25
-Nodes (14): AddEntryState, addTimesheetEntry(), copyLastWeek(), currentPersonId(), deleteTimesheetRow(), submitWeek(), updateDayHours(), withdrawWeek() (+6 more)
+Cohesion: 0.17
+Nodes (23): AddEntryState, addTimesheetEntry(), copyLastWeek(), currentPersonId(), deleteTimesheetRow(), submitWeek(), updateDayHours(), withdrawWeek() (+15 more)
 
 ### Community 26 - "Dashboard Panels"
-Cohesion: 0.16
-Nodes (17): CustomerTable(), EconomicsTable(), eur(), hrs(), MemberTable(), OrgTotalsStrip(), ProjectTable(), relativeDays() (+9 more)
+Cohesion: 0.18
+Nodes (15): CustomerTable(), EconomicsTable(), eur(), hrs(), MemberTable(), OrgTotalsStrip(), ProjectTable(), relativeDays() (+7 more)
 
-### Community 27 - "Audit Permission"
+### Community 27 - "Audit Permissions"
 Cohesion: 0.07
 Nodes (27): atRisk, c, c2, codeKeys, danglingModule, declared, env, fc (+19 more)
 
@@ -656,23 +669,23 @@ Nodes (27): atRisk, c, c2, codeKeys, danglingModule, declared, env, fc (+19 more
 Cohesion: 0.07
 Nodes (26): admin, env, headers, isVendorRow(), localRows, localSeconds, missing, now (+18 more)
 
-### Community 29 - "Inventory Check"
+### Community 29 - "Inventory Management"
 Cohesion: 0.10
 Nodes (25): empty, inv, md, records, secrets, buildInventory(), classify(), collectWarnings() (+17 more)
 
-### Community 30 - "User Permissions"
+### Community 30 - "Alert System"
 Cohesion: 0.09
-Nodes (58): AlertsPage(), AdminRolesPage(), ManagementPage(), LeavePage(), metadata, MyWorkPage(), metadata, OperationsAnalyticsPage() (+50 more)
+Nodes (38): acknowledgeAlert(), AlertActionResult, AlertCard(), AlertList(), h(), tone(), when(), AlertsPage() (+30 more)
 
-### Community 31 - "People Directory"
-Cohesion: 0.06
-Nodes (53): bandOf(), CAPACITY_BANDS, CapacityBand, initialsOf(), PeopleDirectory(), SortKey, sortPeople(), CustomerMultiSelect() (+45 more)
+### Community 31 - "Customer Portfolio"
+Cohesion: 0.14
+Nodes (23): CustomerMultiSelect(), h(), CustomerPortfolioCharts(), h(), SLICE_COLORS, BurnDonutRow(), h(), PortfolioCharts() (+15 more)
 
 ### Community 32 - "Profile Management"
-Cohesion: 0.10
-Nodes (31): AppLayout(), changePassword(), EXT, removeAvatar(), updateDisplayName(), updatePreferences(), uploadAvatar(), ALLOWED_AVATAR_TYPES (+23 more)
+Cohesion: 0.11
+Nodes (27): AppLayout(), changePassword(), EXT, removeAvatar(), updateDisplayName(), updatePreferences(), uploadAvatar(), ALLOWED_AVATAR_TYPES (+19 more)
 
-### Community 33 - "Auth Pages"
+### Community 33 - "Authentication"
 Cohesion: 0.16
 Nodes (16): ForgotPasswordPage(), LoginForm(), safeRedirect(), SetPasswordForm(), authButtonClass, AuthHeading(), authInputClass, authLabelClass (+8 more)
 
@@ -684,21 +697,21 @@ Nodes (26): crm.asana_project_reference, crm.corporate_group, crm.corporate_grou
 Cohesion: 0.11
 Nodes (24): assertPayloads(), assertWorkbook(), buildRecords(), candidateResolution(), client, DRY_RUN, env, EXPECTED_SHEET_COUNTS (+16 more)
 
-### Community 36 - "Customer Import Bjoern"
+### Community 36 - "Customer Import"
 Cohesion: 0.11
 Nodes (23): assertPayloads(), assertWorkbook(), buildRecords(), candidateResolution(), client, DRY_RUN, env, EXPECTED_SHEET_COUNTS (+15 more)
 
-### Community 37 - "toggleRolePermission"
-Cohesion: 0.50
-Nodes (4): toggleRolePermission(), PermissionToggle(), handleToggle(), Props
+### Community 37 - "Permissions"
+Cohesion: 0.11
+Nodes (31): toggleRolePermission(), AdminRolesPage(), PermissionToggle(), handleToggle(), Props, AdminUsersPage(), OperationsAnalyticsPage(), TeamLeadPage() (+23 more)
 
 ### Community 38 - "Database"
-Cohesion: 0.10
-Nodes (20): CompositeTypes, Constants, Database, DatabaseWithoutInternals, DefaultSchema, Enums, Json, Tables (+12 more)
+Cohesion: 0.06
+Nodes (36): CompositeTypes, Constants, Database, DatabaseWithoutInternals, DefaultSchema, Enums, Json, Tables (+28 more)
 
-### Community 39 - "Management Multi Service Matrix"
-Cohesion: 0.14
-Nodes (22): fmt(), labelOf(), ManagementMultiServiceMatrix(), missingText(), WHY: 84 customer rows rendered in one unpaged block made ?tab=customers 17.7, aggregateHours(), canonicalService(), CLOSED_STATUSES (+14 more)
+### Community 39 - "Multi Service Matrix"
+Cohesion: 0.18
+Nodes (17): aggregateHours(), canonicalService(), CLOSED_STATUSES, emptyModel(), emptyUsage(), getManagementMultiServiceMatrix(), isOpen(), normalized() (+9 more)
 
 ### Community 40 - "Customer Import Review"
 Cohesion: 0.16
@@ -708,7 +721,7 @@ Nodes (27): buildCases(), caseKey(), caseName(), caseType(), CountRow, customerI
 Cohesion: 0.07
 Nodes (26): 10. Nicht zulässige Abkürzungen, 11. Verbindliche Abschlussregel, 1.1 Fachliche Identität vor Ähnlichkeit, 1.2 Voraussetzungen für automatische Resolution, 1.3 Keine implizite Gleichsetzung der Modelle, 1.4 Verbindliche Prüfreihenfolge, 1. Grundsätze, 2. Import- und Review-Prozess (+18 more)
 
-### Community 42 - "Management Dashboard V2"
+### Community 42 - "Management Dashboard"
 Cohesion: 0.07
 Nodes (26): 1. Ziel, 2. Bestehende Funktionen, 3.1 Executive KPIs, 3.2 Kapazitätsrisiken, 3.3 Service Mix, 3.4 Zeitlicher Forecast, 3.5 Customer-Master-Verbindung, 3. V2-Funktionalität (+18 more)
 
@@ -716,7 +729,7 @@ Nodes (26): 1. Ziel, 2. Bestehende Funktionen, 3.1 Executive KPIs, 3.2 Kapazitä
 Cohesion: 0.07
 Nodes (19): ackRoles, actions, alertQueries, blockMap, byProject, cols, contracts, list (+11 more)
 
-### Community 44 - "Mobile Tabs"
+### Community 44 - "Mobile Tabs Shared"
 Cohesion: 0.19
 Nodes (10): MOBILE_TAB_HREFS, MobileTab, mobileTabsFor(), SHORT_LABELS, MobileTabBar(), IconDot(), NAV_ICONS, NAV_GROUPS (+2 more)
 
@@ -724,15 +737,15 @@ Nodes (10): MOBILE_TAB_HREFS, MobileTab, mobileTabsFor(), SHORT_LABELS, MobileTa
 Cohesion: 0.08
 Nodes (25): Anti-patterns (never do), Backgrounds, Borders, Brand source, Buttons (marketing page), Color tokens (real brand — extracted from hs-experts.com), Components, Data tables (+17 more)
 
-### Community 46 - "SSO Enablement"
+### Community 46 - "SSO Setup"
 Cohesion: 0.08
 Nodes (24): A1. Open the credential, A2. Add the redirect URI, A3. The consent screen, A4. Re-checking it later, B1. Create the app registration, B2. Collect the three values, B3. Enable it in Supabase, B4. Un-hide the button (+16 more)
 
-### Community 47 - "HSE Operations Dashboard"
+### Community 47 - "HSE Dashboard"
 Cohesion: 0.08
 Nodes (25): 10. Technische Umsetzungsschritte, 11. Nicht-Ziele, 1. Executive Overview, 2. Service Overview, 3. Service × Mitarbeiter Matrix, 4. Employee Overview, 5. Capacity Forecast, 6. Detail Views (+17 more)
 
-### Community 48 - "Recheck Dashboard"
+### Community 48 - "Dashboard Claims"
 Cohesion: 0.08
 Nodes (20): admin, corrected, distinctProjects, env, estimatedIds, gates, hasUnattributed, lastRef (+12 more)
 
@@ -740,7 +753,7 @@ Nodes (20): admin, corrected, distinctProjects, env, estimatedIds, gates, hasUna
 Cohesion: 0.10
 Nodes (22): CaseRow(), CustomerMasterImportReviewPage(), display(), dynamic, hrefFor(), Pager(), parseFilter(), priorityTone() (+14 more)
 
-### Community 50 - "Import Masterdata Projects"
+### Community 50 - "Masterdata Import"
 Cohesion: 0.09
 Nodes (21): assignmentRows, byOrder, db, DRY, firstName(), ids, ADR-0001, newPeople (+13 more)
 
@@ -749,18 +762,18 @@ Cohesion: 0.14
 Nodes (20): DesktopSidebarShell(), IconPanelCollapse(), IconPanelExpand(), getCardStyle(), getTargetRect(), OnboardingTour(), Rect, STEPS (+12 more)
 
 ### Community 52 - "Board Range Filter"
-Cohesion: 0.12
-Nodes (24): BoardRangeFilter(), PRESETS, isDefaultWindow(), BOARD_WEEKS, BoardCell, BoardCellStatus, BoardPreset, BoardRange (+16 more)
+Cohesion: 0.13
+Nodes (23): BoardRangeFilter(), PRESETS, isDefaultWindow(), BOARD_WEEKS, BoardCellStatus, BoardPreset, BoardRange, boardRangeForPreset() (+15 more)
 
-### Community 53 - "External Staff Migration"
+### Community 53 - "Data Hygiene"
 Cohesion: 0.07
 Nodes (23): c, env, sql, env, page, querySrc, supabase, c (+15 more)
 
-### Community 54 - "Org Chart"
-Cohesion: 0.18
-Nodes (15): setMemberDetails(), setSupervisor(), timeSchema(), wouldCreateCycle(), initialsOf(), NodeRow(), OrgChartView(), PeopleSection() (+7 more)
+### Community 54 - "Org Actions"
+Cohesion: 0.12
+Nodes (25): assertCanEditPeople(), OrgEditState, setMemberDetails(), setSupervisor(), timeSchema(), wouldCreateCycle(), initialsOf(), NodeRow() (+17 more)
 
-### Community 55 - "Contract Watchlist"
+### Community 55 - "Contract Management"
 Cohesion: 0.11
 Nodes (33): ContractWatchlist(), KIND_LABEL, tone(), authorise(), Authorised, ContractActionResult, correctContractPeriod(), explain() (+25 more)
 
@@ -768,51 +781,47 @@ Nodes (33): ContractWatchlist(), KIND_LABEL, tone(), authorise(), Authorised, Co
 Cohesion: 0.21
 Nodes (23): crm.asana_project_reference, crm.corporate_group, crm.corporate_group_member, crm.factorial_person_reference, crm.framework_agreement, crm.framework_agreement_party, crm.framework_agreement_project, crm.legal_entity (+15 more)
 
-### Community 57 - "Schema"
-Cohesion: 0.13
-Nodes (17): app_module, app_permission, app_role_permission, app_user_has_permission(), app_user_modules(), approval_decisions, executive_metrics, netflix_country_stats (+9 more)
+### Community 57 - "Schema Definitions"
+Cohesion: 0.12
+Nodes (18): app_module, app_permission, app_role, app_role_permission, app_user_has_permission(), app_user_modules(), approval_decisions, executive_metrics (+10 more)
 
-### Community 58 - "Playwright Checks"
-Cohesion: 0.09
-Nodes (10): admin, anonClient, app, env, app, env, env, admin (+2 more)
+### Community 58 - "check-live-dashboard.mjs"
+Cohesion: 0.29
+Nodes (4): admin, anonClient, app, env
 
-### Community 59 - "People Overview Checks"
+### Community 59 - "People Overview Check"
 Cohesion: 0.09
 Nodes (18): admin, completedByMember, currentByMember, currentMonday, drift, env, futureActivity, futureMembers (+10 more)
 
-### Community 60 - "Tracking Time Dashboard"
-Cohesion: 0.27
-Nodes (12): bucketRange(), BUCKETS, GROUPS, one(), TrackingTimeDashboardPage(), capacityByMember(), customerConcentration(), serviceMixByMonth() (+4 more)
-
-### Community 61 - "Customer Portfolio"
-Cohesion: 0.15
-Nodes (24): allTimeFilters(), burndown(), contributors(), customerPortfolio, CustomerPortfolioRow, customerRankByMonth, CustomerRankSeries, fetchAllProjects() (+16 more)
+### Community 61 - "Project Panels"
+Cohesion: 0.11
+Nodes (31): BurnChart(), ContributorTable(), h(), ProjectTotalsStrip(), TaskTable(), allTimeFilters(), burndown(), BurnPoint (+23 more)
 
 ### Community 62 - "Next Steps"
 Cohesion: 0.09
 Nodes (21): 1.1 The 8 null-project assignments are correct as they are, 1. Is the masterdata import connected correctly?, 2.1 [FIXED, needs pasting] 54 orders reported themselves as on budget without being measured, 2.2 [NEEDS A DECISION — and it is a SPREADSHEET problem, not an import bug], 2.3 [NEEDS APPLYING] The masterdata people are labelled as seed data, 2.4 [MOSTLY A RULE BUG] The ADR-001 gate reports 3 violations; there are 64, 2.5 [KNOWN, CORRECTLY LEFT ALONE] 2,392 unattributed hours, 2.6 [INFRASTRUCTURE, FIXED] The entire gate suite could not run (+13 more)
 
-### Community 63 - "Data Table Checks"
-Cohesion: 0.09
-Nodes (21): barrel, cache, capped, columns, { DataTable, cmpNum, cmpText, DEFAULT_MAX_BODY_HEIGHT }, exported, firstTdFrozen, firstThFrozen (+13 more)
+### Community 63 - "Data Table Check"
+Cohesion: 0.10
+Nodes (20): barrel, cache, capped, columns, { DataTable, cmpNum, cmpText, DEFAULT_MAX_BODY_HEIGHT }, exported, firstTdFrozen, firstThFrozen (+12 more)
 
-### Community 64 - "Gates CI Checks"
+### Community 64 - "Gates CI Check"
 Cohesion: 0.12
 Nodes (17): candidates, crashed, dir, files, fine, files, safe, unsafe (+9 more)
 
 ### Community 65 - "Data Hygiene"
-Cohesion: 0.15
-Nodes (17): DataHygienePage(), dynamic, KIND_STYLE, Pager(), runtime, SearchParams, SUBJECT, ADR-0001 (+9 more)
+Cohesion: 0.07
+Nodes (38): InviteUserForm(), DataHygienePage(), dynamic, KIND_STYLE, Pager(), runtime, SearchParams, SUBJECT (+30 more)
 
-### Community 66 - "Management Project Risks"
-Cohesion: 0.13
-Nodes (21): aggregateHours(), Assignment, CLOSED_STATUSES, createRiskRow(), CustomerMappingStatus, emptyRiskRows(), getManagementProjectRisks(), isOpen() (+13 more)
+### Community 66 - "Project Risks Management"
+Cohesion: 0.12
+Nodes (22): aggregateHours(), Assignment, CLOSED_STATUSES, createRiskRow(), CustomerMappingStatus, emptyRiskRows(), getManagementProjectRisks(), isOpen() (+14 more)
 
 ### Community 67 - "Customer Master Target Model"
 Cohesion: 0.10
 Nodes (20): 10. Service, 11. External References, 12. Responsibilities, 13. Import-Architektur, 14. Review-Regel, 15. Bestehende Systeme nicht ersetzen, 16. Konsequenz für den ersten Datenimport, 17. Konsequenzen (+12 more)
 
-### Community 68 - "Electric SQL"
+### Community 68 - "Development Tools"
 Cohesion: 0.10
 Nodes (21): @electric-sql/pglite, eslint, eslint-config-next, devDependencies, @electric-sql/pglite, eslint, eslint-config-next, @playwright/test (+13 more)
 
@@ -820,71 +829,71 @@ Nodes (21): @electric-sql/pglite, eslint, eslint-config-next, devDependencies, @
 Cohesion: 0.08
 Nodes (31): check(), claimed, members, status(), throws(), today, c, disagree (+23 more)
 
-### Community 70 - "People Live Source Checks"
+### Community 70 - "People Live Source Check"
 Cohesion: 0.10
 Nodes (17): active, activeWithTime, admin, archivedWithTime, distinctWeekly, env, future, linked (+9 more)
 
-### Community 71 - "Sidebar Collapse Checks"
+### Community 71 - "Sidebar Collapse Check"
 Cohesion: 0.10
 Nodes (16): CTX, dir, LAYOUT, mobileSrc, NAV, navSrc, navTourIds, require (+8 more)
 
-### Community 72 - "Time Page Render Checks"
+### Community 72 - "Time Page Render Check"
 Cohesion: 0.10
 Nodes (15): alias, days, dir, emptyHtml, ghostHtml, listHtml, require, runningHtml (+7 more)
 
-### Community 73 - "Diagnose Missing Events"
+### Community 73 - "Missing Events Diagnosis"
 Cohesion: 0.10
 Nodes (17): admin, byMonth, daysDecl, dupes, earliest, env, headers, memberSourceIds (+9 more)
 
-### Community 74 - "Diagnose Project Bridge"
+### Community 74 - "Project Bridge Diagnosis"
 Cohesion: 0.10
 Nodes (17): ambigDetail, byCustNum, c, catAgg, catOf(), CATS, env, hubByCust (+9 more)
 
-### Community 75 - "Recheck Paging and Tables"
+### Community 75 - "Paging and Tables Recheck"
 Cohesion: 0.10
 Nodes (15): admin, anon, app, asExec, bad, env, parRls, parSvc (+7 more)
 
-### Community 76 - "Management Customer Mapping"
+### Community 76 - "Customer Mapping"
 Cohesion: 0.13
 Nodes (20): getPool(), ManagementCustomerEntity, ManagementCustomerMappings, readManagementCustomerMappings(), Assignment, canonicalService(), CLOSED_STATUSES, CustomerPortfolioProject (+12 more)
 
-### Community 77 - "Agent Skills Checks"
+### Community 77 - "Agent Skills Check"
 Cohesion: 0.11
 Nodes (17): agentDirs, AGENTS_DIR, AGENTS_MD, AGENTS_SKILLS, CLAUDE_SKILLS, claudeDirs, dupes, frontmatterName() (+9 more)
 
-### Community 78 - "Overview Range Narrows Checks"
+### Community 78 - "Overview Range Narrows Check"
 Cohesion: 0.13
 Nodes (17): admin, biggest, byTeam, env, first12, iso(), lastDay12, lastMonday12 (+9 more)
 
-### Community 79 - "Reconcile Masterdata"
+### Community 79 - "Masterdata Reconciliation"
 Cohesion: 0.10
 Nodes (15): byName, db, hoursDisagree, matched, matchedProjectIds, ADR-0001, ORDER_SHEETS, orders (+7 more)
 
 ### Community 80 - "Data Hygiene"
-Cohesion: 0.05
-Nodes (28): by, CASES, ADR-0001, PROJECTS, readLog, supabase, env, failures (+20 more)
+Cohesion: 0.06
+Nodes (25): by, CASES, ADR-0001, PROJECTS, readLog, supabase, DataHygiene, FindingKind (+17 more)
 
-### Community 81 - "Framer Motion"
+### Community 81 - "Dependencies"
 Cohesion: 0.11
 Nodes (18): framer-motion, next, dependencies, framer-motion, next, pg, react, react-dom (+10 more)
 
-### Community 82 - "Asana Backlog Checks"
+### Community 82 - "Asana Backlog Check"
 Cohesion: 0.14
 Nodes (16): backwards, body, col(), controlBad, dupes, missingGate, RFC-4180, names (+8 more)
 
-### Community 83 - "Time Acceptance Checks"
+### Community 83 - "Time Acceptance Check"
 Cohesion: 0.12
 Nodes (16): app, cleanup(), cleanupBuild(), customers, entries, monday, PROFILE, projects (+8 more)
 
-### Community 84 - "Link User Identities"
+### Community 84 - "User Identity Linking"
 Cohesion: 0.12
 Nodes (17): APPLY, c, candidates, claimed, creates, env, FORBIDDEN_PERSON_IDS, linkedPersonIds (+9 more)
 
-### Community 85 - "Capacity Panel"
-Cohesion: 0.09
-Nodes (23): BAND, CapacityPanel(), h(), h(), InsightPanels(), SERIES, BumpSeries, DivergingBars() (+15 more)
+### Community 85 - "Team Analysis"
+Cohesion: 0.08
+Nodes (27): h(), TeamDeepAnalysis(), BAND, CapacityPanel(), h(), h(), InsightPanels(), SERIES (+19 more)
 
-### Community 86 - "Analysis Spec"
+### Community 86 - "Analysis Specification"
 Cohesion: 0.11
 Nodes (17): 0. Data reality check (what the data can and cannot support), #10 Service-mix shift month over month, #11 Engagement fragmentation: projects touched and entry-size distribution, #12 Daily activity calendar (org pulse), #1 Month-over-month tracked vs billable hours, with per-person deviation (the core comparison), 1. Ranked analyses, 2. Placement summary, #2 Weekly utilisation vs 40h capacity per person (+9 more)
 
@@ -892,35 +901,35 @@ Nodes (17): 0. Data reality check (what the data can and cannot support), #10 Se
 Cohesion: 0.12
 Nodes (15): add(), benign, byKind, downloadDir, env, exercise(), findings, IGNORABLE (+7 more)
 
-### Community 88 - "Dashboard Tables Checks"
+### Community 88 - "Dashboard Tables Check"
 Cohesion: 0.12
 Nodes (15): app, cleanup(), customers, entries, members, monthStart, PROFILE, projects (+7 more)
 
-### Community 89 - "Management Data Checks"
+### Community 89 - "Management Data Check"
 Cohesion: 0.17
 Nodes (16): customerAgrees(), dangling, db, head(), ADR-0001, norm(), orderCustomers, orderIds (+8 more)
 
-### Community 90 - "Order Project Matching Checks"
+### Community 90 - "Order Project Matching Check"
 Cohesion: 0.11
 Nodes (15): ambiguous, byName, c, collisions, env, failures, malformed, matched (+7 more)
 
-### Community 91 - "Risk Panel Survives Nulls Checks"
+### Community 91 - "Risk Panel Survives Nulls Check"
 Cohesion: 0.11
 Nodes (11): after, before, hasOverBudget, hasWithoutStatus, lapse, obAfter, obBefore, REPO (+3 more)
 
-### Community 92 - "Trackingtime Parity Checks"
+### Community 92 - "Tracking Time Parity Check"
 Cohesion: 0.12
 Nodes (13): admin, env, evSeconds(), extra, extraSeconds, headers, missing, missingSeconds (+5 more)
 
 ### Community 93 - "User Management"
-Cohesion: 0.07
-Nodes (30): render(), assertCanManageUsers(), changeUserDepartment(), changeUserRole(), deleteUser(), InviteState, inviteUser(), resendInvite() (+22 more)
+Cohesion: 0.18
+Nodes (21): render(), assertCanManageUsers(), changeUserDepartment(), changeUserRole(), deleteUser(), InviteState, inviteUser(), resendInvite() (+13 more)
 
-### Community 94 - "Profile Actions"
+### Community 94 - "Profile Management"
 Cohesion: 0.11
 Nodes (35): AdminActionResult, adminDeleteEntry(), adminUpdateEntry(), adminUpdateProfile(), adminUpdateWeeklyHours(), authorise(), Authorised, Refused (+27 more)
 
-### Community 95 - "Project Risk Resolution Actions"
+### Community 95 - "Project Risk Resolution"
 Cohesion: 0.12
 Nodes (16): 10. Offene Voraussetzungen, 1. Ziel, 2.1 Responsible Person, 2.2 Replacement, 2.3 Contract Status, 2. Editierbare Felder, 3. Nicht direkt editierbare Felder, 4. Berechtigungen (+8 more)
 
@@ -936,25 +945,25 @@ Nodes (16): Asana findings (verified against developers.asana.com and Asana's ow
 Cohesion: 0.15
 Nodes (13): byEmail, c, claimedPersons, classify(), env, looksLikeMailbox, ADR-0001, mustBe() (+5 more)
 
-### Community 99 - "No Mockup People Checks"
+### Community 99 - "No Mockup People Check"
 Cohesion: 0.12
 Nodes (14): codeOnly(), files, invite, inviteAction, MOCK_TABLES, MOCKUP_NAMES, nameHits, pagedHelper (+6 more)
 
-### Community 100 - "OAuth Success Path Checks"
+### Community 100 - "OAuth Success Path Check"
 Cohesion: 0.18
 Nodes (15): accessTokenFor(), app, arriveFromProvider(), arriveFromProviderStable(), b64(), build, cleanup(), currentUser (+7 more)
 
-### Community 101 - "Team Select Checks"
+### Community 101 - "Team Select Check"
 Cohesion: 0.12
 Nodes (13): actionsStub, dir, editable, legacyOptions, legacyRow, React, readOnly, readOnlyLegacy (+5 more)
 
-### Community 102 - "Factorial Minimisation Checks"
+### Community 102 - "Factorial Minimization"
 Cohesion: 0.12
 Nodes (16): allowedExports, componentContent, content, errors, foundExports, foundPersonFields, foundPresenceFields, foundTeamFields (+8 more)
 
-### Community 103 - "Report Tables"
-Cohesion: 0.26
-Nodes (11): BreakdownTable(), BudgetTable(), EconomicsTable(), EntriesTable(), EntryRow, eur(), hrs(), relativeDays() (+3 more)
+### Community 103 - "Task Management"
+Cohesion: 0.24
+Nodes (10): createTask(), AddTaskForm(), AddSectionForm(), TaskBoardView(), TaskListView(), TasksSection(), BoardParent, ProjectSectionRow (+2 more)
 
 ### Community 104 - "Customer Master SSOT"
 Cohesion: 0.12
@@ -964,11 +973,11 @@ Nodes (15): 10. Schutzregel für zukünftige Entwicklung, 1. Lexware als SSOT f�
 Cohesion: 0.12
 Nodes (15): Architecture, Avatar upload, Data model, Explicitly unchanged, Isolation, Out of scope, Password change, Preferences content (+7 more)
 
-### Community 106 - "Customer Agreement Rule"
+### Community 106 - "ADR001 Rule Discrimination"
 Cohesion: 0.21
 Nodes (15): c, customerAgrees(), env, examples, gu, head(), isUnlawful(), ADR-0001 (+7 more)
 
-### Community 107 - "Factorial Join Check"
+### Community 107 - "Factorial Join Viability"
 Cohesion: 0.15
 Nodes (13): ALLOWED, buckets, c, call(), env, fetchAll(), freqs, leakedKeys (+5 more)
 
@@ -976,9 +985,9 @@ Nodes (13): ALLOWED, buckets, c, call(), env, fetchAll(), freqs, leakedKeys (+5 
 Cohesion: 0.12
 Nodes (11): board, boardPresets, boardQueries, filters, filtersCode, minePresets, page, pageCode (+3 more)
 
-### Community 109 - "ThemeToggle.tsx"
-Cohesion: 0.43
-Nodes (4): getServerSnapshot(), getSnapshot(), subscribe(), ThemeToggle()
+### Community 109 - "Types"
+Cohesion: 0.14
+Nodes (13): BillableTrend, BillableTrendPoint, ExecutiveMetricRow, PersonAssignmentRow, PersonQualificationRow, PersonRow, PersonWeekMetricsRow, ProjectRow (+5 more)
 
 ### Community 110 - "Server Action Auth"
 Cohesion: 0.14
@@ -992,23 +1001,19 @@ Nodes (14): breakdownRows, budgetAll, entryRowsShipped, env, filters, grouped, i
 Cohesion: 0.13
 Nodes (11): db, head, icons, mathias, migrationSql, nav, page, query (+3 more)
 
-### Community 113 - "Request Cache"
-Cohesion: 0.39
-Nodes (6): getSignedInUser(), oncePerRequest(), slot, TimesheetWeek, SupabaseTyped, TimesheetDayEntry
+### Community 113 - "Tracking Time Report"
+Cohesion: 0.15
+Nodes (9): CODE, ENV, here, NAV_SRC, NOW, PAGE_SRC, PROJECTS, root (+1 more)
 
-### Community 114 - "Demo Page"
+### Community 114 - "Demo Page V4"
 Cohesion: 0.12
 Nodes (6): EASE, FEATURES, NOTE: preload must stay "none". With preload="metadata" Chrome starts a, STACK, STATS, T
-
-### Community 115 - "Management Service Overview"
-Cohesion: 0.17
-Nodes (15): AssignmentRow, canonicalService(), getManagementServiceOverview(), isOpen(), numberOrZero(), ProjectOrderRow, ProjectRow, readCustomerMasterReferences() (+7 more)
 
 ### Community 116 - "Responsibility Coverage Findings"
 Cohesion: 0.13
 Nodes (14): 1. The replacement person did survive the import, 2.1 [FIXED] Self-cover was counted as coverage, 2.2 [FIXED] The busiest person in the company was invisible, 2.3 [FIXED, not user-visible] A hardcoded null claiming the data did not exist, 2. Three things were wrong, 3.1 [NEEDS A DECISION] The two cover tables disagree on 28 projects, 3.2 [NEEDS DATA ENTRY] 8 orders cannot reach exactly one project, 3.3 Three of these are the same bug as the mis-named orders (+6 more)
 
-### Community 117 - "Broken Cover Live Check"
+### Community 117 - "Broken Cover Live"
 Cohesion: 0.13
 Nodes (13): c, dir, firstSelf, { getBrokenCover }, KNOWN_MUTUAL, lastMutual, modFile, mutualIds (+5 more)
 
@@ -1016,21 +1021,21 @@ Nodes (13): c, dir, firstSelf, { getBrokenCover }, KNOWN_MUTUAL, lastMutual, mod
 Cohesion: 0.13
 Nodes (11): anon, byEmail, detailed, env, forks, H, linkedUsers, mismatched (+3 more)
 
-### Community 119 - "Management Contract Hours Live Check"
+### Community 119 - "Management Contract Hours Live"
 Cohesion: 0.13
 Nodes (11): dir, drilldownNames, failures, { getManagementContractHours, PEOPLE }, gridNames, missingDrilldown, missingFromGrid, require (+3 more)
 
-### Community 120 - "Management People Complete Check"
+### Community 120 - "Management People Complete"
 Cohesion: 0.18
 Nodes (13): allowed, allowlist, block, c, dbNames, env, failures, listedWithoutResponsibility (+5 more)
 
-### Community 121 - "Latency Variance Measurement"
-Cohesion: 0.18
-Nodes (11): admin, anon, app, env, hrs(), label(), labelWithDate(), TrendChart() (+3 more)
+### Community 121 - "Trend Chart"
+Cohesion: 0.43
+Nodes (7): hrs(), label(), labelWithDate(), TrendChart(), TrendPoint, isoWeekNumber(), thursdayOf()
 
-### Community 122 - "Leave Actions"
-Cohesion: 0.22
-Nodes (12): ApprovalResult, approveLeaveRequestAction(), cancelLeaveRequest(), rejectLeaveRequestAction(), requestLeave(), RequestLeaveState, setLeaveRequestStatus(), MyLeavePanel() (+4 more)
+### Community 122 - "Leave Management"
+Cohesion: 0.16
+Nodes (18): ApprovalResult, approveLeaveRequestAction(), cancelLeaveRequest(), rejectLeaveRequestAction(), requestLeave(), RequestLeaveState, setLeaveRequestStatus(), MyLeavePanel() (+10 more)
 
 ### Community 123 - "People Live"
 Cohesion: 0.22
@@ -1040,7 +1045,7 @@ Nodes (14): getAssignments(), getLivePeople(), getMemberMeta(), getRosterCounts(
 Cohesion: 0.14
 Nodes (13): 1.1 Duration is SECONDS — proved, not assumed, 1.2 Pagination is inconsistent per entity, 1.3 Errors arrive as HTTP 200, 1.4 The App Password is the entire credential, 1. Facts that change the schema, 2. The shape of the time model, 3. Google Calendar is already in the data, 4. Absence: TrackingTime is not the owner (+5 more)
 
-### Community 125 - "Schema Documentation"
+### Community 125 - "HSE Hub Data Model"
 Cohesion: 0.14
 Nodes (14): 10. Referential integrity, 13. What this schema deliberately does not do, 14. Glossary, 1. What this document is, 2. What the portal is, 4. Conventions, 6. Layer 2 — Staging, CASCADE — on true ownership (+6 more)
 
@@ -1048,11 +1053,11 @@ Nodes (14): 10. Referential integrity, 13. What this schema deliberately does no
 Cohesion: 0.14
 Nodes (13): 1. Ziel und Grundsätze, 2. Mapping-Tabelle, 3. Ziel-Domänen, 4. Sichtbarkeitsregeln, 5. Datenqualitätsregeln, 6. Fachliche Überführungsschritte, Abrechnung, Customer Master (+5 more)
 
-### Community 127 - "No Mock Data Check"
+### Community 127 - "No Mock Data"
 Cohesion: 0.14
 Nodes (7): dash, hse, live, MOCK_TABLES, page, REPORTING_FILES, syncBar
 
-### Community 128 - "Reassignment Candidates Live Check"
+### Community 128 - "Reassignment Candidates Live"
 Cohesion: 0.14
 Nodes (10): c, dir, { getReassignmentCandidates }, nulls, onProject, require, serverOnly, summed (+2 more)
 
@@ -1068,7 +1073,7 @@ Nodes (13): call(), current, dateFields, droppedKeys, env, fetchAll(), future, p
 Cohesion: 0.14
 Nodes (7): args, DRY_RUN, ENV, FULL, NO_LINK, SINCE_LAST, YEAR
 
-### Community 132 - "Portal Architecture & Design"
+### Community 132 - "HSE Hub Portal Architecture"
 Cohesion: 0.15
 Nodes (13): 1. Data Flow Architecture, 2. Identity Resolution — the hardest problem, 4. KPI Workshop — run this first, 5. Schema — Ingestion, Sync & Identity, 6. Schema — Analytics Core & App Layer, 7. Relationships — cross-layer path & FK reference, Analytics core (star schema), App, auth & audit (+5 more)
 
@@ -1080,11 +1085,11 @@ Nodes (13): 8.1 Dimensions, 8.2 Facts, 8. Layer 4 — Analytics core, `dim_clien
 Cohesion: 0.15
 Nodes (7): budgetCol, del, migration, names, newP, oldP, schema
 
-### Community 135 - "Factorial Harvest Check"
+### Community 135 - "Factorial Harvest"
 Cohesion: 0.15
 Nodes (11): contradiction, env, future, kept, leaked, projected, sparse, SPEC_FIELDS (+3 more)
 
-### Community 136 - "Invite OAuth Model Check"
+### Community 136 - "Invite OAuth Model"
 Cohesion: 0.15
 Nodes (11): admin, byEmail, env, forked, invitedPending, multi, oauthLinked, profileIds (+3 more)
 
@@ -1104,17 +1109,13 @@ Nodes (11): APPLY, authUsers, db, ENV, memberEmails, norm(), personIdByUser, pla
 Cohesion: 0.17
 Nodes (17): ApprovalResult, approveAllPending(), approveDecision(), approveTimesheetWeek(), rejectTimesheetWeek(), requireApprover(), setTimesheetWeekStatus(), PendingTimesheetApprovals() (+9 more)
 
-### Community 141 - "password-strength.ts"
-Cohesion: 0.43
-Nodes (3): PasswordStrengthBar(), getPasswordStrength(), MIN_PASSWORD_LENGTH
-
 ### Community 142 - "Video Page"
 Cohesion: 0.17
 Nodes (7): CONNECTORS, Feature, FEATURES, Stat, StatCard(), STATS, useCountUp()
 
 ### Community 143 - "Management Data Quality"
-Cohesion: 0.18
-Nodes (14): DataQualityRating, emptyRows(), getManagementDataQuality(), isOpen(), Order, Project, readCustomerMasterLinks(), Reference (+6 more)
+Cohesion: 0.22
+Nodes (12): DataQualityRating, emptyRows(), getManagementDataQuality(), isOpen(), ManagementDataQualityRow, Order, Project, readCustomerMasterLinks() (+4 more)
 
 ### Community 144 - "Task for V3Code"
 Cohesion: 0.17
@@ -1128,15 +1129,15 @@ Nodes (11): Global Constraints, Self-Review, Task 1: Schema — profile columns,
 Cohesion: 0.17
 Nodes (11): Constraints, Core jobs to be done, Design mode, HSE Hub — Product Context, Platforms, Product Name, Success metrics, Tagline (+3 more)
 
-### Community 147 - "Employee Ownership Live Check"
+### Community 147 - "Employee Ownership Live"
 Cohesion: 0.17
 Nodes (8): dir, { getEmployeeOwnershipOverview }, require, serverOnly, supabase, totalMappingIssues, totalOpen, withProjects
 
-### Community 148 - "Live Overview Deployed Check"
+### Community 148 - "Live Overview Deployed"
 Cohesion: 0.17
 Nodes (9): admin, anonClient, day, env, expectTotalHours, now, SITE, thisMonday (+1 more)
 
-### Community 149 - "Order Hours Freshness Check"
+### Community 149 - "Order Hours Freshness"
 Cohesion: 0.17
 Nodes (10): c, env, failures, nulls, overContractButSilent, overstated, overstatedVsUnbounded, understated (+2 more)
 
@@ -1144,11 +1145,11 @@ Nodes (10): c, env, failures, nulls, overContractButSilent, overstated, overstat
 Cohesion: 0.17
 Nodes (6): anon, anonHeaders, env, fixtureBytes, service, url
 
-### Community 151 - "Replacement Coverage Check"
+### Community 151 - "Replacement Coverage"
 Cohesion: 0.17
 Nodes (10): c, env, failures, guard, honestUncovered, open, replacementRows, selfCovered (+2 more)
 
-### Community 152 - "Sync and Drilldown Check"
+### Community 152 - "Sync and Drilldown"
 Cohesion: 0.18
 Nodes (10): FRESHNESS, IMPORT, LINKER, PAGE, PANELS, PKG, QUERIES, read() (+2 more)
 
@@ -1192,6 +1193,10 @@ Nodes (8): blind, c, env, INSPECT, now, POLICY, rows, SAVE
 Cohesion: 0.18
 Nodes (10): Contract periods, budget warnings, and renewals — design spec, Data model, How hours are counted (the important change), Notifications, Rollout / compatibility, The constraint that decides the data model, The decision function, Verification plan (+2 more)
 
+### Community 163 - "Project Policy Backup"
+Cohesion: 0.25
+Nodes (9): public.can_view_person(), public.can_view_project(), people, can_view_person(), can_view_project(), people, can_view_project(), person_assignments (+1 more)
+
 ### Community 164 - "Effective Dating"
 Cohesion: 0.18
 Nodes (11): Effective dating, FACT_DEAL to DIM_PROJECT, Naming conventions, Open questions to resolve in Sprint 0, Refresh strategy, RLS approach, Schema Conventions & Design Decisions, The rule that matters most (+3 more)
@@ -1204,23 +1209,23 @@ Nodes (11): 1. The shape of the platform, 2. ⚠️ The decision everything else
 Cohesion: 0.18
 Nodes (10): 11.1 Questions requiring a human decision, 11.2 GDPR and data minimisation, 11. Open questions and GDPR, 4. Rate limits, 5.1 Server-side filters that matter for request budget (§4), 5.2 Notes on specific endpoints, 5. Endpoint catalogue we actually need, Appendix A — Source URLs used (+2 more)
 
-### Community 167 - "Dashboard Handoff"
+### Community 167 - "Management Dashboard Handoff"
 Cohesion: 0.18
 Nodes (10): Bereits im Branch enthalten, Development Auth und lokaler Direktzugang, Fachliche Dokumente, Lokale Excel-Importgrundlage, Lokale, nicht in diesem Feature-Commit enthaltene Änderungen, Management Dashboard – Übergabe und Restarbeiten, Noch offen, Schritte für den Kollegen beim Merge (+2 more)
 
-### Community 168 - "Real Hub Design"
+### Community 168 - "Real Hub Replacement"
 Cohesion: 0.18
 Nodes (10): Context, Explicitly out of scope for now, Goals, HSE Hub becomes the real system of record — design, Import job design, Non-goals (this phase), Phased build order, RLS approach (+2 more)
 
-### Community 169 - "Policy Verification"
-Cohesion: 0.18
+### Community 169 - "Policy Verification Paths"
+Cohesion: 0.20
 Nodes (7): anyWorks, cli, credPath, env, logDir, results, tokens
 
-### Community 170 - "Project Policy Hoisting"
+### Community 170 - "Apply Project Policy"
 Cohesion: 0.22
 Nodes (9): admin, db, env, isHoisted, measure(), measureEveryone(), PEOPLE, ROLLBACK (+1 more)
 
-### Community 171 - "Timesheet Audit"
+### Community 171 - "Audit Timesheet Links"
 Cohesion: 0.18
 Nodes (6): c, env, err(), config, layout, stripped
 
@@ -1232,7 +1237,7 @@ Nodes (7): after, before, ROLES, schemaSrc, shippedMatch, text, wide
 Cohesion: 0.20
 Nodes (8): ACTIONS, bodies, changePasswordBody, constants, functionBody(), rawConstants, rawSrc, src
 
-### Community 174 - "Stranger Read Check"
+### Community 174 - "Stranger Cannot Read"
 Cohesion: 0.18
 Nodes (8): admin, DELIBERATELY_READABLE, env, made, MUST_BE_EMPTY, stamp, TIME_MUST_BE_EMPTY, TIME_READABLE
 
@@ -1244,15 +1249,15 @@ Nodes (10): absentIds, absentPersonIds, c, call(), doubleOut, emailOf, env, fetc
 Cohesion: 0.22
 Nodes (10): buckets, byType, call(), current, env, fetchAll(), inRange(), today (+2 more)
 
-### Community 177 - "Project Customer Link"
+### Community 177 - "Link Project Customers"
 Cohesion: 0.33
 Nodes (10): APPLY, c, DECISIONS, env, loadIdentityMap(), main(), measure(), normName() (+2 more)
 
-### Community 178 - "Stale Total Trace"
+### Community 178 - "Trace Stale Total"
 Cohesion: 0.18
 Nodes (8): admin, archived, CANDIDATES, env, pageSrc, rows, TODAY, year
 
-### Community 179 - "Task Board Attachment"
+### Community 179 - "Attach Task Board"
 Cohesion: 0.22
 Nodes (9): section_time_project_id(), task_time_project_id(), project_sections, project_tasks, section_project_id(), section_time_project_id(), auth, task_project_id() (+1 more)
 
@@ -1268,7 +1273,7 @@ Nodes (9): 1. The API works, and two of its behaviours will bite, 2. Attendance 
 Cohesion: 0.20
 Nodes (9): Before anything else: uncommitted work does not travel, Deliberately not transferred, Moving this project to a new PC, On the new PC, On the old PC, Three things that fail silently, Verified, What already travels with `git clone` (+1 more)
 
-### Community 183 - "Agent References Check"
+### Community 183 - "Agent References"
 Cohesion: 0.20
 Nodes (6): allFiles, fs, path, pkg, results, total
 
@@ -1276,7 +1281,7 @@ Nodes (6): allFiles, fs, path, pkg, results, total
 Cohesion: 0.20
 Nodes (8): actions, actionsPath, all, board, boardPath, checks, fs, path
 
-### Community 185 - "Contract UI Check"
+### Community 185 - "Contract UI"
 Cohesion: 0.20
 Nodes (7): actions, exported, migration, page, panel, perms, queries
 
@@ -1288,15 +1293,15 @@ Nodes (5): cols, foundation, legalFields, schema, stgPolicies
 Cohesion: 0.24
 Nodes (8): actionable(), cases, m, re, REPO, src, throttled(), verdict()
 
-### Community 188 - "Mobile Sheet Check"
+### Community 188 - "Mobile Sheet"
 Cohesion: 0.20
 Nodes (5): env, env, H, n(), token
 
-### Community 189 - "Work Survives Nulls"
+### Community 189 - "My Work Survives Nulls"
 Cohesion: 0.20
 Nodes (7): allMeasured, cg, partial, q, REPO, rows, summed
 
-### Community 190 - "Org Chart Check"
+### Community 190 - "Org Chart"
 Cohesion: 0.20
 Nodes (4): dir, mod, peopleStub, req
 
@@ -1304,11 +1309,11 @@ Nodes (4): dir, mod, peopleStub, req
 Cohesion: 0.20
 Nodes (8): block, c, doc, env, omitted, populated, src, written
 
-### Community 192 - "Schema Execution Check"
+### Community 192 - "Schema Executes"
 Cohesion: 0.20
 Nodes (8): expectedFns, expectedTables, got, gotFns, missingFns, missingTables, sql, upd
 
-### Community 193 - "Sync Schedule Check"
+### Community 193 - "Sync Schedule Alive"
 Cohesion: 0.22
 Nodes (7): c, env, gaps, isScheduled(), manual, scheduled, sinceLast
 
@@ -1324,11 +1329,11 @@ Nodes (10): BrokenCoverPanel(), kindLabel, BrokenCoverKind, BrokenCoverProject, 
 Cohesion: 0.20
 Nodes (5): ACTIONS, here, PAGE, root, TRACKER
 
-### Community 197 - "Absence Responsibility"
+### Community 197 - "Absence vs Responsibility"
 Cohesion: 0.22
 Nodes (9): absentToday, c, call(), emailByEmployee, env, fetchAll(), ADR-0001, today (+1 more)
 
-### Community 198 - "Member Provisioning"
+### Community 198 - "Provision Members"
 Cohesion: 0.20
 Nodes (9): admin, APPLY, eligible, env, INVITE, profiledUserIds, ROLE_MAP, skipped (+1 more)
 
@@ -1336,19 +1341,19 @@ Nodes (9): admin, APPLY, eligible, env, INVITE, profiledUserIds, ROLE_MAP, skipp
 Cohesion: 0.38
 Nodes (5): setBillableRate(), SetBillableRateResult, BillableRatePanel(), handleSubmit(), BillableValueRow
 
-### Community 200 - "SSO Setup"
+### Community 200 - "SSO Google Microsoft"
 Cohesion: 0.22
 Nodes (8): 1. Supabase redirect URLs, 2. Google, 3. Microsoft, Google and Microsoft sign-in, Notes for whoever changes this next, Setup, Verifying it, What signing in does and does not do
 
-### Community 201 - "Deployment Setup"
+### Community 201 - "Deployment"
 Cohesion: 0.22
 Nodes (9): Deployment, Design system, Local setup, Pages, Roles & access, Stack, supabase-app (HSE Hub), Supabase setup (+1 more)
 
-### Community 202 - "Contract Migrations"
+### Community 202 - "Apply Contract Migrations"
 Cohesion: 0.22
 Nodes (5): client, DRY, env, FILES, fns
 
-### Community 203 - "RLS Hoisting"
+### Community 203 - "Apply RLS Hoisting"
 Cohesion: 0.22
 Nodes (6): admin, alreadyHoisted, client, env, qualNow, ROLLBACK
 
@@ -1356,7 +1361,7 @@ Nodes (6): admin, alreadyHoisted, client, env, qualNow, ROLLBACK
 Cohesion: 0.22
 Nodes (7): consoleErrors, env, failedRequests, realFails, ROUTES, rows, slow
 
-### Community 205 - "Admin User Writes"
+### Community 205 - "Admin Checks"
 Cohesion: 0.22
 Nodes (5): admin, dir, env, RFC-2606, req
 
@@ -1368,7 +1373,7 @@ Nodes (6): check(), eq(), fmt(), rejects, formatDuration(), parseDuration()
 Cohesion: 0.28
 Nodes (7): accepts(), check(), fpr, rejects(), REPO, sql, wes
 
-### Community 208 - "Google Client Manageable"
+### Community 208 - "Google Client Management"
 Cohesion: 0.22
 Nodes (6): accounts, adcPath, env, needsReauth, probe, token
 
@@ -1424,11 +1429,11 @@ Nodes (6): { execFileSync }, files, fs, graders, rerunExists, untested
 Cohesion: 0.25
 Nodes (7): DO NOT MERGE (he says so himself, and he is right), MERGE AS-IS (high quality, fits our conventions), MERGE WITH ADAPTATION, Order of operations, Review: feature/customer-dashboard-development (Bjoern, 27 commits, +6,330), Verdict by area, What we still need from his machine
 
-### Community 223 - "TASK for v3code Tables"
+### Community 223 - "Task for V3Code Tables"
 Cohesion: 0.25
 Nodes (7): Claims, Ground rules, Task for V3Code — the long-scroll table problem (2026-08-24 ~18:50Z), The key insight, The measurement, so nobody re-derives it, What would help most from you, Who owns what right now (4 jcode agents, live)
 
-### Community 224 - "MODULE GO LIVE"
+### Community 224 - "Module Go Live"
 Cohesion: 0.25
 Nodes (7): 1. Apply the schema, 2. Expose the schema to PostgREST, 3. Correct the module tile if it predates the page, Checking it, Going live with a module schema, The trap, The two steps
 
@@ -1440,291 +1445,303 @@ Nodes (8): 6.1 The actual current state `[live DB, 2026-08-26]`, 6.2 `public.peo
 Cohesion: 0.25
 Nodes (7): Recommended fix, in order, The eight mis-named orders are a spreadsheet problem, not an import bug, The judgement calls, which are yours, What is actually true, What was deliberately not done, What was suspected, Why that matters more, not less
 
-### Community 227 - "Stale Entry"
+### Community 227 - "Sandbox"
 Cohesion: 0.25
 Nodes (7): Getting work back into the hub portal, Security: what a sandbox may never contain, Seeding realistic data without production credentials, Setting up a sandbox (once), The sandbox workflow: experiment freely, merge deliberately, The three rules that matter, What the main repo owes the sandbox
 
-### Community 228 - "Unlawful TT Links"
+### Community 228 - "Add Overview Chart Notes"
 Cohesion: 0.25
 Nodes (7): billableNote, gaugeAt, gaugeNote, idxBillable, idxGauge, lines, src
 
-### Community 229 - "Drop Netflix Demo"
+### Community 229 - "Audit Data Inefficiencies"
 Cohesion: 0.25
 Nodes (6): broke, c, clean, env, findings, live
 
-### Community 230 - "Link TT to Hub Projects"
+### Community 230 - "Audit Pipeline"
 Cohesion: 0.29
 Nodes (6): c, env, one(), pctH, problems, q()
 
-### Community 231 - "Recheck Agent Claim"
+### Community 231 - "Backfill Project Department"
 Cohesion: 0.25
 Nodes (5): APPLY, client, INFER_SERVICE, env, t()
 
-### Community 232 - "App Loading"
+### Community 232 - "Check Agent Claims"
 Cohesion: 0.25
 Nodes (6): board, firstFn, firstRolePolicy, fs, pkg, schema
 
-### Community 233 - "App Role"
-Cohesion: 0.46
-Nodes (4): Avatar(), colorForName(), initialsOf(), PALETTE
+### Community 233 - "Permission Enforcement"
+Cohesion: 0.22
+Nodes (5): REQUIRED_GRANTS, ROUTES, env, rest(), key()
 
-### Community 235 - "Colleague Branch Review"
+### Community 235 - "Dashboard Acceptance"
 Cohesion: 0.25
 Nodes (5): admin, anonClient, app, env, results
 
-### Community 236 - "TASK for v3code Tables"
+### Community 236 - "Economics Scope"
 Cohesion: 0.25
 Nodes (3): callAt, pageSrc, unattributed
 
-### Community 237 - "MODULE GO LIVE"
+### Community 237 - "External Staff Assignable"
 Cohesion: 0.25
 Nodes (6): admin, c, env, src, stefan, ui
 
-### Community 238 - "Current State"
+### Community 238 - "Factorial Classifier Schema Agree"
 Cohesion: 0.25
 Nodes (6): cases, claimed, members, REPO, seen, sql
 
-### Community 239 - "Order Name Corruption"
+### Community 239 - "Lint Scope"
 Cohesion: 0.25
 Nodes (6): eslintCfg, eslintCfgRaw, fs, gitignore, gitNextDirs, globCoversAll
 
-### Community 240 - "Stale Entry"
+### Community 240 - "Login Redirect"
 Cohesion: 0.29
 Nodes (6): fn, hostile, naive(), naiveLeaks, safeRedirect, src
 
-### Community 241 - "Unlawful TT Links"
+### Community 241 - "OAuth Success Path Live"
 Cohesion: 0.25
 Nodes (4): admin, app, env, stamp
 
-### Community 242 - "Drop Netflix Demo"
+### Community 242 - "Page Length"
 Cohesion: 0.25
 Nodes (4): admin, anon, cookies, env
 
-### Community 243 - "Link TT to Hub Projects"
+### Community 243 - "Parallel Paging"
 Cohesion: 0.25
 Nodes (4): CASES, env, root, supabase
 
-### Community 244 - "Recheck Agent Claim"
+### Community 244 - "Paste SQL"
 Cohesion: 0.25
 Nodes (3): overbooking, paste, schema
 
-### Community 245 - "App Loading"
+### Community 245 - "People Filters Live"
 Cohesion: 0.25
 Nodes (5): admin, anon, cookies, env, errors
 
-### Community 246 - "App Role"
+### Community 246 - "Permissions"
 Cohesion: 0.29
 Nodes (6): as(), can(), codeKeys, dbSet, missingInCode, missingInDb
 
-### Community 247 - "Request Cache"
+### Community 247 - "Report Panels"
 Cohesion: 0.25
 Nodes (6): actions, code, deleteBody, entryBody, profileBody, src
 
-### Community 248 - "Colleague Branch Review"
-Cohesion: 0.25
-Nodes (6): c, env, ADR-0001, nullable, REPO, src
+### Community 248 - "App Layout"
+Cohesion: 0.29
+Nodes (5): FactorialHoursPanel(), h(), MATCH_LABEL, FactorialHoursReport, PersonComparison
 
-### Community 249 - "TASK for v3code Tables"
+### Community 249 - "PG Types"
 Cohesion: 0.25
 Nodes (6): admin, anon, asThem, env, memberIdsSeen, subject
 
-### Community 250 - "MODULE GO LIVE"
+### Community 250 - "Apply Permissions"
 Cohesion: 0.25
 Nodes (4): checks, { execFileSync }, head, remoteFiles
 
-### Community 251 - "Current State"
+### Community 251 - "Add Project Change Control"
 Cohesion: 0.29
 Nodes (5): admin, anon, env, median(), runs()
 
-### Community 253 - "Stale Entry"
+### Community 253 - "AGENTS"
 Cohesion: 0.29
 Nodes (5): dbUrl, hse, mod, page, read()
 
-### Community 254 - "Unlawful TT Links"
+### Community 254 - "TrackingTime API Questions"
 Cohesion: 0.25
 Nodes (5): admin, anon, cookies, env, errors
 
-### Community 255 - "Drop Netflix Demo"
+### Community 255 - "Asana README"
 Cohesion: 0.25
 Nodes (6): c, env, found, ORDER_SHEETS, TARGETS, wb
 
-### Community 256 - "Link TT to Hub Projects"
+### Community 256 - "Phased Implementation Plan"
 Cohesion: 0.25
 Nodes (7): c, codeKeys, codeSet, dbKeys, dbSet, env, src
 
-### Community 257 - "Recheck Agent Claim"
+### Community 257 - "Live People Data Map"
 Cohesion: 0.29
 Nodes (5): HERE, SOURCE, threw(), tt, unwrap()
 
-### Community 258 - "App Loading"
+### Community 258 - "Diagnose Google Error"
 Cohesion: 0.29
 Nodes (7): coherent, DRY, report, spanDays(), suspicious, timeDb, today
 
-### Community 259 - "App Role"
+### Community 259 - "Apply Modules"
 Cohesion: 0.25
 Nodes (5): args, env, results, ROUTES, RUNS
 
-### Community 260 - "Request Cache"
+### Community 260 - "Auth Gates"
 Cohesion: 0.39
 Nodes (6): CRED_PATH, DEFAULT_PROJECT, freshAccessToken(), loadStoredCreds(), oauthClient(), auth
 
-### Community 261 - "Colleague Branch Review"
+### Community 261 - "Charts UI"
 Cohesion: 0.25
 Nodes (6): db, DRY, orderByTT, previews, sums, timeDb
 
-### Community 262 - "TASK for v3code Tables"
+### Community 262 - "Content Width"
 Cohesion: 0.25
 Nodes (7): admin, anon, cookie, env, MAX_WAIT_MS, parts, started
 
-### Community 263 - "Billable Report"
-Cohesion: 0.23
-Nodes (9): BillableDonut(), hrs(), age(), FreshnessBanner(), hrs(), stamp(), TotalsStrip(), SyncFreshness (+1 more)
+### Community 263 - "Latency Variance"
+Cohesion: 0.36
+Nodes (6): age(), FreshnessBanner(), hrs(), stamp(), TotalsStrip(), SyncFreshness
 
-### Community 264 - "Current State"
+### Community 264 - "Data Hygiene Disclosure"
 Cohesion: 0.25
 Nodes (6): cormorant, jetbrains, metadata, plusJakarta, poppins, spaceGrotesk
 
-### Community 265 - "Order Name Corruption"
+### Community 265 - "Data Hygiene Gate Discriminates"
 Cohesion: 0.25
 Nodes (5): pg, Pool, PoolConfig, QueryResult, QueryResultRow
 
-### Community 266 - "Stale Entry"
+### Community 266 - "My Work Browser Flow"
 Cohesion: 0.43
 Nodes (7): app_module, app_permission, app_role_permission, app_user_has_permission(), app_user_modules(), platform_decision, auth.users
 
-### Community 267 - "Unlawful TT Links"
+### Community 267 - "Order Detail Page"
 Cohesion: 0.39
 Nodes (5): public.project_change_event, public.project_change_request, auth.users, public.people, public.projects
 
-### Community 268 - "Drop Netflix Demo"
-Cohesion: 0.22
-Nodes (9): app_role, app_user_department(), app_user_person_id(), app_user_profile, app_user_role(), files, leave_requests, platform_decision (+1 more)
+### Community 268 - "People and Filters UI"
+Cohesion: 0.25
+Nodes (8): app_user_department(), app_user_person_id(), app_user_profile, app_user_role(), files, leave_requests, platform_decision, auth.users
 
-### Community 269 - "Link TT to Hub Projects"
+### Community 269 - "Records Tabs"
 Cohesion: 0.29
 Nodes (6): Installed agent toolkits: gstack, everything-claude-code, graphify, Skill routing: reach for these by default, not on request, These sit ON TOP of this repo's checks, never instead of them, This is NOT the Next.js you know, UI work: read docs/UI-CONVENTIONS.md first, Use the knowledge graph first
 
-### Community 270 - "Recheck Agent Claim"
+### Community 270 - "Redirect Allowlist"
 Cohesion: 0.29
 Nodes (7): 12.1 Does TrackingTime expose project budgets via API?, 12.2 Where does `billable_rate` come from?, 12.3 Currency, 12.4 Lexoffice is not in this schema, 12.5 The Google Sheet, 12.6 Samdock API maturity, 12. Open questions and assumptions
 
-### Community 271 - "App Loading"
+### Community 271 - "Team Analysis UI"
 Cohesion: 0.29
 Nodes (6): Asana backlog import, Assignees, How to import, Regenerating, The contract this file obeys, Why a CSV and not the API
 
-### Community 272 - "App Role"
+### Community 272 - "Brand Mark"
 Cohesion: 0.29
 Nodes (7): 10. Phased implementation plan, Phase 0 — Credentials, contract pinning, zero writes, Phase 1 — Read-only harvest into staging, Phase 2 — Identity resolution and the review queue, Phase 3 — Weekly rollup into `weekly_employee_summary`, Phase 4 — Enrich `people`, then org structure, Phase 5 — Optional: targeted webhooks
 
-### Community 273 - "Request Cache"
+### Community 273 - "Time Dashboard Render"
 Cohesion: 0.29
 Nodes (6): Data quality notes, Live TrackingTime members vs the mockup `people` table, The two tables, Two measurement traps hit while producing this, What still keys off the mockup table, Who counts as "the people to show"
+
+### Community 274 - "Factorial Contract Hours"
+Cohesion: 0.29
+Nodes (6): env, g, googleUrl, SIGNS, state, text
 
 ### Community 275 - "Time Dashboard"
 Cohesion: 0.39
 Nodes (11): getCustomerSummary(), getMemberUtilisation(), getOrgWeeks(), getProjectEconomics(), getProjectSummary(), getServiceSummary(), loadSyncFreshness(), num() (+3 more)
 
-### Community 276 - "MODULE GO LIVE"
+### Community 276 - "Promote Customer Master"
 Cohesion: 0.29
 Nodes (5): committed, cut, publicOnly, regenerated, schema
 
-### Community 277 - "Current State"
+### Community 277 - "Prove View Gate Catches Bug"
 Cohesion: 0.29
 Nodes (4): middleware, publicRoutes, publicRoutesBlock, routes
 
-### Community 278 - "Order Name Corruption"
+### Community 278 - "Report Customer Matching"
 Cohesion: 0.29
 Nodes (5): admin, anon, cookies, env, errors
 
-### Community 279 - "Stale Entry"
+### Community 279 - "Run All Gates"
 Cohesion: 0.29
 Nodes (4): appFiles, css, shellUsers, stragglers
 
-### Community 281 - "Drop Netflix Demo"
+### Community 280 - "Verify Magic Link Flow"
+Cohesion: 0.29
+Nodes (4): admin, anon, app, env
+
+### Community 281 - "Proxy"
 Cohesion: 0.33
 Nodes (3): env, mintLink(), openPage()
 
-### Community 282 - "Link TT to Hub Projects"
+### Community 282 - "Password Strength"
 Cohesion: 0.29
 Nodes (5): FIXTURE_GATES, GATES, liveSkips, MUTATIONS, TS
 
-### Community 283 - "Recheck Agent Claim"
+### Community 283 - "Status Badge"
 Cohesion: 0.29
 Nodes (4): env, jar, needles, roleWords
 
-### Community 285 - "App Role"
+### Community 285 - "check-people-and-filters-ui.mjs"
 Cohesion: 0.29
 Nodes (5): admin, anon, cookies, env, errors
 
-### Community 286 - "Request Cache"
+### Community 286 - "check-records-tabs.mjs"
 Cohesion: 0.29
 Nodes (4): dashSrc, sheetsSrc, tabsSrc, timeSrc
 
-### Community 287 - "Colleague Branch Review"
+### Community 287 - "check-redirect-allowlist.mjs"
 Cohesion: 0.29
 Nodes (5): cases, env, failures, SITE, URL_BASE
 
-### Community 288 - "TASK for v3code Tables"
+### Community 288 - "check-team-analysis-ui.mjs"
 Cohesion: 0.38
 Nodes (5): admin, cookiesFor(), env, pageText(), wait()
 
-### Community 291 - "Order Name Corruption"
+### Community 289 - "MobileSidebar.tsx"
+Cohesion: 0.33
+Nodes (5): BrandMark(), BrandMarkProps, PIECES, MobileSidebarDrawer(), MobileSidebarProps
+
+### Community 291 - "diagnose-factorial-contract-hours.mjs"
 Cohesion: 0.29
 Nodes (4): candidateFields, env, rows, weekly
 
-### Community 292 - "Stale Entry"
+### Community 292 - "diagnose-factorial-credential-shape.mjs"
 Cohesion: 0.29
 Nodes (3): env, keys, ownerish
 
-### Community 293 - "Unlawful TT Links"
+### Community 293 - "StatusBadge.tsx"
 Cohesion: 0.40
 Nodes (5): STATUS_TONE, StatusBadge(), Tone, TONE_CLASS, toneForStatus()
 
-### Community 294 - "Drop Netflix Demo"
+### Community 294 - "promote-customer-master.mjs"
 Cohesion: 0.29
 Nodes (4): client, DRY, env, ADR-0001
 
-### Community 295 - "Link TT to Hub Projects"
+### Community 295 - "prove-view-gate-catches-bug.mjs"
 Cohesion: 0.29
 Nodes (5): bad, c, env, FIXED, good
 
-### Community 296 - "Recheck Agent Claim"
+### Community 296 - "report-customer-matching.mjs"
 Cohesion: 0.43
 Nodes (6): env, LEGAL_FORMS, main(), makeClient(), normName(), stripLegalForm()
 
-### Community 297 - "App Loading"
+### Community 297 - "run-all-gates.mjs"
 Cohesion: 0.29
 Nodes (5): broken, idx, names, pkg, results
 
-### Community 298 - "App Role"
+### Community 298 - "verify-magic-link-flow.mjs"
 Cohesion: 0.29
 Nodes (5): env, H, hasCode, hasHashTokens, token
 
-### Community 299 - "Request Cache"
+### Community 299 - "proxy.ts"
 Cohesion: 0.38
 Nodes (5): config, proxy(), PUBLIC_PREFIXES, PUBLIC_ROUTES, updateSession()
 
-### Community 300 - "Colleague Branch Review"
+### Community 300 - "APPLY-THESE-MIGRATIONS.md"
 Cohesion: 0.33
 Nodes (5): 1. `add_contract_periods.sql`, 2. `add_budget_alert_visibility.sql`, Optional: turn on email, Then: record the WorkMotion contract, Two migrations to apply — contract periods and budget alerts
 
-### Community 301 - "TASK for v3code Tables"
+### Community 301 - "Identity Resolution"
 Cohesion: 0.33
 Nodes (6): 7.1 The problem, 7.2 `person_identity_map`, 7.3 `identity_review_queue`, 7.4 Effective dating, 7.5 Vendor-neutral CRM, 7. Layer 3 — Identity resolution
 
-### Community 302 - "MODULE GO LIVE"
+### Community 302 - "OAuth2 Authentication"
 Cohesion: 0.33
 Nodes (6): 1.1 The two methods, 1.2 Decision: use an OAuth2 **company** token, 1.3 The company-token flow, exactly, 1.4 Scopes required, per endpoint we need, 1.5 Refresh flow, 1. Authentication
 
-### Community 303 - "Current State"
+### Community 303 - "Versioning and URLs"
 Cohesion: 0.33
 Nodes (6): 2.1 Current version string, 2.2 How versions are pinned, 2.3 Base URLs, 2.4 Demo environment for testing, 2.5 Machine-readable spec, 2. Versioning and base URLs
 
-### Community 304 - "Order Name Corruption"
+### Community 304 - "Contract and Compensation"
 Cohesion: 0.33
 Nodes (6): 7.1 Real contract weekly hours — the headline fix, 7.2 Absences and leave — fixes the utilisation denominator, 7.3 Terminations and hire dates, 7.4 Legal entity and team structure, 7.5 Compensation — available, deliberately not taken yet, 7. What Factorial gives us that TrackingTime cannot
 
-### Community 305 - "Stale Entry"
+### Community 305 - "Database Schema"
 Cohesion: 0.33
 Nodes (6): 9.1 What already exists `[live DB]`, 9.2 Additive columns on the existing mapping table, 9.3 The review queue, 9.4 Staging tables, 9.5 How it lands in the existing tables, 9. Proposed schema
 
@@ -1732,7 +1749,7 @@ Nodes (6): 9.1 What already exists `[live DB]`, 9.2 Additive columns on the exis
 Cohesion: 0.33
 Nodes (5): Cards vs controls (the judgment call), Reference implementation, The house tokens, for any new list UI, The rules, UI conventions: long lists, tables, and review queues
 
-### Community 307 - "Timesheet and Project Data"
+### Community 307 - "Timesheet and Projects"
 Cohesion: 0.47
 Nodes (5): public.timesheet_entries, public.billable_value_by_person, public.project_budget_status, public.people, public.projects
 
@@ -1744,13 +1761,21 @@ Nodes (5): block, keys, m, out, src
 Cohesion: 0.33
 Nodes (4): before, c, env, VIEWS
 
+### Community 310 - "Audit Live DB"
+Cohesion: 0.33
+Nodes (4): counts, env, findings, rest()
+
 ### Community 311 - "Audit Performance and Permissions"
 Cohesion: 0.33
 Nodes (3): c, env, MISSING
 
-### Community 312 - "Check Feature Reachability"
+### Community 312 - "Check Feature Reachable"
 Cohesion: 0.33
 Nodes (4): linkCandidates, linkedFrom, pickerCandidates, pickerFile
+
+### Community 313 - "Check Factorial Auth"
+Cohesion: 0.33
+Nodes (3): env, failures, REQUIRED_SCOPES
 
 ### Community 314 - "Check HR Role Migration"
 Cohesion: 0.33
@@ -1856,15 +1881,15 @@ Nodes (4): byKey, db, NEEDED, timeDb
 Cohesion: 0.33
 Nodes (3): final, original, originalHash
 
-### Community 346 - "Project Permissions"
-Cohesion: 0.31
-Nodes (11): public.can_view_project(), can_view_project(), can_view_person(), can_view_project(), org_chart_nodes, people, person_assignments, person_qualifications (+3 more)
+### Community 346 - "Person Permissions"
+Cohesion: 0.40
+Nodes (6): can_view_person(), org_chart_nodes, people, person_qualifications, timesheet_entries, weekly_bookings
 
 ### Community 347 - "Dashboard Wireframes"
 Cohesion: 0.40
 Nodes (5): 3. Dashboard Wireframes by Role, CEO / Exec — the flagship, Department Head, Employee, Project Manager
 
-### Community 348 - "Indexes and Security"
+### Community 348 - "Cross-cutting Concerns"
 Cohesion: 0.40
 Nodes (5): 11.1 Indexes, 11.2 Row-level security, 11.3 Refresh strategy, 11.4 Data quality checks, 11. Cross-cutting concerns
 
@@ -1872,11 +1897,11 @@ Nodes (5): 11.1 Indexes, 11.2 Row-level security, 11.3 Refresh strategy, 11.4 Da
 Cohesion: 0.40
 Nodes (5): 3.1 Raw, 3.2 Staging, 3.3 Analytics, 3.4 Metric views, 3. The layered architecture
 
-### Community 350 - "Ingestion and Sync"
+### Community 350 - "Ingestion & Sync"
 Cohesion: 0.40
 Nodes (5): 5. Layer 1 — Ingestion & sync, `raw_record`, `sync_cursor`, `sync_run`, `sync_source`
 
-### Community 351 - "App, Auth, and Audit"
+### Community 351 - "App, Auth & Audit"
 Cohesion: 0.40
 Nodes (5): 9. Layer 5 — App, auth & audit, `app_role` / `role_permission`, `app_user_profile`, `audit_log`, `notification`
 
@@ -1988,27 +2013,27 @@ Nodes (4): 8.1 What the webhook mechanism actually guarantees, 8.2 Available sub
 Cohesion: 0.50
 Nodes (3): c, env, sql
 
-### Community 409 - "Blind Accounts"
+### Community 409 - "Diagnose Blind Accounts"
 Cohesion: 0.50
 Nodes (3): blind, c, env
 
-### Community 423 - "Frontend Agent"
+### Community 423 - "Grade Frontend Agent"
 Cohesion: 0.50
 Nodes (3): control, KEY, treatment
 
-### Community 424 - "Permission Gate Fix"
+### Community 424 - "Fix Permission Gate Regex"
 Cohesion: 0.50
 Nodes (3): note, out, src
 
-### Community 425 - "Machine State Export"
+### Community 425 - "Export Machine State"
 Cohesion: 0.83
 Nodes (3): Add-Result(), Copy-One(), Copy-Tree()
 
-### Community 427 - "Probe Accounts Purge"
+### Community 427 - "Purge Probe Accounts"
 Cohesion: 0.50
 Nodes (3): APPLY, env, RFC-2606
 
-### Community 428 - "Bypasses Revert"
+### Community 428 - "Revert Deliberate Bypasses"
 Cohesion: 0.50
 Nodes (3): c, env, seen
 
@@ -2024,7 +2049,7 @@ Nodes (3): classify(), GET(), PROVIDERS
 Cohesion: 0.50
 Nodes (3): crm.factorial_identity_review, auth.users, public.people
 
-### Community 441 - "Member Utilisation Bound"
+### Community 441 - "Bound Member Utilisation"
 Cohesion: 0.50
 Nodes (3): time.entry, time.member, time.member_utilisation
 
@@ -2032,7 +2057,7 @@ Nodes (3): time.entry, time.member, time.member_utilisation
 Cohesion: 0.50
 Nodes (3): Agent task template, Routing, Worked example
 
-### Community 443 - "Project Sections"
+### Community 443 - "Public Project Sections"
 Cohesion: 0.67
 Nodes (3): public.project_sections, public.project_tasks, time.project
 
@@ -2044,25 +2069,45 @@ Nodes (3): grantExtra, grantMissing, pair()
 Cohesion: 0.67
 Nodes (3): contrast(), lum1(), relL()
 
+### Community 523 - "Diagnose Null Assignments"
+Cohesion: 0.33
+Nodes (5): env, get(), nameToProjects, nulls, personName
+
+### Community 529 - "Set Sync Secrets"
+Cohesion: 0.33
+Nodes (4): dryRun, env, missing, REQUIRED
+
+### Community 565 - "Budget Panel"
+Cohesion: 0.50
+Nodes (3): BudgetPanel(), euro(), ProjectBudgetStatusRow
+
+### Community 566 - "Read Prod Total"
+Cohesion: 0.50
+Nodes (3): admin, anon, env
+
+### Community 569 - "check-projects-admit-unmeasured.mjs"
+Cohesion: 0.25
+Nodes (6): c, env, ADR-0001, nullable, REPO, src
+
 ## Knowledge Gaps
-- **3054 isolated node(s):** `EntryRow`, `FactorialPerson`, `FactorialPresence`, `FactorialTeam`, `SupabaseTyped` (+3049 more)
+- **3054 isolated node(s):** `BillableTrend`, `BillableTrendPoint`, `ExecutiveMetricRow`, `PersonAssignmentRow`, `PersonQualificationRow` (+3049 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **120 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **125 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Database` connect `Database` to `Time Tracking`, `Budget Panel`, `Audit System`, `Report Filters`, `Management Data Quality`, `Alerts`, `Employee Ownership`, `Time Dashboard`, `Management Actions`, `Overview Filters`, `User Permissions`, `Auth Pages`, `Management Multi Service Matrix`, `Board Range Filter`, `Org Chart`, `Contract Watchlist`, `Customer Portfolio`, `Management Project Risks`, `Broken Cover Panel`, `Management Customer Mapping`, `Data Hygiene`, `User Management`, `Profile Actions`, `Management Service Overview`, `People Live`?**
+- **Why does `Database` connect `Database` to `Time Tracking`, `Factorial Client`, `Dashboard`, `Management Data Quality`, `Employee Ownership`, `Time Dashboard`, `Management Actions`, `Overview Filters`, `Timesheets`, `Alert System`, `Authentication`, `Multi Service Matrix`, `Board Range Filter`, `Org Actions`, `Contract Management`, `Project Panels`, `Project Risks Management`, `Broken Cover Panel`, `Customer Mapping`, `Data Hygiene`, `User Management`, `Profile Management`, `Types`, `People Live`?**
   _High betweenness centrality (0.020) - this node is a cross-community bridge._
-- **Why does `loadEnv()` connect `External Staff Migration` to `Colleague Branch Review`, `TASK for v3code Tables`, `Factorial Identity Baseline`, `Check Responsibility Encodings`, `Factorial Pager`, `Factorial Harvest Check`, `Customer Agreement Rule`, `MODULE GO LIVE`, `Order Hours Freshness Check`, `Order Name Corruption`, `Replacement Coverage Check`, `Management People Complete Check`, `Drop Netflix Demo`, `App Role`?**
-  _High betweenness centrality (0.012) - this node is a cross-community bridge._
-- **Why does `createClient()` connect `User Permissions` to `Profile Management`, `Time Tracking`, `Budget Alerts`, `toggleRolePermission`, `BillableRatePanel.tsx`, `Team Lead Actions`, `Team Analysis`, `Projects`, `Alerts`, `App Layout`, `Access Pending`, `Management Actions`, `Contract Watchlist`, `Timesheets`, `Leave Actions`, `Tracking Time Dashboard`, `User Management`, `Profile Actions`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
-- **What connects `EntryRow`, `FactorialPerson`, `FactorialPresence` to the rest of the system?**
+- **Why does `loadEnv()` connect `Data Hygiene` to `check-team-analysis-ui.mjs`, `Factorial Identity Baseline`, `Check Responsibility Encodings`, `Factorial Pager`, `Factorial Harvest`, `ADR001 Rule Discrimination`, `External Staff Assignable`, `check-projects-admit-unmeasured.mjs`, `Order Hours Freshness`, `Report Customer Matching`, `Replacement Coverage`, `Management People Complete`, `Proxy`, `check-people-and-filters-ui.mjs`?**
+  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+- **Why does `t()` connect `Backfill Project Department` to `Identity Links`, `Audit Timesheet Links`, `Stranger Cannot Read`, `Profile Dashboard Render`, `Promote Customer Master`?**
+  _High betweenness centrality (0.013) - this node is a cross-community bridge._
+- **What connects `BillableTrend`, `BillableTrendPoint`, `ExecutiveMetricRow` to the rest of the system?**
   _3054 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Project Management` be split into smaller, more focused modules?**
   _Cohesion score 0.009433962264150943 - nodes in this community are weakly interconnected._
 - **Should `React Components` be split into smaller, more focused modules?**
   _Cohesion score 0.060678962844159315 - nodes in this community are weakly interconnected._
 - **Should `Time Tracking` be split into smaller, more focused modules?**
-  _Cohesion score 0.05506329113924051 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05299608551641072 - nodes in this community are weakly interconnected._

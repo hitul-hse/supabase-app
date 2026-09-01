@@ -89,23 +89,35 @@ try {
     membersByEmail.get(key).push({ id: m.id, hub_person_id: m.hub_person_id });
   }
   const claimed = await db.query(
-    `select person_id from crm.factorial_person_reference
+    `select external_id, person_id from crm.factorial_person_reference
       where source_system = 'factorial' and entity_type = 'person'
         and account_ref = $1 and is_active`,
     [COMPANY],
   );
+  /*
+   * Two views of the same rows, because "claimed" must mean claimed by SOMEONE
+   * ELSE. The first run of this script proved why: on run two, every mapped
+   * employee found their own person in the claimed set and came back
+   * "ambiguous" -- 17 colleagues flagged for stealing their own identity.
+   * An employee with an existing mapping short-circuits below and never
+   * re-enters classification at all; the claimed set guards the rest.
+   */
+  const mappedByEmployee = new Map(claimed.rows.map((r) => [String(r.external_id), r.person_id]));
   const claimedPersonIds = new Set(claimed.rows.map((r) => r.person_id));
-  console.log(`hub: ${members.rows.length} members with email, ${claimedPersonIds.size} people already claimed`);
+  console.log(`hub: ${members.rows.length} members with email, ${claimedPersonIds.size} people already mapped`);
 
   /* ── 3. Classify every employee; the claimed set grows as we go so two
    *      Factorial records can never resolve to the same person in one run ── */
   const buckets = { resolvable: [], unmatched: [], bridged_unlinked: [], ambiguous: [] };
+  let alreadyMapped = 0;
   for (const e of employees) {
+    if (mappedByEmployee.has(String(e.id))) { alreadyMapped += 1; continue; }
     const verdict = classifyEmployee(e, membersByEmail, claimedPersonIds);
     if (verdict.status === "resolvable") claimedPersonIds.add(verdict.personId);
     (buckets[verdict.status] ??= []).push({ employee: e, verdict });
   }
   console.log("");
+  console.log(`  already mapped    ${String(alreadyMapped).padStart(3)} (untouched)`);
   for (const [status, list] of Object.entries(buckets)) {
     console.log(`  ${status.padEnd(16)} ${String(list.length).padStart(3)}`);
   }
@@ -186,8 +198,29 @@ try {
     }
   }
 
+
+  /*
+   * Heal: an employee with an active mapping must not also sit open in the
+   * queue. The buggy first version of run two put 17 mapped colleagues there
+   * as "ambiguous"; this closes such rows to resolved_auto on every write,
+   * so that state cannot survive a sync no matter how it arose.
+   */
+  let healed = 0;
+  for (const [extId, personId] of mappedByEmployee) {
+    const h = await db.query(
+      `update crm.factorial_identity_review
+          set status = 'resolved_auto',
+              candidate_person_id = $3,
+              status_reason = 'employee already carries an active mapping',
+              last_seen_at = now()
+        where factorial_company_id = $1 and factorial_employee_id = $2
+          and status = any($4) and status <> 'resolved_auto'`,
+      [COMPANY, extId, personId, MACHINE_STATUSES],
+    );
+    healed += h.rowCount;
+  }
   await db.query("commit");
-  console.log(`\nwritten: ${mapped} mappings, ${queued} queue rows upserted, ${autoClosed} auto-closed.`);
+  console.log(`\nwritten: ${mapped} mappings, ${queued} queue rows upserted, ${autoClosed + healed} auto-closed.`);
   console.log("Open the review queue to decide the rest — a machine may not.");
 } catch (err) {
   try { await db.query("rollback"); } catch { /* not in a tx */ }

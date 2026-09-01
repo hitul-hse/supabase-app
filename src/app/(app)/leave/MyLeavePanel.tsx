@@ -6,7 +6,7 @@ import type { LeaveRequestRow, LeaveBalanceRow } from "@/lib/queries/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader, CardDivider } from "@/components/ui/Card";
+import { Card, CardDivider } from "@/components/ui/Card";
 import { TextInput } from "@/components/ui/Field";
 import { IconArrowRight, IconCross } from "@/components/nav-icons";
 

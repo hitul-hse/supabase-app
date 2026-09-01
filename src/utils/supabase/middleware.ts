@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { proxiedOrigin } from "@/utils/proxied-origin";
 
 // Reachable without a session. /auth/set-password has to be here even though
 // it is only useful to an invited user: the invite's credential can arrive in
@@ -53,8 +54,10 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname === "/customer-master/import-review";
 
   const redirectToLogin = () => {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/auth/login";
+    // Absolute, built on the origin the BROWSER used -- not nextUrl.clone(),
+    // whose origin is the bind address and sent tunnel visitors to localhost.
+    // See src/utils/proxied-origin.ts.
+    const loginUrl = new URL("/auth/login", proxiedOrigin(request));
     loginUrl.searchParams.set("redirect_to", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   };

@@ -139,7 +139,7 @@ export async function excludeRow(
 }
 
 /**
- * "This colleague is real, current, and simply never got a hub person."
+ * "This colleague simply never got a hub person -- for leavers, creating one (inactive) is what lets their logged history attribute to a name."
  * Measured 2026-09-01: 17 of 18 bridged_unlinked employees have no
  * same-name person to pick -- they exist in Factorial and TrackingTime but
  * not in public.people, so "Link person" is structurally unanswerable for

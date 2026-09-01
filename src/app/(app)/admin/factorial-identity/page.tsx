@@ -37,7 +37,8 @@ export default async function FactorialIdentityPage() {
           `select r.id, r.factorial_login_email, r.factorial_full_name, r.factorial_active,
                   r.candidate_person_id, r.candidate_count, r.status, r.status_reason,
                   r.last_seen_at::text,
-                  m.display_name as member_name, m.team as member_team, m.job_title as member_job
+                  m.display_name as member_name, m.team as member_team, m.job_title as member_job,
+                  coalesce((select round(sum(e.duration_seconds) filter (where e.started_at <= now()) / 3600.0, 1)::float8 from time.entry e where e.member_id = m.id), 0) as member_hours
              from crm.factorial_identity_review r
             left join time.member m on m.id = r.candidate_member_id
             where r.status = any($1)

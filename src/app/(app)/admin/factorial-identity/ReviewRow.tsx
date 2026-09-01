@@ -19,6 +19,7 @@ export type ReviewRowData = {
   member_name?: string | null;
   member_team?: string | null;
   member_job?: string | null;
+  member_hours?: number | null;
 };
 
 const idle: DecisionState = { status: "idle" };
@@ -55,6 +56,11 @@ export function ReviewRow({ row, people }: { row: ReviewRowData; people: PersonO
               former employee
             </span>
           )}
+          {(row.member_hours ?? 0) > 0 && (
+            <span className="ml-2 rounded px-1.5 py-0.5 text-xs bg-[var(--accent-wash)] text-[var(--accent)]">
+              {row.member_hours}h logged
+            </span>
+          )}
         </div>
         <span className="text-xs uppercase tracking-wide text-[var(--text-faint)]">{row.status}</span>
       </div>
@@ -64,8 +70,9 @@ export function ReviewRow({ row, people }: { row: ReviewRowData; people: PersonO
       )}
       {inactive && (
         <p className="mt-1 text-sm text-[var(--text-faint)]">
-          Not in Factorial&apos;s active roster. If they never had a hub person, &ldquo;No longer our
-          employee&rdquo; is the honest call — don&apos;t force a match.
+          {(row.member_hours ?? 0) > 0
+            ? `Left ${row.member_hours}h of logged work behind — create the person (they arrive inactive) so that history finally attributes to a name.`
+            : "Not in Factorial's active roster and no logged hours to attribute — “No longer our employee” is the honest call; don't force a match."}
         </p>
       )}
 

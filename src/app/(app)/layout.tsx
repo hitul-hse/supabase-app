@@ -1,4 +1,6 @@
 import { cookies } from "next/headers";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileSidebarDrawer } from "@/components/MobileSidebar";
 import { createClient } from "@/utils/supabase/server";
@@ -13,6 +15,10 @@ import { DesktopSidebarShell } from "@/components/DesktopSidebarShell";
 import { StaleDeployNotice } from "@/components/StaleDeployNotice";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  // The client-side message catalogue is mounted HERE, inside the
+  // authenticated shell, not in the root layout: public pages (/auth/*, /demo)
+  // must not ship the dashboard's vocabulary in their HTML.
+  const messages = await getMessages();
   /*
     Read the collapse preference on the SERVER so the first paint already has
     the right width. Doing this client-side would render 220px, hydrate, then
@@ -50,6 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <NextIntlClientProvider messages={messages}>
     <SidebarCollapseProvider initialCollapsed={collapsed}>
     <div className="flex min-h-screen">
       {/* Desktop sidebar — collapsible; hidden entirely on mobile */}
@@ -140,5 +147,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <StaleDeployNotice />
     </div>
     </SidebarCollapseProvider>
+    </NextIntlClientProvider>
   );
 }

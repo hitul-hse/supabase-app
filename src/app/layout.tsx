@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { getLocale } from "next-intl/server";
 import { Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -64,7 +63,6 @@ export default async function RootLayout({
 }) {
   // Cookie-based locale (no URL routing) -- see src/i18n/request.ts.
   const locale = await getLocale();
-  const messages = await getMessages();
   return (
     <html
       lang={locale}
@@ -92,9 +90,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
-        </NextIntlClientProvider>
+        {children}
       </body>
     </html>
   );

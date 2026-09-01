@@ -231,7 +231,7 @@ export default async function OverviewPage({
           arithmetic had to be re-derived by hand at every call site, which is
           exactly where fused grids acquire a missing rule on one breakpoint.
         */}
-        <div className="grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-5">
+        <div className="stagger grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-5">
           {metrics.map((metric) => (
             <StatTile
               key={metric.key}
@@ -245,7 +245,7 @@ export default async function OverviewPage({
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
+        <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
           {/*
             The hero figure: billable share per week, as a smooth area.
 
@@ -447,7 +447,7 @@ export default async function OverviewPage({
             ` · ${Math.round(totalHoursAll).toLocaleString("de-DE")}h logged`
           }
         >
-        <div className="grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-3">
+        <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-3">
           <Card className="flex flex-col">
             <CardHeader title="Billable split" qualifier={scopedQualifier()} />
             <div className="flex flex-1 flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 pb-5">

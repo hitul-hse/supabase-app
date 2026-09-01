@@ -176,9 +176,11 @@ export function AreaTrend({
           );
         })}
 
-        <path d={area} fill={`url(#${gradientId})`} />
+        <path d={area} fill={`url(#${gradientId})`} className="chart-fill-in" />
         <path
           d={d}
+          pathLength={1}
+          className="chart-draw"
           fill="none"
           stroke="var(--accent)"
           strokeWidth="2"
@@ -187,6 +189,30 @@ export function AreaTrend({
           strokeLinecap="round"
         />
 
+
+        {/* Resting emphasis on the LATEST point: the newest figure is the one
+            the eye should land on. The hover marker below still outranks it
+            the moment a colleague points at anything. */}
+        {pts.length > 0 && (
+          <g aria-hidden>
+            <circle
+              className="endpoint-halo"
+              cx={pts[pts.length - 1].px}
+              cy={pts[pts.length - 1].py}
+              r="8"
+              fill="var(--accent)"
+            />
+            <circle
+              cx={pts[pts.length - 1].px}
+              cy={pts[pts.length - 1].py}
+              r="3"
+              fill="var(--accent)"
+              stroke="var(--surface-accent)"
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        )}
         {/* The active point's marker. */}
         {hot && (
           <>

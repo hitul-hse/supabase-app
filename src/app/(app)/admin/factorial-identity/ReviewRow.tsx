@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Select, TextInput } from "@/components/ui/Field";
-import { resolveToPerson, excludeRow, type DecisionState } from "./actions";
+import { resolveToPerson, excludeRow, createPersonAndLink, type DecisionState } from "./actions";
 
 export type PersonOption = { id: string; name: string };
 export type ReviewRowData = {
@@ -16,6 +16,10 @@ export type ReviewRowData = {
   status: string;
   status_reason: string;
   last_seen_at: string;
+  member_name?: string | null;
+  member_team?: string | null;
+  member_job?: string | null;
+  member_hours?: number | null;
 };
 
 const idle: DecisionState = { status: "idle" };
@@ -35,9 +39,11 @@ const idle: DecisionState = { status: "idle" };
 export function ReviewRow({ row, people }: { row: ReviewRowData; people: PersonOption[] }) {
   const [linkState, linkAction, linkPending] = useActionState(resolveToPerson, idle);
   const [exclState, exclAction, exclPending] = useActionState(excludeRow, idle);
-  const busy = linkPending || exclPending;
-  const message = linkState.status !== "idle" ? linkState : exclState;
+  const [createState, createAction, createPending] = useActionState(createPersonAndLink, idle);
+  const busy = linkPending || exclPending || createPending;
+  const message = createState.status !== "idle" ? createState : linkState.status !== "idle" ? linkState : exclState;
   const inactive = row.factorial_active === false;
+  const canCreate = row.status === "bridged_unlinked" && !!row.member_name;
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -45,23 +51,47 @@ export function ReviewRow({ row, people }: { row: ReviewRowData; people: PersonO
         <div>
           <span className="font-medium text-[var(--text-primary)]">{row.factorial_full_name ?? "(no name)"}</span>
           <span className="ml-2 text-sm text-[var(--text-muted)]">{row.factorial_login_email ?? "no email"}</span>
+      {row.status === "unmatched" && row.factorial_active !== false && (
+        <p className="mt-1 text-sm text-[var(--text-faint)]">
+          In Factorial but has no TrackingTime account — usually a live colleague the hub
+          doesn&apos;t track yet. Current stage links hub ↔ TrackingTime ↔ Factorial only, so
+          leaving this row open is the correct call until that changes.
+        </p>
+      )}
           {inactive && (
             <span className="ml-2 rounded px-1.5 py-0.5 text-xs bg-[var(--warning-wash)] text-[var(--warning)]">
-              former employee
+              inactive in Factorial
+            </span>
+          )}
+          {(row.member_hours ?? 0) > 0 && (
+            <span className="ml-2 rounded px-1.5 py-0.5 text-xs bg-[var(--accent-wash)] text-[var(--accent)]">
+              {row.member_hours}h logged
             </span>
           )}
         </div>
         <span className="text-xs uppercase tracking-wide text-[var(--text-faint)]">{row.status}</span>
       </div>
       <p className="mt-2 text-sm text-[var(--text-muted)]">{row.status_reason}</p>
+      {row.member_name && (row.member_team || row.member_job) && (
+        <p className="mt-1 text-xs text-[var(--text-faint)]">TrackingTime: {row.member_name}{row.member_job ? ` · ${row.member_job}` : ""}{row.member_team ? ` · ${row.member_team}` : ""}</p>
+      )}
       {inactive && (
         <p className="mt-1 text-sm text-[var(--text-faint)]">
-          Not in Factorial&apos;s active roster. If they never had a hub person, &ldquo;No longer our
-          employee&rdquo; is the honest call — don&apos;t force a match.
+          {(row.member_hours ?? 0) > 0
+            ? `${row.member_hours}h of logged work needs a name to attribute to — Create & link keeps that history analysable. (Factorial's active flag is app access, not employment; the owner confirms status by deciding.)`
+            : "No Factorial app access and no logged hours. If they've truly left, “No longer our employee”; if they're a current colleague without accounts, leave open for the later stage."}
         </p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
+        {canCreate && (
+          <form action={createAction} className="flex items-center gap-2">
+            <input type="hidden" name="review_id" value={row.id} />
+            <Button type="submit" variant="primary" disabled={busy}>
+              {createPending ? "Creating…" : `Create “${row.member_name}” & link`}
+            </Button>
+          </form>
+        )}
         <form action={linkAction} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="review_id" value={row.id} />
           <Select label="Person to link" name="person_id" defaultValue={row.candidate_person_id ?? ""}>

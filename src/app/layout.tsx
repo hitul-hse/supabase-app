@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -55,14 +57,17 @@ export const metadata: Metadata = {
     "Internal operational BI portal aggregating Asana, TrackingTime, Samdock and FactorialHR into unified executive, team-lead, project, and timesheet dashboards.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Cookie-based locale (no URL routing) -- see src/i18n/request.ts.
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
       className={`${poppins.variable} ${cormorant.variable} ${plusJakarta.variable} ${jetbrains.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
@@ -86,7 +91,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">{children}</body>
+      <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

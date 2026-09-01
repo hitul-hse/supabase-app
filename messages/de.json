@@ -1,0 +1,30 @@
+{
+  "nav": {
+    "sections": {
+      "analyse": "ANALYSE",
+      "records": "AUFZEICHNUNGEN",
+      "admin": "ADMIN"
+    },
+    "overview": "Übersicht",
+    "management": "Management",
+    "teamLead": "Teamleiter-Ansicht",
+    "myWork": "Meine Arbeit",
+    "people": "Mitarbeiter",
+    "projects": "Projekte",
+    "timesheets": "Stundenzettel",
+    "timeDashboard": "TrackingTime-Dashboard",
+    "operationsAnalytics": "Betriebsanalysen",
+    "leave": "Urlaub & Abwesenheit",
+    "customerMaster": "Kundenstamm",
+    "dataHygiene": "Datenhygiene",
+    "usersRoles": "Benutzer & Rollen",
+    "rolePermissions": "Rollenberechtigungen",
+    "budgetAlerts": "Budget-Warnungen",
+    "factorialIdentity": "Factorial-Identität"
+  },
+  "common": {
+    "logOut": "Abmelden",
+    "switchLanguage": "Language: English",
+    "notAvailable": "k. A."
+  }
+}

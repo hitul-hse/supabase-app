@@ -42,15 +42,15 @@
     "semantic_hash": ""
   },
   "next.config.ts": {
-    "mtime": 1788160024.1052196,
-    "seen": 1788197674.7092345,
-    "ast_hash": "adb28d92964f5489eef09f8266272b89",
+    "mtime": 1788214948.8150463,
+    "seen": 1788253819.8777254,
+    "ast_hash": "fdb8c8175dedea41317ed79df3ace363",
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1788171540.4313834,
-    "seen": 1788197674.7092354,
-    "ast_hash": "a02e0898632f4f571967865304521ccd",
+    "mtime": 1788253740.337285,
+    "seen": 1788253819.8777273,
+    "ast_hash": "6bd175d857783e27041a381493aaeefe",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -2112,9 +2112,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1788198865.8593047,
-    "seen": 1788198892.6897948,
-    "ast_hash": "57303431067da8242198ed70b290ceec",
+    "mtime": 1788251863.6289256,
+    "seen": 1788253819.8784087,
+    "ast_hash": "c905016f9149c2587ceb9a06e17d00d2",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -3504,9 +3504,9 @@
     "semantic_hash": ""
   },
   "src/components/BiometricSignIn.tsx": {
-    "mtime": 1788201592.39051,
-    "seen": 1788201603.449937,
-    "ast_hash": "2bc170d331cea4b3976fb2d997125598",
+    "mtime": 1788214948.8159728,
+    "seen": 1788253819.8782735,
+    "ast_hash": "e029fc44f018fb0e9c5123b7e0cf1737",
     "semantic_hash": ""
   },
   "src/components/MobileDisclosure.tsx": {
@@ -4014,9 +4014,9 @@
     "semantic_hash": ""
   },
   "scripts/check-factorial-identity-baseline.mjs": {
-    "mtime": 1788160024.3118026,
-    "seen": 1788197674.7093437,
-    "ast_hash": "60f30f5ad6a196cb13679c85a8a38fc6",
+    "mtime": 1788253740.337285,
+    "seen": 1788253819.8778343,
+    "ast_hash": "036d18fc649a7dc7cebb0e75ab1bad4d",
     "semantic_hash": ""
   },
   "scripts/diagnose-assignment-count-views.mjs": {
@@ -4551,6 +4551,12 @@
     "mtime": 1788160024.3716612,
     "seen": 1788197674.7099402,
     "ast_hash": "158ce27f88c5077ede813d9cb13e1e48",
+    "semantic_hash": ""
+  },
+  "scripts/sync-factorial-identity.mjs": {
+    "mtime": 1788253740.337285,
+    "seen": 1788253819.8781433,
+    "ast_hash": "102a0fc123f227f528aeec86c923d046",
     "semantic_hash": ""
   }
 }

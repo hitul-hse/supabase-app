@@ -20,7 +20,7 @@ import { PERMISSIONS } from "@/lib/permissions";
  * from 2000-01-01 up to but excluding tomorrow 00:00 UTC, calendar time
  * INCLUDED. The same three bounds are written below, so a future-dated entry
  * is excluded here for the same reason it is excluded from the row, and an
- * entry logged later today is counted in both. Everything stays in seconds;
+ * entry dated later today is counted in neither (bounded at now(), like the Overview). Everything stays in seconds;
  * the client rounds once, per row, so the rows add up.
  *
  * TWO PERMISSIONS, not one. The page itself needs only projects:read_all, and
@@ -97,7 +97,7 @@ export async function getProjectHoursDrilldown(projectId: number): Promise<Proje
      where e.project_id = $1
        and e.duration_seconds is not null
        and e.started_at >= '2000-01-01T00:00:00Z'::timestamptz
-       and e.started_at < ((date_trunc('day', now() at time zone 'utc') + interval '1 day') at time zone 'utc')`;
+       and e.started_at <= now()`;
 
     const [totals, byPerson, byTask] = await Promise.all([
       db.query(

@@ -239,23 +239,33 @@ async function readFreshness(db: Client): Promise<FreshnessPanel> {
     return new Set(res.rows.filter((r) => r.reg).map((r) => r.relation));
   });
 
-  const typed: TypedTableCount[] = [];
-  for (const { relation, source } of TYPED_TABLES) {
-    typed.push({
-      relation,
-      source,
-      rows: await attempt(async () => {
-        if (existing.ok && !existing.value.has(relation)) throw new Error("relation does not exist on this database");
-        // The relation comes from the constant list above, never from input,
-        // and is still split, validated and quoted rather than interpolated:
-        // a count(*) cannot take a parameter for its table, so the identifier
-        // is the one place a string reaches SQL text. If the existence probe
-        // itself failed, the count still runs and reports its own error.
-        const res = await db.query<{ count: string }>(`select count(*)::text as count from ${quotedRelation(relation)}`);
-        return Number(res.rows[0].count);
-      }),
-    });
-  }
+  // One UNION ALL for every relation the probe found: ten count(*) statements
+  // cost ten round trips (~260 ms here); one statement with the same ten
+  // counts costs ~35 ms (performance engineer, D1). The relations come from
+  // the constant list above, never from input, and quotedRelation() still
+  // validates each name before it is interpolated -- as the identifier and as
+  // the label literal -- because a count(*) cannot take its table as a
+  // parameter. A relation the probe reports missing keeps its own reason; if
+  // the batched read fails, every present relation carries that one reason.
+  // If the probe itself failed, every relation is tried and the batch reports.
+  const present = TYPED_TABLES.filter(({ relation }) => !existing.ok || existing.value.has(relation));
+  const counts: Metric<Map<string, number>> = present.length === 0
+    ? { ok: true, value: new Map<string, number>() }
+    : await attempt(async () => {
+        const res = await db.query<{ relation: string; count: string }>(
+          present.map(({ relation }) => `select '${relation}' as relation, count(*)::text as count from ${quotedRelation(relation)}`).join(" union all "),
+        );
+        return new Map(res.rows.map((r) => [r.relation, Number(r.count)]));
+      });
+  const typed: TypedTableCount[] = TYPED_TABLES.map(({ relation, source }) => ({
+    relation,
+    source,
+    rows: existing.ok && !existing.value.has(relation)
+      ? unavailable("relation does not exist on this database")
+      : !counts.ok ? counts
+      : counts.value.has(relation) ? { ok: true, value: counts.value.get(relation) as number }
+      : unavailable("count missing from the batched read"),
+  }));
 
   return { sources, sla, runs30d, typed, legacy };
 }
@@ -747,8 +757,9 @@ export async function getSystemHealth(): Promise<SystemHealth> {
       // session cannot write even if a future statement here tried to. Both
       // are session-level SETs on this request's own Client; withDb is shared
       // and untouched. If the guard itself fails, nothing else runs.
-      await db.query("set statement_timeout = 5000");
-      await db.query("set default_transaction_read_only = on");
+      // One simple-query round trip for both (D3): pg sends an unparameterised
+      // multi-statement string as a single message.
+      await db.query("set statement_timeout = 5000; set default_transaction_read_only = on");
       // Latency first and alone (see readEfficiency), then the rest in turn on
       // the same connection -- never two statements in flight at once.
       const efficiency = await readEfficiency(db);

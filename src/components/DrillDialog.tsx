@@ -198,7 +198,11 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
               >
                 {t("back")}
               </button>
-              <span className="font-mono text-[10px] text-[var(--text-faint)]">
+              <span
+                className="font-mono text-[10px] text-[var(--text-faint)]"
+                data-drill-page={safePage + 1}
+                data-drill-pages={pageCount}
+              >
                 {t("page", { page: safePage + 1, count: pageCount })}
               </span>
               <button

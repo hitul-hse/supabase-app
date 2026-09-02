@@ -224,8 +224,11 @@ try {
         const next = dialog.locator("[data-drill-next]");
         if ((await next.count()) === 0) break;
         if (!(await next.isEnabled())) break;
+        // Wait for the pager to actually advance before reading rows again: a
+        // fixed sleep re-read page 1 twice on a busy rig and double-counted.
+        const before = await dialog.locator("[data-drill-page]").getAttribute("data-drill-page");
         await next.click({ timeout: 10_000 });
-        await page.waitForTimeout(250);
+        await dialog.locator(`[data-drill-page]:not([data-drill-page="${before}"])`).waitFor({ timeout: 10_000 });
         pages += 1;
       }
     }

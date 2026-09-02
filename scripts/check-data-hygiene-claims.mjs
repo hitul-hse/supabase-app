@@ -217,6 +217,49 @@ ok(!h.unavailable, "the fixture produces a report");
     + "that a check ran and passed, which is precisely what did not happen");
 }
 
+/* ------------- a probe that cannot read its table is never "clean" -------- */
+
+/*
+ * The four audit-ported probes read outside the order book. Two go through the
+ * client's `time` schema, which this stub cannot address, so their only honest
+ * outcome here is "could not run": in `clean` they would be passes nobody
+ * measured, as findings they would count rows never read. The other two read
+ * Postgres directly via withDb() and depend on SUPABASE_DB_URL alone: with it
+ * set they MUST run (finding or clean, both measured); without it they must be
+ * could-not-run with the environment named, never clean. Both branches are
+ * exercised -- CI without the URL takes the second.
+ */
+{
+  const { AUDIT_PROBES } = await import("../src/lib/queries/data-hygiene.ts");
+  const skipped = new Map((h.skipped ?? []).map((s) => [s.key, s]));
+  const via = { client: ["unlinked_hub_project", "budget_disagreement"], postgres: ["customer_master_drift", "factorial_reference_mismatch"] };
+  const outcome = (k) => (skipped.has(k) ? `could-not-run (${skipped.get(k).reason})` : h.clean.includes(AUDIT_PROBES[k]) ? "clean" : h.findings.some((f) => f.key === k) ? "a finding" : "MISSING");
+
+  const clientWrong = via.client.filter((k) => skipped.get(k)?.reason !== "unexposed");
+  ok(clientWrong.length === 0,
+    "the two client-side probes are could-not-run on a client that cannot address the time schema",
+    clientWrong.map((k) => `${k}: ${outcome(k)}`).join(" | "));
+
+  const hasDb = Boolean(process.env.SUPABASE_DB_URL);
+  console.log(`        SUPABASE_DB_URL ${hasDb ? "set" : "absent"}: direct-Postgres probes read as ${via.postgres.map(outcome).join(", ")}`);
+  if (hasDb) {
+    const notRun = via.postgres.filter((k) => outcome(k) === "MISSING" || skipped.has(k));
+    ok(notRun.length === 0,
+      "with SUPABASE_DB_URL set, the two direct-Postgres probes run and are measured",
+      notRun.map((k) => `${k}: ${outcome(k)}`).join(" | "));
+  } else {
+    const wrong = via.postgres.filter((k) => skipped.get(k)?.reason !== "unconfigured");
+    ok(wrong.length === 0,
+      "without SUPABASE_DB_URL, the two direct-Postgres probes are could-not-run naming the environment, never clean",
+      wrong.map((k) => `${k}: ${outcome(k)}`).join(" | "));
+  }
+  const leaked = [...skipped.keys()].filter((k) => h.clean.includes(AUDIT_PROBES[k]));
+  ok(leaked.length === 0, "no could-not-run probe leaks into the clean list", leaked.join(", "));
+  ok(h.scope.probes === h.findings.length + h.clean.length,
+    "CHECKS RUN counts only probes that ran",
+    `probes=${h.scope.probes}, findings=${h.findings.length}, clean=${h.clean.length}, skipped=${skipped.size}`);
+}
+
 console.log(failures === 0
   ? "\nHYGIENE CLAIMS ARE EARNED: identity verdicts match their evidence, no defect is double-reported, no headline understates"
   : `\n${failures} claim check(s) failed`);

@@ -1,6 +1,6 @@
 # System Health: rebuild /admin/system-health as an analytical dashboard
 
-`feat/health-portal` → `feat/ui-rework`. Do not merge without hitul's review on the dev branch.
+`feat/health-portal` → `master` (feat/ui-rework was merged as PR #18; this branch has origin/master 56b4ed6 merged in and merges cleanly). Do not merge without hitul's review.
 
 ## What changed
 

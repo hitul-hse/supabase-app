@@ -14,13 +14,18 @@
  * FOUR MORE come from the rig's nightly data audit (~/.data-audit/checks, first
  * run 1 Sep 2026): checks A, B, D3 and E4, ported with the audit's own pairing
  * rules so the panel and the audit's markdown report state the same figure. They
- * read `time.project`, `time.project_summary`, `projects.project_order`,
- * `crm.legal_entity`, `crm.factorial_person_reference` and `people` beside the
- * order book. A supporting read that fails does NOT take the report down and
- * does NOT render as clean: the probe is listed as one that COULD NOT RUN, with
- * the reason. Today that is the state of D3 and E4 -- ADR-002 §2 keeps the `crm`
- * and `projects` schemas out of PostgREST until they carry RLS, so the exec's
- * own client cannot read them and the page says so rather than guessing.
+ * read `time.project` and `time.project_summary` through the exec's own client,
+ * and `projects.project_order`, `crm.legal_entity` and
+ * `crm.factorial_person_reference` DIRECTLY from Postgres through `withDb()`,
+ * read-only, the way the identity queue does: ADR-002 §2 keeps `crm` and
+ * `projects` out of PostgREST until they carry RLS, and the identity queue's
+ * db.ts records why a page must not depend on that exposure list. A supporting
+ * read that faults does NOT take the report down and does NOT render as clean:
+ * the probe is listed as one that COULD NOT RUN, with the reason -- including
+ * a deploy with no SUPABASE_DB_URL, which must show an honest card rather than
+ * a plausible zero. No new authorisation path: this module is only ever called
+ * from the exec-gated page, and the direct reads are SELECTs on a connection
+ * that has been set read-only as its first statement.
  *
  * Two kinds of finding, kept visually distinct because they demand different
  * responses:
@@ -61,6 +66,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { fetchAllPaged } from "./paged";
+import { withDb } from "../../app/(app)/admin/factorial-identity/db";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -244,7 +250,13 @@ export type UnavailableReason =
    * state of any probe that needs them, and it must read as "not run" rather
    * than as either of the other two.
    */
-  | "unexposed";
+  | "unexposed"
+  /**
+   * The probe reads Postgres directly and SUPABASE_DB_URL is not set in this
+   * environment. A configuration fault of the deploy, named as such: the
+   * alternative is a panel that cannot run rendering as a clean one.
+   */
+  | "unconfigured";
 
 /**
  * A probe that could not run, and why. The third outcome beside a finding and a
@@ -385,8 +397,6 @@ const NAME_STOP = new Set([
 
 type ProjectRow = {
   id: string;
-  /** The order number `projects.project_order.order_number` joins on. */
-  code: string | null;
   name: string | null;
   customer: string | null;
   customer_legal_entity_id: string | null;
@@ -421,10 +431,10 @@ const classifyFault = (message: string): UnavailableReason => {
  *
  * `.order()` before `.range()` on every page (house rule), batches in parallel
  * via fetchAllPaged. An EMPTY read is a fault, not a result, for the same reason
- * the order book's is: RLS filters rows rather than raising, and none of these
- * tables is legitimately empty in this company -- an empty `time.project` would
- * make every order "unlinked" and an empty reference table would make the
- * Factorial check "clean", both of them lies told in the reassuring direction.
+ * the order book's is: RLS filters rows rather than raising, and neither table
+ * read this way is legitimately empty in this company -- an empty
+ * `time.project` would make every order "unlinked", a lie told in the
+ * reassuring direction.
  */
 async function readSupport<T>(
   supabase: SupabaseTyped,
@@ -467,6 +477,83 @@ async function readSupport<T>(
 const hoursCell = (v: number | string | null | undefined) =>
   v === null || v === undefined ? "\u2014" : Number(v).toFixed(1);
 
+/*
+ * Audit check D3's SQL (~/.data-audit/checks/D-customers.mjs, SQL_LE_DRIFT),
+ * verbatim. No interpolation, no parameters: the query is a constant, and
+ * check-data-hygiene-audit-findings runs the same text to prove the panel
+ * states the audit's figure.
+ */
+const SQL_CUSTOMER_MASTER_DRIFT = `
+select p.id, p.name, p.customer, p.contract_hours, p.customer_legal_entity_id, le.legal_name as project_le, po.legal_entity_id as order_le_id, le2.legal_name as order_le
+from public.projects p
+join projects.project_order po on po.order_number = p.code
+left join crm.legal_entity le on le.id = p.customer_legal_entity_id
+left join crm.legal_entity le2 on le2.id = po.legal_entity_id
+where p.customer_legal_entity_id is distinct from po.legal_entity_id
+order by p.contract_hours desc`;
+
+/*
+ * Audit check E4's join (E-people.mjs, SQL_REFS), reduced to the columns the
+ * comparison needs. The audit also selects matched_email and match_method; a
+ * page that compares two ids has no business carrying an email across.
+ */
+const SQL_FACTORIAL_REFERENCES = `
+select f.id, f.person_id, f.external_id,
+       p.name as person_name, p.factorial_employee_id as people_factorial_id
+from crm.factorial_person_reference f left join public.people p on p.id = f.person_id
+order by f.id`;
+
+type DriftRow = {
+  id: string;
+  name: string | null;
+  customer: string | null;
+  contract_hours: number | string | null;
+  customer_legal_entity_id: string | null;
+  project_le: string | null;
+  order_le_id: string | null;
+  order_le: string | null;
+};
+type ReferenceRow = {
+  id: number | string;
+  person_id: string | null;
+  external_id: string | null;
+  person_name: string | null;
+  people_factorial_id: string | null;
+};
+
+/**
+ * The two reads PostgREST cannot serve, taken directly from Postgres.
+ *
+ * `withDb()` is the identity queue's helper: one short-lived Client per call,
+ * closed in finally. The FIRST statement on the connection makes the session
+ * read-only, so even a future edit to the SQL below cannot write -- the reader
+ * stays read-only by construction rather than by review. A missing
+ * SUPABASE_DB_URL is reported as `unconfigured`, everything else as `failed`
+ * and logged: neither is RLS, and neither may render as clean.
+ */
+type DirectRead =
+  | { rows: { drift: DriftRow[]; references: ReferenceRow[] }; fault: null; message: null }
+  | { rows: null; fault: UnavailableReason; message: string };
+
+async function readDirect(): Promise<DirectRead> {
+  try {
+    const rows = await withDb(async (db) => {
+      await db.query("set default_transaction_read_only = on");
+      const drift = await db.query(SQL_CUSTOMER_MASTER_DRIFT);
+      const references = await db.query(SQL_FACTORIAL_REFERENCES);
+      return { drift: drift.rows as DriftRow[], references: references.rows as ReferenceRow[] };
+    });
+    return { rows, fault: null, message: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      rows: null,
+      fault: /SUPABASE_DB_URL/.test(message) ? "unconfigured" : "failed",
+      message: `postgres: ${message}`,
+    };
+  }
+}
+
 /** An empty scope, for the paths that return before anything is measured. */
 const NO_SCOPE: HygieneScope = {
   orders: 0,
@@ -500,7 +587,7 @@ export async function getDataHygiene(
     const res = await readAll<ProjectRow>(
       supabase,
       "projects",
-      "id, code, name, customer, customer_legal_entity_id, owner_person_id, contract_hours",
+      "id, name, customer, customer_legal_entity_id, owner_person_id, contract_hours",
       "id",
     );
     projects = res.rows;
@@ -1242,28 +1329,23 @@ export async function getDataHygiene(
   /* ------------- 9-12. the nightly audit's findings, ported (A, B, D3, E4) --- */
 
   /*
-   * Six supporting reads, in parallel, each returning rows OR a fault. A probe
-   * whose read faulted is recorded in `skipped` with the reason and never
-   * reaches `clean`. Failures that are neither RLS nor an unexposed schema are
-   * logged once here, so an outage leaves evidence somewhere.
+   * Three supporting reads, in parallel, each returning rows OR a fault: two
+   * through the exec's client (the `time` schema IS exposed) and one direct
+   * Postgres connection for the two tables that are not. A probe whose read
+   * faulted is recorded in `skipped` with the reason and never reaches
+   * `clean`. Failures that are neither RLS nor a configuration state are logged
+   * once here, so an outage leaves evidence somewhere.
    */
   type TimeProjectRow = { id: number | string; hub_project_id: string | null };
   type SummaryRow = { project_id: number | string; estimated_hours: number | string | null };
-  type OrderRow = { order_number: string | null; legal_entity_id: string | null };
-  type EntityRow = { id: string; legal_name: string | null };
-  type ReferenceRow = { id: number | string; person_id: string | null; external_id: string | null };
-  type PersonRow = { id: string; name: string | null; factorial_employee_id: string | null };
 
-  const [timeProjects, summaries, orders, entities, references, people] = await Promise.all([
+  const [timeProjects, summaries, direct] = await Promise.all([
     readSupport<TimeProjectRow>(supabase, "time", "project", "id, hub_project_id", "id"),
     readSupport<SummaryRow>(supabase, "time", "project_summary", "project_id, estimated_hours", "project_id"),
-    readSupport<OrderRow>(supabase, "projects", "project_order", "order_number, legal_entity_id", "order_number"),
-    readSupport<EntityRow>(supabase, "crm", "legal_entity", "id, legal_name", "id"),
-    readSupport<ReferenceRow>(supabase, "crm", "factorial_person_reference", "id, person_id, external_id", "id"),
-    readSupport<PersonRow>(supabase, "public", "people", "id, name, factorial_employee_id", "id"),
+    readDirect(),
   ]);
   {
-    const outages = [timeProjects, summaries, orders, entities, references, people]
+    const outages = [timeProjects, summaries, direct]
       .filter((s) => s.fault === "failed")
       .map((s) => s.message);
     if (outages.length) console.error("[data-hygiene] supporting read failed:", outages.join(" | "));
@@ -1470,10 +1552,8 @@ export async function getDataHygiene(
 
   {
     const title = AUDIT_PROBES.customer_master_drift;
-    if (orders.fault) {
-      skip("customer_master_drift", title, "projects.project_order", orders.fault);
-    } else if (entities.fault) {
-      skip("customer_master_drift", title, "crm.legal_entity", entities.fault);
+    if (direct.fault) {
+      skip("customer_master_drift", title, "projects.project_order", direct.fault);
     } else {
       /*
        * Audit check D3. public.projects.customer_legal_entity_id and
@@ -1486,32 +1566,29 @@ export async function getDataHygiene(
        * panel is filed as worth-a-look. Rows where both sides are set and
        * differ are the serious ones (two real customers claim one order);
        * a null on one side is a link somebody has yet to make.
+       *
+       * The rows ARE the audit's query result: Postgres did the join, so an
+       * empty result here is a measured zero, not a filtered one.
        */
-      const orderEntity = new Map<string, string | null>();
-      for (const o of orders.rows) if (o.order_number) orderEntity.set(o.order_number, o.legal_entity_id);
-      const entityName = new Map<string, string>();
-      for (const e of entities.rows) entityName.set(e.id, (e.legal_name ?? "").trim() || e.id);
-      const nameOf = (id: string | null) => (id ? entityName.get(id) ?? id : "(not linked)");
-
+      const nameOf = (id: string | null, name: string | null) =>
+        id ? (name ?? "").trim() || id : "(not linked)";
       const rows: HygieneRow[] = [];
       let hours = 0;
-      for (const p of projects) {
-        if (!p.code || !orderEntity.has(p.code)) continue;
-        const projectSide = p.customer_legal_entity_id ?? null;
-        const orderSide = orderEntity.get(p.code) ?? null;
-        if (projectSide === orderSide) continue;
-        hours += Math.max(0, Number(p.contract_hours ?? 0) || 0);
+      for (const d of direct.rows.drift) {
+        const projectSide = nameOf(d.customer_legal_entity_id, d.project_le);
+        const orderSide = nameOf(d.order_le_id, d.order_le);
+        hours += Math.max(0, Number(d.contract_hours ?? 0) || 0);
         rows.push({
-          id: p.id,
-          subject: p.id,
-          detail: `project side ${nameOf(projectSide)}, order side ${nameOf(orderSide)}`,
+          id: d.id,
+          subject: d.id,
+          detail: `project side ${projectSide}, order side ${orderSide}`,
           href: null,
           cells: {
-            projectEntity: nameOf(projectSide),
-            orderEntity: nameOf(orderSide),
-            contracted: hoursCell(p.contract_hours),
+            projectEntity: projectSide,
+            orderEntity: orderSide,
+            contracted: hoursCell(d.contract_hours),
           },
-          severe: Boolean(projectSide && orderSide),
+          severe: Boolean(d.customer_legal_entity_id && d.order_le_id),
         });
       }
       rows.sort(
@@ -1535,7 +1612,9 @@ export async function getDataHygiene(
           "public.projects.customer_legal_entity_id compared with "
           + "projects.project_order.legal_entity_id for the same order number "
           + "(audit check D3). Any difference, including a null on one side, is the "
-          + "finding. Names are shown for reading only; the comparison is on ids.",
+          + "finding. Names are shown for reading only; the comparison is on ids. "
+          + "Read directly from Postgres, read-only, like the identity queue, "
+          + "because these schemas are not served by PostgREST.",
         impact:
           `${shareOfOrders(rows.length)} filed under two customers · `
           + `${hours.toFixed(1)} contracted hours · ${bothSet} with both sides set`,
@@ -1557,10 +1636,16 @@ export async function getDataHygiene(
 
   {
     const title = AUDIT_PROBES.factorial_reference_mismatch;
-    if (references.fault) {
-      skip("factorial_reference_mismatch", title, "crm.factorial_person_reference", references.fault);
-    } else if (people.fault) {
-      skip("factorial_reference_mismatch", title, "public.people", people.fault);
+    if (direct.fault) {
+      skip("factorial_reference_mismatch", title, "crm.factorial_person_reference", direct.fault);
+    } else if (direct.rows.references.length === 0) {
+      /*
+       * A comparison over zero references proves nothing, and "clean" would
+       * claim it did. Not a state this company can be in (every employee has
+       * one), so it is reported as a fault and logged rather than passed.
+       */
+      console.error("[data-hygiene] crm.factorial_person_reference read returned no rows");
+      skip("factorial_reference_mismatch", title, "crm.factorial_person_reference", "failed");
     } else {
       /*
        * Audit check E4. crm.factorial_person_reference.external_id and
@@ -1569,17 +1654,16 @@ export async function getDataHygiene(
        * clean -- and it stays listed as a check that ran, because "clean today"
        * is only evidence while somebody keeps looking.
        */
-      const personById = new Map<string, PersonRow>();
-      for (const p of people.rows) personById.set(p.id, p);
+      const references = direct.rows.references;
       const rows: HygieneRow[] = [];
-      for (const r of references.rows) {
-        const person = r.person_id ? personById.get(r.person_id) : undefined;
-        const profileId = person?.factorial_employee_id ?? null;
+      for (const r of references) {
+        const profileId = r.people_factorial_id ?? null;
         const referenceId = r.external_id ?? null;
+        // The audit's test: no person, or the two ids are not the same string.
         if (r.person_id && profileId === referenceId) continue;
         rows.push({
           id: `ref-${r.id}`,
-          subject: person?.name?.trim() || (r.person_id ? `person ${r.person_id}` : "(no person linked)"),
+          subject: r.person_name?.trim() || (r.person_id ? `person ${r.person_id}` : "(no person linked)"),
           detail: `reference says ${referenceId ?? "(empty)"}, profile says ${profileId ?? "(empty)"}`,
           href: null,
           cells: {
@@ -1604,8 +1688,10 @@ export async function getDataHygiene(
         method:
           "Every crm.factorial_person_reference row compared, by person_id, with "
           + "public.people.factorial_employee_id (audit check E4). A missing person, "
-          + "a missing id on either side, or two different ids is the finding.",
-        impact: `${rows.length} of ${references.rows.length} references disagree with the profile`,
+          + "a missing id on either side, or two different ids is the finding. Read "
+          + "directly from Postgres, read-only, like the identity queue, because the "
+          + "crm schema is not served by PostgREST.",
+        impact: `${rows.length} of ${references.length} references disagree with the profile`,
         count: rows.length,
         columns: [
           { key: "reference", label: "REFERENCE ID", mono: true,

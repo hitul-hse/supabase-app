@@ -22,13 +22,12 @@
  * THE THIRD OUTCOME
  * -----------------
  * ADR-002 §2 keeps `crm` and `projects` out of PostgREST until they carry RLS,
- * so two of the four panels cannot read their tables today. The reader reports
- * those as "could not run" rather than as clean. This gate holds that line from
- * both sides: a probe reported as not-run must name a fault PostgREST really
- * returns (a 406 PGRST106 for that schema, re-probed here), and a probe whose
- * table PostgREST does serve must not hide behind the not-run state. And for
- * the not-run probes the Postgres figures are printed anyway, so the number the
- * panel WILL show the day the schema is exposed is already on record.
+ * so two of the four probes read Postgres directly through withDb() and depend
+ * on SUPABASE_DB_URL. This gate has that URL by construction (it needs it for
+ * the truth side), so those two MUST run here; a not-run state for them is a
+ * failure, not a skip. The two client-side probes may legitimately be not-run
+ * only if PostgREST really refuses their schema (a 406 PGRST106, re-probed
+ * here); a probe whose table PostgREST serves must not hide behind the state.
  *
  * READ-ONLY. `set default_transaction_read_only = on` is the first statement on
  * the Postgres connection, as in the audit's own db.mjs. The page side reads as
@@ -168,6 +167,8 @@ if (canReview) {
 }
 console.log(`        page side read as: ${as}`);
 
+// withDb() reads process.env directly; loadEnv() does not export what it read.
+process.env.SUPABASE_DB_URL ??= env.SUPABASE_DB_URL;
 const { getDataHygiene, AUDIT_PROBES } = await import("../src/lib/queries/data-hygiene.ts");
 const h = await getDataHygiene(supabase);
 ok(!h.unavailable, "the reader produced a report", `unavailable=${h.unavailableReason}`);
@@ -210,6 +211,11 @@ for (const key of Object.keys(AUDIT_PROBES)) {
 
   if (where === "skipped") {
     const s = skipped.get(key);
+    if (key === "customer_master_drift" || key === "factorial_reference_mismatch") {
+      ok(false, `${key}: reads Postgres directly and SUPABASE_DB_URL is set, so it must run`,
+        `reported as could-not-run (${s.reason}) via ${s.source}`);
+      continue;
+    }
     const probe = await postgrestRefuses(s.source);
     ok(s.reason === "unexposed" && probe.unexposed,
       `${key}: not run because ${s.source} is unexposed, and PostgREST confirms (HTTP ${probe.status})`,

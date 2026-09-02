@@ -58,9 +58,10 @@ export const dynamic = "force-dynamic";
  * CHECKS THAT COULD NOT RUN
  * -------------------------
  * A third list, beside findings and clean checks. Four probes ported from the
- * nightly data audit read tables outside the order book, and two of those live
- * in schemas ADR-002 §2 keeps out of PostgREST until they carry RLS. A probe
- * whose read faulted is named here with the reason, because the only two other
+ * nightly data audit read tables outside the order book -- two of them directly
+ * from Postgres, because ADR-002 §2 keeps their schemas out of PostgREST. A
+ * probe whose read faulted (no SUPABASE_DB_URL in the deploy, an outage, a
+ * refused read) is named here with the reason, because the only two other
  * places it could go are both lies: in "clean" it is a pass nobody measured, and
  * absent it is indistinguishable from a check nobody wrote.
  *
@@ -132,6 +133,12 @@ const UNAVAILABLE: Record<string, { qualifier: string; body: string }> = {
       + "is a configuration state, not a permissions fault, and nothing is known "
       + "about the data either way.",
   },
+  unconfigured: {
+    qualifier: "ENVIRONMENT NOT SET",
+    body:
+      "This deploy has no SUPABASE_DB_URL, so nothing that reads Postgres directly "
+      + "can run. Nothing is known about the data either way.",
+  },
 };
 
 /**
@@ -146,6 +153,8 @@ const SKIPPED: Record<UnavailableReason, string> = {
   truncated: "more rows than the probes will reason about",
   unexposed:
     "the schema is not served by PostgREST — expected until it carries RLS (ADR-002 §2)",
+  unconfigured:
+    "SUPABASE_DB_URL is not set in this environment — this probe reads Postgres directly and cannot without it",
 };
 
 const KIND_STYLE: Record<HygieneFinding["kind"], { label: string; className: string; title: string }> = {

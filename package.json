@@ -211,6 +211,7 @@
         "check:invite-throttle-classification": "node scripts/check-invite-throttle-classification.mjs",
         "check:factorial-identity-baseline": "node scripts/check-factorial-identity-baseline.mjs",
         "check:factorial-identity-migration": "node scripts/check-factorial-identity-migration.mjs",
+        "check:bound-summaries-migration": "node scripts/check-bound-summaries-migration.mjs",
         "check:factorial-pager": "node scripts/check-factorial-pager.mjs",
         "check:factorial-auth": "node scripts/check-factorial-auth.mjs",
         "check:factorial-harvest": "node scripts/check-factorial-harvest.mjs",

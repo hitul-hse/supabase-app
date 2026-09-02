@@ -160,7 +160,7 @@ if (canReview) {
   supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error } = await supabase.auth.signInWithPassword({ email: env.REVIEW_EMAIL, password: env.REVIEW_PW });
   if (error) { console.log(`FAIL: review sign-in refused (${error.message})`); process.exit(1); }
-  as = `review account ${env.REVIEW_EMAIL}`;
+  as = "the review account (exec)";
 } else {
   supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   as = "service role";

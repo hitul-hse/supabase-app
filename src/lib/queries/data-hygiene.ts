@@ -539,6 +539,9 @@ async function readDirect(): Promise<DirectRead> {
   try {
     const rows = await withDb(async (db) => {
       await db.query("set default_transaction_read_only = on");
+      // A slow or saturated Postgres must degrade to the "could not run" card,
+      // not hang the exec page to the platform timeout (security review, 2026-09-02).
+      await db.query("set statement_timeout = '8000'");
       const drift = await db.query(SQL_CUSTOMER_MASTER_DRIFT);
       const references = await db.query(SQL_FACTORIAL_REFERENCES);
       return { drift: drift.rows as DriftRow[], references: references.rows as ReferenceRow[] };

@@ -165,11 +165,14 @@ try {
       .filter((l) => l && /n\/a/i.test(l) && !/n\/a\s*[—-]\s*\S/i.test(l));
     check(`${vp.name}: every "n/a" states a reason on the same line`, bareNa.length === 0, bareNa.slice(0, 8).join(" | "));
 
-    // The reverse: a tile that shows a real figure must not also say n/a.
+    // The reverse: a tile that shows a real figure must not also say a BARE
+    // n/a. An "n/a — reason" inside a tile describes a sub-figure (the DB
+    // round-trip tile carries its live value beside "n/a — no history on this
+    // host" on Vercel) and is the honest shape, not a contradiction.
     const contradictions = await page.$$eval("[data-metric]", (els) =>
       els
         .map((e) => ({ id: e.getAttribute("data-metric"), text: (e.textContent ?? "").trim() }))
-        .filter((t) => /n\/a/i.test(t.text) && /\d/.test(t.text.replace(/n\/a/gi, "")))
+        .filter((t) => /n\/a(?!\s*[—-]\s*\S)/i.test(t.text) && /\d/.test(t.text.replace(/n\/a/gi, "")))
         .map((t) => `${t.id}: "${t.text.slice(0, 80)}"`),
     );
     check(`${vp.name}: no data-metric tile shows both a value and n/a`, contradictions.length === 0, contradictions.join(" | "));

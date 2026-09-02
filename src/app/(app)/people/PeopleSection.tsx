@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { LivePerson } from "@/lib/queries/people-live";
 import type { OrgChartData } from "@/lib/queries/org-chart-live";
 import { PeopleDirectory } from "./PeopleDirectory";
@@ -18,6 +19,8 @@ export function PeopleSection({
   people,
   chart,
   canEditPeople,
+  trackedCount,
+  hubOnlyCount,
   archivedCount,
   unlinkedCount,
   mailboxCount,
@@ -29,6 +32,10 @@ export function PeopleSection({
   chart: OrgChartData;
   /** Whether this viewer holds people:write and may record structure. */
   canEditPeople: boolean;
+  /** Rows in `people` with a TrackingTime account. */
+  trackedCount: number;
+  /** Rows in `people` that exist only in the Hub (no TrackingTime member). */
+  hubOnlyCount: number;
   archivedCount: number;
   unlinkedCount: number;
   mailboxCount: number;
@@ -38,6 +45,7 @@ export function PeopleSection({
   includeArchived?: boolean;
 }) {
   const [view, setView] = useState<"directory" | "orgchart">("directory");
+  const t = useTranslations("people");
 
   const tabClass = (active: boolean, extra = "") =>
     `${extra} px-3 py-1 text-[11px] font-medium transition-colors duration-150 ` +
@@ -72,14 +80,19 @@ export function PeopleSection({
           </button>
         </div>
 
+        {/* Two sources now: the roster below merges TrackingTime members with
+            Hub people who have no member. Saying only TRACKINGTIME would
+            misattribute the Hub-only rows. */}
         <span className="ml-auto font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-          SOURCE: TRACKINGTIME
+          {t("sourceLabel")}
         </span>
       </div>
 
       {view === "directory" ? (
         <PeopleDirectory
           people={people}
+          trackedCount={trackedCount}
+          hubOnlyCount={hubOnlyCount}
           archivedCount={archivedCount}
           unlinkedCount={unlinkedCount}
           mailboxCount={mailboxCount}

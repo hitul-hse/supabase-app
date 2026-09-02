@@ -118,9 +118,31 @@ const REPORTING = [
 ];
 // weekly_bookings is the seeded workload table; the others are keyed to people.id.
 const MOCK_TABLES = ['from("people")', 'from("weekly_bookings")', 'from("org_chart_nodes")'];
+/*
+ * The ONE sanctioned reader of public.people on a reporting surface, since
+ * 2026-09-02: the directory lists current Factorial employees who have no
+ * TrackingTime member (three today), and public.people is the only place they
+ * exist. The table still holds the eight seeded rows, so the read is accepted
+ * only with BOTH guards present in code: is_active, and the seed rows excluded
+ * by source. Dropping either guard fails here, as does a read anywhere else.
+ */
+const HUB_READER = "src/lib/queries/people-live.ts";
 for (const file of REPORTING) {
   const body = read(file);
   for (const table of MOCK_TABLES) {
+    if (file === HUB_READER && table === 'from("people")') {
+      const src = codeOnly(file);
+      const guarded =
+        src.includes(table) &&
+        /\.eq\("is_active",\s*true\)/.test(src) &&
+        /\.neq\("source",\s*"seed"\)/.test(src);
+      check(
+        `${file} reads ${table} only with is_active = true AND source <> 'seed'`,
+        guarded,
+        "the Hub-only roster must be unable to surface a seeded row even if one is re-activated",
+      );
+      continue;
+    }
     check(
       `${file} does not query ${table}`,
       !body.includes(table),

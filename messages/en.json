@@ -698,5 +698,32 @@
       "changeApplied": "Change applied.",
       "requestRejected": "Change request rejected."
     }
+  },
+  "people": {
+    "header": {
+      "total": "{count, plural, one {# PERSON} other {# PEOPLE}}",
+      "tracked": "{count} ON TRACKINGTIME",
+      "trackedWithArchived": "{count} ON TRACKINGTIME ({archived} ARCHIVED INCLUDED)",
+      "hubOnly": "{count} HUB-ONLY",
+      "archivedHidden": "{count} ARCHIVED",
+      "mailboxes": "{count} SHARED INBOX EXCLUDED",
+      "sources": "TRACKINGTIME + HUB"
+    },
+    "sourceLabel": "SOURCE: TRACKINGTIME + HUB",
+    "filters": {
+      "hubOnly": "HUB-ONLY"
+    },
+    "row": {
+      "hubMarker": "HUB",
+      "hubOnly": "HUB-ONLY · NO TRACKINGTIME ACCOUNT"
+    },
+    "detail": {
+      "hubOnlyBadge": "HUB-ONLY · NO TRACKINGTIME ACCOUNT",
+      "hubOnlyTitle": "This person is recorded in the Hub (from Factorial) but has no TrackingTime member, so nothing time-based can be measured.",
+      "noTrackingTime": "NO TRACKINGTIME ACCOUNT",
+      "noTrackingTimeAccount": "No TrackingTime account, so there is no project time to show.",
+      "noEmail": "no email on record"
+    },
+    "unlinkedNote": "{unlinked} of the {tracked} people on TrackingTime have no Hub sign-in yet, so they cannot see their own hours."
   }
 }

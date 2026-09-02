@@ -44,9 +44,20 @@ export type Metric<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 const unavailable = (reason: string): Metric<never> => ({ ok: false, reason });
 
+/**
+ * Reasons reach the DOM verbatim, so nothing that identifies the database host
+ * may survive here: pg's own errors carry the host name and the address it
+ * resolved to ("connect ETIMEDOUT 1.2.3.4:5432", "db.xxxx.supabase.co").
+ */
+export function scrubReason(text: string): string {
+  return text
+    .replace(/[a-z0-9-]+\.supabase\.(co|com|in|net)/gi, "[db-host]")
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, "[ip]");
+}
+
 function errorMessage(e: unknown): string {
-  if (e && typeof e === "object" && "message" in e) return String((e as { message: unknown }).message);
-  return String(e);
+  const raw = e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : String(e);
+  return scrubReason(raw);
 }
 
 /** Run one read; a thrown error becomes a reason, never a crash. */
@@ -114,6 +125,17 @@ const TYPED_TABLES: { relation: string; source: string }[] = [
 ];
 
 export type LegacySyncSourceRow = { source: string; freshness: string; status: string; message: string | null };
+
+const IDENTIFIER = /^[a-z_][a-z0-9_]*$/;
+
+/** "schema.table" -> "schema"."table", or a thrown error if either part is not a plain lowercase identifier. */
+function quotedRelation(relation: string): string {
+  const parts = relation.split(".");
+  if (parts.length !== 2 || !parts.every((p) => IDENTIFIER.test(p))) {
+    throw new Error(`relation name "${relation}" is not schema.table with plain identifiers`);
+  }
+  return `"${parts[0]}"."${parts[1]}"`;
+}
 
 /** Cap on the 30-day run list: 2,000 rows is 66 runs a day for a month, far above any schedule here. */
 export const RUNS_30D_CAP = 2000;
@@ -224,9 +246,12 @@ async function readFreshness(db: Client): Promise<FreshnessPanel> {
       source,
       rows: await attempt(async () => {
         if (existing.ok && !existing.value.has(relation)) throw new Error("relation does not exist on this database");
-        // `relation` is from the constant list above, never from input. If the
-        // existence probe itself failed, the count still runs and reports its own error.
-        const res = await db.query<{ count: string }>(`select count(*)::text as count from ${relation}`);
+        // The relation comes from the constant list above, never from input,
+        // and is still split, validated and quoted rather than interpolated:
+        // a count(*) cannot take a parameter for its table, so the identifier
+        // is the one place a string reaches SQL text. If the existence probe
+        // itself failed, the count still runs and reports its own error.
+        const res = await db.query<{ count: string }>(`select count(*)::text as count from ${quotedRelation(relation)}`);
         return Number(res.rows[0].count);
       }),
     });
@@ -240,6 +265,9 @@ async function readFreshness(db: Client): Promise<FreshnessPanel> {
 export type DbStats = {
   xactCommit: number;
   xactRollback: number;
+  /** Blocks served from the buffer cache / read from disk since stats reset. The cache drill lists both; they sum to the denominator of cacheHitPct. */
+  blksHit: number;
+  blksRead: number;
   /** blks_hit / (blks_hit + blks_read), or null when both are zero. */
   cacheHitPct: number | null;
   deadlocks: number;
@@ -247,6 +275,10 @@ export type DbStats = {
 };
 
 export type SlowStatement = { calls: number; meanMs: number; totalMs: number; query: string };
+
+export type ConnectionState = { state: string; count: number };
+
+export type ConnectionSummary = { active: number; max: number; byState: ConnectionState[] };
 
 /** How many statements `efficiency.statements` holds: the page shows 5 and pages the rest. */
 export const STATEMENTS_CAP = 50;
@@ -259,7 +291,8 @@ export type EfficiencyPanel = {
   /** Median of three `select 1` round trips on this request's connection. */
   dbLatencyMs: Metric<number>;
   dbStats: Metric<DbStats>;
-  connections: Metric<{ active: number; max: number }>;
+  /** `active` is every backend on this database; `byState` breaks it down by pg_stat_activity.state and sums to `active` (asserted). */
+  connections: Metric<ConnectionSummary>;
   /** Top STATEMENTS_CAP statements by total time, if pg_stat_statements is installed. */
   statements: Metric<SlowStatement[]>;
 };
@@ -294,6 +327,8 @@ async function readEfficiency(db: Client): Promise<EfficiencyPanel> {
     return {
       xactCommit: Number(r.xact_commit),
       xactRollback: Number(r.xact_rollback),
+      blksHit: hit,
+      blksRead: read,
       cacheHitPct: hit + read === 0 ? null : Math.round((hit / (hit + read)) * 1000) / 10,
       deadlocks: Number(r.deadlocks),
       statsReset: r.stats_reset,
@@ -301,24 +336,79 @@ async function readEfficiency(db: Client): Promise<EfficiencyPanel> {
   });
 
   const connections = await attempt(async () => {
-    const res = await db.query<{ active: string; max: string }>(
-      `select (select count(*) from pg_stat_activity where datname = current_database())::text as active,
-              current_setting('max_connections') as max`,
+    // One statement, so `active` and `byState` are the same snapshot of
+    // pg_stat_activity and the drill's rows can be asserted to sum to the tile.
+    const res = await db.query<{ state: string; count: string; max: string }>(
+      `select coalesce(state, 'no state') as state, count(*)::text as count,
+              current_setting('max_connections') as max
+         from pg_stat_activity
+        where datname = current_database()
+        group by 1
+        order by count(*) desc, 1`,
     );
-    return { active: Number(res.rows[0].active), max: Number(res.rows[0].max) };
+    const byState: ConnectionState[] = res.rows.map((r) => ({ state: r.state, count: Number(r.count) }));
+    const active = byState.reduce((a, r) => a + r.count, 0);
+    const maxRaw = res.rows[0]?.max ?? (await db.query<{ max: string }>("select current_setting('max_connections') as max")).rows[0].max;
+    const max = Number(maxRaw);
+    if (!Number.isFinite(max) || max <= 0) throw new Error(`max_connections is "${maxRaw}", not a positive number`);
+    // `active` is defined as Σ byState above, so the two cannot disagree; the
+    // assertion guards the day someone reintroduces a second count.
+    if (byState.reduce((a, r) => a + r.count, 0) !== active) throw new Error("pg_stat_activity states do not sum to the connection count");
+    return { active, max, byState } satisfies ConnectionSummary;
   });
 
   const statements = await attempt(async () => {
     const ext = await db.query("select 1 from pg_extension where extname = 'pg_stat_statements'");
     if (ext.rowCount === 0) throw new Error("pg_stat_statements is not installed on this database");
-    // Query text is normalised by the extension (constants become $n), and
-    // truncated here so a long statement cannot dominate the card.
+    // The app's own top-level DML, three filters deep, each measured on
+    // 2026-09-02 against the live view:
+    //  - ROLE. pg_stat_statements records the user AFTER PostgREST's `set
+    //    role`, so the Data API's reads sit under `authenticated` (47 stmts,
+    //    158k calls, 1.75M ms), `service_role` and `anon`; `authenticator`
+    //    itself holds one 10 ms statement (its schema-cache introspection).
+    //    current_user (postgres) is the direct-Postgres drill-downs, gates and
+    //    this portal. GoTrue (supabase_auth_admin, 887k calls), storage,
+    //    pgbouncer and supabase_admin are the platform's, not ours.
+    //  - CATALOG READS. Supabase Studio's pg_meta and PostgREST's schema cache
+    //    also run as postgres/authenticator and read pg_class, pg_proc,
+    //    pg_timezone_names, pg_extension...; they held ranks 1-4 (127 s, 82 s,
+    //    27 s, 22 s) before this rule. Only a FROM/JOIN of a catalog relation
+    //    counts: PostgREST wraps every Data API statement in
+    //    `pg_catalog.count(_postgrest_t)`, and a bare word-list on pg_catalog
+    //    silently dropped the whole workload (the 4.25M ms time.entry read).
+    //    This page's own probes (RLS, relation sizes, to_regclass) all read
+    //    the catalog too, which is the only handle there is: pg_stat_statements
+    //    cannot filter by application_name. `\y` is the Postgres word boundary
+    //    (`\b` is not). `join` is in the pattern because pg_meta's function
+    //    query reaches pg_proc/pg_namespace through joins (67 rows leaked
+    //    with `from` alone).
+    //  - SELF. Nothing that names pg_stat_statements.
+    // pg_stat_statements normalises DML
+    // (constants become $n) but stores UTILITY statements verbatim -- a
+    // `create user ... password '...'`, `alter system`, `create server ...
+    // options (host '...')` or a `set` of a secret would surface in full --
+    // and other roles' statements (GoTrue's auth.users reads, its migration
+    // DDL) are not this app's to display. `toplevel` drops statements run
+    // inside functions. Belt and braces: anything that still looks like a
+    // credential assignment is redacted BEFORE the text is truncated, so a cut
+    // cannot land inside a value. Checked 2026-09-02: the unfiltered view held
+    // 20 rows matching password|secret|connection=|host=, all GoTrue column
+    // names or migration comments, none a value; the filtered view held none.
     const res = await db.query<{ calls: string; mean_ms: string; total_ms: string; query: string }>(
       `select calls::text, round(mean_exec_time::numeric, 2)::text as mean_ms,
               round(total_exec_time::numeric, 0)::text as total_ms,
-              left(regexp_replace(query, '\\s+', ' ', 'g'), 120) as query
+              left(regexp_replace(
+                     regexp_replace(query, '(password|secret|token)\\s*=\\s*[^ ''&]+', '\\1=[redacted]', 'gi'),
+                     '\\s+', ' ', 'g'), 120) as query
          from pg_stat_statements
         where dbid = (select oid from pg_database where datname = current_database())
+          and userid in (select oid from pg_roles
+                          where rolname in (current_user, 'authenticator', 'authenticated', 'anon', 'service_role'))
+          and toplevel
+          and query ~* '^\\s*(select|with|insert|update|delete)'
+          and query not like '%pg_stat_statements%'
+          and query !~* 'to_regclass'
+          and query !~* '\\y(from|join)\\s+(pg_catalog\\.|information_schema\\.|pg_(class|namespace|extension|roles|policy|database|timezone_names|stat_|proc|attribute|type|constraint|index|trigger|depend|description|settings|authid|auth_members|tables|views|enum)\\w*)'
         order by total_exec_time desc
         limit $1`,
       [STATEMENTS_CAP],
@@ -449,18 +539,38 @@ const EXPECTED_HEADERS: { name: string; expected: string | null }[] = [
  * header configured in next.config.ts and dropped by a proxy looks identical
  * from inside the process.
  */
-async function readHeaders(): Promise<SecurityPanel["headers"]> {
+/** Headers change on deploy, not per request: one probe per minute per process is plenty. */
+export const HEADERS_CACHE_MS = 60_000;
+/** Well under SERVER_BUDGET_MS, so the self-check alone can never blow the page's budget. */
+export const HEADERS_TIMEOUT_MS = 1500;
+
+let headersCache: { url: string; at: number; result: SecurityPanel["headers"] } | null = null;
+
+async function readHeaders(now = Date.now()): Promise<SecurityPanel["headers"]> {
   const base = process.env.NEXT_PUBLIC_SITE_URL;
   if (!base) return unavailable("NEXT_PUBLIC_SITE_URL is not set — nothing to check against");
-  // /auth/login is the real route; /login 307s to it and the check would read
-  // the redirect's headers instead of a rendered page.
-  const url = `${base.replace(/\/$/, "")}/auth/login`;
-  return attempt(async () => {
+  let url: string;
+  try {
+    const parsed = new URL(base);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return unavailable(`NEXT_PUBLIC_SITE_URL has scheme "${parsed.protocol}" — only http: and https: are probed`);
+    }
+    // /auth/login is the real route; /login 307s to it and the check would
+    // read the redirect's headers instead of a rendered page.
+    parsed.pathname = `${parsed.pathname.replace(/\/$/, "")}/auth/login`;
+    parsed.search = "";
+    parsed.hash = "";
+    url = parsed.toString();
+  } catch {
+    return unavailable("NEXT_PUBLIC_SITE_URL is not a valid URL — nothing to check against");
+  }
+  if (headersCache && headersCache.url === url && now - headersCache.at < HEADERS_CACHE_MS) return headersCache.result;
+  const result = await attempt(async () => {
     const res = await fetch(url, {
       method: "GET",
       redirect: "manual",
       cache: "no-store",
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(HEADERS_TIMEOUT_MS),
     });
     return {
       url,
@@ -468,6 +578,8 @@ async function readHeaders(): Promise<SecurityPanel["headers"]> {
       checks: EXPECTED_HEADERS.map(({ name, expected }) => ({ name, expected, observed: res.headers.get(name) })),
     };
   });
+  headersCache = { url, at: now, result };
+  return result;
 }
 
 // ─── Consumption ─────────────────────────────────────────────────────────────
@@ -630,6 +742,13 @@ export async function getSystemHealth(): Promise<SystemHealth> {
 
   try {
     panels = await withDb(async (db) => {
+      // Session guard, before anything else: no single read may hang the page
+      // (a timed-out read becomes its own reason via attempt()), and the
+      // session cannot write even if a future statement here tried to. Both
+      // are session-level SETs on this request's own Client; withDb is shared
+      // and untouched. If the guard itself fails, nothing else runs.
+      await db.query("set statement_timeout = 5000");
+      await db.query("set default_transaction_read_only = on");
       // Latency first and alone (see readEfficiency), then the rest in turn on
       // the same connection -- never two statements in flight at once.
       const efficiency = await readEfficiency(db);

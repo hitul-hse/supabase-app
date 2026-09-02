@@ -452,7 +452,9 @@ const EXPECTED_HEADERS: { name: string; expected: string | null }[] = [
 async function readHeaders(): Promise<SecurityPanel["headers"]> {
   const base = process.env.NEXT_PUBLIC_SITE_URL;
   if (!base) return unavailable("NEXT_PUBLIC_SITE_URL is not set — nothing to check against");
-  const url = `${base.replace(/\/$/, "")}/login`;
+  // /auth/login is the real route; /login 307s to it and the check would read
+  // the redirect's headers instead of a rendered page.
+  const url = `${base.replace(/\/$/, "")}/auth/login`;
   return attempt(async () => {
     const res = await fetch(url, {
       method: "GET",

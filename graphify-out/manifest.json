@@ -48,9 +48,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1788294909.7750733,
-    "seen": 1788350980.3569407,
-    "ast_hash": "f0e3d7320c6148e9ee8dce87e73cdd0d",
+    "mtime": 1788351191.8001497,
+    "seen": 1788352641.715572,
+    "ast_hash": "90138b24f207627ca8dd11a5a6af7608",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -4584,21 +4584,21 @@
     "semantic_hash": ""
   },
   "messages/de.json": {
-    "mtime": 1788349416.4283254,
-    "seen": 1788350980.3569365,
-    "ast_hash": "6fcafacdbb2bbfb31a77a5dd997e8d7c",
+    "mtime": 1788352105.5418665,
+    "seen": 1788352641.7155674,
+    "ast_hash": "46ea141cc1933a7f03a013b976132e72",
     "semantic_hash": ""
   },
   "messages/en.json": {
-    "mtime": 1788349416.4283254,
-    "seen": 1788350980.3569376,
-    "ast_hash": "f4d116f39366516b297d795ff6774033",
+    "mtime": 1788352105.5407221,
+    "seen": 1788352641.7155697,
+    "ast_hash": "528a63aa9427aef1d6c89c1940acb118",
     "semantic_hash": ""
   },
   "scripts/check-health-score.mjs": {
-    "mtime": 1788350838.1815999,
-    "seen": 1788350980.35712,
-    "ast_hash": "b52a46cefd8be846ec87ab87c0a59394",
+    "mtime": 1788351220.3000784,
+    "seen": 1788352641.7157233,
+    "ast_hash": "fe673c5f90382c79c231c4dc282cba43",
     "semantic_hash": ""
   },
   "scripts/check-i18n-management.mjs": {
@@ -4614,9 +4614,9 @@
     "semantic_hash": ""
   },
   "scripts/sample-system-health.mjs": {
-    "mtime": 1788350671.7561514,
-    "seen": 1788350980.3575325,
-    "ast_hash": "7aec68a97ac442bfb1f2d64172cd7808",
+    "mtime": 1788351220.2998993,
+    "seen": 1788352641.7160764,
+    "ast_hash": "961d5b6e07aba43d916cdbe96d52777f",
     "semantic_hash": ""
   },
   "src/app/(app)/OverviewHero.tsx": {
@@ -4644,9 +4644,9 @@
     "semantic_hash": ""
   },
   "src/app/(app)/admin/system-health/page.tsx": {
-    "mtime": 1788295458.4318514,
-    "seen": 1788350980.3575952,
-    "ast_hash": "b3d478697abdf28bf0a6d5145e55292d",
+    "mtime": 1788351757.9513493,
+    "seen": 1788352641.716137,
+    "ast_hash": "666b464a40b01021e3a99b75d7e203f4",
     "semantic_hash": ""
   },
   "src/app/(app)/dashboard/management/ManagementDrilldown.tsx": {
@@ -4710,15 +4710,15 @@
     "semantic_hash": ""
   },
   "src/lib/health-score.ts": {
-    "mtime": 1788350464.947593,
-    "seen": 1788350980.3578074,
-    "ast_hash": "53d81807e566c5f7ddae54067923b01a",
+    "mtime": 1788351220.2994611,
+    "seen": 1788352641.716337,
+    "ast_hash": "48b29bf08b4faa3d8ad4d3076d5b4448",
     "semantic_hash": ""
   },
   "src/lib/queries/system-health.ts": {
-    "mtime": 1788350927.1724496,
-    "seen": 1788350980.3578525,
-    "ast_hash": "5e1c7da1886c5e3b63e7ff56a1641096",
+    "mtime": 1788351220.299735,
+    "seen": 1788352641.7163796,
+    "ast_hash": "8cf1e6ddc26179235d24ea8aa3c41ca3",
     "semantic_hash": ""
   },
   "src/utils/proxied-origin.ts": {
@@ -4731,6 +4731,60 @@
     "mtime": 1788349853.8521857,
     "seen": 1788350980.3579814,
     "ast_hash": "3624e73952be0ad7713dae135f5d5785",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/ConsumptionPanel.tsx": {
+    "mtime": 1788352552.1353533,
+    "seen": 1788352641.7161272,
+    "ast_hash": "91a3c1eea8fc6567ee9cca9f945a4b84",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/EfficiencyPanel.tsx": {
+    "mtime": 1788352552.1350596,
+    "seen": 1788352641.7161286,
+    "ast_hash": "739187431bec90007bd171487d2b665a",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/FreshnessPanel.tsx": {
+    "mtime": 1788352552.1348493,
+    "seen": 1788352641.7161293,
+    "ast_hash": "ebcd1cd01114fdb7df66f384d4389233",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/HealthHero.tsx": {
+    "mtime": 1788352414.2898204,
+    "seen": 1788352641.71613,
+    "ast_hash": "cf7f7a8349f5e680bebe981daf363a96",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/SecurityPanel.tsx": {
+    "mtime": 1788352552.135205,
+    "seen": 1788352641.7161307,
+    "ast_hash": "52e97e60968a7029f4b924b2f4b8d00a",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/bits.tsx": {
+    "mtime": 1788352552.1344852,
+    "seen": 1788352641.7161312,
+    "ast_hash": "dcc72415142dd0969e4e530f6d4e7daf",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/drills.ts": {
+    "mtime": 1788351577.2940075,
+    "seen": 1788352641.7161324,
+    "ast_hash": "d8333f3ca6d29672a8d7eba66f3c22ae",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/format.ts": {
+    "mtime": 1788351406.2831244,
+    "seen": 1788352641.716133,
+    "ast_hash": "c339c0036ecf776d253e52b05115e3ee",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/admin/system-health/view.ts": {
+    "mtime": 1788352105.5394897,
+    "seen": 1788352641.7161376,
+    "ast_hash": "3769af2c1d5b0a5c58d22eb135fe494a",
     "semantic_hash": ""
   }
 }

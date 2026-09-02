@@ -111,7 +111,8 @@ check("freshness lists factorial, asana, samdock as excluded (no documented SLA)
   unscheduled.length === 3 && unscheduled.every((c) => c.points === null && c.detail.includes("no documented schedule")),
   unscheduled.map((c) => c.label).join(", "));
 const ttDetail = okv(all.freshness)?.components.find((c) => c.key === "source:trackingtime")?.detail ?? "";
-check("trackingtime detail states the input and the mapping", /8 h ago vs SLA 24 h → 100/.test(ttDetail) && /≤ SLA is 100/.test(ttDetail), ttDetail);
+check("trackingtime detail states the input, the mapping and the grace", /8 h ago vs SLA 24 h → 100/.test(ttDetail) && /≤ SLA \+ 2 h grace is 100/.test(ttDetail) && ttDetail.includes("GitHub cron runs up to 90 min late"), ttDetail);
+check("FRESHNESS_GRACE_HOURS is exported as 2", score.FRESHNESS_GRACE_HOURS === 2);
 const cacheDetail = okv(all.efficiency)?.components.find((c) => c.key === "cacheHit")?.detail ?? "";
 check("cache-hit detail reads like the brief's example", cacheDetail.includes("cache hit 99.6 % → 100") && cacheDetail.includes("≥ 99 % is 100"), cacheDetail);
 
@@ -171,6 +172,8 @@ check("no connector with an SLA → freshness n/a with the reason", !noSla.fresh
 const fresh = (lastRun, runs30d) => okv(score.computeHealthScore(fixture({
   sources: [{ source: "trackingtime", lastRun, raw: ok({ count: 0, lastFetchedAt: null }) }], runs30d,
 }), NO_HISTORY).freshness)?.score;
+check("freshness: ok run 25.5 h old (within SLA + 2 h grace) → 100", fresh(ok(run("ok", 25.5))) === 100);
+check("freshness: ok run 26.1 h old (past the grace) → 50", fresh(ok(run("ok", 26.1))) === 50);
 check("freshness: ok run 30 h old (≤ 2×SLA) → 50", fresh(ok(run("ok", 30))) === 50);
 check("freshness: ok run 50 h old (> 2×SLA) → 0", fresh(ok(run("ok", 50))) === 0);
 check("freshness: failed latest run → 0", fresh(ok(run("failed", 1))) === 0);
@@ -211,7 +214,7 @@ check("sampler SLA table matches SYNC_SLA (scored sources)",
   JSON.stringify(sampler.SLA_HOURS));
 check("sampler budget constant matches DOCUMENTED_DB_BUDGET_BYTES", sampler.DOCUMENTED_DB_BUDGET_BYTES === score.DOCUMENTED_DB_BUDGET_BYTES);
 check("sampler weights, cap and running-stale constants match",
-  JSON.stringify(sampler.SUBSCORE_WEIGHTS) === JSON.stringify(score.SUBSCORE_WEIGHTS) && sampler.CAP_THRESHOLD === score.CAP_THRESHOLD && sampler.CAP_SCORE === score.CAP_SCORE && sampler.RUNNING_STALE_HOURS === score.RUNNING_STALE_HOURS);
+  JSON.stringify(sampler.SUBSCORE_WEIGHTS) === JSON.stringify(score.SUBSCORE_WEIGHTS) && sampler.CAP_THRESHOLD === score.CAP_THRESHOLD && sampler.CAP_SCORE === score.CAP_SCORE && sampler.RUNNING_STALE_HOURS === score.RUNNING_STALE_HOURS && sampler.FRESHNESS_GRACE_HOURS === score.FRESHNESS_GRACE_HOURS);
 
 const grid = (name, a, b, inputs) => {
   const bad = inputs.filter((args) => Math.abs(a(...args) - b(...args)) > 1e-9);
@@ -222,7 +225,7 @@ grid("mapCacheHit", score.mapCacheHit, sampler.mapCacheHit, range(80, 100, 0.5))
 grid("mapLatency", score.mapLatency, sampler.mapLatency, range(0, 600, 10));
 grid("mapConnections", score.mapConnections, sampler.mapConnections, range(0, 60, 1).map(([a]) => [a, 60]));
 grid("mapRollbackShare", score.mapRollbackShare, sampler.mapRollbackShare, range(0, 1500, 25).map(([r]) => [10000, r]));
-grid("mapRunAge", score.mapRunAge, sampler.mapRunAge, range(0, 60, 1).map(([h]) => [h, 24]));
+grid("mapRunAge", score.mapRunAge, sampler.mapRunAge, range(0, 60, 0.5).map(([h]) => [h, 24]));
 grid("mapUsersWithoutRole", score.mapUsersWithoutRole, sampler.mapUsersWithoutRole, range(0, 6, 1));
 grid("mapBudgetUse", score.mapBudgetUse, sampler.mapBudgetUse, range(0, 600, 20).map(([mb]) => [mb * 1024 * 1024, 500 * 1024 * 1024]));
 grid("mapShare", score.mapShare, sampler.mapShare, range(0, 56, 1).map(([n]) => [n, 56]));

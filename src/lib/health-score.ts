@@ -170,6 +170,13 @@ export const SUBSCORE_WEIGHTS: readonly { key: SubScoreKey; weight: number }[] =
 export const CAP_THRESHOLD = 25;
 export const CAP_SCORE = 49;
 export const RUNNING_STALE_HOURS = 6;
+/**
+ * Grace on top of the SLA before a run counts as late. GitHub runs a cron up
+ * to 90 min late (scripts/check-sync-schedule-alive.mjs measures the same),
+ * so a 24 h schedule legitimately lands at 25.5 h; without this the score
+ * dropped to 50 every morning between 04:17 and the delayed run.
+ */
+export const FRESHNESS_GRACE_HOURS = 2;
 
 // ─── Mappings (each one is a sentence in the brief) ──────────────────────────
 
@@ -200,9 +207,9 @@ export const mapRollbackShare = (commits: number, rollbacks: number): number =>
   interpolate((rollbacks / (commits + rollbacks)) * 100, [[1, 100], [10, 0]]);
 /** DB round trip in ms: ≤ 50 → 100, ≥ 500 → 0. */
 export const mapLatency = (ms: number): number => interpolate(ms, [[50, 100], [500, 0]]);
-/** Age of the last ok run against the SLA: ≤ SLA → 100, ≤ 2×SLA → 50, older → 0. */
+/** Age of the last ok run against the SLA: ≤ SLA + FRESHNESS_GRACE_HOURS → 100, ≤ 2×SLA → 50, older → 0. */
 export const mapRunAge = (ageHours: number, slaHours: number): number =>
-  ageHours <= slaHours ? 100 : ageHours <= 2 * slaHours ? 50 : 0;
+  ageHours <= slaHours + FRESHNESS_GRACE_HOURS ? 100 : ageHours <= 2 * slaHours ? 50 : 0;
 /** enabled ÷ total × 100. */
 export const mapShare = (part: number, whole: number): number => (part / whole) * 100;
 /** 0 users → 100, each user −25, floor 0. */
@@ -275,7 +282,7 @@ function freshnessScore(health: SystemHealth): SubScore {
     if (sla.slaHours === null) {
       return { ...base, points: null, detail: `no documented schedule — listed, not scored (${sla.evidence})`, excludedReason: "no documented SLA" };
     }
-    const rule = `(≤ SLA is 100, ≤ 2×SLA is 50, older is 0; SLA ${sla.slaHours} h from ${sla.evidence.split(";")[0]})`;
+    const rule = `(≤ SLA + ${FRESHNESS_GRACE_HOURS} h grace is 100 — GitHub cron runs up to 90 min late —, ≤ 2×SLA is 50, older is 0; SLA ${sla.slaHours} h from ${sla.evidence.split(";")[0]})`;
     if (!s.lastRun.ok) {
       return { ...base, points: null, detail: `latest run could not be read: ${s.lastRun.reason}`, excludedReason: s.lastRun.reason };
     }

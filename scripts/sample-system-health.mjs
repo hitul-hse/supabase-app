@@ -59,6 +59,8 @@ export const SUBSCORE_WEIGHTS = [
 export const CAP_THRESHOLD = 25;
 export const CAP_SCORE = 49;
 export const RUNNING_STALE_HOURS = 6;
+/** FRESHNESS_GRACE_HOURS: GitHub cron runs up to 90 min late. */
+export const FRESHNESS_GRACE_HOURS = 2;
 export const RETENTION_DAYS = 90;
 
 export function interpolate(x, anchors) {
@@ -77,7 +79,7 @@ export const mapCacheHit = (pct) => interpolate(pct, [[90, 0], [95, 50], [99, 10
 export const mapConnections = (active, max) => interpolate((active / max) * 100, [[50, 100], [90, 0]]);
 export const mapRollbackShare = (commits, rollbacks) => interpolate((rollbacks / (commits + rollbacks)) * 100, [[1, 100], [10, 0]]);
 export const mapLatency = (ms) => interpolate(ms, [[50, 100], [500, 0]]);
-export const mapRunAge = (ageHours, slaHours) => (ageHours <= slaHours ? 100 : ageHours <= 2 * slaHours ? 50 : 0);
+export const mapRunAge = (ageHours, slaHours) => (ageHours <= slaHours + FRESHNESS_GRACE_HOURS ? 100 : ageHours <= 2 * slaHours ? 50 : 0);
 export const mapShare = (part, whole) => (part / whole) * 100;
 export const mapUsersWithoutRole = (n) => Math.max(0, 100 - 25 * n);
 export const mapBudgetUse = (bytes, budgetBytes) => Math.max(0, 100 - (bytes / budgetBytes) * 100);

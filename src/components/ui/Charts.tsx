@@ -403,7 +403,7 @@ export function Donut({
             {centre}
           </span>
           {centreLabel && (
-            <span className="mt-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-[var(--text-faint)]">
+            <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-faint)]">
               {centreLabel}
             </span>
           )}
@@ -432,6 +432,8 @@ export function Gauge({
   centreLabel,
   label,
   width = 168,
+  unit,
+  figure = "default",
 }: {
   value: number;
   max: number;
@@ -444,9 +446,22 @@ export function Gauge({
   centreLabel?: string;
   label: string;
   width?: number;
+  /**
+   * The small qualifier after the centre figure. Defaults to "/max"; a ratio
+   * that IS a percentage says "%" instead, because "99.6/100 cache hit %"
+   * states the ceiling twice and crowds a 130px arc.
+   */
+  unit?: string;
+  /**
+   * `hero` sets the centre in the display sans at 48px with proportional
+   * figures -- the one number a page leads with (dataviz: hero figure >= 48px,
+   * same sans as everything else, never tabular at display size). `default`
+   * keeps the mono 24px figure the smaller gauges share.
+   */
+  figure?: "default" | "hero";
 }) {
   const stroke = color ?? (tone ? toneColor(tone) : "var(--accent)");
-  const thickness = 12;
+  const thickness = figure === "hero" ? 14 : 12;
   const w = width;
   const r = (w - thickness) / 2;
   const cx = w / 2;
@@ -485,12 +500,26 @@ export function Gauge({
           <circle cx={dotX} cy={dotY} r={thickness / 2 + 2} fill="var(--surface)" stroke={stroke} strokeWidth="3" />
         </svg>
         <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
-          <span className="font-mono text-[24px] font-semibold leading-none tracking-tight text-[var(--text-primary)]">
+          <span
+            className={
+              figure === "hero"
+                ? "text-[48px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-primary)]"
+                : "font-mono text-[24px] font-semibold leading-none tracking-tight text-[var(--text-primary)]"
+            }
+          >
             {centre ?? String(value)}
-            <span className="text-[13px] font-normal text-[var(--text-faint)]">/{max}</span>
+            <span
+              className={
+                figure === "hero"
+                  ? "ml-0.5 font-mono text-[15px] font-normal tracking-normal text-[var(--text-faint)]"
+                  : "text-[13px] font-normal text-[var(--text-faint)]"
+              }
+            >
+              {unit ?? `/${max}`}
+            </span>
           </span>
           {centreLabel && (
-            <span className="mt-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-[var(--text-faint)]">
+            <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-faint)]">
               {centreLabel}
             </span>
           )}
@@ -798,7 +827,44 @@ export type HBarRow = {
   tone?: Tone;
   /** Optional grouping; rows are listed under a small group header. */
   group?: string;
+  /**
+   * A muted prefix before the label -- the schema of a relation name. It sits
+   * on the same line when the column has room and wraps onto its own line on
+   * a phone, so "crm.factorial_person_reference" never truncates to "crm.fac".
+   */
+  prefix?: string;
+  /** A second, muted mono line under the label: "1,204 calls x 3.5 ms mean". */
+  sub?: string;
 };
+
+/**
+ * The label column of every horizontal figure. `narrow` is the default 7.5rem;
+ * `wide` is for relation and statement names (up to ~34 characters), which at
+ * 7.5rem truncated to a shared prefix and were indistinguishable. On a phone a
+ * wide label takes the whole row and the bar sits under it -- a 15rem column
+ * would leave a 311px card no room for the bar.
+ */
+export type LabelWidth = "narrow" | "wide";
+const LABEL_COLS: Record<LabelWidth, string> = {
+  narrow: "grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)]",
+  wide: "grid-cols-1 gap-y-0.5 sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]",
+};
+
+/** Bars grow in 400ms, row by row, and finish well inside the page's 500ms motion budget. */
+const barMotion = (i: number) => ({ animationDuration: "0.4s", animationDelay: `${90 + Math.min(i, 8) * 35}ms` });
+
+function RowLabel({ label, prefix, sub, wide }: { label: string; prefix?: string; sub?: string; wide?: boolean }) {
+  return (
+    <span className="flex min-w-0 flex-col">
+      <span className="flex min-w-0 flex-wrap items-baseline text-[12px] leading-[16px] text-[var(--text-secondary)]">
+        {prefix && <span className="font-mono text-[10px] text-[var(--text-faint)]">{prefix}</span>}
+        {/* A wide label (free-text SQL) wraps to two lines rather than losing its end. */}
+        <span className={wide ? "line-clamp-2 [overflow-wrap:anywhere]" : "truncate"}>{label}</span>
+      </span>
+      {sub && <span className="truncate font-mono text-[10px] leading-[14px] text-[var(--text-faint)]">{sub}</span>}
+    </span>
+  );
+}
 
 /**
  * Horizontal bars for "magnitude by category" -- ages against an SLA, ranked
@@ -822,6 +888,7 @@ export function HBar({
   onSelect,
   groupOrder,
   thickness = 12,
+  labelWidth = "narrow",
   className = "",
 }: {
   rows: HBarRow[];
@@ -839,6 +906,7 @@ export function HBar({
   groupOrder?: string[];
   /** Bar thickness in px; capped at 24 by the mark spec. */
   thickness?: number;
+  labelWidth?: LabelWidth;
   className?: string;
 }) {
   const [active, setActive] = useState<string | null>(null);
@@ -875,7 +943,7 @@ export function HBar({
   const limitX = limit ? xOf(limit.value) : null;
   const limitRight = limit ? limit.value / scale > 0.6 : false;
 
-  const gridCols = "grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)]";
+  const gridCols = LABEL_COLS[labelWidth];
 
   return (
     <div className={`flex flex-col ${className}`} onMouseLeave={() => setActive(null)}>
@@ -917,9 +985,7 @@ export function HBar({
               } ${onSelect ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]" : ""}`;
               const inner = (
                 <>
-                  <span className="truncate text-[12px] leading-[16px] text-[var(--text-secondary)]">
-                    {r.label}
-                  </span>
+                  <RowLabel label={r.label} prefix={r.prefix} sub={r.sub} wide={labelWidth === "wide"} />
                   <span className="relative block" style={{ height: Math.max(t, 16) }}>
                     {limitX && (
                       <span
@@ -937,6 +1003,7 @@ export function HBar({
                         opacity: on ? 1 : 0.85,
                         // An empty bar still shows a 2px stub so "zero" is not "absent".
                         minWidth: r.value > 0 ? 2 : 0,
+                        ...barMotion(i),
                       }}
                     />
                     {/* With a limit rule the tip label wears the row's own surface
@@ -965,7 +1032,6 @@ export function HBar({
                   onBlur={() => setActive(null)}
                   onClick={() => onSelect(r.key)}
                   className={rowClass}
-                  style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
                 >
                   {inner}
                 </button>
@@ -1057,6 +1123,7 @@ export function StackedHBar({
   valueFormat = (v) => String(v),
   onSelect,
   thickness = 12,
+  labelWidth = "narrow",
   className = "",
 }: {
   rows: StackedHBarRow[];
@@ -1067,6 +1134,7 @@ export function StackedHBar({
   valueFormat?: (v: number) => string;
   onSelect?: (key: string) => void;
   thickness?: number;
+  labelWidth?: LabelWidth;
   className?: string;
 }) {
   const [active, setActive] = useState<string | null>(null);
@@ -1080,7 +1148,7 @@ export function StackedHBar({
   const reserve = `${Math.max(...values.map((v) => v.length)) + 1.5}ch`;
   const kinds = segmentKinds(rows);
   const hot = active !== null ? rows.find((r) => r.key === active) ?? null : null;
-  const gridCols = "grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)]";
+  const gridCols = LABEL_COLS[labelWidth];
 
   return (
     <div className={`flex flex-col gap-2 ${className}`} onMouseLeave={() => setActive(null)}>
@@ -1107,6 +1175,7 @@ export function StackedHBar({
                     width: `calc((100% - ${reserve}) * ${fraction})`,
                     height: t,
                     opacity: on ? 1 : 0.85,
+                    ...barMotion(i),
                   }}
                 >
                   {visible.map((s, j) => (
@@ -1169,6 +1238,7 @@ export function ProportionBar({
   valueFormat = (v) => String(v),
   height = 14,
   onSelect,
+  legend = "strip",
   className = "",
 }: {
   segments: Segment[];
@@ -1178,6 +1248,13 @@ export function ProportionBar({
   /** Bar height in px; capped at 24 by the mark spec. */
   height?: number;
   onSelect?: (key: string) => void;
+  /**
+   * `strip` (default) lists the legend inline above the bar -- right for two
+   * or three segments. `grid` lists it UNDER the bar as columns with the
+   * value right-aligned in tabular digits: the table twin of a nine-segment
+   * bar, which as a wrapped strip read as a paragraph of chips.
+   */
+  legend?: "strip" | "grid";
   className?: string;
 }) {
   const [active, setActive] = useState<string | null>(null);
@@ -1197,7 +1274,7 @@ export function ProportionBar({
       <FigureStrip
         text={hot ? `${hot.label}: ${values.get(hot.key)} (${Math.round((hot.value / total) * 100)}%)` : null}
       >
-        <SegmentLegend kinds={visible} values={values} />
+        {legend === "strip" && <SegmentLegend kinds={visible} values={values} />}
       </FigureStrip>
       <div
         ref={ref}
@@ -1242,13 +1319,38 @@ export function ProportionBar({
           );
         })}
       </div>
+      {legend === "grid" && (
+        <ul className="grid grid-cols-1 gap-x-6 gap-y-1 pt-1 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((s) => {
+            const on = active === s.key;
+            return (
+              <li
+                key={s.key}
+                onMouseEnter={() => setActive(s.key)}
+                className={`flex items-baseline gap-2 rounded-[var(--radius-sm)] px-1 py-0.5 font-mono text-[10px] leading-[14px] transition-colors ${
+                  on ? "bg-[var(--surface-hover)]" : ""
+                }`}
+              >
+                <span className="h-2 w-2 shrink-0 self-center rounded-full" style={{ background: s.color }} />
+                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{s.label}</span>
+                <span className="shrink-0 tabular-nums text-[var(--text-primary)]">{values.get(s.key)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ Timeline */
 
-export type TimelineLane = { key: string; label: string };
+export type TimelineLane = {
+  key: string;
+  label: string;
+  /** A right-aligned mono figure at the lane's end, e.g. "25 runs" or "none". */
+  meta?: string;
+};
 export type TimelineEvent = {
   key: string;
   lane: string;
@@ -1322,6 +1424,7 @@ export function Timeline({
   onSelect,
   tickEvery = 5,
   tickFormat = (d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }),
+  kindLabels,
   className = "",
 }: {
   lanes: TimelineLane[];
@@ -1334,7 +1437,10 @@ export function Timeline({
   onSelect?: (key: string) => void;
   /** Label every Nth day; thinned further when labels would collide. */
   tickEvery?: number;
+  /** Formats a day tick; pass a locale-aware formatter so "3 Aug" can be "3. Aug.". */
   tickFormat?: (d: Date) => string;
+  /** The legend words for the three states, translated by the caller; English by default. */
+  kindLabels?: Partial<Record<TimelineEvent["kind"], string>>;
   className?: string;
 }) {
   const [active, setActive] = useState<string | null>(null);
@@ -1372,6 +1478,8 @@ export function Timeline({
   const MARK = slotPx >= 16 ? 12 : 8;
   const HIT = 24;
   const laneLabelClass = "w-[5.5rem] shrink-0 truncate pr-3 font-mono text-[10px] text-[var(--text-faint)]";
+  const hasMeta = lanes.some((l) => l.meta);
+  const laneMetaClass = "w-[4.5rem] shrink-0 pl-3 text-right font-mono text-[10px] tabular-nums text-[var(--text-muted)]";
 
   return (
     <div className={`flex flex-col gap-2 ${className}`} onMouseLeave={() => setActive(null)}>
@@ -1380,7 +1488,7 @@ export function Timeline({
           {(["ok", "failed", "running"] as const).map((k) => (
             <span key={k} className="flex items-center gap-1 font-mono text-[10px] text-[var(--text-secondary)]">
               <EventMark kind={k} size={12} />
-              {KIND_LABEL[k]}
+              {kindLabels?.[k] ?? KIND_LABEL[k]}
             </span>
           ))}
         </div>
@@ -1390,7 +1498,7 @@ export function Timeline({
         {lanes.map((lane) => {
           const laneMap = byLane.get(lane.key) ?? new Map<number, TimelineEvent[]>();
           return (
-            <div key={lane.key} className="flex items-center" style={{ height: HIT + 4 }}>
+            <div key={lane.key} className="flex items-center" style={{ height: HIT + 8 }}>
               <span className={laneLabelClass}>{lane.label}</span>
               <div className="relative h-full min-w-0 flex-1">
                 <span aria-hidden className="absolute left-0 right-0 top-1/2 h-px bg-[var(--divider)]" />
@@ -1425,6 +1533,7 @@ export function Timeline({
                   }),
                 )}
               </div>
+              {hasMeta && <span className={laneMetaClass}>{lane.meta ?? ""}</span>}
             </div>
           );
         })}
@@ -1446,6 +1555,7 @@ export function Timeline({
               </span>
             ))}
           </div>
+          {hasMeta && <span className={laneMetaClass} aria-hidden />}
         </div>
       </div>
     </div>
@@ -1523,11 +1633,12 @@ export function Sparkline({
       </span>
 
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label} className="block">
-        {wash && <path d={area} fill={color} fillOpacity="0.1" className="chart-fill-in" />}
+        {wash && <path d={area} fill={color} fillOpacity="0.1" className="chart-fill-in" style={{ animationDuration: "0.3s", animationDelay: "0.3s" }} />}
         <path
           d={d}
           pathLength={1}
           className="chart-draw"
+          style={{ animationDuration: "0.45s", animationDelay: "0.1s" }}
           fill="none"
           stroke={color}
           strokeWidth="2"
@@ -1573,6 +1684,7 @@ export function Meter({
   max,
   tone = "neutral",
   label,
+  qualifier,
   caption,
   className = "",
 }: {
@@ -1581,6 +1693,8 @@ export function Meter({
   tone?: Tone;
   /** The visible name on the left, e.g. "Freshness". Also the figure's aria-label. */
   label: string;
+  /** A muted mono qualifier after the label, e.g. the weight "30". */
+  qualifier?: string;
   /** The value text on the right, e.g. "72" or "n/a". Defaults to `value`. */
   caption?: string;
   className?: string;
@@ -1588,10 +1702,18 @@ export function Meter({
   const fraction = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   const text = caption ?? String(value);
   return (
-    <div className={`flex flex-col gap-1 ${className}`}>
+    <div className={`flex flex-col gap-1.5 ${className}`}>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="truncate text-[12px] leading-[16px] text-[var(--text-secondary)]">{label}</span>
-        <span className="text-[14px] font-semibold leading-[16px] text-[var(--text-primary)]">{text}</span>
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className="truncate text-[13px] leading-[16px] text-[var(--text-primary)]">{label}</span>
+          {qualifier && (
+            <span className="shrink-0 font-mono text-[10px] leading-[14px] tracking-[0.06em] text-[var(--text-faint)]">
+              {qualifier}
+            </span>
+          )}
+        </span>
+        {/* Four meters stack in a column, so the scores align on tabular digits. */}
+        <span className="shrink-0 text-[15px] font-semibold leading-[16px] tabular-nums text-[var(--text-primary)]">{text}</span>
       </div>
       <div
         role="img"
@@ -1600,7 +1722,7 @@ export function Meter({
       >
         <div
           className="bar-grow h-full rounded-full"
-          style={{ width: `${fraction * 100}%`, background: toneColor(tone) }}
+          style={{ width: `${fraction * 100}%`, background: toneColor(tone), ...barMotion(0) }}
         />
       </div>
     </div>

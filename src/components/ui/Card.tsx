@@ -224,6 +224,8 @@ export function StatTile({
             style={{
               width: `${Math.min(100, Math.max(0, progressPercent))}%`,
               background: toneColour,
+              // The house bar-grow is 700 ms; every entrance on a dashboard stays under 500 ms.
+              animationDuration: "400ms",
             }}
           />
         </div>

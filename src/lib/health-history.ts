@@ -173,19 +173,30 @@ export function parseHealthSamples(text: string): { samples: HealthSample[]; ski
   return { samples, skipped };
 }
 
+/**
+ * How a reason names the samples file. The full path is a fact about the host
+ * (user name, directory layout) and reasons reach the DOM, so production sees
+ * only the basename; the rig, where the path is useful, sees it whole.
+ */
+export function describeSamplesPath(p: string): string {
+  return process.env.NODE_ENV === "production" ? path.basename(p) : p;
+}
+
 export async function readHealthHistory(): Promise<HealthHistory> {
   const p = samplesPath();
+  const shown = describeSamplesPath(p);
   let text: string;
   try {
     text = await readFile(p, "utf8");
   } catch (e) {
     const code = e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
-    const why = code === "ENOENT" ? "the samples file does not exist" : `the samples file could not be read (${code || String(e)})`;
-    return { ok: false, reason: `no history on this host — ${why} (${p}); samples are written by the rig's hse-health-sample timer, not by a cloud deployment` };
+    // Only the error code: a thrown message would repeat the full path.
+    const why = code === "ENOENT" ? "the samples file does not exist" : `the samples file could not be read (${code || "unknown error"})`;
+    return { ok: false, reason: `no history on this host — ${why} (${shown}); samples are written by the rig's hse-health-sample timer, not by a cloud deployment` };
   }
   const { samples, skipped } = parseHealthSamples(text);
   if (samples.length === 0) {
-    return { ok: false, reason: `no history on this host — ${p} holds no parseable sample${skipped ? ` (${skipped} malformed line${skipped === 1 ? "" : "s"})` : ""}` };
+    return { ok: false, reason: `no history on this host — ${shown} holds no parseable sample${skipped ? ` (${skipped} malformed line${skipped === 1 ? "" : "s"})` : ""}` };
   }
   return { ok: true, value: { path: p, samples, skipped } };
 }

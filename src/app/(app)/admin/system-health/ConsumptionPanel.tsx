@@ -9,9 +9,10 @@ import type { ConsumptionView } from "./view";
 
 /**
  * Consumption: the eight largest relations against the rest as one
- * proportion bar (one hue stepped -- size is not a judgement), and the
- * database size against its documented budget with the growth rate from
- * history when there is enough of it to state one.
+ * proportion bar (one hue stepped -- size is not a judgement) with its legend
+ * as a three-column table under the bar, and the database size against its
+ * documented budget with the growth rate from history when there is enough
+ * of it to state one.
  */
 export function ConsumptionPanel({ view, dbError }: { view: ConsumptionView | null; dbError: string | null }) {
   const t = useTranslations("systemHealth");
@@ -38,15 +39,21 @@ export function ConsumptionPanel({ view, dbError }: { view: ConsumptionView | nu
           qualifier={relations.ok ? t("consumption.qualifierCount", { count: fmtInt(relations.count), total: fmtBytes(relations.totalBytes) }) : t("consumption.qualifier")}
           actions={relations.ok ? <DrillChip drill={relations.drill} id="consumption-relations" /> : undefined}
         />
-        <div className="grid grid-cols-1 gap-4 px-4 pb-3 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-6">
-          <div className="min-w-0">
+        <div className="grid grid-cols-1 gap-5 px-4 pb-3 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-8">
+          <div className="min-w-0 pt-1">
             {relations.ok ? (
-              <ProportionBar label={t("consumption.relationsLabel", { count: relations.segments.length })} segments={relations.segments} valueFormat={fmtBytes} height={16} />
+              <ProportionBar
+                label={t("consumption.relationsLabel", { count: relations.segments.length })}
+                segments={relations.segments}
+                valueFormat={fmtBytes}
+                height={18}
+                legend="grid"
+              />
             ) : (
               <Reason reason={relations.reason} />
             )}
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <StatTile
               data-metric="db-size"
               label={t("consumption.sizeLabel")}
@@ -61,7 +68,7 @@ export function ConsumptionPanel({ view, dbError }: { view: ConsumptionView | nu
               tone={usedPct === null ? "neutral" : usedPct >= 80 ? "critical" : usedPct >= 50 ? "warning" : "good"}
               progressPercent={usedPct}
             />
-            <div className="flex flex-col gap-0.5 px-1">
+            <div className="flex flex-col gap-1 px-1">
               <span className={KICKER}>{t("consumption.growthKicker")}</span>
               {growth.ok ? (
                 <span className="font-mono text-[11px] tabular-nums text-[var(--text-primary)]">{growth.text}</span>

@@ -791,10 +791,10 @@
       "scoreLabel": "of 100",
       "gaugeLabel": "Composite health score {score} of 100",
       "gaugeNa": "Composite health score not available",
-      "status": "weakest: {weakest} · {cap} · {measured} of {total} measured",
       "statusNa": "fewer than two sub-scores are measurable",
       "capApplied": "cap applied",
-      "capNotApplied": "cap not applied"
+      "capNotApplied": "cap not applied",
+      "sentence": "{weakest} is the weakest sub-score, {cap}, with {measured} of {total} measured."
     },
     "freshness": {
       "title": "Data freshness",
@@ -829,7 +829,9 @@
       "typedLabel": "Row counts of the typed tables, grouped by connector",
       "typedReadout": "{relation}: {rows} rows · {source}",
       "typedNote": "count(*) per table at the sampled instant. A table missing on this database is listed with its reason, never drawn as zero.",
-      "noTyped": "no typed table could be counted"
+      "noTyped": "no typed table could be counted",
+      "laneRuns": "{count, plural, =0 {none} one {# run} other {# runs}}",
+      "runsNote": "One mark per raw.sync_run row, placed by start time; runs on the same day fan out inside that day. The shape carries the state as well as the colour."
     },
     "efficiency": {
       "title": "Processing efficiency",
@@ -935,20 +937,17 @@
       "typedFooter": "count(*) PER TABLE AT THE SAMPLED INSTANT · A TABLE THAT COULD NOT BE COUNTED CONTRIBUTES 0 AND STATES WHY",
       "cacheKicker": "EFFICIENCY · BUFFER CACHE",
       "cacheTitle": "Buffer cache hit",
-      "cacheSubline": "{pct} % served from shared buffers",
+      "cacheSubline": "{pct} % from cache",
       "cacheHitRow": "from cache",
       "cacheHitSub": "blks_hit share of all block requests",
       "cacheMissRow": "from disk",
-      "cacheMissSub": "blks_read share of all block requests · the raw block counts are not in the read model",
+      "cacheMissSub": "blks_read share of all block requests",
       "sinceReset": "PG_STAT_DATABASE COUNTERS SINCE THE STATS RESET AT {at}",
       "noReset": "PG_STAT_DATABASE COUNTERS · THE STATS HAVE NEVER BEEN RESET",
       "connKicker": "EFFICIENCY · CONNECTIONS",
       "connTitle": "Connections in use",
-      "connSubline": "{pct} % of max_connections",
-      "connActive": "in use",
-      "connActiveSub": "pg_stat_activity rows for this database at the sampled instant",
-      "connFree": "free",
-      "connFreeSub": "max_connections minus in use",
+      "connSubline": "of {max} max_connections · {pct} %",
+      "connStateSub": "pg_stat_activity.state at the sampled instant",
       "connFooter": "LIVE FROM PG_STAT_ACTIVITY · INCLUDES THE CONNECTION THIS PAGE HOLDS",
       "xactKicker": "EFFICIENCY · TRANSACTIONS",
       "xactTitle": "Commits and rollbacks",
@@ -979,7 +978,23 @@
       "relationsSubline": "{count} relations outside the system schemas",
       "estRows": "~{rows} rows (planner estimate)",
       "otherSub": "every relation not in the largest eight, summed",
-      "relationsFooter": "PG_TOTAL_RELATION_SIZE (TABLE + INDEXES + TOAST) · THE ROWS SUM TO THE RELATIONS TOTAL, NOT TO THE DATABASE SIZE"
+      "relationsFooter": "PG_TOTAL_RELATION_SIZE (TABLE + INDEXES + TOAST) · THE ROWS SUM TO THE RELATIONS TOTAL, NOT TO THE DATABASE SIZE",
+      "contribution": "{points} × {weight} of {sumW} = {share}",
+      "roundingRow": "rounding",
+      "roundingSub": "rounded once at the end to a whole number",
+      "blocks": "{count} blocks",
+      "components": {
+        "cacheHit": "Buffer cache hit",
+        "rollbackShare": "Rollback share",
+        "deadlocks": "Deadlock penalty",
+        "connections": "Connections in use",
+        "latency": "DB round trip",
+        "rls": "RLS coverage",
+        "usersWithoutRole": "Users without a role",
+        "env": "Env presence",
+        "headers": "Response headers",
+        "budgetUse": "Database size vs budget"
+      }
     }
   }
 }

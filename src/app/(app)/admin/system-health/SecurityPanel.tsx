@@ -21,7 +21,7 @@ export function SecurityPanel({ view }: { view: SecurityView }) {
 
   return (
     <section data-section="security" style={SECTION_STYLE} className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-2">
-      <Card as="div" className={CARD_WITH_DRILL}>
+      <Card as="div" className={`flex flex-col ${CARD_WITH_DRILL}`}>
         <CardHeader title={t("security.title")} qualifier={t("security.qualifier")} />
         <div className="grid grid-cols-1 gap-4 px-4 pb-4 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6">
           {/* RLS coverage */}
@@ -89,22 +89,24 @@ export function SecurityPanel({ view }: { view: SecurityView }) {
             </div>
           </div>
         </div>
-        <ChartNote>{t("security.rlsNote")}</ChartNote>
+        <div className="mt-auto">
+          <ChartNote>{t("security.rlsNote")}</ChartNote>
+        </div>
       </Card>
 
-      <Card as="div" className={CARD_WITH_DRILL}>
+      <Card as="div" className={`flex flex-col ${CARD_WITH_DRILL}`}>
         <CardHeader title={t("security.profilesTitle")} qualifier={profiles.ok ? t("security.profilesQualifier", { count: fmtInt(profiles.total) }) : t("security.profilesQualifierNa")} />
         <div className="px-3 pb-3">
           {profiles.ok ? (
             <DrillTrigger drill={profiles.drill} id="security-profiles" className={`${FIGURE_TRIGGER} px-1 py-1`}>
-              <StackedHBar label={t("security.profilesLabel")} rows={profiles.rows} valueFormat={fmtInt} thickness={10} />
+              <StackedHBar label={t("security.profilesLabel")} rows={profiles.rows} valueFormat={fmtInt} thickness={12} />
             </DrillTrigger>
           ) : (
             <p className="px-1"><Reason reason={profiles.reason} /></p>
           )}
         </div>
 
-        <CardDivider />
+        <CardDivider className="mt-auto" />
         <div className="flex flex-col gap-2 px-4 py-3">
           <div className="flex flex-wrap items-baseline gap-x-2">
             <span className={KICKER}>{t("security.headersKicker")}</span>
@@ -117,11 +119,10 @@ export function SecurityPanel({ view }: { view: SecurityView }) {
               {headers.checks.map((c) => (
                 <li
                   key={c.name}
-                  className="flex max-w-full items-center gap-1.5 rounded-[var(--radius-sm)] border px-2 py-1 font-mono text-[10px]"
-                  style={{ borderColor: c.pass ? "var(--good)" : "var(--critical)", color: c.pass ? "var(--good)" : "var(--critical)" }}
+                  className="flex max-w-full items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 font-mono text-[10px]"
                   title={c.expected ? t("security.headerExpected", { value: c.expected }) : t("security.headerPresence")}
                 >
-                  {c.pass ? <TickIcon /> : <CrossIcon />}
+                  <span className="shrink-0" style={{ color: c.pass ? "var(--good)" : "var(--critical)" }}>{c.pass ? <TickIcon /> : <CrossIcon />}</span>
                   <span className="text-[var(--text-primary)]">{c.name}</span>
                   <span className="truncate text-[var(--text-muted)]">{c.observed ?? t("security.headerMissing")}</span>
                 </li>

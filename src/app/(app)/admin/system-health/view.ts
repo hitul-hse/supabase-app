@@ -20,6 +20,7 @@
  */
 import type { HBarRow, SparkPoint, StackedHBarRow, TimelineEvent, TimelineLane, Tone } from "@/components/ui/Charts";
 import type { Drill } from "@/components/DrillDialog";
+import type { Locale } from "@/i18n/request";
 import {
   FRESHNESS_GRACE_HOURS,
   RUNNING_STALE_HOURS,
@@ -239,7 +240,7 @@ function buildHero(t: T, score: HealthScore): HeroView {
       capApplied: c.value.capApplied,
       measured: c.value.measured,
     },
-    status: t("hero.status", {
+    status: t("hero.sentence", {
       weakest: weakestLabel,
       cap: c.value.capApplied ? t("hero.capApplied") : t("hero.capNotApplied"),
       measured: c.value.measured,
@@ -253,7 +254,7 @@ function buildHero(t: T, score: HealthScore): HeroView {
 
 const DAY_MS = 86_400_000;
 
-function buildFreshness(t: T, health: SystemHealth): FreshnessView | null {
+function buildFreshness(t: T, health: SystemHealth, locale: Locale): FreshnessView | null {
   const f = health.freshness;
   if (!f) return null;
   const now = health.sampledAt;
@@ -288,8 +289,8 @@ function buildFreshness(t: T, health: SystemHealth): FreshnessView | null {
     }
     const statusText = t(`freshness.runStatus.${run.status}`);
     const parts = [
-      `${s.source}: ${fmtHours(age)}`,
-      run.status === "running" ? t("freshness.sinceStarted", { at: fmtTime(anchor) }) : t("freshness.sinceFinished", { at: fmtTime(anchor) }),
+      `${s.source}: ${fmtHours(age, locale)}`,
+      run.status === "running" ? t("freshness.sinceStarted", { at: fmtTime(anchor, locale) }) : t("freshness.sinceFinished", { at: fmtTime(anchor, locale) }),
       statusText,
       run.entity,
       run.recordCount !== null ? t("freshness.records", { count: fmtInt(run.recordCount) }) : null,
@@ -323,15 +324,17 @@ function buildFreshness(t: T, health: SystemHealth): FreshnessView | null {
       readout: [
         r.source,
         r.entity,
-        fmtTime(r.startedAt),
+        fmtTime(r.startedAt, locale),
         t(`freshness.runStatus.${r.status}`),
         r.recordCount !== null ? t("freshness.records", { count: fmtInt(r.recordCount) }) : null,
         r.errorMessage ? r.errorMessage.slice(0, 60) : null,
       ].filter(Boolean).join(" · "),
     }));
+    const perLane = new Map<string, number>();
+    for (const e of events) perLane.set(e.lane, (perLane.get(e.lane) ?? 0) + 1);
     runs = {
       ok: true,
-      lanes: laneKeys.map((k) => ({ key: k, label: k })),
+      lanes: laneKeys.map((k) => ({ key: k, label: k, meta: t("freshness.laneRuns", { count: perLane.get(k) ?? 0 }) })),
       events,
       from,
       to,
@@ -350,9 +353,12 @@ function buildFreshness(t: T, health: SystemHealth): FreshnessView | null {
   for (const tt of f.typed) {
     if (!groupOrder.includes(tt.source)) groupOrder.push(tt.source);
     if (tt.rows.ok) {
+      // "crm.factorial_person_reference" -> muted "crm." + "factorial_person_reference".
+      const dot = tt.relation.indexOf(".");
       typedRows.push({
         key: tt.relation,
-        label: tt.relation,
+        prefix: dot > 0 ? tt.relation.slice(0, dot + 1) : undefined,
+        label: dot > 0 ? tt.relation.slice(dot + 1) : tt.relation,
         value: tt.rows.value,
         readout: t("freshness.typedReadout", { relation: tt.relation, rows: fmtInt(tt.rows.value), source: tt.source }),
         group: tt.source,
@@ -378,13 +384,13 @@ function buildFreshness(t: T, health: SystemHealth): FreshnessView | null {
  * label; naming the first relation instead is what distinguishes them. The
  * full normalised text stays in the readout and in the drill.
  */
-function statementLabel(t: T, query: string): string {
+export function statementLabel(t: T, query: string): string {
   const rel = query.match(/"(\w+)"\."(\w+)"/);
   if (/^WITH pgrst_source/i.test(query) && rel) return t("efficiency.postgrest", { relation: `${rel[1]}.${rel[2]}` });
   return query;
 }
 
-function buildEfficiency(t: T, health: SystemHealth, history: HealthHistory): EfficiencyView | null {
+function buildEfficiency(t: T, health: SystemHealth, history: HealthHistory, locale: Locale): EfficiencyView | null {
   const e = health.efficiency;
   if (!e) return null;
   const statsReset = e.dbStats.ok ? e.dbStats.value.statsReset : null;
@@ -394,7 +400,7 @@ function buildEfficiency(t: T, health: SystemHealth, history: HealthHistory): Ef
   else if (e.dbStats.value.cacheHitPct === null) cache = { ok: false, reason: t("efficiency.cacheUndefined") };
   else {
     const pct = e.dbStats.value.cacheHitPct;
-    cache = { ok: true, pct, tone: scoreTone(mapCacheHit(pct)), drill: cacheDrill(t, pct, statsReset) };
+    cache = { ok: true, pct, tone: scoreTone(mapCacheHit(pct)), drill: cacheDrill(t, e.dbStats.value, statsReset) };
   }
 
   const connections: EfficiencyView["connections"] = e.connections.ok
@@ -403,7 +409,7 @@ function buildEfficiency(t: T, health: SystemHealth, history: HealthHistory): Ef
         active: e.connections.value.active,
         max: e.connections.value.max,
         tone: scoreTone(mapConnections(e.connections.value.active, e.connections.value.max)),
-        drill: connectionsDrill(t, e.connections.value.active, e.connections.value.max),
+        drill: connectionsDrill(t, e.connections.value),
       }
     : e.connections;
 
@@ -424,6 +430,8 @@ function buildEfficiency(t: T, health: SystemHealth, history: HealthHistory): Ef
     const top = all.slice(0, 5).map((s, i): HBarRow => ({
       key: `q${i}`,
       label: statementLabel(t, s.query),
+      // calls x mean as the secondary line; the bar is the total.
+      sub: t("drills.stmtSub", { calls: fmtInt(s.calls), mean: fmt1(s.meanMs) }),
       value: s.totalMs,
       readout: t("efficiency.statementReadout", { total: fmtMs(s.totalMs), calls: fmtInt(s.calls), mean: fmt1(s.meanMs) }),
     }));
@@ -444,7 +452,7 @@ function buildEfficiency(t: T, health: SystemHealth, history: HealthHistory): Ef
         points: samples.map((s) => ({
           key: s.at,
           value: s.dbLatencyMs as number,
-          readout: `${fmtTime(s.at)} · ${fmt1(s.dbLatencyMs as number)} ms`,
+          readout: `${fmtTime(s.at, locale)} · ${fmt1(s.dbLatencyMs as number)} ms`,
         })),
       };
     }
@@ -612,13 +620,13 @@ function buildConsumption(t: T, health: SystemHealth, history: HealthHistory): C
   return { relations, size, growth };
 }
 
-export function buildHealthView(t: T, health: SystemHealth, history: HealthHistory, score: HealthScore): HealthView {
+export function buildHealthView(t: T, health: SystemHealth, history: HealthHistory, score: HealthScore, locale: Locale = "en"): HealthView {
   return {
     header: buildHeader(t, health),
     dbError: health.dbError,
     hero: buildHero(t, score),
-    freshness: buildFreshness(t, health),
-    efficiency: buildEfficiency(t, health, history),
+    freshness: buildFreshness(t, health, locale),
+    efficiency: buildEfficiency(t, health, history, locale),
     security: buildSecurity(t, health),
     consumption: buildConsumption(t, health, history),
   };

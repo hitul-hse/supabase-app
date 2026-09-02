@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import PageTransition from "@/components/animations/PageTransition";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -8,6 +8,7 @@ import { getSystemHealth } from "@/lib/queries/system-health";
 import { readHealthHistory } from "@/lib/health-history";
 import { computeHealthScore } from "@/lib/health-score";
 import { buildHealthView } from "./view";
+import type { Locale } from "@/i18n/request";
 import { HealthHero } from "./HealthHero";
 import { FreshnessPanel } from "./FreshnessPanel";
 import { EfficiencyPanel } from "./EfficiencyPanel";
@@ -46,11 +47,11 @@ export const dynamic = "force-dynamic";
 
 export default async function SystemHealthPage() {
   await requirePermission("/admin/system-health", PERMISSIONS.ADMIN_ROLES_WRITE);
-  const t = await getTranslations("systemHealth");
+  const [t, locale] = await Promise.all([getTranslations("systemHealth"), getLocale()]);
 
   const [health, history] = await Promise.all([getSystemHealth(), readHealthHistory()]);
   const score = computeHealthScore(health, history);
-  const view = buildHealthView(t, health, history, score);
+  const view = buildHealthView(t, health, history, score, locale as Locale);
   const { header } = view;
 
   return (

@@ -181,6 +181,26 @@ function dbUrl() {
   return env.SUPABASE_DB_URL ?? null;
 }
 
+/**
+ * TLS to the database. With SUPABASE_CA_CERT_PATH set to a PEM bundle the
+ * server certificate is verified against it; without one the house behaviour
+ * (encrypted, unverified -- the same as withDb() in the app) is kept and said
+ * out loud on stderr once per run, so the gap is visible in the service log.
+ * No bundle was found on this rig or in the repo on 2026-09-02.
+ */
+export function tlsOptions() {
+  const caPath = process.env.SUPABASE_CA_CERT_PATH;
+  if (caPath && caPath.trim() !== "") {
+    try {
+      return { ssl: { ca: fs.readFileSync(caPath, "utf8"), rejectUnauthorized: true }, verified: true };
+    } catch (e) {
+      console.error(`TLS: SUPABASE_CA_CERT_PATH could not be read (${e?.code ?? e?.message ?? e}); falling back to unverified`);
+    }
+  }
+  console.error("TLS: no CA configured, certificate not verified (set SUPABASE_CA_CERT_PATH)");
+  return { ssl: { rejectUnauthorized: false }, verified: false };
+}
+
 function budget() {
   const raw = process.env.SYSTEM_HEALTH_DB_BUDGET_GB;
   if (raw !== undefined && raw.trim() !== "") {
@@ -245,7 +265,7 @@ async function takeSample() {
     reasons.db = "SUPABASE_DB_URL is neither in the environment nor in ~/code/ui-rework/.env.local";
     return { sample, connected: false };
   }
-  const db = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, statement_timeout: 30_000, application_name: "hse-health-sample" });
+  const db = new Client({ connectionString: url, ssl: tlsOptions().ssl, statement_timeout: 30_000, application_name: "hse-health-sample" });
   try {
     await db.connect();
   } catch (e) {

@@ -87,7 +87,13 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // The page behind must not scroll while the dialog owns the viewport.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [onClose]);
 
   // Reset paging when a different drill opens in the same mount -- the
@@ -118,7 +124,7 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
         aria-label={t("dialogLabel", { title: drill.title })}
         data-drill-dialog
         data-check={drill.check}
-        className={`rise-in card-elev-raised w-full rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface)] ${
+        className={`rise-in card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface)] ${
           hasSections ? "max-w-2xl" : "max-w-xl"
         }`}
         onClick={(e) => e.stopPropagation()}

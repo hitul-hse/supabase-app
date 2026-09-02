@@ -14,9 +14,10 @@
  */
 import type { Drill, DrillRow } from "@/components/DrillDialog";
 import type { Tone } from "@/components/ui/Charts";
-import { CAP_SCORE, CAP_THRESHOLD, SUBSCORE_WEIGHTS, type HealthScore, type SubScore, type SubScoreKey } from "@/lib/health-score";
-import type { RlsSummary, RelationSize, RoleCount, SlowStatement, SyncRunRow, TypedTableCount } from "@/lib/queries/system-health";
+import { CAP_SCORE, CAP_THRESHOLD, SUBSCORE_WEIGHTS, type HealthScore, type ScoreComponent, type SubScore, type SubScoreKey } from "@/lib/health-score";
+import type { ConnectionSummary, DbStats, RlsSummary, RelationSize, RoleCount, SlowStatement, SyncRunRow, TypedTableCount } from "@/lib/queries/system-health";
 import { fmt1, fmtBytes, fmtHours, fmtInt, fmtMs, fmtPct, fmtTime } from "./format";
+import { statementLabel } from "./view";
 
 type T = (key: string, values?: Record<string, string | number | Date>) => string;
 
@@ -26,6 +27,31 @@ const KICKER: Record<SubScoreKey, string> = {
   security: "subs.security",
   consumption: "subs.consumption",
 };
+
+/**
+ * The fixed component keys of src/lib/health-score.ts, so their names come
+ * from the catalogue in the reader's language. A key not listed here (the
+ * per-connector `source:<name>` rows) keeps the label the score wrote, which
+ * is the connector's own name.
+ */
+const COMPONENT_KEYS = new Set([
+  "cacheHit", "rollbackShare", "deadlocks", "connections", "latency",
+  "rls", "usersWithoutRole", "env", "headers", "budgetUse",
+]);
+
+/** A component row that leads to the page where the figure is fixed is a link (docs/UI-CONVENTIONS.md). */
+const COMPONENT_HREF: Record<string, string> = {
+  usersWithoutRole: "/admin/users",
+};
+
+const componentName = (t: T, c: ScoreComponent): string =>
+  COMPONENT_KEYS.has(c.key) ? t(`drills.components.${c.key}`) : c.label;
+
+/** The step the rows cannot show, as one signed figure: "+0.4" or "−0.4". */
+const signed = (n: number): string => `${n >= 0 ? "+" : "−"}${fmt1(Math.abs(n))}`;
+
+/** Below this the remainder is invisible at one decimal and would only add a "+0.0" row. */
+const REMAINDER_MIN = 0.05;
 
 // ─── Hero ────────────────────────────────────────────────────────────────────
 
@@ -52,28 +78,40 @@ export function subScoreDrill(t: T, key: SubScoreKey, label: string, weight: num
   }
   const { score, components } = sub.value;
   const weighted = components.filter((c) => c.points !== null && c.weight > 0);
+  const measured = components.filter((c) => c.points !== null).length;
   const sumW = weighted.reduce((a, c) => a + c.weight, 0);
   const rows: DrillRow[] = components.map((c): DrillRow => {
+    const name = componentName(t, c);
+    const href = COMPONENT_HREF[c.key];
     if (c.points === null) {
-      return { name: c.label, sub: c.excludedReason ?? c.detail, value: t("drills.excluded"), magnitude: 0, tone: "muted" };
+      return { name, sub: c.excludedReason ?? c.detail, value: t("drills.excluded"), magnitude: 0, tone: "muted", href };
     }
     if (c.weight === 0) {
-      return { name: c.label, sub: c.detail, value: `${c.points >= 0 ? "+" : "−"}${fmt1(Math.abs(c.points))}`, magnitude: c.points, tone: c.points < 0 ? "critical" : "muted" };
+      return { name, sub: c.detail, value: signed(c.points), magnitude: c.points, tone: c.points < 0 ? "critical" : "muted", href };
     }
     const contribution = sumW > 0 ? (c.points * c.weight) / sumW : 0;
     return {
-      name: c.label,
+      name,
       sub: c.detail,
-      value: t("drills.pointsTimesWeight", { points: fmt1(c.points), weight: c.weight }),
+      // The printed value IS the bar: points × weight over the Σ weight of the measured components.
+      value: t("drills.contribution", { points: fmt1(c.points), weight: c.weight, sumW, share: fmt1(contribution) }),
       magnitude: contribution,
       tone: c.points >= 80 ? "accent" : c.points >= 50 ? "warning" : "critical",
+      href,
     };
   });
   // The one step the rows cannot show: round(mean + adjustments) clamped to 0-100.
   const raw = rows.reduce((a, r) => a + r.magnitude, 0);
   const remainder = score - raw;
-  if (Math.abs(remainder) >= 0.5) {
-    rows.push({ name: t("drills.clampRow"), sub: t("drills.clampSub"), value: `${remainder >= 0 ? "+" : "−"}${fmt1(Math.abs(remainder))}`, magnitude: remainder, tone: "muted" });
+  if (Math.abs(remainder) >= REMAINDER_MIN) {
+    const clamped = raw < 0 || raw > 100;
+    rows.push({
+      name: clamped ? t("drills.clampRow") : t("drills.roundingRow"),
+      sub: clamped ? t("drills.clampSub") : t("drills.roundingSub"),
+      value: signed(remainder),
+      magnitude: remainder,
+      tone: "muted",
+    });
   }
   return {
     kicker,
@@ -81,7 +119,7 @@ export function subScoreDrill(t: T, key: SubScoreKey, label: string, weight: num
     headline: String(score),
     headlineValue: score,
     check: "sum",
-    subline: t("drills.subSubline", { measured: weighted.length, total: components.length }),
+    subline: t("drills.subSubline", { measured, total: components.length }),
     rows,
     footer: t("drills.subFooter"),
   };
@@ -103,10 +141,11 @@ export function compositeDrill(
     if (s.score === null) {
       return { name: s.label, sub: s.reason ?? t("na"), value: t("na"), magnitude: 0, tone: "muted" };
     }
-    const below = s.score < CAP_THRESHOLD;
+    const weightOf = t("drills.weightOf", { weight: s.weight, total: sumW });
     return {
       name: s.label,
-      sub: below ? t("drills.belowThreshold", { threshold: CAP_THRESHOLD }) : t("drills.weightOf", { weight: s.weight, total: sumW }),
+      // The weight stays; the cap note is appended so the arithmetic remains computable.
+      sub: s.score < CAP_THRESHOLD ? `${weightOf} · ${t("drills.belowThreshold", { threshold: CAP_THRESHOLD })}` : weightOf,
       value: t("drills.pointsTimesWeight", { points: String(s.score), weight: s.weight }),
       magnitude: (s.score * s.weight) / sumW,
       tone: s.score >= 80 ? "accent" : s.score >= 50 ? "warning" : "critical",
@@ -117,13 +156,16 @@ export function compositeDrill(
   }
   const raw = rows.reduce((a, r) => a + r.magnitude, 0);
   const remainder = c.value.score - raw;
-  if (Math.abs(remainder) >= 0.5) {
+  if (Math.abs(remainder) >= REMAINDER_MIN) {
+    // The cap only changed the number when the rounded mean was above it;
+    // otherwise the remainder is plain rounding even while the cap "applies".
+    const capped = c.value.capApplied && Math.round(raw) > CAP_SCORE;
     rows.push({
-      name: c.value.capApplied ? t("drills.capRow", { cap: CAP_SCORE }) : t("drills.clampRow"),
-      sub: c.value.capApplied ? t("drills.capSub", { threshold: CAP_THRESHOLD }) : t("drills.clampSub"),
-      value: `${remainder >= 0 ? "+" : "−"}${fmt1(Math.abs(remainder))}`,
+      name: capped ? t("drills.capRow", { cap: CAP_SCORE }) : t("drills.roundingRow"),
+      sub: capped ? t("drills.capSub", { threshold: CAP_THRESHOLD }) : t("drills.roundingSub"),
+      value: signed(remainder),
       magnitude: remainder,
-      tone: c.value.capApplied ? "critical" : "muted",
+      tone: capped ? "critical" : "muted",
     });
   }
   const weakest = subs.find((s) => s.key === c.value.weakest);
@@ -203,35 +245,51 @@ export function typedDrill(t: T, typed: TypedTableCount[]): Drill {
 
 // ─── Efficiency ──────────────────────────────────────────────────────────────
 
-export function cacheDrill(t: T, pct: number, statsReset: string | null): Drill {
-  const miss = Math.round((100 - pct) * 10) / 10;
+/**
+ * The gauge shows the hit %; the drill shows the blocks behind it. Headline =
+ * every block request since the stats reset, rows = served from cache and
+ * read from disk, which sum to it exactly (the % is their ratio).
+ */
+export function cacheDrill(t: T, stats: Pick<DbStats, "blksHit" | "blksRead" | "cacheHitPct">, statsReset: string | null): Drill {
+  const total = stats.blksHit + stats.blksRead;
+  const pct = stats.cacheHitPct ?? (total > 0 ? (stats.blksHit / total) * 100 : 0);
+  const missPct = total > 0 ? (stats.blksRead / total) * 100 : 0;
   return {
     kicker: t("drills.cacheKicker"),
     title: t("drills.cacheTitle"),
-    headline: fmtPct(100),
-    headlineValue: 100,
+    headline: t("drills.blocks", { count: fmtInt(total) }),
+    headlineValue: total,
     check: "sum",
     subline: t("drills.cacheSubline", { pct: fmt1(pct) }),
     rows: [
-      { name: t("drills.cacheHitRow"), sub: t("drills.cacheHitSub"), value: fmtPct(pct, 1), magnitude: pct, tone: "accent" },
-      { name: t("drills.cacheMissRow"), sub: t("drills.cacheMissSub"), value: fmtPct(miss, 1), magnitude: 100 - pct, tone: miss > 1 ? "warning" : "muted" },
+      { name: t("drills.cacheHitRow"), sub: t("drills.cacheHitSub"), value: `${fmtInt(stats.blksHit)} · ${fmtPct(pct, 1)}`, magnitude: stats.blksHit, tone: "accent" },
+      { name: t("drills.cacheMissRow"), sub: t("drills.cacheMissSub"), value: `${fmtInt(stats.blksRead)} · ${fmtPct(missPct, 1)}`, magnitude: stats.blksRead, tone: missPct > 1 ? "warning" : "muted" },
     ],
     footer: statsReset ? t("drills.sinceReset", { at: fmtTime(statsReset) }) : t("drills.noReset"),
   };
 }
 
-export function connectionsDrill(t: T, active: number, max: number): Drill {
+/**
+ * The gauge shows `active` of `max`; the drill's headline is the same
+ * `active`, broken down by pg_stat_activity.state -- one snapshot, so the
+ * rows sum to the tile (asserted in the read model).
+ */
+export function connectionsDrill(t: T, conn: ConnectionSummary): Drill {
+  const { active, max, byState } = conn;
   return {
     kicker: t("drills.connKicker"),
     title: t("drills.connTitle"),
-    headline: fmtInt(max),
-    headlineValue: max,
+    headline: fmtInt(active),
+    headlineValue: active,
     check: "sum",
-    subline: t("drills.connSubline", { pct: fmt1((active / max) * 100) }),
-    rows: [
-      { name: t("drills.connActive"), sub: t("drills.connActiveSub"), value: fmtInt(active), magnitude: active, tone: "accent" },
-      { name: t("drills.connFree"), sub: t("drills.connFreeSub"), value: fmtInt(max - active), magnitude: max - active, tone: "muted" },
-    ],
+    subline: t("drills.connSubline", { max: fmtInt(max), pct: fmt1(max > 0 ? (active / max) * 100 : 0) }),
+    rows: byState.map((s): DrillRow => ({
+      name: s.state,
+      sub: t("drills.connStateSub"),
+      value: fmtInt(s.count),
+      magnitude: s.count,
+      tone: s.state === "active" ? "accent" : s.state.startsWith("idle in transaction") ? "warning" : "muted",
+    })),
     footer: t("drills.connFooter"),
   };
 }
@@ -262,8 +320,10 @@ export function statementsDrill(t: T, all: SlowStatement[], totalMs: number, cap
     check: "sum",
     subline: t("drills.stmtSubline", { count: all.length }),
     rows: all.map((s, i): DrillRow => ({
-      name: s.query,
-      sub: t("drills.stmtSub", { calls: fmtInt(s.calls), mean: fmt1(s.meanMs) }),
+      // The relation names the row (five PostgREST statements share their first
+      // 120 characters); the normalised text follows calls × mean, verbatim.
+      name: statementLabel(t, s.query),
+      sub: `${t("drills.stmtSub", { calls: fmtInt(s.calls), mean: fmt1(s.meanMs) })} · ${s.query}`,
       value: fmtMs(s.totalMs),
       magnitude: s.totalMs,
       tone: i < 5 ? "accent" : "muted",

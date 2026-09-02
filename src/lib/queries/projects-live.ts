@@ -193,8 +193,14 @@ export function summariseProjects(
   const members = new Map<number, Set<number>>();
   const last = new Map<number, string>();
 
+  // Same rule as the Overview (overview-live.ts) and the week popup: nothing
+  // dated after now() is logged time. fetchAllEntries bounds at the END of
+  // today, so an entry pre-logged for later today would otherwise count
+  // here and not on the Overview -- two pages, two answers.
+  const nowIso = new Date().toISOString();
   for (const e of entries) {
     if (e.projectId === null) continue;
+    if (e.startedAt > nowIso) continue;
     const id = e.projectId;
     seconds.set(id, (seconds.get(id) ?? 0) + e.durationSeconds);
     if (e.isBillable) billable.set(id, (billable.get(id) ?? 0) + e.durationSeconds);

@@ -467,7 +467,7 @@ export default async function TrackingTimeDashboardPage({
                 totals={totals}
                 billableHref={`/time/dashboard?${buildQuery(filters, { billable: "yes", group, bucket })}`}
                 nonBillableHref={`/time/dashboard?${buildQuery(filters, { billable: "no", group, bucket })}`}
-                groupLabel={`Every figure covers ${period}`}
+                period={period}
                 calendarExcludedSeconds={calendarExcludedSeconds}
                 includeCalendarHref={`/time/dashboard?${buildQuery(filters, { calendar: "1", group, bucket })}`}
                 drills={tileDrills}

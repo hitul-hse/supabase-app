@@ -239,7 +239,10 @@
         "subline": "{billable}h abrechenbar · {people, plural, one {# Person} other {# Personen}} · {entries, plural, one {# Eintrag} other {# Einträge}}",
         "footer": "JE TOP 8 NACH STUNDEN, REST IN EINER ZEILE · GESAMTER ZEITRAUM, KALENDERZEIT ENTHALTEN · ZUKÜNFTIG DATIERTE EINTRÄGE AUSGESCHLOSSEN",
         "gap": "Differenz zur Ledger-Zahl",
-        "needsPermission": "Wer diese Stunden erfasst hat, ist nur mit der Berechtigung „Alle Stundenzettel sehen“ sichtbar."
+        "needsPermission": "Wer diese Stunden erfasst hat, ist nur mit der Berechtigung „Alle Stundenzettel sehen“ sichtbar.",
+        "notAuthenticated": "Nicht angemeldet.",
+        "notPermitted": "Keine Berechtigung.",
+        "badProject": "Ungültige Projekt-ID."
       }
     },
     "days": "{count, plural, one {# Tag} other {# Tage}}",
@@ -725,5 +728,42 @@
       "noEmail": "keine E-Mail hinterlegt"
     },
     "unlinkedNote": "{unlinked} von {tracked} Personen in TrackingTime haben noch keinen Hub-Login und können ihre eigenen Stunden daher nicht sehen."
+  },
+  "timeDashboard": {
+    "strip": {
+      "covers": "Jede Zahl umfasst {period}",
+      "totalHours": {
+        "label": "STUNDEN GESAMT"
+      },
+      "billable": {
+        "label": "ABRECHENBAR",
+        "sub": "{percent}% der erfassten Zeit",
+        "title": "Nur abrechenbare Einträge anzeigen"
+      },
+      "nonBillable": {
+        "label": "NICHT ABRECHENBAR",
+        "sub": "{percent}% der erfassten Zeit",
+        "title": "Nur nicht abrechenbare Einträge anzeigen"
+      },
+      "people": {
+        "label": "MITARBEITER",
+        "sub": "über {days, plural, one {# aktiven Tag} other {# aktive Tage}}",
+        "title": "Verschiedene Mitarbeiter mit mindestens einem Eintrag in dieser Auswahl"
+      },
+      "projects": {
+        "label": "PROJEKTE",
+        "sub": "{count, plural, one {# Kunde} other {# Kunden}}",
+        "title": "Verschiedene Projekte mit mindestens einem Eintrag in dieser Auswahl"
+      },
+      "avgDay": {
+        "label": "Ø / AKTIVER TAG",
+        "sub": "Stunden je gearbeitetem Tag",
+        "title": "Gesamtstunden geteilt durch die Zahl der Tage mit tatsächlichen Einträgen, nicht durch die Länge des Zeitraums"
+      },
+      "calendarExcluded": {
+        "note": "<mono>{hours}</mono> Kalenderzeit sind aus diesen Zahlen ausgeschlossen.",
+        "include": "<link>Einbeziehen</link>, um TrackingTimes eigenem Bericht zu entsprechen."
+      }
+    }
   }
 }

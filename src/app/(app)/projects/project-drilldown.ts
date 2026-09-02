@@ -1,6 +1,7 @@
 "use server";
 
 import { Client } from "pg";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/utils/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -28,6 +29,10 @@ import { PERMISSIONS } from "@/lib/permissions";
  * so it additionally demands timesheets:read_all -- the permission that means
  * "may see other people's time". Without it the answer is an honest refusal,
  * not a partial list.
+ *
+ * The refusals are resolved here, in the caller's locale (the same cookie the
+ * page reads), the way management/actions.ts does it: the dialog renders the
+ * sentence it is handed, so a German reader must be handed German.
  */
 
 export type ProjectHoursRow = {
@@ -64,25 +69,21 @@ export async function getProjectHoursDrilldown(projectId: number): Promise<Proje
     byTaskRest: { seconds: 0, count: 0 },
   };
 
+  const t = await getTranslations("drill.projects.ledger");
   if (!Number.isInteger(projectId) || projectId <= 0) {
-    return { ...empty, error: "Bad project id." };
+    return { ...empty, error: t("badProject") };
   }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ...empty, error: "Not authenticated." };
+  if (!user) return { ...empty, error: t("notAuthenticated") };
 
   const [{ data: canReadProjects }, { data: canReadAllTime }] = await Promise.all([
     supabase.rpc("app_user_has_permission", { p_key: PERMISSIONS.PROJECTS_READ_ALL }),
     supabase.rpc("app_user_has_permission", { p_key: PERMISSIONS.TIMESHEETS_READ_ALL }),
   ]);
-  if (canReadProjects !== true) return { ...empty, error: "Not permitted." };
-  if (canReadAllTime !== true) {
-    return {
-      ...empty,
-      error: "Seeing who logged these hours needs the “View All Timesheets” permission.",
-    };
-  }
+  if (canReadProjects !== true) return { ...empty, error: t("notPermitted") };
+  if (canReadAllTime !== true) return { ...empty, error: t("needsPermission") };
 
   const url = process.env.SUPABASE_DB_URL;
   if (!url) return { ...empty, error: "SUPABASE_DB_URL is not configured in this environment." };

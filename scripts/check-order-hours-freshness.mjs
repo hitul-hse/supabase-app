@@ -39,7 +39,7 @@ import { loadEnv } from "./lib/gate-env.mjs";
 // at zero.
 // Lowered 3 -> 2 after a refresh: the gate itself prints "understated SHRANK" and
 // asks for this, because a ratchet left loose stops ratcheting.
-const KNOWN_STALE = 2;
+const KNOWN_STALE = 0;
 const KNOWN_OVER_CONTRACT = 0;
 // Hours tolerance. Below this a difference is rounding, not staleness.
 const EPSILON = 0.05;
@@ -105,16 +105,32 @@ if (understated.length < KNOWN_STALE) {
 }
 
 /*
- * Overstating relative to a TODAY-BOUNDED sum is not an invented number. It is
- * the snapshot having counted FUTURE-dated planned entries: 10388_00372_60107_01
- * stores 306h, sums to 307.6h unbounded and 300.6h to date, so the snapshot was
- * taken against the unbounded figure. time.entry holds planned work out to
- * 2026-12-31.
+ * Overstating used to be tolerated when it was explained, to the hour, by
+ * future-dated planned entries: refresh-order-hours.mjs summed all-time, so a
+ * stored figure could legitimately exceed the to-date sum (Mirantis stored
+ * 398 h against 217.7 h worked). Since 2026-09-02 the refresh is bounded at
+ * now() -- decision: planned time is not logged time -- so stored and to-date
+ * must agree, and ANY overstatement is a defect: either the refresh has not
+ * run since the bound changed, or something wrote the column by hand.
  *
- * That still matters -- a burn figure that includes work not yet done overstates
- * consumption -- but it is a different defect from fabrication, so it gets its own
- * pinned tolerance rather than a hard zero that would be misleading about cause.
+ * The count is still reported with the worst offenders, because "which ones"
+ * is the first question after "how many".
  */
+if (overstated.length) {
+  console.log("\n  OVERSTATED -- the order looks more consumed than it is:");
+  for (const r of [...overstated].sort((a, b) => (b.stored - b.actual) - (a.stored - a.actual)).slice(0, 8)) {
+    console.log(`    ${r.id}  shows ${r.stored}h, actually ${r.actual}h to date  "${String(r.name).slice(0, 34)}"`);
+  }
+}
+check(overstated.length === 0,
+  "no order reports more hours than have been logged to date",
+  overstated.length
+    ? `${overstated.length} overstated, e.g. ${overstated[0].id} stores ${overstated[0].stored}h vs ${overstated[0].actual}h to date -- run refresh-order-hours.mjs`
+    : "stored hours agree with the to-date sum on every linked order");
+
+// Fabrication is worse than staleness and is kept as its own assertion: more
+// hours than exist even counting planned work means the number came from
+// nowhere, not from a stale run.
 const overstatedVsUnbounded = [];
 for (const r of overstated) {
   const { rows: [u] } = await c.query(`
@@ -123,43 +139,6 @@ for (const r of overstated) {
     where t.hub_project_id = $1`, [r.id]);
   if (Number(r.stored) - Number(u.unbounded) >= EPSILON) overstatedVsUnbounded.push(r);
 }
-
-/*
- * A COUNT here was the wrong pin, and it went red for the wrong reason.
- *
- * 96 time entries were logged over two days. The snapshot went stale, the count
- * rose 4 -> 5, and the gate reported a defect where the only thing that had
- * happened was people doing their jobs. The pin measured how many orders have
- * future-dated work -- a number that moves with the calendar, not with
- * correctness.
- *
- * What must hold is the CAUSE: every overstatement is explained, to the hour, by
- * future-dated entries. That is the documented all-time-sum behaviour. An
- * overstatement NOT explained that way is a real bug regardless of the count,
- * and is what the fabrication check below catches.
- *
- * Measured after refreshing: all 5 explained exactly (Netto 180.3h excess vs
- * 180.3h future, AWB 162.0/162.0, ENERCON 28.0/28.0, Action 20.0/20.0, RTB
- * 0.4/0.3 rounding). So the count is now reported for information, and the
- * assertion is that nothing is unexplained.
- */
-const unexplainedOverstatement = [];
-for (const r of overstated) {
-  const { rows: [f] } = await c.query(`
-    select round(coalesce(sum(e.duration_seconds) filter (where e.started_at >= now()),0)/3600.0, 1) as future_hours
-    from time.project t join time.entry e on e.project_id = t.id
-    where t.hub_project_id = $1`, [r.id]);
-  const excess = Number(r.stored) - Number(r.actual);
-  // 0.15h absorbs the rounding of three separate sums, nothing more.
-  if (Math.abs(excess - Number(f.future_hours)) > 0.15) unexplainedOverstatement.push({ id: r.id, excess, future: Number(f.future_hours) });
-}
-
-console.log(`  note  ${overstated.length} order(s) include future-dated work in their stored hours`);
-check(unexplainedOverstatement.length === 0,
-  "every overstatement is explained by future-dated entries, not by invention",
-  unexplainedOverstatement.length
-    ? `${unexplainedOverstatement.length} unexplained, e.g. ${unexplainedOverstatement[0].id} excess ${unexplainedOverstatement[0].excess.toFixed(1)}h vs ${unexplainedOverstatement[0].future.toFixed(1)}h future`
-    : `all ${overstated.length} match their future-dated hours`);
 
 // THIS is the fabrication test: more hours than exist even counting the future.
 check(overstatedVsUnbounded.length === 0,

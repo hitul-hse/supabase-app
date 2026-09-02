@@ -779,7 +779,9 @@ select
   end                                                           as burn_percent
 from time.project p
 left join time.customer c on c.id = p.customer_id
-left join time.entry e    on e.project_id = p.id and e.duration_seconds is not null
+left join time.entry e    on e.project_id = p.id
+                        and e.duration_seconds is not null
+                        and e.started_at <= now()          -- planned time is not logged time
 group by p.id, p.name, p.is_billable, p.is_archived, c.id, c.name, p.estimated_hours;
 
 grant select on time.project_summary to authenticated;
@@ -806,7 +808,9 @@ select
   count(e.id)                                                   as entry_count,
   max(e.started_at)                                             as last_activity_at
 from time.customer c
-left join time.entry e on e.customer_id = c.id and e.duration_seconds is not null
+left join time.entry e on e.customer_id = c.id
+                      and e.duration_seconds is not null
+                      and e.started_at <= now()              -- planned time is not logged time
 group by c.id, c.name, c.is_archived;
 
 grant select on time.customer_summary to authenticated;

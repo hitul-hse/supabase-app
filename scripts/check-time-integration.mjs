@@ -175,17 +175,22 @@ check(
 );
 
 // ── And the page's components must render that state, not crash ────────────
+// The time components sit on the shared card system (943e905), so the REAL
+// Card/StatTile has to be compiled into the sandbox too. It imports nothing but a
+// React type, so it needs no aliases of its own. Without this entry the require
+// dies with "Cannot find module '@/components/ui/Card'" before any render
+// assertion runs -- a crash, not a verdict.
+const cardFile = await compile("src/components/ui/Card.tsx", "Card.cjs");
+const componentAlias = {
+  ...alias,
+  "@/lib/queries/time": posix(transformFile),
+  "@/components/ui/Card": posix(cardFile),
+};
 const { TimeTotalsStrip } = require(
-  await compile("src/app/(app)/time/TimeTotalsStrip.tsx", "TimeTotalsStrip.cjs", {
-    ...alias,
-    "@/lib/queries/time": posix(transformFile),
-  }),
+  await compile("src/app/(app)/time/TimeTotalsStrip.tsx", "TimeTotalsStrip.cjs", componentAlias),
 );
 const { TimeEntryList } = require(
-  await compile("src/app/(app)/time/TimeEntryList.tsx", "TimeEntryList.cjs", {
-    ...alias,
-    "@/lib/queries/time": posix(transformFile),
-  }),
+  await compile("src/app/(app)/time/TimeEntryList.tsx", "TimeEntryList.cjs", componentAlias),
 );
 
 let renderThrew = null;

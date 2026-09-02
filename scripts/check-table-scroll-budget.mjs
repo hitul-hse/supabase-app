@@ -97,9 +97,9 @@ if (!env.SUPABASE_SERVICE_ROLE_KEY || !env.NEXT_PUBLIC_SUPABASE_URL) {
   process.exit(0);
 }
 
-let chromium;
+let launchChromium;
 try {
-  ({ chromium } = await import("playwright"));
+  ({ launchChromium } = await import("./lib/launch-chromium.mjs"));
 } catch {
   console.log("SKIP: playwright is not installed in this environment");
   process.exit(0);
@@ -259,7 +259,7 @@ if (!hashed) {
   process.exit(0);
 }
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: VIEWPORT_H } });
 const page = await ctx.newPage();
 

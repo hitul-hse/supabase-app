@@ -2,7 +2,7 @@
  * The per-team analysis, verified on PRODUCTION with both roles.
  * Waits for the deployment by polling for the new section's own text as an exec.
  */
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./lib/gate-env.mjs";
 
@@ -44,7 +44,7 @@ const cookiesFor = async (email) => {
   return out;
 };
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 
 const pageText = async (email) => {
   const ctx = await browser.newContext({ viewport: { width: 1674, height: 1500 }, colorScheme: "dark" });

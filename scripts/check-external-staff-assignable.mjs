@@ -85,8 +85,12 @@ check("isExternal is derived from source, not from a name allowlist",
 const ui = readFileSync("src/app/(app)/dashboard/management/ReassignmentPicker.tsx", "utf8");
 check("the suggestion filters externals out before ranking",
   /const internal = eligible\.filter\(\(c\) => !c\.isExternal\)/.test(ui));
+// The badge text lives in the catalogue since the management i18n pass: the
+// source references the key, and the German behind it is pinned in de.json.
+const badgeDe = JSON.parse(readFileSync("messages/de.json", "utf8")).management?.picker?.external;
 check("externals are still RENDERED, with a badge rather than hidden",
-  /candidate\.isExternal && \(/.test(ui) && /EXTERN/.test(ui));
+  /candidate\.isExternal && \(/.test(ui) && /t\("external"\)/.test(ui) && badgeDe === "EXTERN",
+  `badge key management.picker.external = "${badgeDe}"`);
 
 /*
  * Negative control. Without it, checks 5 and 6 would pass just as happily

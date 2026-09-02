@@ -421,7 +421,11 @@ check(
 check("chart points carry an accessible label", /aria-label=\{p\.readout\}/.test(chartsSrc));
 check(
   "the page actually renders the shared chart",
-  /<AreaTrend|<TrendFigure/.test(overview),
+  // Direct, or through OverviewHero -- the client bridge that adds week
+  // drilldown. If the page names the bridge, the bridge must name the chart.
+  /<AreaTrend|<TrendFigure/.test(overview) ||
+    (/<OverviewHero/.test(overview) &&
+      /<TrendFigure/.test(read("src/app/(app)/OverviewHero.tsx"))),
   "the two checks above are about Charts.tsx, which only matters if the page uses it",
 );
 

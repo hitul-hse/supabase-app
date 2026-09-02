@@ -12,7 +12,9 @@ import PageTransition from "@/components/animations/PageTransition";
  *
  * Reads `time.member` (49 real colleagues imported from TrackingTime), not the
  * seeded `public.people` mockup it used to render — eight invented rows for a
- * company of 49. See queries/people-live.ts for the full account.
+ * company of 49. Since 2026-09-02 it ALSO lists current Hub people who have no
+ * TrackingTime member at all (three Factorial employees), flagged as Hub-only
+ * with every time-derived figure honestly n/a. See queries/people-live.ts.
  */
 export default async function PeoplePage({
   searchParams,
@@ -61,6 +63,8 @@ export default async function PeoplePage({
           people={directory.people}
           chart={chart}
           canEditPeople={canEditPeople}
+          trackedCount={directory.trackedCount}
+          hubOnlyCount={directory.hubOnlyCount}
           archivedCount={directory.archivedCount}
           unlinkedCount={directory.unlinkedCount}
           mailboxCount={directory.mailboxCount}

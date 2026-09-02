@@ -45,6 +45,30 @@
  * time at all, and "0% billable" would read as an accusation rather than an
  * absence of data.
  *
+ * HUB PEOPLE WITHOUT A TRACKINGTIME MEMBER (2026-09-02)
+ * ---------------------------------------------------
+ * Three current Factorial employees -- created from the identity queue into
+ * `public.people` with `source = 'factorial'` -- have no TrackingTime member at
+ * all. They are colleagues, so a directory that omits them is incomplete in the
+ * same way the mockup was fictional. They are read from `public.people` as a
+ * SECOND source and merged in, flagged `source: "hub"`.
+ *
+ * The join is the exact key `time.member.hub_person_id = people.id`, never a
+ * name comparison (ADR-001): a person is Hub-only when no member row -- archived
+ * or not -- carries their id. RLS keeps the two reads consistent, because
+ * `time.can_view_member()` is defined THROUGH `can_view_person(hub_person_id)`:
+ * any person you can see whose member exists is a member you can also see, so a
+ * member hidden by RLS can never be re-labelled as "Hub-only".
+ *
+ * The seed rows are excluded by `source`, not only by `is_active`: all eight
+ * are inactive today, but "inactive" is one admin click from changing and
+ * "seed" is not. scripts/check-no-mockup-people.mjs pins that exclusion.
+ *
+ * Everything TrackingTime would have measured is null for these people --
+ * hours, billable share, utilisation, weeks active, weekly hours, and whether
+ * they hold a Hub sign-in (recorded on time.member.user_id, so unknowable
+ * here). The page renders every one of those as "n/a" with the reason, never 0.
+ *
  * The facts above are pinned by scripts/check-people-live-source.mjs, so a sync
  * that invalidates one fails there rather than surfacing as a wrong page.
  */
@@ -98,8 +122,21 @@ export type PersonAssignment = {
  * habit of showing a confident "EMP-0142 · SINCE 03/2021" for data we do not
  * have is exactly what this module removes.
  */
+export type PersonSource = "trackingtime" | "hub";
+
 export type LivePerson = {
-  memberId: number;
+  /**
+   * Stable identity across BOTH sources: `tt-<memberId>` for a TrackingTime
+   * member, `hub-<peopleId>` for a Hub-only person. A numeric member id cannot
+   * key a list that now contains people who have none.
+   */
+  key: string;
+  /** Where this row comes from. Everything below that is measured needs TrackingTime. */
+  source: PersonSource;
+  /** TrackingTime member id, or null for a person with no TrackingTime account. */
+  memberId: number | null;
+  /** public.people id when a Hub person record exists (linked member, or Hub-only). */
+  hubPersonId: string | null;
   name: string;
   email: string | null;
   /** TrackingTime account role: ADMIN, MANAGER, PROJECT_MANAGER, CO_WORKER. */
@@ -107,19 +144,24 @@ export type LivePerson = {
   /** VERIFIED / INVITED / REGISTERED — whether they ever activated the account. */
   status: string | null;
   isArchived: boolean;
-  /** Contracted hours per week, from TrackingTime. */
-  weeklyHours: number;
-  totalHours: number;
-  billableHours: number;
-  entryCount: number;
-  weeksActive: number;
+  /** Nominal hours per week, from TrackingTime; null without an account. */
+  weeklyHours: number | null;
+  /** Null, not 0, for a Hub-only person: nothing was measured, so nothing is claimed. */
+  totalHours: number | null;
+  billableHours: number | null;
+  entryCount: number | null;
+  weeksActive: number | null;
   lastActivityAt: string | null;
   /** Billable share of logged hours, 0-100, or null when nothing is logged. */
   billablePercent: number | null;
   /** Tracked over contracted across weeks ACTIVE, or null with no basis. */
   utilisationPercent: number | null;
-  /** True when this member is linked to a Hub sign-in account. */
-  hasAccount: boolean;
+  /**
+   * True when this member is linked to a Hub sign-in account. Null for a
+   * Hub-only person: the link lives on time.member.user_id, and an empty read of
+   * app_user_profile under RLS is "not visible", not "no account".
+   */
+  hasAccount: boolean | null;
   /**
    * Team recorded on time.member, normalised by teamKey() so "Operations"
    * and "OPERATIONS" are one team.
@@ -133,13 +175,31 @@ export type LivePerson = {
 };
 
 export type PeopleDirectoryData = {
+  /** Both sources, merged. The page sorts; nothing here implies an order. */
   people: LivePerson[];
+  /**
+   * Rows in `people` with a TrackingTime account. With `includeArchived` off
+   * this is the roster the page has always counted: members minus archived
+   * minus shared inboxes.
+   */
+  trackedCount: number;
+  /** Rows in `people` that exist only in the Hub: no time.member links to them. */
+  hubOnlyCount: number;
   /** Members excluded because they are archived in TrackingTime. */
   archivedCount: number;
-  /** Active members not yet linked to a Hub login. */
+  /** Active members not yet linked to a Hub login. Hub-only people are unknowable here. */
   unlinkedCount: number;
   /** Shared inboxes excluded from the roster (info@, jobs@). */
   mailboxCount: number;
+};
+
+const EMPTY_DIRECTORY: PeopleDirectoryData = {
+  people: [],
+  trackedCount: 0,
+  hubOnlyCount: 0,
+  archivedCount: 0,
+  unlinkedCount: 0,
+  mailboxCount: 0,
 };
 
 /**
@@ -180,17 +240,40 @@ export async function getLivePeople(
      * under RLS), so it now runs unfiltered alongside the others, and the
      * visible-member narrowing happens where it belongs: at lookup.
      */
-    const [allMembers, memberMeta, assignmentsByMember] = await Promise.all([
+    const [allMembers, memberMeta, assignmentsByMember, hubPeople] = await Promise.all([
       // Archived members are fetched regardless so `archivedCount` is honest —
       // the page states how many it is hiding rather than silently shrinking.
       getMemberUtilisation(supabase, { includeArchived: true }),
       getMemberMeta(supabase),
       getAssignments(supabase, null),
+      // The second source: current Hub people, some of whom have no member.
+      getHubPeople(supabase),
     ]);
 
-    if (allMembers.length === 0) {
-      return { people: [], archivedCount: 0, unlinkedCount: 0, mailboxCount: 0 };
+    /*
+     * Exact-key link, ADR-001: a person is Hub-only when NO member row carries
+     * their id. Archived members count as a link too -- a leaver whose member
+     * is archived is not "Hub-only", they are archived, and the archived toggle
+     * is the honest way to see them.
+     */
+    const linkedPersonIds = new Set<string>();
+    for (const m of memberMeta.values()) {
+      if (m.hubPersonId !== null) linkedPersonIds.add(m.hubPersonId);
     }
+    /*
+     * The link set is only trustworthy if the meta read succeeded. getMemberMeta
+     * swallows its error into an empty map (the roster still renders names and
+     * hours without it), but an empty map here would make every linked person
+     * look unlinked and list all 21 of them a second time as "Hub-only". So
+     * when members exist and meta does not, no Hub-only rows are derived: the
+     * header then says 0 HUB-ONLY, an undercount it states, not a duplicate.
+     */
+    const linksReadable = memberMeta.size > 0 || allMembers.length === 0;
+    const hubOnly = linksReadable
+      ? hubPeople.filter((p) => !linkedPersonIds.has(p.id)).map(toHubOnlyPerson)
+      : [];
+
+    if (allMembers.length === 0 && hubOnly.length === 0) return EMPTY_DIRECTORY;
 
     // Inboxes are dropped before anything else, so they cannot be counted as
     // archived, as unlinked, or as staff.
@@ -203,16 +286,20 @@ export async function getLivePeople(
 
     const visible = includeArchived ? humans : humans.filter((m) => !m.isArchived);
 
-    const people = visible.map((m) => toLivePerson(m, memberMeta, assignmentsByMember));
+    const tracked = visible.map((m) => toLivePerson(m, memberMeta, assignmentsByMember));
 
     return {
-      people,
+      people: [...tracked, ...hubOnly],
+      trackedCount: tracked.length,
+      hubOnlyCount: hubOnly.length,
       archivedCount: humans.filter((m) => m.isArchived).length,
-      unlinkedCount: people.filter((p) => !p.hasAccount).length,
+      // `=== false`, not `!`: a Hub-only person's sign-in is null (unknown),
+      // and counting unknown as missing would overstate the gap.
+      unlinkedCount: tracked.filter((p) => p.hasAccount === false).length,
       mailboxCount: mailboxes.length,
     };
   } catch {
-    return { people: [], archivedCount: 0, unlinkedCount: 0, mailboxCount: 0 };
+    return EMPTY_DIRECTORY;
   }
 }
 
@@ -279,6 +366,8 @@ type MemberMeta = {
   status: string | null;
   hasAccount: boolean;
   team: string | null;
+  /** The exact-key link to public.people; null for the many unlinked members. */
+  hubPersonId: string | null;
 };
 
 /**
@@ -293,7 +382,7 @@ async function getMemberMeta(
   try {
     const { data, error } = await timeSchema(supabase)
       .from("member")
-      .select("id, email, role, status, user_id, team");
+      .select("id, email, role, status, user_id, team, hub_person_id");
 
     if (error || !data) return out;
 
@@ -305,6 +394,7 @@ async function getMemberMeta(
         status: r.status ?? null,
         hasAccount: Boolean(r.user_id),
         team: teamKey(r.team),
+        hubPersonId: typeof r.hub_person_id === "string" && r.hub_person_id !== "" ? r.hub_person_id : null,
       });
     }
   } catch {
@@ -312,6 +402,84 @@ async function getMemberMeta(
   }
 
   return out;
+}
+
+type HubPersonRow = {
+  id: string;
+  name: string;
+  department: string | null;
+};
+
+/**
+ * Current people recorded in the Hub, whether or not TrackingTime knows them.
+ *
+ * `public.people` is the table the mockup lived in, and it is read here ON
+ * PURPOSE and under two guards: `is_active = true`, and `source <> 'seed'` so
+ * the eight invented rows can never return through this path even if one is
+ * re-activated by hand. The caller narrows to the rows no member links to.
+ *
+ * Typed through the generated Database client, not the untyped `time` schema
+ * escape hatch, so a renamed column fails at compile time rather than as an
+ * empty roster at runtime. Paged through the shared helper like every other
+ * roster read, `.order()` before `.range()`, so it stays deterministic.
+ */
+async function getHubPeople(supabase: SupabaseTyped): Promise<HubPersonRow[]> {
+  try {
+    const { rows } = await fetchAllPaged<HubPersonRow>((from, to) =>
+      supabase
+        .from("people")
+        .select("id, name, department")
+        .eq("is_active", true)
+        .neq("source", "seed")
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
+    return rows.map((r) => ({
+      id: String(r.id),
+      name: String(r.name),
+      department: r.department ?? null,
+    }));
+  } catch {
+    // The directory still renders the TrackingTime roster; the header count
+    // then says 0 Hub-only, which is an undercount the page states rather
+    // than a crash. Same failure posture as getMemberMeta.
+    return [];
+  }
+}
+
+/**
+ * A Hub-only row. Every TrackingTime-derived field is null and stays null:
+ * there is no member, so no hours, no nominal week, no last activity, and no
+ * way to know whether they hold a sign-in. The page owes each of those an
+ * "n/a" with the reason, and this shape makes 0 unrepresentable.
+ */
+function toHubOnlyPerson(p: HubPersonRow): LivePerson {
+  return {
+    key: `hub-${p.id}`,
+    source: "hub",
+    memberId: null,
+    hubPersonId: p.id,
+    name: p.name,
+    // public.people has no email column; none is invented.
+    email: null,
+    accountRole: null,
+    status: null,
+    isArchived: false,
+    weeklyHours: null,
+    totalHours: null,
+    billableHours: null,
+    entryCount: null,
+    weeksActive: null,
+    lastActivityAt: null,
+    billablePercent: null,
+    utilisationPercent: null,
+    hasAccount: null,
+    // people.department holds the same vocabulary as time.member.team -- the
+    // propagate-people-departments script copies one onto the other -- so the
+    // same normaliser applies. Null stays null: "No team recorded".
+    team: teamKey(p.department),
+    assignments: [],
+  };
 }
 
 /**
@@ -414,7 +582,10 @@ function toLivePerson(
   const info = meta.get(m.memberId);
 
   return {
+    key: `tt-${m.memberId}`,
+    source: "trackingtime",
     memberId: m.memberId,
+    hubPersonId: info?.hubPersonId ?? null,
     name: m.displayName,
     email: info?.email ?? null,
     accountRole: info?.accountRole ?? null,

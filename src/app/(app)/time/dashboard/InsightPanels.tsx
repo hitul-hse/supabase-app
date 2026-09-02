@@ -10,6 +10,8 @@
  * Shapes per the analysis spec (.context-bridge/analysis-spec.md #3, #5, #10).
  */
 
+import { useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardHeader } from "@/components/ui/Card";
 import {
   HeatmapMatrix,
@@ -18,14 +20,50 @@ import {
 } from "@/components/ui/AnalyticsCharts";
 import { LegendDot } from "@/components/ui/Charts";
 import { MobileDisclosure } from "@/components/MobileDisclosure";
+import { DrillDialog, type Drill, type DrillRow } from "@/components/DrillDialog";
 import type {
   CustomerShare,
   ServiceMixMonth,
   WeekPatternCell,
 } from "@/lib/queries/time-insights";
 import { WEEKDAY_LABELS } from "@/lib/queries/time-insights";
+import { secondsToHours } from "@/lib/time-transform";
+import type { CustomerDrillData, DrillDatum } from "./drill-data";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+
+/**
+ * One legend line, a button when it can open its composition. The hit target
+ * is the whole line rather than the name: the figure on the right is what the
+ * reader is looking at when the question "which projects?" occurs to them.
+ */
+function LegendRow({
+  onOpen,
+  label,
+  id,
+  children,
+}: {
+  onOpen?: () => void;
+  label: string;
+  id: string;
+  children: ReactNode;
+}) {
+  const t = useTranslations("drill");
+  return onOpen ? (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-haspopup="dialog"
+      aria-label={t("open", { title: label })}
+      data-drill-trigger={id}
+      className="flex w-full cursor-pointer items-baseline justify-between gap-2 rounded-[var(--radius-sm)] px-1 py-0.5 text-left transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+    >
+      {children}
+    </button>
+  ) : (
+    <span className="flex items-baseline justify-between gap-2">{children}</span>
+  );
+}
 
 /** Stable series palette: distinguishable in both themes, all tokens. */
 const SERIES = [
@@ -43,13 +81,67 @@ export function InsightPanels({
   totalHours,
   pattern,
   serviceMix,
+  customerDrills,
 }: {
   customers: CustomerShare[];
   otherHours: number;
   totalHours: number;
   pattern: { hourLabels: string[]; cells: WeekPatternCell[][]; maxHours: number };
   serviceMix: ServiceMixMonth[];
+  /**
+   * Every customer's hours by project, folded by the page from the SAME
+   * entries the waffle is cut from (drill-data.ts). When present, each legend
+   * line opens that customer's projects, and "everything else" opens the
+   * customers it folds together.
+   */
+  customerDrills?: CustomerDrillData;
 }) {
+  const t = useTranslations("drill");
+  const [drill, setDrill] = useState<Drill | null>(null);
+
+  const projectRows = (list: DrillDatum[]): DrillRow[] =>
+    list.map((d) => ({
+      name: d.name ?? t("noProject"),
+      value: `${h(secondsToHours(d.seconds))}h · ${t("entries", { count: d.entries })}`,
+      magnitude: d.seconds / 3600,
+      tone: d.name === null ? "muted" : "accent",
+    }));
+
+  const openCustomer = (c: CustomerShare) => {
+    if (!customerDrills) return;
+    setDrill({
+      kicker: `${c.percent}% OF ${h(totalHours)}H`,
+      title: t("time.customerProjects.title", { name: c.name }),
+      headline: `${h(c.hours)}h`,
+      headlineValue: c.hours,
+      check: "sum",
+      rows: projectRows(customerDrills.projectsByCustomer[c.name] ?? []),
+      footer: t("time.customerProjects.footer"),
+    });
+  };
+
+  // The long tail the waffle folds away: one row per customer NOT in the top
+  // list, so the rows sum to the "everything else" figure exactly.
+  const openOthers = () => {
+    if (!customerDrills) return;
+    const named = new Set(customers.map((c) => c.name));
+    setDrill({
+      kicker: `${Math.round(((totalHours - customers.reduce((s, c) => s + c.hours, 0)) / Math.max(totalHours, 0.01)) * 1000) / 10}% OF ${h(totalHours)}H`,
+      title: t("time.otherCustomers.title"),
+      headline: `${h(otherHours)}h`,
+      headlineValue: otherHours,
+      check: "sum",
+      rows: customerDrills.byCustomer
+        .filter((d) => !named.has(d.name ?? ""))
+        .map((d) => ({
+          name: d.name ?? t("noCustomer"),
+          value: `${h(secondsToHours(d.seconds))}h · ${t("entries", { count: d.entries })}`,
+          magnitude: d.seconds / 3600,
+        })),
+      footer: t("time.otherCustomers.footer"),
+    });
+  };
+
   /* ---------------------------------------------------------- waffle */
   const waffleSlices = customers.map((c, i) => ({
     label: c.name,
@@ -152,22 +244,31 @@ export function InsightPanels({
               />
               <div className="flex flex-col gap-1">
                 {customers.map((c, i) => (
-                  <span key={c.name} className="flex items-baseline justify-between gap-2">
+                  <LegendRow
+                    key={c.name}
+                    label={c.name}
+                    id={`customer-${i}`}
+                    onOpen={customerDrills ? () => openCustomer(c) : undefined}
+                  >
                     <LegendDot color={SERIES[i % SERIES.length]}>
                       <span className="max-w-[11rem] truncate">{c.name}</span>
                     </LegendDot>
                     <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
                       {c.percent}% · {h(c.hours)}h
                     </span>
-                  </span>
+                  </LegendRow>
                 ))}
                 {otherHours > 0 && (
-                  <span className="flex items-baseline justify-between gap-2">
+                  <LegendRow
+                    label="everything else"
+                    id="customer-others"
+                    onOpen={customerDrills ? openOthers : undefined}
+                  >
                     <LegendDot color="var(--surface-2)">everything else</LegendDot>
                     <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
                       {h(otherHours)}h
                     </span>
-                  </span>
+                  </LegendRow>
                 )}
               </div>
               {/* The waffle's reason to exist: dependency, said plainly. */}
@@ -251,6 +352,8 @@ export function InsightPanels({
           </div>
         </Card>
       )}
+
+      {drill && <DrillDialog drill={drill} onClose={() => setDrill(null)} />}
     </div>
   );
 }

@@ -9,7 +9,7 @@
  * `overflow: hidden` ancestor, and a class list proves nothing about what a person
  * actually sees.
  */
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./lib/gate-env.mjs";
 
@@ -47,7 +47,7 @@ for (let i = 0, n = 0; i < encoded.length; i += CHUNK, n += 1) {
   cookies.push({ name: `sb-${ref}-auth-token.${n}`, value: encoded.slice(i, i + CHUNK) });
 }
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 await ctx.addCookies(cookies.map((c) => ({ ...c, domain: new URL(SITE).hostname, path: "/" })));
 const page = await ctx.newPage();

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -32,9 +33,22 @@ import { Card, StatTile } from "@/components/ui/Card";
  * The replacement shows only what TrackingTime actually knows. Where the old
  * page had a confident figure with nothing behind it, this one has either a
  * measured number or "n/a" — never a plausible substitute.
+ *
+ * TWO SOURCES SINCE 2026-09-02
+ * ----------------------------
+ * The roster also lists Hub people with no TrackingTime member (three current
+ * Factorial employees). They carry `source: "hub"`, a visible HUB marker, and
+ * null for every measured field -- which StatTile and the row render as "n/a"
+ * with the reason NO TRACKINGTIME ACCOUNT. The header states both numbers so
+ * "20 people" can never be read as "20 people with tracked time".
+ *
+ * Only the strings this change added go through next-intl (namespace
+ * `people`); the pre-existing English labels are untouched.
  */
 export function PeopleDirectory({
   people,
+  trackedCount,
+  hubOnlyCount,
   archivedCount,
   unlinkedCount,
   mailboxCount,
@@ -42,6 +56,10 @@ export function PeopleDirectory({
   includeArchived = false,
 }: {
   people: LivePerson[];
+  /** Rows with a TrackingTime account -- the roster this page has always counted. */
+  trackedCount: number;
+  /** Rows that exist only in the Hub; every time-derived figure is null for them. */
+  hubOnlyCount: number;
   archivedCount: number;
   unlinkedCount: number;
   mailboxCount: number;
@@ -60,10 +78,14 @@ export function PeopleDirectory({
   // `people` can legitimately be empty: RLS scopes the underlying reads, and a
   // fresh database has no import yet. The detail pane dereferences the
   // selection unconditionally, so without this guard the page white-screened.
-  const [selectedId, setSelectedId] = useState<number | null>(people[0]?.memberId ?? null);
+  const t = useTranslations("people");
+  // Keyed by LivePerson.key, not memberId: Hub-only people have no member id.
+  const [selectedKey, setSelectedKey] = useState<string | null>(people[0]?.key ?? null);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [onlyLogged, setOnlyLogged] = useState(false);
   const [onlyNoAccount, setOnlyNoAccount] = useState(false);
+  /** "Show me who is in the Hub but not in TrackingTime" -- the gap someone acts on. */
+  const [onlyHub, setOnlyHub] = useState(false);
   /**
    * "" = every team, NO_TEAM = the people with nothing recorded.
    *
@@ -83,8 +105,16 @@ export function PeopleDirectory({
   // Counts are computed on the FULL roster, not the filtered list, so a chip
   // always shows how many rows it would bring in. A count that shrinks to
   // match the current filter tells you nothing you cannot already see.
-  const loggedCount = useMemo(() => people.filter((p) => p.totalHours > 0).length, [people]);
-  const noAccountCount = useMemo(() => people.filter((p) => !p.hasAccount).length, [people]);
+  const loggedCount = useMemo(
+    () => people.filter((p) => p.totalHours !== null && p.totalHours > 0).length,
+    [people],
+  );
+  // `=== false`: a Hub-only person's sign-in is null (unknown, recorded on
+  // time.member), and "unknown" must not be counted as "missing".
+  const noAccountCount = useMemo(
+    () => people.filter((p) => p.hasAccount === false).length,
+    [people],
+  );
 
   /**
    * Only the teams actually present, plus the no-team bucket when it is
@@ -126,8 +156,9 @@ export function PeopleDirectory({
         (p.accountRole ?? "").toLowerCase().includes(query);
       // "Has logged time" rather than a department filter: TrackingTime has no
       // department concept, and the old SAFETY/ENG/LAB tabs were mockup values.
-      const matchesLogged = !onlyLogged || p.totalHours > 0;
-      const matchesAccount = !onlyNoAccount || !p.hasAccount;
+      const matchesLogged = !onlyLogged || (p.totalHours !== null && p.totalHours > 0);
+      const matchesAccount = !onlyNoAccount || p.hasAccount === false;
+      const matchesHub = !onlyHub || p.source === "hub";
       // Team is real data or it is absent. An unrecorded team matches the
       // no-team bucket and nothing else -- it is never folded into a guess.
       const matchesTeam =
@@ -137,14 +168,17 @@ export function PeopleDirectory({
       // ONLY way null utilisation is filtered on, so "no basis to judge" is
       // never silently scored as 0%.
       const matchesBand = bands.length === 0 || bands.includes(bandOf(p));
-      return matchesSearch && matchesLogged && matchesAccount && matchesTeam && matchesBand;
+      return (
+        matchesSearch && matchesLogged && matchesAccount && matchesHub && matchesTeam && matchesBand
+      );
     });
     return sortPeople(matched, sortKey, sortDir);
-  }, [people, query, onlyLogged, onlyNoAccount, teamFilter, bands, sortKey, sortDir]);
+  }, [people, query, onlyLogged, onlyNoAccount, onlyHub, teamFilter, bands, sortKey, sortDir]);
 
   const activeFilterCount =
     (onlyLogged ? 1 : 0) +
     (onlyNoAccount ? 1 : 0) +
+    (onlyHub ? 1 : 0) +
     (query ? 1 : 0) +
     (teamFilter ? 1 : 0) +
     bands.length;
@@ -159,6 +193,7 @@ export function PeopleDirectory({
     setSearchQuery("");
     setOnlyLogged(false);
     setOnlyNoAccount(false);
+    setOnlyHub(false);
     setTeamFilter("");
     setBands([]);
   };
@@ -204,7 +239,7 @@ export function PeopleDirectory({
     PAGE_SIZE,
     // Every filter belongs in the reset key: narrowing while on page 3 would
     // otherwise leave you looking at an empty column.
-    `${query}|${onlyLogged}|${onlyNoAccount}|${teamFilter}|${[...bands].sort().join(",")}`,
+    `${query}|${onlyLogged}|${onlyNoAccount}|${onlyHub}|${teamFilter}|${[...bands].sort().join(",")}`,
   );
   const visiblePeople = filteredPeople.slice(pager.start, pager.end);
   const listRef = useRef<HTMLDivElement>(null);
@@ -212,7 +247,7 @@ export function PeopleDirectory({
   // Resolve by id against the live prop rather than holding a snapshot in
   // state, and prefer a selection that is actually in the filtered list.
   const selectedPerson =
-    filteredPeople.find((p) => p.memberId === selectedId) ?? filteredPeople[0] ?? people[0];
+    filteredPeople.find((p) => p.key === selectedKey) ?? filteredPeople[0] ?? people[0];
 
   /** Re-clicking the active column reverses it; a new column starts fresh. */
   const handleSort = (key: string) => {
@@ -255,23 +290,36 @@ export function PeopleDirectory({
           : "var(--text-muted)";
 
   const capacity = capacityLabel(selectedPerson.utilisationPercent);
+  const isHubOnly = selectedPerson.source === "hub";
+
+  /*
+   * The count sentence. Both numbers, always: "20 PEOPLE" alone would read as
+   * twenty people with tracked time, and 17 is the figure every other page
+   * (Overview headcount, the team board) has always meant by the roster.
+   *
+   *   20 PEOPLE · 17 ON TRACKINGTIME · 3 HUB-ONLY · 30 ARCHIVED
+   *   · 2 SHARED INBOX EXCLUDED · TRACKINGTIME + HUB
+   *
+   * Joined with the character, not "&amp;" -- see the note that used to sit on
+   * the old template literal: an entity inside a string reaches the DOM as
+   * literal text, which the live page showed for months.
+   */
+  const headerMeta = [
+    t("header.total", { count: people.length }),
+    includeArchived
+      ? t("header.trackedWithArchived", { count: trackedCount, archived: archivedCount })
+      : t("header.tracked", { count: trackedCount }),
+    t("header.hubOnly", { count: hubOnlyCount }),
+    includeArchived ? null : t("header.archivedHidden", { count: archivedCount }),
+    mailboxCount > 0 ? t("header.mailboxes", { count: mailboxCount }) : null,
+    t("header.sources"),
+  ]
+    .filter((part): part is string => part !== null)
+    .join(" · ");
 
   return (
     <>
-      <PageHeader
-        category="HSE HUB / RECORDS"
-        title="People & Profiles"
-        /*
-         * A template literal is NOT JSX text: "&amp;" inside one reaches the
-         * DOM as the five literal characters, which is exactly what the live
-         * page showed ("8 ACTIVE CONSULTANTS &amp; STAFF"). Use the character.
-         */
-        meta={`${people.length} ${includeArchived ? "ACTIVE + ARCHIVED" : "ACTIVE"} · ${archivedCount} ARCHIVED${
-          includeArchived ? " INCLUDED" : ""
-        }${
-          mailboxCount > 0 ? ` · ${mailboxCount} SHARED INBOX EXCLUDED` : ""
-        } · TRACKINGTIME`}
-      />
+      <PageHeader category="HSE HUB / RECORDS" title="People & Profiles" meta={headerMeta} />
 
       <div className="flex min-h-[calc(100vh-130px)] flex-col border-b border-[var(--border)] lg:flex-row">
         {/* Left: roster */}
@@ -364,6 +412,22 @@ export function PeopleDirectory({
                   INCLUDE ARCHIVED
                 </FilterChip>
               )}
+              {/*
+                The Hub-only rows are a real bucket with a real action behind
+                it (get them a TrackingTime account, or record why not), so
+                they are filterable, not just marked. Offered only when the
+                bucket is occupied: a chip that can only ever empty the list
+                reads as data loss.
+              */}
+              {hubOnlyCount > 0 && (
+                <FilterChip
+                  active={onlyHub}
+                  onToggle={() => setOnlyHub((v) => !v)}
+                  count={hubOnlyCount}
+                >
+                  {t("filters.hubOnly")}
+                </FilterChip>
+              )}
             </div>
 
             {/*
@@ -448,11 +512,12 @@ export function PeopleDirectory({
               </div>
             )}
             {visiblePeople.map((person) => {
-              const isSelected = selectedPerson.memberId === person.memberId;
+              const isSelected = selectedPerson.key === person.key;
               return (
                 <button
-                  key={person.memberId}
-                  onClick={() => setSelectedId(person.memberId)}
+                  key={person.key}
+                  data-person-source={person.source}
+                  onClick={() => setSelectedKey(person.key)}
                   className={`flex items-center gap-3 p-3.5 text-left transition-colors ${
                     isSelected
                       ? "border-l-2 border-[var(--accent)] bg-[var(--surface-hover)]"
@@ -466,15 +531,33 @@ export function PeopleDirectory({
                     {initialsOf(person.name)}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
-                      {person.name}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
+                        {person.name}
+                      </span>
+                      {/*
+                        The marker. Small, mono, in the label tokens, on the
+                        strong border: visible when you look for it, silent
+                        when you do not. Colour is not used, because colour
+                        on this page means severity and this is not one.
+                      */}
+                      {person.source === "hub" && (
+                        <span className="flex-none border border-[var(--border-strong)] px-1 font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)]">
+                          {t("row.hubMarker")}
+                        </span>
+                      )}
                     </span>
                     <span className="truncate font-mono text-[10px] text-[var(--text-muted)]">
                       {/* Absence renders as absence: a person with no team shows
-                          the role alone rather than a guessed one. */}
-                      {person.team !== null
-                        ? `${person.accountRole ?? "—"} · ${teamLabel(person.team)}`
-                        : (person.accountRole ?? "—")}
+                          the role alone rather than a guessed one; a Hub-only
+                          person says why nothing else is here. */}
+                      {person.source === "hub"
+                        ? person.team !== null
+                          ? `${t("row.hubOnly")} · ${teamLabel(person.team)}`
+                          : t("row.hubOnly")
+                        : person.team !== null
+                          ? `${person.accountRole ?? "—"} · ${teamLabel(person.team)}`
+                          : (person.accountRole ?? "—")}
                     </span>
                   </div>
                   {/*
@@ -526,9 +609,23 @@ export function PeopleDirectory({
                 {selectedPerson.name}
               </h2>
               <span className="font-mono text-[11px] text-[var(--text-muted)]">
-                {selectedPerson.email ?? "no email on record"}
+                {selectedPerson.email ?? t("detail.noEmail")}
               </span>
               <div className="mt-1 flex flex-wrap gap-2">
+                {/*
+                  Hub-only comes FIRST and replaces the TrackingTime badges
+                  (nominal week, account role, sign-in): each of those is a
+                  fact about a member record that does not exist. Saying
+                  "NOMINAL 40 H/WEEK" here would be the mockup's habit back.
+                */}
+                {isHubOnly && (
+                  <span
+                    className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
+                    title={t("detail.hubOnlyTitle")}
+                  >
+                    {t("detail.hubOnlyBadge")}
+                  </span>
+                )}
                 {capacity ? (
                   <span
                     className="px-2 py-0.5 font-mono text-[10px] font-medium"
@@ -549,15 +646,19 @@ export function PeopleDirectory({
                   h/week because that is TrackingTime's account-wide default,
                   not anyone's contract — so this must not read as contractual.
                 */}
-                <span
-                  className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
-                  title="TrackingTime account default, not a contracted figure"
-                >
-                  NOMINAL {selectedPerson.weeklyHours} H/WEEK
-                </span>
-                <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
-                  {selectedPerson.accountRole ?? "NO ROLE"}
-                </span>
+                {selectedPerson.weeklyHours !== null && (
+                  <span
+                    className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
+                    title="TrackingTime account default, not a contracted figure"
+                  >
+                    NOMINAL {selectedPerson.weeklyHours} H/WEEK
+                  </span>
+                )}
+                {!isHubOnly && (
+                  <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
+                    {selectedPerson.accountRole ?? "NO ROLE"}
+                  </span>
+                )}
                 {/* Stated either way. "NO TEAM RECORDED" is the honest reading
                     of a blank column, and it is the thing somebody would act
                     on; a missing badge just looks like the page forgot. */}
@@ -584,7 +685,9 @@ export function PeopleDirectory({
                   they cannot sign in and see their own hours. That is an
                   operational fact worth showing, not one to hide.
                 */}
-                {!selectedPerson.hasAccount && (
+                {/* `=== false`, not `!`: null is "not knowable from here", and a
+                    warning badge on an unknown would be an accusation. */}
+                {selectedPerson.hasAccount === false && (
                   <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--warning)]">
                     NO HUB ACCOUNT
                   </span>
@@ -592,37 +695,53 @@ export function PeopleDirectory({
               </div>
             </div>
 
-            <div className="ml-auto flex items-center gap-2">
-              <ButtonLink
-                variant="secondary"
-                href={`/time/dashboard?members=${selectedPerson.memberId}`}
-              >
-                View in dashboard
-              </ButtonLink>
-            </div>
+            {/* No member id, no dashboard: the link would filter on "null". */}
+            {selectedPerson.memberId !== null && (
+              <div className="ml-auto flex items-center gap-2">
+                <ButtonLink
+                  variant="secondary"
+                  href={`/time/dashboard?members=${selectedPerson.memberId}`}
+                >
+                  View in dashboard
+                </ButtonLink>
+              </div>
+            )}
           </div>
 
-          {/* Measured figures only */}
+          {/*
+            Measured figures only. StatTile renders a null value as "n/a"; for
+            a Hub-only person every value IS null and every hint says why, so
+            the four tiles read "n/a -- NO TRACKINGTIME ACCOUNT" rather than
+            "0 h -- 0 ENTRIES", which would be a claim about someone's work.
+          */}
           <div className="my-5 grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-4">
             <StatTile
               label="HOURS LOGGED"
               value={
-                selectedPerson.totalHours > 0
+                selectedPerson.totalHours !== null && selectedPerson.totalHours > 0
                   ? selectedPerson.totalHours.toLocaleString("de-DE", {
                       maximumFractionDigits: 0,
                     })
                   : null
               }
               unit="h"
-              hint={`${selectedPerson.entryCount.toLocaleString("de-DE")} ENTRIES`}
+              hint={
+                selectedPerson.entryCount === null
+                  ? t("detail.noTrackingTime")
+                  : `${selectedPerson.entryCount.toLocaleString("de-DE")} ENTRIES`
+              }
             />
             <StatTile
               label="BILLABLE SHARE"
               value={selectedPerson.billablePercent}
               unit="%"
-              hint={`${selectedPerson.billableHours.toLocaleString("de-DE", {
-                maximumFractionDigits: 0,
-              })} H BILLABLE`}
+              hint={
+                selectedPerson.billableHours === null
+                  ? t("detail.noTrackingTime")
+                  : `${selectedPerson.billableHours.toLocaleString("de-DE", {
+                      maximumFractionDigits: 0,
+                    })} H BILLABLE`
+              }
             />
             <StatTile
               label="UTILISATION"
@@ -630,15 +749,21 @@ export function PeopleDirectory({
               unit="%"
               // Not "OF CONTRACTED": the 40h basis is a TrackingTime default,
               // and calling it contracted would dress a default as a fact.
-              hint="OF NOMINAL 40 H, WEEKS ACTIVE"
+              hint={isHubOnly ? t("detail.noTrackingTime") : "OF NOMINAL 40 H, WEEKS ACTIVE"}
             />
             <StatTile
               label="WEEKS ACTIVE"
-              value={selectedPerson.weeksActive > 0 ? selectedPerson.weeksActive : null}
+              value={
+                selectedPerson.weeksActive !== null && selectedPerson.weeksActive > 0
+                  ? selectedPerson.weeksActive
+                  : null
+              }
               hint={
-                selectedPerson.lastActivityAt
-                  ? `LAST ${selectedPerson.lastActivityAt.slice(0, 10)}`
-                  : "NO ACTIVITY"
+                isHubOnly
+                  ? t("detail.noTrackingTime")
+                  : selectedPerson.lastActivityAt
+                    ? `LAST ${selectedPerson.lastActivityAt.slice(0, 10)}`
+                    : "NO ACTIVITY"
               }
             />
           </div>
@@ -656,7 +781,9 @@ export function PeopleDirectory({
 
             {selectedPerson.assignments.length === 0 ? (
               <p className="font-mono text-[11px] text-[var(--text-faint)]">
-                No time logged against any project.
+                {/* Two different absences: "logged nothing" is a fact about a
+                    member; "has no member" is the reason there is no fact. */}
+                {isHubOnly ? t("detail.noTrackingTimeAccount") : "No time logged against any project."}
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -702,9 +829,11 @@ export function PeopleDirectory({
 
           {unlinkedCount > 0 && (
             <Card className="mt-5 flex flex-wrap items-center justify-between gap-3 p-4">
+              {/* Over the TRACKED count, not the whole list: the Hub-only rows'
+                  sign-in state is unknown here, so they are neither in the
+                  numerator nor the denominator. */}
               <span className="text-[12px] text-[var(--text-secondary)]">
-                {unlinkedCount} of the {people.length} people listed have no Hub sign-in yet, so
-                they cannot see their own hours.
+                {t("unlinkedNote", { unlinked: unlinkedCount, tracked: trackedCount })}
               </span>
               <ButtonLink variant="primary" href="/admin/users" className="whitespace-nowrap">
                 Manage users
@@ -758,6 +887,7 @@ function bandOf(p: LivePerson): CapacityBand {
  * would sort them among the genuinely-0% people and imply a measurement that
  * was never taken, so unmeasured rows are pinned to the end in BOTH directions.
  * Reversing the sort must not promote an absence of data to the top of the list.
+ * `totalHours` is null too for a Hub-only person, and takes the same path.
  */
 function sortPeople(rows: LivePerson[], key: SortKey, dir: SortDirection): LivePerson[] {
   const factor = dir === "asc" ? 1 : -1;

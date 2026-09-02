@@ -123,8 +123,27 @@ try {
     /getLivePeople/.test(pageSrc) && /people-live/.test(pageSrc),
   );
   check(
-    "R1: the query layer reads time.member, not public.people",
+    "R1: the query layer reads time.member as the roster",
     /schema\(["']time["']\)/.test(querySrc) && /from\(["']member["']\)/.test(querySrc),
+  );
+  /*
+   * Since 2026-09-02 the directory ALSO reads public.people, for the current
+   * Factorial employees who have no TrackingTime member. That is the mockup's
+   * table, so the read is allowed only under both guards: is_active, and the
+   * seed rows excluded by SOURCE -- all eight are inactive today, but "inactive"
+   * is one admin click from changing and "seed" is not.
+   */
+  check(
+    "R1: the public.people read excludes the seed rows by source, not only by is_active",
+    /from\("people"\)/.test(querySrc) &&
+      /\.eq\("is_active",\s*true\)/.test(querySrc) &&
+      /\.neq\("source",\s*"seed"\)/.test(querySrc),
+    "the eight mockup rows must be unreachable through this path even if one is re-activated",
+  );
+  check(
+    "R1: Hub-only is decided by the exact key hub_person_id = people.id, never by name",
+    /hubPersonId/.test(querySrc) && !/displayName\s*===?\s*p\.name|name\.toLowerCase\(\)\s*===?/.test(querySrc),
+    "ADR-001: a name comparison would silently merge or split people",
   );
   check(
     "R1: no mockup person name survives anywhere in the People UI",
@@ -198,10 +217,15 @@ try {
   );
 
   const overviewSrc = code(OVERVIEW);
+  // The note's wording lives in messages/en.json (next-intl); the page must
+  // reference the key and the English text must still say "nominal".
+  const basisNote =
+    JSON.parse(readFileSync("messages/en.json", "utf8")).overview?.utilisationByPerson?.basisNote ?? "";
   check(
     "R4: the Overview basis note does not claim contracted hours",
-    /nominal 40-hour week/i.test(code("src/app/(app)/page.tsx")) &&
-      !/over contracted hours/i.test(code("src/app/(app)/page.tsx")),
+    /utilisationByPerson\.basisNote/.test(code("src/app/(app)/page.tsx")) &&
+      /nominal 40-hour week/i.test(basisNote) &&
+      !/over contracted hours/i.test(basisNote),
   );
   check(
     "R3: the Overview headcount uses the roster count, not raw member rows",
@@ -287,9 +311,9 @@ try {
     'a "" team would render as a real, selectable team with no name',
   );
   check(
-    "R6: the query selects the team column it now exposes",
-    /\.select\("id, email, role, status, user_id, team"\)/.test(readFileSync(QUERY, "utf8")),
-    "LivePerson.team would be null for everyone, and the filter would offer only 'No team recorded'",
+    "R6: the query selects the team column it now exposes (and the hub_person_id link)",
+    /\.select\("id, email, role, status, user_id, team, hub_person_id"\)/.test(readFileSync(QUERY, "utf8")),
+    "LivePerson.team would be null for everyone, and without hub_person_id every Hub person would be re-listed as Hub-only",
   );
 
   // ── 3. Render the real component ─────────────────────────────────────────
@@ -372,6 +396,21 @@ module.exports = {
 };`,
   );
 
+  /*
+   * next-intl, without a provider. The strings this gate pins now live in
+   * messages/en.json, so the stub resolves them from THAT file through
+   * next-intl's own createTranslator (real ICU plurals, no React context). A
+   * stub that returned the key would let "{count} HUB-ONLY" pass as rendered.
+   */
+  const intlStub = join(dir, "intl-stub.cjs");
+  writeFileSync(
+    intlStub,
+    `const { readFileSync } = require("node:fs");
+const { createTranslator } = require("next-intl");
+const messages = JSON.parse(readFileSync(${JSON.stringify(resolve("messages/en.json"))}, "utf8"));
+module.exports = { useTranslations: (namespace) => createTranslator({ locale: "en", messages, namespace }) };`,
+  );
+
   // teams.ts is pure and is the single source of team LABELS, so it is
   // compiled rather than stubbed: a stub could pass while the shipped list
   // rendered a legacy team as a blank option.
@@ -399,11 +438,15 @@ module.exports = {
       "@/lib/queries/people-live": posix(join(dir, "people-live.cjs")),
       "@/components/ui/Card": posix(cardFile),
       "next/link": posix(linkStub),
+      "next-intl": posix(intlStub),
     }),
   );
 
   const person = (over = {}) => ({
+    key: "tt-1",
+    source: "trackingtime",
     memberId: 1,
+    hubPersonId: "md-bjrn",
     name: "Björn Schönemann",
     email: "bjoern.schoenemann@hs-experts.com",
     accountRole: "ADMIN",
@@ -427,7 +470,9 @@ module.exports = {
 
   // A person with NOTHING logged — the R2 case.
   const blank = person({
+    key: "tt-2",
     memberId: 2,
+    hubPersonId: null,
     name: "azubuike",
     email: "azubuike@hs-experts.com",
     totalHours: 0,
@@ -441,11 +486,41 @@ module.exports = {
     assignments: [],
   });
 
+  /*
+   * A Hub-only person: in public.people from Factorial, no time.member. Every
+   * measured field is null. What the page must NOT do with that is render a
+   * zero anywhere, and what it MUST do is say why.
+   */
+  const hubOnly = {
+    key: "hub-fq-leonie-roitsch",
+    source: "hub",
+    memberId: null,
+    hubPersonId: "fq-leonie-roitsch",
+    name: "Leonie Roitsch",
+    email: null,
+    accountRole: null,
+    status: null,
+    isArchived: false,
+    weeklyHours: null,
+    totalHours: null,
+    billableHours: null,
+    entryCount: null,
+    weeksActive: null,
+    lastActivityAt: null,
+    billablePercent: null,
+    utilisationPercent: null,
+    hasAccount: null,
+    team: null,
+    assignments: [],
+  };
+
   const html = renderToStaticMarkup(
     h(view.PeopleDirectory, {
-      people: [person(), blank],
+      people: [person(), blank, hubOnly],
+      trackedCount: 2,
+      hubOnlyCount: 1,
       archivedCount: 28,
-      unlinkedCount: 16,
+      unlinkedCount: 1,
       mailboxCount: 2,
     }),
   );
@@ -461,6 +536,26 @@ module.exports = {
   check(
     "the meta line shows the real roster shape",
     /28 ARCHIVED/.test(html) && /2 SHARED INBOX EXCLUDED/.test(html),
+  );
+  check(
+    "the meta line states BOTH counts: people, on TrackingTime, Hub-only",
+    /3 PEOPLE · 2 ON TRACKINGTIME · 1 HUB-ONLY/.test(html),
+    '"3 people" alone would read as three people with tracked time',
+  );
+  check(
+    "the Hub-only person is listed, marked, and given the reason",
+    html.includes("Leonie Roitsch") &&
+      /data-person-source="hub"/.test(html) &&
+      /HUB-ONLY · NO TRACKINGTIME ACCOUNT/.test(html),
+  );
+  check(
+    "the Hub-only filter chip is offered with its count",
+    /HUB-ONLY 1/.test(html),
+    "the bucket has an action behind it (get them a TrackingTime account), so it must be filterable",
+  );
+  check(
+    "the source label no longer claims TrackingTime alone",
+    !/SOURCE: TRACKINGTIME</.test(html + code(SECTION)) && /sourceLabel/.test(code(SECTION)),
   );
   check(
     "the header renders a real ampersand, not the entity",
@@ -488,9 +583,59 @@ module.exports = {
     /NO HUB ACCOUNT/.test(html) || /no Hub sign-in/.test(html),
   );
 
+  /*
+   * The Hub-only detail pane, rendered alone so the assertions cannot be
+   * satisfied by Björn's tiles sitting further up the same HTML.
+   */
+  const hubHtml = renderToStaticMarkup(
+    h(view.PeopleDirectory, {
+      people: [hubOnly],
+      trackedCount: 0,
+      hubOnlyCount: 1,
+      archivedCount: 0,
+      unlinkedCount: 0,
+      mailboxCount: 0,
+    }),
+  );
+  const hubTiles = (hubHtml.match(/data-stat-tile/g) ?? []).length;
+  const hubNa = (hubHtml.match(/>n\/a</g) ?? []).length;
+  check(
+    "a Hub-only person's four tiles all render n/a, never 0",
+    hubTiles === 4 && hubNa >= 4 && !/>0<|>0 h<|>0%<|0 ENTRIES|0 H BILLABLE/.test(hubHtml),
+    `${hubTiles} tiles, ${hubNa} n/a values`,
+  );
+  check(
+    "every n/a on a Hub-only person carries the reason",
+    (hubHtml.match(/NO TRACKINGTIME ACCOUNT/g) ?? []).length >= 4,
+    "an unexplained n/a reads as a loading failure",
+  );
+  // The BADGE forms, not the words: the filter bar legitimately offers a
+  // "NO HUB ACCOUNT" chip whatever is selected, and the chip stub renders it as
+  // a <button> with its count, so only the <span> badge can match here.
+  check(
+    "no TrackingTime-only badge is shown for a Hub-only person",
+    !/NOMINAL \d+ H\/WEEK/.test(hubHtml) && !/>NO ROLE</.test(hubHtml) && !/NO HUB ACCOUNT<\/span>/.test(hubHtml),
+    "each of those is a fact about a member record that does not exist",
+  );
+  check(
+    "no dashboard link points at a null member",
+    !/members=null/.test(hubHtml) && !/members=undefined/.test(hubHtml),
+  );
+  check(
+    "the projects card says why it is empty",
+    /No TrackingTime account, so there is no project time to show/.test(hubHtml),
+  );
+
   // Empty roster must explain itself rather than white-screening.
   const emptyHtml = renderToStaticMarkup(
-    h(view.PeopleDirectory, { people: [], archivedCount: 0, unlinkedCount: 0, mailboxCount: 0 }),
+    h(view.PeopleDirectory, {
+      people: [],
+      trackedCount: 0,
+      hubOnlyCount: 0,
+      archivedCount: 0,
+      unlinkedCount: 0,
+      mailboxCount: 0,
+    }),
   );
   check(
     "an empty roster explains itself instead of crashing",

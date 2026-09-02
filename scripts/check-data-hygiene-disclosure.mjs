@@ -43,7 +43,7 @@
  * rows at all -- which read exactly like "the desktop lost its content".
  */
 
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 import { loadEnv } from "./lib/gate-env.mjs";
 
 const env = loadEnv();
@@ -130,7 +130,7 @@ async function openPage(browser, width, height) {
   return { ctx, page, path };
 }
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 try {
   /* ---------------------------------------------------------- phone ------- */
   const phone = await openPage(browser, 390, 844);

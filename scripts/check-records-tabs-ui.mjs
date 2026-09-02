@@ -10,7 +10,7 @@
  * production" is precisely the failure mode being closed out.
  */
 import { readFileSync } from "node:fs";
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
 
 const env = {};
@@ -56,7 +56,7 @@ const sessionCookies = async (email) => {
   return out;
 };
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 
 /**
  * Read the tab row: labels, which is selected, and whether it is genuinely visible.

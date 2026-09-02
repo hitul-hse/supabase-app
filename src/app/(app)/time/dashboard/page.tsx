@@ -28,6 +28,7 @@ import {
   weekdayHourPattern,
 } from "@/lib/queries/time-insights";
 import { ReportFilters } from "./ReportFilters";
+import { customerDrillData, projectsByMember, tileDrillData } from "./drill-data";
 import { InsightPanels } from "./InsightPanels";
 import { CapacityPanel } from "./CapacityPanel";
 import { FreshnessBanner, TotalsStrip } from "./ReportPanels";
@@ -197,6 +198,14 @@ export default async function TrackingTimeDashboardPage({
   // nominal 40h week over the selected period. Same entries, so it obeys the
   // filter bar (pick a service and it answers "who has room on THIS work").
   const capacity = capacityByMember(entries, filters.from, filters.to);
+
+  // What sits behind the tiles, the capacity bars and the customer legend --
+  // folded from the SAME `entries` as `totals`, so a popup cannot disagree
+  // with the figure it opened from. Aggregates only (one row per project,
+  // person, day, or person x project), never the raw entries again.
+  const tileDrills = tileDrillData(entries);
+  const capacityDrills = projectsByMember(entries);
+  const customerDrills = customerDrillData(entries);
 
   // Budget burn is scoped to the projects actually present in this selection.
   // Listing all 251 estimated projects while the filter shows one week would
@@ -461,6 +470,7 @@ export default async function TrackingTimeDashboardPage({
                 groupLabel={`Every figure covers ${period}`}
                 calendarExcludedSeconds={calendarExcludedSeconds}
                 includeCalendarHref={`/time/dashboard?${buildQuery(filters, { calendar: "1", group, bucket })}`}
+                drills={tileDrills}
               />
 
               {/* Trend and split side by side, reference-style: the movement over
@@ -486,7 +496,7 @@ export default async function TrackingTimeDashboardPage({
               {/* Who can take on more work — the planning answer (holiday cover,
                   load-balancing) the work-pattern heatmap raises but cannot give. */}
               <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
-                <CapacityPanel data={capacity} />
+                <CapacityPanel data={capacity} projectsByMember={capacityDrills} />
               </div>
 
               <InsightPanels
@@ -495,6 +505,7 @@ export default async function TrackingTimeDashboardPage({
                 totalHours={concentration.totalHours}
                 pattern={weekPattern}
                 serviceMix={serviceMix}
+                customerDrills={customerDrills}
               />
 
               {/* Economics sits high when present: for the audience allowed to

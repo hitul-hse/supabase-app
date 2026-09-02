@@ -2,7 +2,7 @@
 // glass, is it reachable, does it dismiss, and is the geometry actually the tab
 // bar's rather than merely described as such.
 import { readFileSync } from "node:fs";
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 
 const env = Object.fromEntries(
   readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
@@ -29,7 +29,7 @@ const check = (name, ok, detail = "") => {
   if (!ok) failed = true;
 };
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
 const page = await ctx.newPage();
 await page.goto(`${SITE}/auth/callback?token_hash=${await mint()}&type=magiclink&next=%2Fmy-work`, { waitUntil: "networkidle", timeout: 120000 });

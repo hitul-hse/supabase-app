@@ -1,0 +1,729 @@
+{
+  "nav": {
+    "sections": {
+      "analyse": "ANALYSE",
+      "records": "AUFZEICHNUNGEN",
+      "admin": "ADMIN"
+    },
+    "overview": "Übersicht",
+    "management": "Management",
+    "teamLead": "Teamleiter-Ansicht",
+    "myWork": "Meine Arbeit",
+    "people": "Mitarbeiter",
+    "projects": "Projekte",
+    "timesheets": "Stundenzettel",
+    "timeDashboard": "TrackingTime-Dashboard",
+    "operationsAnalytics": "Betriebsanalysen",
+    "leave": "Urlaub & Abwesenheit",
+    "customerMaster": "Kundenstamm",
+    "dataHygiene": "Datenhygiene",
+    "usersRoles": "Benutzer & Rollen",
+    "rolePermissions": "Rollenberechtigungen",
+    "budgetAlerts": "Budget-Warnungen",
+    "factorialIdentity": "Factorial-Identität",
+    "systemHealth": "Systemzustand"
+  },
+  "common": {
+    "logOut": "Abmelden",
+    "switchLanguage": "Language: English",
+    "notAvailable": "k. A.",
+    "sync": {
+      "label": "SYNC",
+      "trackingTime": "TRACKINGTIME {age}",
+      "neverRun": "NIE GELAUFEN",
+      "underOneHour": "VOR < 1H",
+      "hoursAgo": "VOR {hours}H",
+      "daysAgo": "VOR {days}D",
+      "running": "SYNC LÄUFT",
+      "failedSince": "{count} FEHLGESCHLAGEN SEITDEM",
+      "rows": "{count} ZEILEN"
+    }
+  },
+  "overview": {
+    "title": "Übersicht",
+    "header": {
+      "meta": "{quarter} · {people} MITARBEITER · {projects} AKTIVE PROJEKTE · {customers} KUNDEN",
+      "fullDashboard": "Gesamtes Dashboard"
+    },
+    "weekLabel": "KW{week}",
+    "period": {
+      "noWeeks": "KEINE WOCHEN IM ZEITRAUM",
+      "range": "{first}–{last} · {count} WOCHEN",
+      "widened": "ZEITRAUM AUF GANZE ISO-WOCHEN ERWEITERT ({period}) — WOCHENSUMMEN SIND NICHT TAGGENAU VERFÜGBAR"
+    },
+    "qualifiers": {
+      "allTime": "GESAMTZEITRAUM",
+      "trackingTime": "TRACKINGTIME",
+      "topByHours": "TOP {count} NACH STUNDEN",
+      "forTeam": " für {team}"
+    },
+    "unlinked": {
+      "message": "{count, plural, one {<strong>#</strong> von {total} Mitarbeitern hat} other {<strong>#</strong> von {total} Mitarbeitern haben}} noch keinen Hub-Zugang — ihre Stunden zählen hier, sie können sie aber nicht sehen.",
+      "review": "Mitarbeiter prüfen"
+    },
+    "tiles": {
+      "openDetails": "{label} — Details öffnen",
+      "billableShare": {
+        "label": "ABRECHENBARER ANTEIL",
+        "noHours": "KEINE STUNDEN IM ZEITFENSTER",
+        "ofHours": "{billable} H VON {total} H"
+      },
+      "hoursLogged": {
+        "label": "ERFASSTE STUNDEN",
+        "weeksEntries": "{weeks, plural, one {# WOCHE} other {# WOCHEN}} · {entries} {entryCount, plural, one {EINTRAG} other {EINTRÄGE}}",
+        "noData": "NOCH KEINE DATEN IMPORTIERT",
+        "noHoursForTeam": "KEINE STUNDEN FÜR DIESES TEAM IM ZEITRAUM"
+      },
+      "capacity": {
+        "label": "ERFASSTE / VERTRAGSSTUNDEN",
+        "ofNominal": "{percent}% VON {weeks, plural, one {# WOCHE} other {# WOCHEN}} NOMINAL",
+        "noContract": "KEINE VERTRAGSSTUNDEN HINTERLEGT"
+      },
+      "activePeople": {
+        "label": "AKTIVE MITARBEITER",
+        "peak": "WOCHENSPITZE · {roster} IN DER BELEGSCHAFT",
+        "nobody": "NIEMAND HAT ZEIT ERFASST"
+      },
+      "budgetRisk": {
+        "label": "PROJEKTE ÜBER BUDGET",
+        "noProjects": "KEINE PROJEKTE MIT ERFASSTER ZEIT",
+        "allTime": "GESAMTZEITRAUM · {count} AKTIVE PROJEKTE · {noBudget} OHNE BUDGET"
+      }
+    },
+    "filters": {
+      "period": "ZEITRAUM",
+      "updating": "AKTUALISIERE…",
+      "fromDate": "Zeitraum von",
+      "toDate": "Zeitraum bis",
+      "team": "TEAM",
+      "allTeams": "Alle Teams",
+      "noTeam": "Kein Team hinterlegt",
+      "presets": {
+        "4w": "4 Wochen",
+        "12w": "12 Wochen",
+        "26w": "26 Wochen",
+        "month": "Dieser Monat",
+        "prev-month": "Letzter Monat",
+        "year": "Dieses Jahr"
+      },
+      "coverage": {
+        "recorded": "<strong>{count} von {total}</strong> Mitarbeitern haben dieses Team hinterlegt{partial}.",
+        "partial": " — TrackingTime hält nur für {withTeam} von {total} ein Team, teambezogene Zahlen decken also einen Teil der Belegschaft ab, nicht ein kleineres Unternehmen"
+      }
+    },
+    "hero": {
+      "dialogLabel": "Woche {week} im Detail",
+      "weekOf": "WOCHE {week}",
+      "totals": "{billable}h abrechenbar von {total}h · {people, plural, one {{people} Mitarbeiter} other {{people} Mitarbeiter}} · {entries, plural, one {{entries} Eintrag} other {{entries} Einträge}}",
+      "close": "Wochendetail schließen",
+      "esc": "ESC",
+      "fetching": "Woche wird geladen …",
+      "byPerson": "NACH MITARBEITER",
+      "byProject": "NACH PROJEKT",
+      "nothingLogged": "Nichts erfasst.",
+      "footer": "JE TOP 8 NACH STUNDEN · GLEICHER UMFANG WIE DAS DIAGRAMM · ZUKÜNFTIG DATIERTE EINTRÄGE AUSGESCHLOSSEN"
+    },
+    "billableShare": {
+      "title": "Abrechenbarer Anteil",
+      "legend": "ABRECHENBAR %",
+      "noHoursTeam": "Keine Stunden von {team} in diesem Zeitraum erfasst.",
+      "noHoursPeriod": "Keine Stunden in diesem Zeitraum erfasst.",
+      "noImport": "Noch keine Stunden importiert — TrackingTime-Sync ausführen.",
+      "latestWeek": "LETZTE WOCHE",
+      "acrossPeriod": " · {share}% IM GESAMTEN ZEITRAUM",
+      "readout": "{week}: {share}% abrechenbar · {billable}h von {total}h",
+      "chartLabel": "Abrechenbarer Anteil je Woche über {period}{forTeam}, von {from} bis {to}. Woche anklicken für die Aufschlüsselung."
+    },
+    "utilisationByPerson": {
+      "title": "Auslastung nach Mitarbeiter",
+      "nobodyTeam": "Niemand mit hinterlegtem Team {team} hat Zeit erfasst.",
+      "noMembers": "Keine Mitarbeiter mit erfasster Zeit.",
+      "basis": "BASIS",
+      "basisNote": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, über die Wochen, in denen die Person aktiv war. TrackingTime hält keine Vertragsstunden. Diese Prozentwerte gelten für den Gesamtzeitraum, nicht für den gewählten Zeitraum — die Ansicht je Mitarbeiter ist nicht datumsgebunden."
+    },
+    "disclosure": {
+      "title": "Abrechenbar-Aufteilung & Auslastung",
+      "summary": "{billable} abrechenbar · {utilisation} Auslastung · {hours}h erfasst"
+    },
+    "billableSplit": {
+      "title": "Abrechenbar-Aufteilung",
+      "noHoursPeriod": "Keine Stunden in diesem Zeitraum.",
+      "noHoursYet": "Noch keine Stunden.",
+      "billable": "Abrechenbar",
+      "nonBillable": "Nicht abrechenbar",
+      "centreLabel": "abrechenbar",
+      "chartLabel": "Abrechenbar-Aufteilung über {period}{forTeam}: {share}% von {hours} Stunden abrechenbar",
+      "legendBillable": "{hours} H ABRECHENBAR",
+      "legendNonBillable": "{hours} H NICHT ABRECHENBAR",
+      "note": "Abrechenbare Stunden als Anteil aller erfassten Stunden in diesem Zeitraum. Der Nenner ist tatsächlich erfasste Zeit, nicht vertragliche Kapazität — das beantwortet die Auslastung in der Karte daneben."
+    },
+    "utilisation": {
+      "title": "Auslastung",
+      "rosterAverage": "DURCHSCHNITT BELEGSCHAFT",
+      "teamAverage": "DURCHSCHNITT {team}",
+      "noBasisTeam": "Keine Berechnungsgrundlage — niemand mit hinterlegtem Team {team} hat einen Auslastungswert.",
+      "noBasis": "Keine Berechnungsgrundlage — noch niemand hat Stunden erfasst.",
+      "centreLabel": "einer 40h-Woche",
+      "chartLabel": "Durchschnittliche Auslastung über {count} aktive Mitarbeiter: {percent} Prozent einer nominellen 40-Stunden-Woche",
+      "note": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, gemittelt über Mitarbeiter, die im Zeitraum Zeit erfasst haben. Mitarbeiter ohne Stunden bleiben außen vor statt als null zu zählen — dies ist also der Durchschnitt der Arbeitenden."
+    },
+    "thisPeriod": {
+      "title": "Dieser Zeitraum",
+      "hoursLogged": "ERFASSTE STUNDEN",
+      "billable": "ABRECHENBAR",
+      "peopleOnRoster": "MITARBEITER IN DER BELEGSCHAFT"
+    },
+    "projectLedger": {
+      "title": "Projektübersicht",
+      "qualifier": "TOP {count} NACH STUNDEN · GESAMTZEITRAUM",
+      "allProjects": "Alle Projekte",
+      "empty": "Noch keine Projekte mit erfasster Zeit.",
+      "noBudget": "kein Budget",
+      "noCustomer": "Kein Kunde",
+      "loggedH": "{hours} H ERFASST",
+      "billableH": "{hours} H ABRECHENBAR",
+      "columns": {
+        "project": "PROJEKT",
+        "customer": "KUNDE",
+        "budgetH": "BUDGET H",
+        "loggedH": "ERFASST H",
+        "burn": "VERBRAUCH"
+      }
+    }
+  },
+  "drill": {
+    "open": "Details zu {title} öffnen",
+    "dialogLabel": "{title} im Detail",
+    "close": "Details schließen",
+    "esc": "ESC",
+    "fetching": "Wird geladen …",
+    "nothingLogged": "Nichts erfasst.",
+    "page": "SEITE {page} / {count}",
+    "back": "← ZURÜCK",
+    "next": "WEITER →",
+    "noProject": "(ohne Projekt)",
+    "noCustomer": "(ohne Kunde)",
+    "noTask": "(ohne Aufgabe)",
+    "unknownPerson": "Unbekannt",
+    "morePeople": "{count, plural, one {# weitere Person} other {# weitere Personen}}",
+    "moreTasks": "{count, plural, one {# weitere Aufgabe} other {# weitere Aufgaben}}",
+    "byPerson": "NACH MITARBEITER",
+    "byTask": "NACH AUFGABE",
+    "entries": "{count, plural, one {# Eintrag} other {# Einträge}}",
+    "people": "{count, plural, one {# Person} other {# Personen}}",
+    "projects": {
+      "count": {
+        "title": "Projekte nach Kunde",
+        "footer": "PROJEKTE JE KUNDE IM AKTUELLEN FILTER · JEDES PROJEKT ZÄHLT EINMAL",
+        "value": "{count, plural, one {# Projekt} other {# Projekte}}"
+      },
+      "hours": {
+        "title": "Erfasste Stunden nach Kunde",
+        "footer": "ERFASSTE STUNDEN JE KUNDE IM AKTUELLEN FILTER, GESAMTER ZEITRAUM · KALENDERZEIT ENTHALTEN, WIE IM LEDGER · KUNDEN OHNE STUNDEN TRAGEN NICHTS BEI UND FEHLEN"
+      },
+      "billable": {
+        "title": "Abrechenbare Stunden nach Projekt",
+        "subline": "{billable}h abrechenbar von {total}h",
+        "footer": "ABRECHENBARE STUNDEN JE PROJEKT IM AKTUELLEN FILTER · PROJEKTE OHNE ABRECHENBARE ZEIT TRAGEN NICHTS BEI UND FEHLEN"
+      },
+      "over": {
+        "title": "Projekte über Budget",
+        "footer": "ERFASSTE STUNDEN ÜBER 100% DER SCHÄTZUNG · SCHLIMMSTE ZUERST · EINE ZEILE ÖFFNET DEN PROJEKTDATENSATZ"
+      },
+      "noBudget": {
+        "title": "Projekte ohne Budget",
+        "footer": "KEINE SCHÄTZUNG, ALSO IST DER VERBRAUCH UNBEKANNT — NICHT NULL · NACH ERFASSTEN STUNDEN · EINE ZEILE ÖFFNET DEN PROJEKTDATENSATZ"
+      },
+      "ledger": {
+        "kicker": "ERFASSTE STUNDEN",
+        "subline": "{billable}h abrechenbar · {people, plural, one {# Person} other {# Personen}} · {entries, plural, one {# Eintrag} other {# Einträge}}",
+        "footer": "JE TOP 8 NACH STUNDEN, REST IN EINER ZEILE · GESAMTER ZEITRAUM, KALENDERZEIT ENTHALTEN · ZUKÜNFTIG DATIERTE EINTRÄGE AUSGESCHLOSSEN",
+        "gap": "Differenz zur Ledger-Zahl",
+        "needsPermission": "Wer diese Stunden erfasst hat, ist nur mit der Berechtigung „Alle Stundenzettel sehen“ sichtbar."
+      }
+    },
+    "days": "{count, plural, one {# Tag} other {# Tage}}",
+    "billableShare": "{percent}% abrechenbar",
+    "time": {
+      "totalHours": {
+        "title": "Stunden nach Projekt",
+        "footer": "JEDES PROJEKT DIESER AUSWAHL · GLEICHE FILTER WIE DIE KENNZAHLEN · ZEIT OHNE PROJEKT ALS EIGENE ZEILE"
+      },
+      "people": {
+        "title": "Personen mit erfasster Zeit",
+        "footer": "EINE ZEILE JE PERSON MIT MINDESTENS EINEM EINTRAG · GLEICHE FILTER WIE DIE KENNZAHLEN"
+      },
+      "projects": {
+        "title": "Projekte mit erfasster Zeit",
+        "footer": "EINE ZEILE JE PROJEKT · ZEIT OHNE PROJEKT IST KEIN PROJEKT UND WIRD HIER NICHT GEZÄHLT"
+      },
+      "avgDay": {
+        "title": "Stunden nach aktivem Tag",
+        "subline": "{hours}h über {days, plural, one {# aktiven Tag} other {# aktive Tage}}",
+        "footer": "EINE ZEILE JE TAG MIT MINDESTENS EINEM EINTRAG · DER DURCHSCHNITT IST DIE SUMME DIESER ZEILEN DURCH IHRE ANZAHL"
+      },
+      "personProjects": {
+        "title": "{name} nach Projekt",
+        "footer": "ERFASSTE STUNDEN DIESER PERSON JE PROJEKT · GLEICHE AUSWAHL WIE DIE KAPAZITÄTSBALKEN"
+      },
+      "customerProjects": {
+        "title": "{name} nach Projekt",
+        "footer": "STUNDEN DIESES KUNDEN JE PROJEKT · GLEICHE AUSWAHL WIE DAS WAFFELDIAGRAMM"
+      },
+      "otherCustomers": {
+        "title": "Alles Übrige, nach Kunde",
+        "footer": "DIE KUNDEN HINTER „ALLES ÜBRIGE“ · GLEICHE AUSWAHL WIE DAS WAFFELDIAGRAMM"
+      }
+    },
+    "projectCount": "{count, plural, one {# Projekt} other {# Projekte}}"
+  },
+  "management": {
+    "title": "Management",
+    "header": {
+      "meta": "VERTRAGSSTUNDEN · SERVICES · PORTFOLIO · RISIKEN · READ MODEL"
+    },
+    "empty": {
+      "title": "Keine Vertragsstunden verfügbar",
+      "description": "Das Read Model liefert aktuell keine sichtbaren Projekte aus public.projects."
+    },
+    "status": {
+      "underutilised": "Unterauslastung",
+      "healthy": "Gesunde Auslastung",
+      "capacityRisk": "Kapazitätsrisiko"
+    },
+    "rating": {
+      "critical": "Kritisch",
+      "review": "Prüfen"
+    },
+    "values": {
+      "notAvailable": "n/a",
+      "notAssigned": "Nicht zugeordnet",
+      "notResolved": "Nicht aufgelöst",
+      "none": "Keine",
+      "missing": "Fehlt",
+      "mappingMissing": "Mapping fehlt",
+      "hours": "{hours} h",
+      "customerMappingNa": "Customer Mapping n/a",
+      "serviceMappingNa": "Service Mapping n/a"
+    },
+    "tiles": {
+      "contractHours": {
+        "label": "GESAMT VERTRAGSSTUNDEN",
+        "hint": "ANTIPPEN FÜR DETAILS",
+        "aria": "Gesamt Vertragsstunden — Details öffnen"
+      },
+      "projects": {
+        "label": "PROJEKTE IM READ MODEL",
+        "hint": "public.projects · keine Dummy-Daten"
+      },
+      "outlook": {
+        "label": "AUSLASTUNGSAUSBLICK",
+        "hint": "{hours} Planstunden/Jahr je Mitarbeiter",
+        "aria": "Auslastungsausblick — Details öffnen"
+      }
+    },
+    "tabs": {
+      "ariaLabel": "Management-Bereiche",
+      "overview": "Auslastung",
+      "employees": "Mitarbeiter",
+      "customers": "Kunden",
+      "risks": "Risiken & Qualität"
+    },
+    "outlook": {
+      "title": "Auslastungsausblick",
+      "qualifier": "GEBUNDENE VERTRAGSSTUNDEN / {hours} PLANSTUNDEN · 75% BILLABLE CAPACITY",
+      "columns": {
+        "person": "MITARBEITER",
+        "planHours": "PLANSTUNDEN / JAHR",
+        "bound": "GEBUNDEN",
+        "utilisation": "AUSLASTUNG",
+        "status": "STATUS"
+      },
+      "footnote": "Ampel: <50% Unterauslastung · 50–90% Gesunde Auslastung · >90% Kapazitätsrisiko. Die {hours} Planstunden entsprechen 75% billable capacity."
+    },
+    "matrix": {
+      "title": "Service × Mitarbeiter",
+      "qualifier": "VERTRAGSSTUNDEN · ASSIGNMENT-ANTEIL",
+      "columns": {
+        "service": "SERVICE",
+        "sum": "SUM"
+      },
+      "total": "TOTAL",
+      "footnote": "Zellen = Projekt-Vertragsstunden × `person_assignments.share_percent`. Projekte ohne belastbare Service-Verknüpfung werden separat als „Nicht zugeordnet“ ausgewiesen.",
+      "unmapped": "{hours} h sind aktuell nicht über `time.project.hub_project_id` einem Service zugeordnet."
+    },
+    "drilldown": {
+      "title": "Drilldown",
+      "qualifier": "MITARBEITER → PROJEKTE → KUNDEN",
+      "projectsHours": "{count} Projekte · {hours} h",
+      "empty": "Keine zugeordneten Vertragsstunden im Read Model."
+    },
+    "drill": {
+      "dialogLabel": "{title} im Detail",
+      "close": "Detail schließen",
+      "esc": "ESC",
+      "empty": "Keine zugeordneten Daten im Read Model.",
+      "back": "← ZURÜCK",
+      "next": "WEITER →",
+      "page": "SEITE {page} / {count}",
+      "contractHours": {
+        "kicker": "VERTRAGSSTUNDEN",
+        "title": "Gesamt nach Service",
+        "subline": "{services} Services · {projects} Projekte",
+        "unassigned": "Ohne Personen-Zuordnung",
+        "footer": "SERVICE-ZEILEN = STUNDEN MIT ASSIGNMENT · „OHNE PERSONEN-ZUORDNUNG“ = VERTRAGSSTUNDEN OHNE ASSIGNMENT"
+      },
+      "utilisation": {
+        "kicker": "AUSLASTUNGSAUSBLICK",
+        "title": "Auslastung nach Mitarbeiter",
+        "subline": "{hours} Planstunden/Jahr je Mitarbeiter",
+        "footer": "AMPEL: <50% UNTERAUSLASTUNG · 50–90% GESUND · >90% KAPAZITÄTSRISIKO"
+      },
+      "person": {
+        "kicker": "MITARBEITER",
+        "subline": "{percent}% Auslastung · {projects} Projekte",
+        "footer": "GEBUNDENE VERTRAGSSTUNDEN JE PROJEKT · READ MODEL"
+      },
+      "service": {
+        "kicker": "SERVICE",
+        "subline": "{count} Mitarbeiter beteiligt",
+        "footer": "VERTRAGSSTUNDEN × ASSIGNMENT-ANTEIL JE MITARBEITER"
+      }
+    },
+    "employees": {
+      "title": "Employee Overview",
+      "qualifier": "KUNDENVERANTWORTUNG · VERTRETUNGSFÄHIGKEIT",
+      "columns": {
+        "person": "MITARBEITER",
+        "openProjects": "OFFENE PROJEKTE",
+        "contractHours": "VERTRAGSSTUNDEN",
+        "services": "SERVICES",
+        "coverage": "REPLACEMENT-ABDECKUNG",
+        "withoutReplacement": "OHNE REPLACEMENT"
+      },
+      "footnote": {
+        "withRelation": "Replacement aus den Masterdaten: eine Zuordnung mit 0% Anteil ist die benannte Vertretung (zugewiesen, trägt keine Stunden). Abdeckung = Projekte mit benannter Vertretung / offene Projekte.",
+        "withoutRelation": "Im aktuellen Read Model existiert keine Replacement-Zuordnung; Abdeckung und Fehlmenge werden als n/a dargestellt."
+      },
+      "portfolio": {
+        "title": "Betreuerportfolio · {person}",
+        "qualifier": "OFFENE PROJEKTE",
+        "columns": {
+          "customer": "KUNDE",
+          "project": "PROJEKT",
+          "service": "SERVICE",
+          "contractHours": "VERTRAGSSTUNDEN",
+          "responsible": "VERANTWORTLICHER",
+          "replacement": "REPLACEMENT"
+        },
+        "empty": "Keine offenen Projekte im Read Model."
+      }
+    },
+    "dataQuality": {
+      "title": "Data Quality",
+      "hint": "OPERATIVE STEUERBARKEIT · READ MODEL",
+      "columns": {
+        "check": "PRÜFUNG",
+        "count": "ANZAHL",
+        "rating": "BEWERTUNG",
+        "meaning": "BEDEUTUNG"
+      },
+      "searchPlaceholder": "Prüfung, Bedeutung…",
+      "empty": "Keine Prüfungen im aktuellen Read Model.",
+      "totals": "Gesamt über alle {total} Prüfungen: {critical} kritisch · {findings} Befunde",
+      "unknown": " ({count} Prüfungen ohne belastbare Grundlage: n/a)",
+      "naNote": "n/a bedeutet, dass die zugrunde liegende bestätigte Relation im aktuellen Read Model nicht verfügbar ist; es wird kein Wert geschätzt.",
+      "checks": {
+        "openWithoutOwner": "Offene Projekte ohne Verantwortlichen",
+        "openWithoutReplacement": "Offene Projekte ohne Replacement",
+        "openWithoutOrderNumber": "Offene Projekte ohne Order Number",
+        "openWithoutCustomerMapping": "Offene Projekte ohne Customer Mapping",
+        "withoutContractStatus": "Projekte ohne Contract Status",
+        "withoutServiceMapping": "Projekte ohne Service Mapping",
+        "withoutProjectLink": "Projekte ohne eindeutige Projektzuordnung"
+      }
+    },
+    "risks": {
+      "title": "Project Risks",
+      "hint": "OPERATIVE RISIKEN · READ MODEL · Risiko anklicken für betroffene Projekte",
+      "columns": {
+        "risk": "RISIKO",
+        "count": "ANZAHL",
+        "rating": "BEWERTUNG",
+        "projects": "BETROFFENE PROJEKTE",
+        "responsible": "VERANTWORTLICHER",
+        "service": "SERVICE",
+        "contractHours": "VERTRAGSSTUNDEN"
+      },
+      "titles": {
+        "risk": "Betroffene Projekte, Verantwortliche und Services anzeigen",
+        "projects": "Sortiert nach Anzahl betroffener Projekte · Risiko anklicken für die vollständige Liste"
+      },
+      "nouns": {
+        "projects": "Projekte",
+        "people": "Personen",
+        "services": "Services"
+      },
+      "searchPlaceholder": "Risiko, Projekt, Person…",
+      "empty": "Keine Risiken im aktuellen Read Model.",
+      "totals": "Gesamt über alle {total} Risiken: {critical} kritisch · {affected} betroffene Fälle",
+      "unknown": " ({count} Risiken ohne belastbare Grundlage: n/a)",
+      "totalHours": " · {hours} h Vertragsstunden",
+      "note": "High-Dependency- und Replacement-Risiken werden erst nach fachlicher Validierung der Schwellen bzw. der servicebezogenen Relation berechnet. Fehlende Grundlagen werden als n/a ausgewiesen.",
+      "detail": {
+        "kicker": "PROJEKTRISIKEN · {risk} · {count}",
+        "close": "SCHLIESSEN ×",
+        "responsible": "VERANTWORTLICHE · {count}",
+        "services": "SERVICES · {count}",
+        "columns": {
+          "customer": "KUNDE",
+          "project": "PROJEKT",
+          "service": "SERVICE",
+          "responsible": "VERANTWORTLICHER",
+          "replacement": "REPLACEMENT",
+          "contractHours": "VERTRAGSSTUNDEN",
+          "status": "STATUS"
+        }
+      }
+    },
+    "riskNames": {
+      "budgetOverrun": "Vertragsstunden ueberschritten",
+      "projectWithoutOwner": "Projekt ohne Verantwortlichen",
+      "projectWithoutStatus": "Projekt ohne Status",
+      "projectWithoutCustomerMapping": "Projekt ohne Customer Mapping",
+      "projectWithoutServiceMapping": "Projekt ohne Service Mapping",
+      "highDependencyPerson": "Hohe Personenabhängigkeit",
+      "replacementRisk": "Replacement-Risiko",
+      "multiServiceHours": "Mehrfach-Service-Zuordnung: Stunden nicht eindeutig verteilbar",
+      "contractHoursIncomplete": "Vertragsstunden unvollständig"
+    },
+    "meanings": {
+      "budgetOverrunLive": "Gebuchte Stunden liegen ueber den vertraglich vereinbarten Stunden. Budget nachverhandeln, Vertrag verlaengern oder Leistung stoppen.",
+      "budgetOverrunFallback": "Gebuchte Stunden konnten nicht gegen Vertragsstunden geprueft werden.",
+      "withoutOwnerLive": "Offenes Projekt ohne owner_person_id kann operativ nicht eindeutig gesteuert werden.",
+      "withoutOwnerFallback": "Offene Projekte können ohne Owner nicht eindeutig gesteuert werden.",
+      "withoutStatusLive": "Fehlender Status verhindert eine belastbare Offen-/Geschlossen-Auswertung.",
+      "withoutStatusFallback": "Ohne Status ist die Offen-/Geschlossen-Auswertung nicht belastbar.",
+      "withoutCustomerMappingLive": "Projekt besitzt keine stabile Customer-Master-Legal-Entity-Referenz.",
+      "withoutCustomerMappingFallback": "Eine stabile Customer-Master-Legal-Entity konnte nicht geprüft werden.",
+      "withoutServiceMappingLive": "Projekt ist keiner belastbaren time.service-Zuordnung zugeordnet.",
+      "withoutServiceMappingFallback": "Die servicebezogene Steuerung ist ohne Service-Zuordnung eingeschränkt.",
+      "highDependency": "Eine harte Schwelle für Projektanzahl oder Vertragsvolumen ist noch nicht fachlich validiert.",
+      "replacementRisk": "Keine bestätigte servicebezogene Replacement-Relation ist im aktuellen Datenmodell verfügbar.",
+      "dqWithoutOwner": "Projekt kann operativ nicht eindeutig gesteuert werden.",
+      "dqWithoutReplacementLive": "Vertretungs- und Ausfallrisiko; keine bestätigte servicebezogene Replacement-Relation vorhanden.",
+      "dqWithoutReplacementFallback": "Vertretungs- und Ausfallrisiko; keine bestätigte Replacement-Relation vorhanden.",
+      "dqWithoutOrderNumber": "Eindeutige Projektidentifikation fehlt.",
+      "dqWithoutCustomerMapping": "Projekt ist keiner Customer-Master-Legal-Entity zugeordnet.",
+      "dqWithoutContractStatus": "Offen-/Geschlossen-Auswertung ist nicht zuverlässig.",
+      "dqWithoutServiceMapping": "Servicebezogene Steuerung ist nicht vollständig möglich.",
+      "dqWithoutProjectLink": "Projekt kann keiner eindeutigen TrackingTime-/Hub-Referenz zugeordnet werden."
+    },
+    "brokenCover": {
+      "kinds": {
+        "mutual": "GEGENSEITIG",
+        "self": "SELBSTVERTRETUNG"
+      },
+      "empty": "Keine defekten Vertretungen: niemand vertritt sich selbst, und kein Paar vertritt sich ausschließlich gegenseitig.",
+      "title": "Defekte Vertretungen",
+      "summary": "{mutual} Projekte mit gegenseitiger Vertretung (fallen paarweise aus), {self} mit Selbstvertretung (Vertretung = Verantwortlicher). Betroffen: {people}.",
+      "collapseSelf": "Selbstvertretungen einklappen",
+      "showSelf": "{count} Selbstvertretungen anzeigen",
+      "pairTitle": "So viele Projekte fallen gemeinsam aus, wenn dieses Paar gleichzeitig fehlt",
+      "pairSize": "×{count} im Paar",
+      "cover": "{responsible} · Vertretung: {replacement}",
+      "samePerson": " (dieselbe Person)"
+    },
+    "portfolio": {
+      "title": "Customer Portfolio",
+      "hint": "KUNDEN · LEGAL ENTITIES · OPERATIVE STEUERUNG · Kunde anklicken für Detail",
+      "columns": {
+        "customer": "KUNDE",
+        "legalEntity": "LEGAL ENTITY",
+        "activeServices": "AKTIVE SERVICES",
+        "projects": "PROJEKTE",
+        "contractHours": "VERTRAGSH",
+        "responsible": "VERANTWORTLICHE",
+        "risks": "RISIKEN"
+      },
+      "titles": {
+        "customer": "Detail zu Services, Projekten und Links öffnen",
+        "activeServices": "Sortiert nach Anzahl aktiver Services"
+      },
+      "searchPlaceholder": "Kunde, Service, Person…",
+      "summary": "{customers} Kunden · {projects} Projekte · {hours} h · {withRisks} mit Risiken",
+      "empty": {
+        "noRows": "Keine aktiven, stabil zugeordneten Kundenprojekte verfügbar.",
+        "noMapping": "Customer-Master-Mapping nicht verfügbar."
+      },
+      "totals": "Gesamt über alle {customers} Kunden: {projects} Projekte · {hours} h Vertragsstunden",
+      "unknownHours": " ({count} Kunden ohne belastbare Stunden: n/a)",
+      "withRisks": " · {count} Kunden mit Risiken",
+      "note": "Nur Projekte mit aktivem/offenem Status und stabiler Legal-Entity-Zuordnung werden in Kundenzeilen aggregiert.",
+      "dataQuality": "Datenqualität: {customer} · {service}.",
+      "withoutCustomerMapping": "{count} Projekte ohne Customer Mapping",
+      "withoutServiceMapping": "{count} Projekte ohne Service Mapping",
+      "detail": {
+        "kicker": "DETAIL · {customer}",
+        "close": "SCHLIESSEN ×",
+        "masterData": "STAMMDATEN",
+        "legalEntity": "Legal Entity: {name}",
+        "locations": "STANDORTE",
+        "locationsNa": "n/a · Standortmodell nicht verfügbar",
+        "risks": "RISIKEN",
+        "noRisks": "Keine erkannten Risiken",
+        "services": "SERVICES · {count}",
+        "projects": "PROJEKTE · {count}",
+        "columns": {
+          "service": "SERVICE",
+          "contractHours": "VERTRAGSH",
+          "responsible": "VERANTWORTLICHER",
+          "project": "PROJEKT",
+          "hours": "STUNDEN",
+          "status": "STATUS",
+          "replacement": "REPLACEMENT"
+        },
+        "openOrder": "Auftragsdetail oeffnen",
+        "links": "OPERATIVE LINKS · NUR ANZEIGE",
+        "linkNa": "{label}: n/a",
+        "linksNote": "Im aktuellen Projekt-Read-Model sind keine belastbaren URL-Felder für diese Linktypen vorhanden.",
+        "replacementNa": "Replacement: n/a",
+        "replacementTitle": "Replacement benötigt ein bestätigtes servicebezogenes Modell"
+      }
+    },
+    "multiService": {
+      "title": "Multi-Service Matrix",
+      "hint": "KUNDEN / LEGAL ENTITIES × AKTIVE SERVICES",
+      "columns": {
+        "customer": "KUNDE / LEGAL ENTITY",
+        "services": "SERVICES",
+        "projects": "PROJEKTE",
+        "contractHours": "VERTRAGSH",
+        "missing": "MÖGLICHERWEISE FEHLEND"
+      },
+      "titles": {
+        "customer": "Kunde bzw. Legal Entity",
+        "service": "Aktive/offene Projekte für {label}",
+        "services": "Anzahl aktiver Services",
+        "contractHours": "Vertragsstunden der aktiven Projekte",
+        "missing": "Transparenter Cross-Selling-Hinweis, keine Verkaufslogik"
+      },
+      "searchPlaceholder": "Kunde suchen…",
+      "summary": "{customers} Kunden · {projects} aktive Projekte · {hours} h",
+      "empty": {
+        "noRows": "Keine aktiven, stabil zugeordneten Kundenprojekte verfügbar.",
+        "noMapping": "Customer-Master-Mapping nicht verfügbar."
+      },
+      "totals": "Gesamt über alle {customers} Kunden: {projects} aktive Projekte · {hours} h Vertragsstunden",
+      "unknownHours": " ({count} Kunden ohne belastbare Stunden: n/a)",
+      "singleService": " · {count} Kunden mit nur einem Service",
+      "note": "Eine Zelle zeigt die Anzahl aktiver/offener Projekte des Kunden für den Service. „Möglicherweise fehlend“ ist ein transparenter Cross-Selling-Hinweis, keine Verkaufslogik.",
+      "dataQuality": "Datenqualität: {customer} · {service}.",
+      "withoutCustomerMapping": "{count} aktive Projekte ohne Customer Mapping",
+      "withoutServiceMapping": "{count} aktive Projekte ohne Service Mapping"
+    },
+    "changeRequests": {
+      "none": "ÄNDERUNGSANTRÄGE · KEINE OFFENEN ANTRÄGE",
+      "heading": "OFFENE ÄNDERUNGSANTRÄGE · VIER-AUGEN-FREIGABE · {count}",
+      "oldestNa": "ALTER N/A",
+      "oldest": "ÄLTESTER {days} TAGE OFFEN",
+      "note": "Bis zur Freigabe durch eine zweite berechtigte Person bleibt die Verantwortung unverändert — das Projekt zeigt weiterhin auf die bisherige Person. Antragsteller können nicht selbst freigeben.",
+      "item": {
+        "meta": "neuer Verantwortlicher: {person} · Grund: {reason}",
+        "openSinceNa": "OFFEN SEIT N/A",
+        "openSince": "OFFEN SEIT {days} TAGEN",
+        "reasonLabel": "ENTSCHEIDUNGSGRUND · PFLICHT",
+        "reasonPlaceholder": "Entscheidungsgrund",
+        "reject": "Ablehnen",
+        "approve": "Freigeben",
+        "reasonHint": "Entscheidungsgrund angeben (mind. 3 Zeichen) — er wird mit der Entscheidung protokolliert."
+      }
+    },
+    "picker": {
+      "alreadyOnProject": "BEREITS AUF PROJEKT",
+      "external": "EXTERN",
+      "externalTitle": "Externe Kraft — Kapazität wird pro Einsatz beauftragt, kein Wochenvertrag",
+      "leastLoaded": "GERINGSTE LAST",
+      "absenceUnknown": "Abwesenheit unbekannt · keine Urlaubsdaten im System",
+      "absent": "Abwesend {from}–{to} · {kind}",
+      "titles": {
+        "responsibleFor": "Projekte, für die diese Person verantwortlich ist",
+        "coversAsReplacement": "Projekte, in denen diese Person als Replacement benannt ist",
+        "noContractHours": "Keine belastbaren Vertragsstunden in diesem Portfolio",
+        "contractHours": "Vertragsstunden der verantworteten Projekte",
+        "logged30": "Erfasste Stunden der letzten 30 Tage",
+        "resp": "Verantwortlich für",
+        "cov": "Als Replacement benannt"
+      },
+      "heading": "NEUER VERANTWORTLICHER · AUSLASTUNG DER KANDIDATEN",
+      "count": "{count} aktive Personen · höchste Last zuerst",
+      "columns": {
+        "person": "PERSON",
+        "resp": "VER",
+        "cov": "COV",
+        "contractHours": "VERTRAGSH",
+        "logged30": "LOG 30T"
+      },
+      "radiogroup": "Kandidaten für die Übernahme, höchste Last zuerst",
+      "loading": "Auslastung wird geladen …",
+      "loadFailed": "Kandidaten konnten nicht geladen werden.",
+      "noCandidates": "Keine aktiven Kandidaten verfügbar.",
+      "legend": {
+        "colour": "Farbe zeigt die Vertragsstunden relativ zum höchsten Wert dieser Liste, keine Auslastungsquote: Wochenstunden sind für alle Personen ein TrackingTime-Default von 40,0 h und damit kein belastbarer Nenner.",
+        "unmeasured": "{count} Personen ohne belastbare Vertragsstunden (n/a).",
+        "absence": "Abwesenheiten sind für niemanden bekannt — Urlaubs- und Krankdaten fehlen im System, die Einschätzung liegt bei der Führungskraft."
+      },
+      "reasonLabel": "ÄNDERUNGSGRUND · PFLICHTFELD · MIND. {min} ZEICHEN",
+      "reasonPlaceholder": "Grund, z. B. Urlaub / Ausscheiden",
+      "reasonHint": {
+        "empty": "Der Grund wird im Änderungsantrag protokolliert und der freigebenden Person angezeigt.",
+        "ok": "Grund ausreichend.",
+        "short": "Noch {count} Zeichen bis zur Mindestlänge."
+      },
+      "submit": "Änderungsantrag erstellen",
+      "blocked": {
+        "both": "Person auswählen und Grund angeben.",
+        "person": "Person auswählen.",
+        "reason": "Grund angeben."
+      }
+    },
+    "actions": {
+      "noPermissionLoad": "Keine Berechtigung, Kandidaten zu laden.",
+      "noProject": "Kein Projekt angegeben.",
+      "loadFailed": "Kandidaten konnten nicht geladen werden.",
+      "noPermission": "Keine Berechtigung oder keine authentifizierte Sitzung.",
+      "requestFieldsRequired": "Projekt, Mitarbeiter und ein Änderungsgrund sind erforderlich.",
+      "requestCreated": "Änderungsantrag erstellt. Eine zweite berechtigte Person muss ihn freigeben.",
+      "decisionFieldsRequired": "Antrag und Entscheidungsgrund sind erforderlich.",
+      "changeApplied": "Änderung angewendet.",
+      "requestRejected": "Änderungsantrag abgelehnt."
+    }
+  },
+  "people": {
+    "header": {
+      "total": "{count, plural, one {# PERSON} other {# PERSONEN}}",
+      "tracked": "{count} IN TRACKINGTIME",
+      "trackedWithArchived": "{count} IN TRACKINGTIME ({archived} ARCHIVIERTE EINGESCHLOSSEN)",
+      "hubOnly": "{count} NUR IM HUB",
+      "archivedHidden": "{count} ARCHIVIERT",
+      "mailboxes": "{count} GEMEINSAMES POSTFACH AUSGESCHLOSSEN",
+      "sources": "TRACKINGTIME + HUB"
+    },
+    "sourceLabel": "QUELLE: TRACKINGTIME + HUB",
+    "filters": {
+      "hubOnly": "NUR IM HUB"
+    },
+    "row": {
+      "hubMarker": "HUB",
+      "hubOnly": "NUR IM HUB · KEIN TRACKINGTIME-KONTO"
+    },
+    "detail": {
+      "hubOnlyBadge": "NUR IM HUB · KEIN TRACKINGTIME-KONTO",
+      "hubOnlyTitle": "Diese Person ist im Hub (aus Factorial) angelegt, hat aber kein TrackingTime-Mitglied; daher lässt sich nichts Zeitbasiertes messen.",
+      "noTrackingTime": "KEIN TRACKINGTIME-KONTO",
+      "noTrackingTimeAccount": "Kein TrackingTime-Konto, daher gibt es keine Projektzeiten anzuzeigen.",
+      "noEmail": "keine E-Mail hinterlegt"
+    },
+    "unlinkedNote": "{unlinked} von {tracked} Personen in TrackingTime haben noch keinen Hub-Login und können ihre eigenen Stunden daher nicht sehen."
+  }
+}

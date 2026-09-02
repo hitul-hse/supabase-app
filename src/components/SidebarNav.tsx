@@ -18,6 +18,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { IconDot, NAV_ICONS } from "./nav-icons";
 
 interface NavGroup {
@@ -88,12 +89,27 @@ const NAV_GROUPS: NavGroup[] = [
       // Budget alerts. Deliberately in ADMIN rather than beside Projects: these
       // are commercial exceptions somebody must act on, not a project record.
       { href: "/admin/alerts", label: "Budget Alerts",    roles: ["exec", "dept_head", "project_manager", "hr"] },
+      // Last in ADMIN and exec-only: the developer health portal reads
+      // pg_catalog and auth.users directly. The route itself is gated on
+      // admin:roles:write in the database; this filter only draws the link.
+      { href: "/admin/system-health", label: "System Health", roles: ["exec"] },
     ],
   },
 ];
 
+// Sidebar labels stay English literals in NAV_GROUPS (greppable by what the
+// default locale shows); these maps carry them to messages/{en,de}.json keys.
+// A label missing here falls back to its English literal rather than crashing.
+const NAV_LABEL_KEYS: Record<string, string> = {"Overview": "overview", "Management": "management", "Team Lead View": "teamLead", "My Work": "myWork", "People": "people", "Projects": "projects", "Timesheets": "timesheets", "TrackingTime Dashboard": "timeDashboard", "Operations Analytics": "operationsAnalytics", "Leave & Time Off": "leave", "Customer Master": "customerMaster", "Data Hygiene": "dataHygiene", "Users & Roles": "usersRoles", "Role Permissions": "rolePermissions", "Budget Alerts": "budgetAlerts", "System Health": "systemHealth"};
+const NAV_TITLE_KEYS: Record<string, string> = {"ANALYSE": "sections.analyse", "RECORDS": "sections.records", "ADMIN": "sections.admin"};
+
 export function SidebarNav({ roleKey }: { roleKey: string | null }) {
   const pathname = usePathname();
+  const t = useTranslations("nav");
+  const navLabel = (label: string) =>
+    NAV_LABEL_KEYS[label] ? t(NAV_LABEL_KEYS[label]) : label;
+  const navTitle = (title: string) =>
+    NAV_TITLE_KEYS[title] ? t(NAV_TITLE_KEYS[title]) : title;
 
   const groups = NAV_GROUPS.map((group) => ({
     ...group,
@@ -123,7 +139,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
             className="mx-3 mb-1 hidden h-px bg-[var(--border)] group-data-[collapsed=true]/sidebar:block"
           />
           <div className="px-4 pb-1 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
-            {group.title}
+            {navTitle(group.title)}
           </div>
 
           {group.items.map((link, li) => {
@@ -205,7 +221,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       data-testid="nav-label"
                       className="min-w-0 flex-1 truncate transition-[opacity] duration-150 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0"
                     >
-                      {link.label}
+                      {navLabel(link.label)}
                     </span>
 
                     {/*
@@ -254,7 +270,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                     aria-hidden
                     className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
                   >
-                    {link.label}
+                    {navLabel(link.label)}
                     {link.badge ? (
                       <span className="ml-1.5 font-mono text-[10px] text-[var(--text-faint)]">
                         {link.badge}

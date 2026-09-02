@@ -61,6 +61,16 @@ const page = read("src/app/(app)/page.tsx");
 const pageCode = stripComments(page);
 const filters = read("src/app/(app)/OverviewFilters.tsx");
 const filtersCode = stripComments(filters);
+
+/*
+ * User-visible wording now lives in messages/en.json (next-intl), so the
+ * assertions below pin two halves: the page references the message KEY, and
+ * the English text behind that key still says what the rule requires. Either
+ * half alone can pass while the page lies.
+ */
+const en = JSON.parse(read("messages/en.json"));
+const enText = (path) =>
+  path.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), en) ?? "";
 const board = read("src/app/(app)/team-lead/BoardRangeFilter.tsx");
 const boardQueries = read("src/lib/queries/team-lead-live.ts");
 
@@ -116,7 +126,9 @@ check(
 );
 check(
   "the team filter offers an explicit way back to all teams",
-  /aria-pressed=\{team === null\}/.test(filtersCode) && /All teams/.test(filters),
+  /aria-pressed=\{team === null\}/.test(filtersCode) &&
+    /t\("allTeams"\)/.test(filtersCode) &&
+    enText("overview.filters.allTeams") === "All teams",
   "a filter you can enter but not leave leaves the reader on a scoped page believing it is total",
 );
 
@@ -133,40 +145,47 @@ check(
 );
 check(
   "the per-person utilisation card is labelled ALL TIME",
-  /scopeNotes\.utilisationAllTime \? "ALL TIME" : null/.test(pageCode),
+  /scopeNotes\.utilisationAllTime \? t\("qualifiers\.allTime"\) : null/.test(pageCode) &&
+    enText("overview.qualifiers.allTime") === "ALL TIME",
   "member_utilisation is not date-bounded; unlabelled it reads as a period figure",
 );
 check(
   "the utilisation BASIS note repeats it in prose",
-  /all-time, not for the selected period/.test(page),
+  /t\("utilisationByPerson\.basisNote"\)/.test(pageCode) &&
+    /all-time, not for the selected period/.test(enText("overview.utilisationByPerson.basisNote")),
   "the qualifier is four abbreviated words; the basis note is where a reader looks for why",
 );
 check(
   "the utilisation gauge is labelled ALL TIME",
-  /"ALL TIME",\s*\n?\s*\]\.join\(" · "\)/.test(pageCode),
+  /t\("qualifiers\.allTime"\),\s*\n?\s*\]\.join\(" · "\)/.test(pageCode),
   "the gauge averages the card above it, so it inherits that card's scope",
 );
 check(
   "the project ledger is labelled ALL TIME",
-  /TOP \$\{projects\.length\} BY HOURS · ALL TIME/.test(pageCode),
+  /t\("projectLedger\.qualifier", \{ count: projects\.length \}\)/.test(pageCode) &&
+    enText("overview.projectLedger.qualifier") === "TOP {count} BY HOURS · ALL TIME",
 );
 check(
   "the over-budget KPI is labelled ALL TIME",
-  /ALL TIME · TOP \$\{projectRows\.length\} BY HOURS/.test(queriesCode),
+  /key: "tiles\.budgetRisk\.allTime",\s*\n?\s*values: \{ count: activeProjects, noBudget \}/.test(queriesCode) &&
+    /^ALL TIME · \{count\} ACTIVE PROJECTS/.test(enText("overview.tiles.budgetRisk.allTime")),
   "it sits in a strip of period figures",
 );
 check(
   "the roster headcount is labelled ON ROSTER, not left among period totals",
-  /PEOPLE ON ROSTER/.test(pageCode),
+  /t\("thisPeriod\.peopleOnRoster"\)/.test(pageCode) &&
+    enText("overview.thisPeriod.peopleOnRoster") === "PEOPLE ON ROSTER",
 );
 check(
   "the ledger no longer claims to be a period figure",
-  !/BY HOURS · TRACKINGTIME/.test(pageCode),
+  !/BY HOURS · TRACKINGTIME/.test(pageCode) &&
+    !/BY HOURS · TRACKINGTIME/.test(JSON.stringify(en.overview)),
 );
 check(
   "a mid-week range boundary is disclosed, not silently widened",
   /snappedToWholeWeeks/.test(queriesCode) &&
-    /PERIOD WIDENED TO WHOLE ISO WEEKS/.test(pageCode),
+    /t\("period\.widened", \{ period: periodLabel \}\)/.test(pageCode) &&
+    /^PERIOD WIDENED TO WHOLE ISO WEEKS/.test(enText("overview.period.widened")),
   "org_week aggregates by week, so a to-the-day range cannot be honoured",
 );
 check(
@@ -254,8 +273,8 @@ check(
 );
 check(
   "the covered headcount is RENDERED when a team is active",
-  /\{activeCount \?\? 0\} of \{coverage\.totalPeople\}/.test(filtersCode) &&
-    /people have this team recorded/.test(filters),
+  /count: activeCount \?\? 0,\s*\n?\s*total: coverage\.totalPeople/.test(filtersCode) &&
+    /people have this team recorded/.test(enText("overview.filters.coverage.recorded")),
   "a small filtered figure with no denominator reads as a business collapse",
 );
 check(
@@ -274,12 +293,14 @@ check(
 );
 check(
   "an empty team selection is a stated absence, not a zero",
-  /NO HOURS FOR THIS TEAM IN PERIOD/.test(queriesCode),
+  /key: "tiles\.hoursLogged\.noHoursForTeam"/.test(queriesCode) &&
+    enText("overview.tiles.hoursLogged.noHoursForTeam") === "NO HOURS FOR THIS TEAM IN PERIOD",
   '"no data imported yet" would blame the database for a filter',
 );
 check(
   "a team-filtered empty chart says the team is empty, not that the sync failed",
-  /No hours logged by \$\{teamLabelForScope\} in this period/.test(pageCode),
+  /t\("billableShare\.noHoursTeam", \{ team: teamLabelForScope \?\? "" \}\)/.test(pageCode) &&
+    enText("overview.billableShare.noHoursTeam") === "No hours logged by {team} in this period.",
 );
 
 // ---------------------------------------------------------------------------
@@ -341,7 +362,9 @@ check(
 );
 check(
   "there is an UPDATING… live region during the transition",
-  /aria-live="polite"/.test(filtersCode) && /UPDATING…/.test(filters),
+  /aria-live="polite"/.test(filtersCode) &&
+    /t\("updating"\)/.test(filtersCode) &&
+    enText("overview.filters.updating") === "UPDATING…",
 );
 check(
   "pills sit in a rounded-full trough, like the board's",
@@ -360,7 +383,10 @@ check(
 );
 check(
   "both date inputs are individually named",
-  (filtersCode.match(/aria-label="Period (from|to) date"/g) ?? []).length === 2,
+  /aria-label=\{t\("fromDate"\)\}/.test(filtersCode) &&
+    /aria-label=\{t\("toDate"\)\}/.test(filtersCode) &&
+    enText("overview.filters.fromDate") === "Period from date" &&
+    enText("overview.filters.toDate") === "Period to date",
   "a bare <input type=date> announces only as 'date'",
 );
 check("no hex literal anywhere in the filter bar", !/#[0-9a-fA-F]{3,8}\b/.test(filtersCode));

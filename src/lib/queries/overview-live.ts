@@ -188,12 +188,27 @@ export type OverviewScopeNotes = {
  * a red bar and a green bar look identical to a colourblind reader and to a
  * printed page.
  */
+/**
+ * A user-visible string as a message-catalogue reference rather than English
+ * text: the key under `overview` in messages/{en,de}.json plus the values the
+ * message interpolates. The page renders it through next-intl, so the query
+ * layer never has to know which language the reader chose.
+ *
+ * Numbers that must render exactly (de-DE thousands separators) are passed
+ * PRE-FORMATTED as strings; bare numbers are passed only where ICU needs them
+ * for plural selection.
+ */
+export type OverviewMessage = {
+  key: string;
+  values?: Record<string, string | number>;
+};
+
 export type OverviewMetric = {
   key: string;
-  label: string;
+  label: OverviewMessage;
   /** Pre-formatted for display, or null when there is no data behind it. */
   value: string | null;
-  subtext: string;
+  subtext: OverviewMessage;
   tone: "neutral" | "good" | "warning" | "critical";
   /** 0-100 for a progress bar, or null for a plain figure. */
   progressPercent: number | null;
@@ -288,6 +303,138 @@ function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
  * the old behaviour: empty now renders "n/a", where before it silently
  * substituted invented numbers.
  */
+
+/**
+ * Budget posture across the WHOLE active portfolio, not the ledger's top 8.
+ *
+ * The over-budget tile links to /projects, and /projects counts every active
+ * project with `actualHours > estimatedHours` (projects-live.ts `isOver`).
+ * Counting only the eight ledger rows here produced "2" on the tile and "11"
+ * on the page it opens -- the exact contradiction a KPI must not have. Same
+ * rule as /projects: strictly over, and only projects that HAVE a budget.
+ * Worked hours exclude future-dated (planned) entries, exactly as /projects does.
+ *
+ * Paged read per the house rule: .order() before .range(), no bare limit.
+ */
+async function getBudgetPosture(
+  supabase: SupabaseTyped,
+): Promise<{ activeProjects: number; overBudget: number; noBudget: number } | null> {
+  try {
+    const { data, error } = await timeSchema(supabase)
+      .from("project_summary")
+      .select("project_id, total_seconds, estimated_hours")
+      .eq("is_archived", false)
+      .order("project_id", { ascending: true })
+      .range(0, 9999);
+    if (error || !data) return null;
+    const rows = data as { project_id: number; total_seconds: number | null; estimated_hours: number | null }[];
+
+    // project_summary counts PLANNED entries dated into the future (Netto / 26
+    // SiFa: 398 h in the view, 217.7 h actually worked). /projects excludes
+    // anything after today and so must this count, or the tile says 12 and
+    // the page it opens says 11. Future-dated seconds per project are few by
+    // construction; paged read per the house rule.
+    const futureByProject = new Map<number, number>();
+    const { data: future } = await timeSchema(supabase)
+      .from("entry")
+      .select("project_id, duration_seconds")
+      .not("duration_seconds", "is", null)
+      .not("project_id", "is", null)
+      .gt("started_at", new Date().toISOString())
+      .order("id", { ascending: true })
+      .range(0, 9999);
+    for (const e of (future ?? []) as { project_id: number; duration_seconds: number }[]) {
+      futureByProject.set(e.project_id, (futureByProject.get(e.project_id) ?? 0) + num(e.duration_seconds));
+    }
+    const workedHours = (r: { project_id: number; total_seconds: number | null }) =>
+      secondsToHours(Math.max(0, num(r.total_seconds) - (futureByProject.get(r.project_id) ?? 0)));
+
+    return {
+      activeProjects: rows.length,
+      // The view writes "no budget" as 0, not null (84 of 338 rows) -- a budget
+      // is real only when > 0. Same rule as projects-live.ts isOver:
+      // strictly more worked hours than the estimate.
+      overBudget: rows.filter((r) => Number(r.estimated_hours) > 0 && workedHours(r) > Number(r.estimated_hours)).length,
+      noBudget: rows.filter((r) => !(Number(r.estimated_hours) > 0)).length,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Future-dated entries, per ISO week, inside the window.
+ *
+ * TrackingTime lets people pre-log time for days that have not happened, and
+ * `org_week` aggregates those like any worked hour. getOrgWeeks already drops
+ * whole FUTURE WEEKS (see time-dashboard.ts), but the current part-week and a
+ * chosen period can still carry entries dated after now(). The week popup
+ * (week-drilldown.ts) excludes them with `started_at <= now()`, so the tile
+ * and its own drill-down disagreed by exactly those hours (live: 70 h of
+ * 2.857 h, 54 of them billable). A KPI must not count work not yet done.
+ *
+ * Read from time.entry, subtracted per week below. Paged read per the house
+ * rule (.order before .range); the row count is tiny by construction.
+ */
+async function getFutureEntryAdjustments(
+  supabase: SupabaseTyped,
+  firstMonday: string,
+  lastMonday: string,
+): Promise<Map<string, { seconds: number; billable: number; entries: number }>> {
+  const out = new Map<string, { seconds: number; billable: number; entries: number }>();
+  const nowIso = new Date().toISOString();
+  const windowEnd = new Date(`${lastMonday}T00:00:00Z`);
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 7);
+  try {
+    const { data, error } = await timeSchema(supabase)
+      .from("entry")
+      .select("started_at, duration_seconds, is_billable")
+      .not("duration_seconds", "is", null)
+      .gt("started_at", nowIso)
+      .gte("started_at", `${firstMonday}T00:00:00Z`)
+      .lt("started_at", windowEnd.toISOString())
+      .order("id", { ascending: true })
+      .range(0, 9999);
+    if (error || !data) return out;
+    for (const r of data as { started_at: string; duration_seconds: number; is_billable: boolean | null }[]) {
+      const d = new Date(r.started_at);
+      const dow = (d.getUTCDay() + 6) % 7; // Monday = 0
+      d.setUTCDate(d.getUTCDate() - dow);
+      const key = d.toISOString().slice(0, 10);
+      const acc = out.get(key) ?? { seconds: 0, billable: 0, entries: 0 };
+      acc.seconds += num(r.duration_seconds);
+      if (r.is_billable) acc.billable += num(r.duration_seconds);
+      acc.entries += 1;
+      out.set(key, acc);
+    }
+  } catch {
+    // On failure the tile keeps the view's figure; the truth check will flag it.
+  }
+  return out;
+}
+
+function excludeFutureEntries(
+  weeks: OrgWeekRow[],
+  adjustments: Map<string, { seconds: number; billable: number; entries: number }>,
+): OrgWeekRow[] {
+  if (adjustments.size === 0) return weeks;
+  return weeks.map((w) => {
+    const a = adjustments.get(w.weekStart);
+    if (!a) return w;
+    const totalSeconds = Math.max(0, w.totalSeconds - a.seconds);
+    const billableSeconds = Math.max(0, w.billableSeconds - a.billable);
+    return {
+      ...w,
+      totalSeconds,
+      billableSeconds,
+      trackedSeconds: Math.max(0, w.trackedSeconds - a.seconds),
+      entryCount: Math.max(0, w.entryCount - a.entries),
+      totalHours: secondsToHours(totalSeconds),
+      billableHours: secondsToHours(billableSeconds),
+    };
+  });
+}
+
 export async function getLiveOverview(
   supabase: SupabaseTyped,
   opts: { range?: OverviewRange; team?: string | null } = {},
@@ -310,7 +457,7 @@ export async function getLiveOverview(
   const snappedToWholeWeeks =
     firstMonday !== range.from || !isSundayOfWeek(range.to <= today ? range.to : today);
 
-  const [rangedWeeks, projectRows, memberRows, memberMeta, customerCount, projectCount, roster] =
+  const [rangedWeeksRaw, projectRows, memberRows, memberMeta, customerCount, projectCount, roster, budgetPosture, futureAdjustments] =
     await Promise.all([
       /*
        * The default window still goes through getOrgWeeks(supabase,
@@ -338,6 +485,8 @@ export async function getLiveOverview(
       // inboxes. Counting them as staff inflates the headcount on the page the
       // whole company reads.
       getRosterCounts(supabase),
+      getBudgetPosture(supabase),
+      getFutureEntryAdjustments(supabase, firstMonday, lastMonday),
     ]);
 
   /*
@@ -357,6 +506,8 @@ export async function getLiveOverview(
   const teamMemberIds =
     team === null ? null : memberIdsForTeam(memberMeta, team);
 
+  // Same rule as the week drill-down: nothing dated after now() counts.
+  const rangedWeeks = excludeFutureEntries(rangedWeeksRaw, futureAdjustments);
   const weeks =
     teamMemberIds === null
       ? rangedWeeks
@@ -383,20 +534,27 @@ export async function getLiveOverview(
     contractedHours += m.weeklyHours * Math.min(m.weeksActive, rangeWeekCount);
   }
 
-  const overBudget = projectRows.filter(
-    (p) => p.burnPercent !== null && p.burnPercent >= 100,
-  ).length;
-  const noBudget = projectRows.filter((p) => p.estimatedHours === null).length;
+  // Portfolio-wide (see getBudgetPosture). The ledger rows are a top-8 slice
+  // and must not be the denominator of a KPI that links to the full list.
+  const overBudget = budgetPosture?.overBudget ?? null;
+  const noBudget = budgetPosture?.noBudget ?? 0;
+  const activeProjects = budgetPosture?.activeProjects ?? 0;
 
   const metrics: OverviewMetric[] = [
     {
       key: "billable-share",
-      label: "BILLABLE SHARE",
+      label: { key: "tiles.billableShare.label" },
       value: totals.billablePercent === null ? null : `${totals.billablePercent}%`,
       subtext:
         totals.billablePercent === null
-          ? "NO HOURS IN WINDOW"
-          : `${fmtHours(totals.billableHours)} H OF ${fmtHours(totals.totalHours)} H`,
+          ? { key: "tiles.billableShare.noHours" }
+          : {
+              key: "tiles.billableShare.ofHours",
+              values: {
+                billable: fmtHours(totals.billableHours),
+                total: fmtHours(totals.totalHours),
+              },
+            },
       // Deliberately not colour-coded against a target. There is no agreed
       // company target in the data, and inventing one here would put us right
       // back where we started.
@@ -405,30 +563,43 @@ export async function getLiveOverview(
     },
     {
       key: "hours-logged",
-      label: "HOURS LOGGED",
+      label: { key: "tiles.hoursLogged.label" },
       value: totals.totalHours > 0 ? fmtHours(totals.totalHours) : null,
       subtext:
         totals.weeksCovered > 0
-          ? `${totals.weeksCovered} WEEKS · ${totals.entryCount.toLocaleString("de-DE")} ENTRIES`
+          ? {
+              key: "tiles.hoursLogged.weeksEntries",
+              values: {
+                weeks: totals.weeksCovered,
+                entries: totals.entryCount.toLocaleString("de-DE"),
+                entryCount: totals.entryCount,
+              },
+            }
           : team === null
-            ? "NO DATA IMPORTED YET"
+            ? { key: "tiles.hoursLogged.noData" }
             : // A team filter emptying a figure is a different fact from an
               // empty database, and it must not read as one.
-              "NO HOURS FOR THIS TEAM IN PERIOD",
+              { key: "tiles.hoursLogged.noHoursForTeam" },
       tone: "neutral",
       progressPercent: null,
     },
     {
       key: "capacity",
-      label: "TRACKED / CONTRACTED",
+      label: { key: "tiles.capacity.label" },
       value:
         contractedHours > 0
           ? `${fmtHours(totals.trackedSeconds / 3600)} / ${fmtHours(contractedHours)}`
           : null,
       subtext:
         contractedHours > 0
-          ? `${Math.round((totals.trackedSeconds / 3600 / contractedHours) * 100)}% OF ${rangeWeekCount} WEEKS NOMINAL`
-          : "NO CONTRACTED HOURS ON RECORD",
+          ? {
+              key: "tiles.capacity.ofNominal",
+              values: {
+                percent: Math.round((totals.trackedSeconds / 3600 / contractedHours) * 100),
+                weeks: rangeWeekCount,
+              },
+            }
+          : { key: "tiles.capacity.noContract" },
       tone: "neutral",
       progressPercent:
         contractedHours > 0
@@ -440,32 +611,35 @@ export async function getLiveOverview(
     },
     {
       key: "active-people",
-      label: "ACTIVE PEOPLE",
+      label: { key: "tiles.activePeople.label" },
       value: totals.activeMembers > 0 ? String(totals.activeMembers) : null,
       subtext:
         totals.activeMembers > 0
           ? // `memberRows.length` counted every member record including the
             // info@ and jobs@ inboxes. The roster count is people.
-            `PEAK IN ANY WEEK · ${roster.activePeople} ON ROSTER`
-          : "NOBODY LOGGED TIME",
+            { key: "tiles.activePeople.peak", values: { roster: roster.activePeople } }
+          : { key: "tiles.activePeople.nobody" },
       tone: "neutral",
       progressPercent: null,
     },
     {
       key: "budget-risk",
-      label: "PROJECTS OVER BUDGET",
-      value: projectRows.length > 0 ? String(overBudget) : null,
+      label: { key: "tiles.budgetRisk.label" },
+      value: overBudget === null ? null : String(overBudget),
       subtext:
-        projectRows.length === 0
-          ? "NO PROJECTS WITH LOGGED TIME"
+        overBudget === null
+          ? { key: "tiles.budgetRisk.noProjects" }
           : // Naming the unbudgeted count matters: "0 over budget" sounds like
             // health, but it is meaningless if most projects have no budget to
             // exceed. The reader needs the denominator's caveat.
             // "ALL TIME" is not decoration: project_summary is not period-bounded,
             // so this count sits beside period figures and would otherwise be read
             // as one of them.
-            `ALL TIME · TOP ${projectRows.length} BY HOURS · ${noBudget} WITH NO BUDGET`,
-      tone: overBudget > 0 ? "critical" : "neutral",
+            {
+              key: "tiles.budgetRisk.allTime",
+              values: { count: activeProjects, noBudget },
+            },
+      tone: overBudget !== null && overBudget > 0 ? "critical" : "neutral",
       progressPercent: null,
     },
   ];
@@ -719,6 +893,8 @@ async function getTeamWeeks(
         .in("member_id", [...memberIds])
         .gte("started_at", `${firstMonday}T00:00:00Z`)
         .lte("started_at", `${to}T23:59:59Z`)
+        // Future-dated entries are excluded here too (see getFutureEntryAdjustments).
+        .lte("started_at", new Date().toISOString())
         // Ordered so paging is deterministic: an unordered range() walk can
         // repeat and skip rows (measured: 299 duplicates in a 5,299-row read).
         .order("id", { ascending: true })

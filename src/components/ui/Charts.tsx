@@ -61,6 +61,7 @@ export function AreaTrend({
   yDomain,
   className = "",
   showDots = false,
+  onSelect,
 }: {
   points: AreaPoint[];
   /** Description of the whole figure for assistive tech. */
@@ -69,6 +70,8 @@ export function AreaTrend({
   yDomain?: [number, number];
   className?: string;
   showDots?: boolean;
+  /** Click a point to open it. Cursor + role stay honest when absent. */
+  onSelect?: (key: string) => void;
 }) {
   const gradientId = useId();
   const [active, setActive] = useState<number | null>(null);
@@ -176,9 +179,11 @@ export function AreaTrend({
           );
         })}
 
-        <path d={area} fill={`url(#${gradientId})`} />
+        <path d={area} fill={`url(#${gradientId})`} className="chart-fill-in" />
         <path
           d={d}
+          pathLength={1}
+          className="chart-draw"
           fill="none"
           stroke="var(--accent)"
           strokeWidth="2"
@@ -187,6 +192,30 @@ export function AreaTrend({
           strokeLinecap="round"
         />
 
+
+        {/* Resting emphasis on the LATEST point: the newest figure is the one
+            the eye should land on. The hover marker below still outranks it
+            the moment a colleague points at anything. */}
+        {pts.length > 0 && (
+          <g aria-hidden>
+            <circle
+              className="endpoint-halo"
+              cx={pts[pts.length - 1].px}
+              cy={pts[pts.length - 1].py}
+              r="8"
+              fill="var(--accent)"
+            />
+            <circle
+              cx={pts[pts.length - 1].px}
+              cy={pts[pts.length - 1].py}
+              r="3"
+              fill="var(--accent)"
+              stroke="var(--surface-accent)"
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        )}
         {/* The active point's marker. */}
         {hot && (
           <>
@@ -240,7 +269,8 @@ export function AreaTrend({
             onMouseEnter={() => setActive(i)}
             onFocus={() => setActive(i)}
             onBlur={() => setActive(null)}
-            className="h-full flex-1 cursor-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            onClick={onSelect ? () => onSelect(p.key) : undefined}
+            className={`h-full flex-1  focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`}
           />
         ))}
       </div>
@@ -493,11 +523,13 @@ export function BarTrend({
   label,
   yDomain,
   className = "",
+  onSelect,
 }: {
   points: AreaPoint[];
   label: string;
   yDomain?: [number, number];
   className?: string;
+  onSelect?: (key: string) => void;
 }) {
   const [active, setActive] = useState<number | null>(null);
 
@@ -541,7 +573,8 @@ export function BarTrend({
               onMouseEnter={() => setActive(i)}
               onFocus={() => setActive(i)}
               onBlur={() => setActive(null)}
-              className="flex h-full flex-1 cursor-default items-end focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              onClick={onSelect ? () => onSelect(p.key) : undefined}
+              className={`flex h-full flex-1  items-end focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`}
             >
               <span
                 className="block w-full rounded-[5px] transition-[height,filter] duration-200"
@@ -595,6 +628,7 @@ export function TrendFigure({
   yDomain,
   defaultKind = "area",
   className = "",
+  onSelect,
 }: {
   /** Stable per-figure key for the persisted preference, e.g. "overview-hero". */
   id: string;
@@ -603,6 +637,7 @@ export function TrendFigure({
   yDomain?: [number, number];
   defaultKind?: "area" | "bars";
   className?: string;
+  onSelect?: (key: string) => void;
 }) {
   const kind = useSyncExternalStore(
     chartKindSubscribe,
@@ -643,9 +678,9 @@ export function TrendFigure({
       </div>
 
       {kind === "bars" ? (
-        <BarTrend points={points} label={label} yDomain={yDomain} />
+        <BarTrend points={points} label={label} yDomain={yDomain} onSelect={onSelect} />
       ) : (
-        <AreaTrend points={points} label={label} yDomain={yDomain} />
+        <AreaTrend points={points} label={label} yDomain={yDomain} onSelect={onSelect} />
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import { Avatar } from "./Avatar";
 import { IconButtonLink } from "./ui/Segmented";
 import { IconSearch } from "./nav-icons";
 import { ThemeToggle } from "./ThemeToggle";
+import { LocaleSwitcher } from "./locale/LocaleSwitcher";
 
 /**
  * The top bar's right-hand chrome: find, and who you are signed in as.
@@ -71,6 +72,7 @@ export async function TopBarChrome() {
     <>
       {/* Theme first, then find: the toggle is the control people asked for by
           name, and the reference bars put appearance controls at the outer edge. */}
+      <LocaleSwitcher />
       <ThemeToggle />
 
       <IconButtonLink

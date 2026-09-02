@@ -27,6 +27,7 @@
  * that makes it correct is asserted in check-oauth-callback.mjs instead.
  */
 import { existsSync } from "node:fs";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 
 if (!existsSync(".next")) {
   console.log("SKIP: no production build — run `npm run build` first");
@@ -58,8 +59,10 @@ const check = (name, ok, detail = "") => {
   if (!ok) failed = true;
 };
 
-const { chromium } = await import("playwright");
-const browser = await chromium.launch();
+// Not a bare chromium.launch(): on this rig the default compositor's frame
+// clock is erratic, and Playwright cannot click without one. See
+// scripts/lib/launch-chromium.mjs for the measurements.
+const browser = await launchChromium();
 
 /**
  * Click a provider button and report what happened.
@@ -200,6 +203,14 @@ if (microsoftExpected) {
 
 // ── The destination is carried, and cannot be hijacked ─────────────────────
 const withNext = await capture("Continue with Google", "/auth/login?redirect_to=%2Ftime");
+// The block below is guarded on the capture, so without this line an
+// unobserved authorize request would skip every redirect_to assertion and the
+// gate would still print a green summary. Absence is a failure, not a pass.
+check(
+  "clicking Google with a same-site redirect_to builds an authorize request",
+  withNext.url !== null,
+  withNext.url ?? "no authorize request observed within the poll window, so the next= forwarding was NOT checked",
+);
 if (withNext.url) {
   const rt = new URL(withNext.url).searchParams.get("redirect_to") ?? "";
   check(
@@ -212,6 +223,11 @@ if (withNext.url) {
 // The login page's safeRedirect() must neutralise this before it can reach the
 // callback, so the post-authentication redirect cannot be aimed off-site.
 const hostile = await capture("Continue with Google", "/auth/login?redirect_to=https%3A%2F%2Fevil.com");
+check(
+  "clicking Google with a hostile redirect_to builds an authorize request",
+  hostile.url !== null,
+  hostile.url ?? "no authorize request observed within the poll window, so the open-redirect defence was NOT checked",
+);
 if (hostile.url) {
   const rt = new URL(hostile.url).searchParams.get("redirect_to") ?? "";
   check("a hostile redirect_to never reaches the provider", !rt.includes("evil.com"), rt);

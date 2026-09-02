@@ -160,8 +160,8 @@ try {
    * the form missing while it was on screen and working. Asserting on rendered DOM
    * is the only honest way to check a client-rendered form.
    */
-  const { chromium } = await import("playwright");
-  const browser = await chromium.launch();
+  const { launchChromium } = await import("./lib/launch-chromium.mjs");
+  const browser = await launchChromium();
   try {
     const page = await browser.newPage();
     const consoleErrors = [];

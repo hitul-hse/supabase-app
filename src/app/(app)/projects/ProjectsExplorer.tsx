@@ -22,8 +22,10 @@
  */
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FilterChip, SearchInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import type { Drill } from "@/components/DrillDialog";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import {
   customerPortfolioFromRows,
@@ -33,7 +35,7 @@ import {
   type ProjectFacet,
   type ProjectFilters,
 } from "./project-insights";
-import { ProjectTotalsStrip } from "./ProjectPanels";
+import { ProjectTotalsStrip, type ProjectTotalsTile } from "./ProjectPanels";
 import { PortfolioCharts } from "./PortfolioCharts";
 import { CustomerPortfolioCharts } from "./CustomerPortfolioCharts";
 import { ProjectsLedger, type LedgerSort } from "./ProjectsLedger";
@@ -94,6 +96,131 @@ export function ProjectsExplorer({
   const billableHours = filtered.reduce((s, p) => s + p.billableHours, 0);
   const overBudget = filtered.filter((p) => p.isOver).length;
   const noBudget = filtered.filter((p) => p.burnPercent === null).length;
+
+  /*
+   * What sits behind each tile of the totals strip -- five re-projections of
+   * the SAME `filtered` rows the five figures above are folded from, so a popup
+   * cannot disagree with the tile it opened from. Each states its `check`:
+   * the customer rows SUM to PROJECTS and TRACKED HOURS, the project rows SUM to
+   * the billable hours, and the over-budget / no-budget lists COUNT to their
+   * tiles. Rows that lead to a project record are links, never a second popup.
+   */
+  const t = useTranslations("drill");
+  const drills = useMemo<Partial<Record<ProjectTotalsTile, Drill>>>(() => {
+    const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+    const noCustomer = t("noCustomer");
+    const byCustomer = new Map<string, { projects: number; hours: number }>();
+    for (const p of filtered) {
+      const name = p.customerName ?? noCustomer;
+      const a = byCustomer.get(name) ?? { projects: 0, hours: 0 };
+      a.projects += 1;
+      a.hours += p.actualHours;
+      byCustomer.set(name, a);
+    }
+    const customers = [...byCustomer.entries()];
+    const customerTone = (name: string) => (name === noCustomer ? ("muted" as const) : ("accent" as const));
+    const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : null;
+    const record = (p: ProjectListRow) => `/projects/${p.id}`;
+
+    return {
+      projects: {
+        kicker: "PROJECTS",
+        title: t("projects.count.title"),
+        headline: filtered.length.toLocaleString("en-GB"),
+        headlineValue: filtered.length,
+        check: "sum",
+        subline: `${customers.length} ${customers.length === 1 ? "customer" : "customers"}`,
+        rows: customers
+          .sort((a, b) => b[1].projects - a[1].projects)
+          .map(([name, a]) => ({
+            name,
+            value: t("projects.count.value", { count: a.projects }),
+            magnitude: a.projects,
+            tone: customerTone(name),
+          })),
+        footer: t("projects.count.footer"),
+      },
+      hours: {
+        kicker: "TRACKED HOURS",
+        title: t("projects.hours.title"),
+        headline: `${h(totalHours)}h`,
+        headlineValue: totalHours,
+        check: "sum",
+        subline: t("projectCount", { count: filtered.length }),
+        rows: customers
+          .filter(([, a]) => a.hours > 0)
+          .sort((a, b) => b[1].hours - a[1].hours)
+          .map(([name, a]) => ({
+            name,
+            value: `${h(a.hours)}h · ${t("projectCount", { count: a.projects })}`,
+            magnitude: a.hours,
+            tone: customerTone(name),
+          })),
+        footer: t("projects.hours.footer"),
+      },
+      billable: {
+        kicker: "BILLABLE",
+        title: t("projects.billable.title"),
+        headline: billablePercent === null ? "—" : `${billablePercent}%`,
+        headlineValue: billableHours,
+        check: "sum",
+        subline: t("projects.billable.subline", { billable: h(billableHours), total: h(totalHours) }),
+        rows: filtered
+          .filter((p) => p.billableHours > 0)
+          .sort((a, b) => b.billableHours - a.billableHours)
+          .map((p) => ({
+            name: p.name,
+            sub: p.customerName ?? undefined,
+            value: `${h(p.billableHours)}h · ${t("billableShare", {
+              percent: p.actualHours > 0 ? Math.round((p.billableHours / p.actualHours) * 100) : 0,
+            })}`,
+            magnitude: p.billableHours,
+            href: record(p),
+          })),
+        footer: t("projects.billable.footer"),
+      },
+      over: {
+        kicker: "OVER BUDGET",
+        title: t("projects.over.title"),
+        headline: overBudget.toLocaleString("en-GB"),
+        headlineValue: overBudget,
+        check: "count",
+        subline: t("projectCount", { count: filtered.length }),
+        rows: filtered
+          .filter((p) => p.isOver)
+          .sort((a, b) => (b.burnPercent ?? 0) - (a.burnPercent ?? 0))
+          .map((p) => ({
+            name: p.name,
+            sub: p.customerName ?? undefined,
+            value: `${p.burnPercent}% · ${h(-(p.remainingHours ?? 0))}h over`,
+            magnitude: p.burnPercent ?? 0,
+            href: record(p),
+            tone: "critical" as const,
+          })),
+        footer: t("projects.over.footer"),
+      },
+      noBudget: {
+        kicker: "NO BUDGET SET",
+        title: t("projects.noBudget.title"),
+        headline: noBudget.toLocaleString("en-GB"),
+        headlineValue: noBudget,
+        check: "count",
+        subline: t("projectCount", { count: filtered.length }),
+        rows: filtered
+          .filter((p) => p.burnPercent === null)
+          .sort((a, b) => b.actualHours - a.actualHours)
+          .map((p) => ({
+            name: p.name,
+            sub: p.customerName ?? undefined,
+            value: `${h(p.actualHours)}h`,
+            magnitude: p.actualHours,
+            href: record(p),
+            tone: "muted" as const,
+          })),
+        footer: t("projects.noBudget.footer"),
+      },
+    };
+  }, [filtered, totalHours, billableHours, overBudget, noBudget, t]);
 
   const toggleFacet = (f: ProjectFacet) =>
     setFilters((prev) => {
@@ -223,6 +350,7 @@ export function ProjectsExplorer({
         billableHours={billableHours}
         overBudget={overBudget}
         noBudget={noBudget}
+        drills={drills}
       />
 
       {/*

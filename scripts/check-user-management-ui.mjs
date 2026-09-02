@@ -12,7 +12,7 @@
  * confirm that is the row that changed.
  */
 import { readFileSync } from "node:fs";
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
 
 const env = {};
@@ -62,7 +62,7 @@ for (let i = 0, n = 0; i < encoded.length; i += CHUNK, n += 1) {
   cookies.push({ name: `sb-${ref}-auth-token.${n}`, value: encoded.slice(i, i + CHUNK) });
 }
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
 await ctx.addCookies(cookies.map((c) => ({ ...c, domain: new URL(SITE).hostname, path: "/" })));
 // Clipboard permission, so the COPY button's real path is exercised rather than its

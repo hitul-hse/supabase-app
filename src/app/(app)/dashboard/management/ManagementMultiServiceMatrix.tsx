@@ -11,7 +11,11 @@
  * The first column is frozen (sticky left) because this is a wide crosstab: the
  * customer name has to stay readable while scrolling sideways through the seven
  * service columns.
+ *
+ * The service column labels (DGUV V2 SiFa, SiGeKo, Betriebsarzt …) are the
+ * names of the services sold and stay as they are in both languages.
  */
+import { useTranslations } from "next-intl";
 import { DataTable, cmpNum, cmpText, type Column } from "@/components/data-table/DataTable";
 import {
   MULTI_SERVICE_COLUMNS,
@@ -23,11 +27,14 @@ const fmt = (value: number) => new Intl.NumberFormat("de-DE", { maximumFractionD
 
 const labelOf = (key: string) => MULTI_SERVICE_COLUMNS.find((column) => column.key === key)?.label ?? key;
 
-const missingText = (row: ManagementMultiServiceRow) =>
-  row.possibleMissingServices.length === 0 ? "Keine" : row.possibleMissingServices.map(labelOf).join(", ");
-
 export function ManagementMultiServiceMatrix({ model }: { model: ManagementMultiServiceMatrix }) {
+  const t = useTranslations("management.multiService");
+  const tm = useTranslations("management");
+  const na = tm("values.notAvailable");
   const rows = model.rows;
+
+  const missingText = (row: ManagementMultiServiceRow) =>
+    row.possibleMissingServices.length === 0 ? tm("values.none") : row.possibleMissingServices.map(labelOf).join(", ");
 
   // Totals over EVERY row, independent of paging, search or sort.
   const totalProjects = rows.reduce((sum, row) => sum + row.projectCount, 0);
@@ -39,7 +46,7 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
   const columns: Column<ManagementMultiServiceRow>[] = [
     {
       key: "customer",
-      header: "KUNDE / LEGAL ENTITY",
+      header: t("columns.customer"),
       // Frozen via freezeFirstColumn below; only the width is set here.
       className: "min-w-[14rem]",
       compare: (a, b) => cmpText(a.customer, b.customer),
@@ -47,7 +54,7 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
       cell: (row) => <span className="font-medium text-[var(--text-primary)]">{row.customer}</span>,
       csv: (row) => row.customer,
       search: (row) => row.customer,
-      title: "Kunde bzw. Legal Entity",
+      title: t("titles.customer"),
     },
     ...MULTI_SERVICE_COLUMNS.map(({ key, label }) => ({
       key,
@@ -60,20 +67,20 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
         </span>
       ),
       csv: (row: ManagementMultiServiceRow) => row.services[key],
-      title: `Aktive/offene Projekte für ${label}`,
+      title: t("titles.service", { label }),
     })),
     {
       key: "activeServiceCount",
-      header: "SERVICES",
+      header: t("columns.services"),
       align: "right",
       compare: (a, b) => a.activeServiceCount - b.activeServiceCount,
       cell: (row) => <span className="font-mono tabular-nums text-[var(--text-primary)]">{row.activeServiceCount}</span>,
       csv: (row) => row.activeServiceCount,
-      title: "Anzahl aktiver Services",
+      title: t("titles.services"),
     },
     {
       key: "projectCount",
-      header: "PROJEKTE",
+      header: t("columns.projects"),
       align: "right",
       compare: (a, b) => a.projectCount - b.projectCount,
       cell: (row) => <span className="font-mono tabular-nums text-[var(--text-secondary)]">{row.projectCount}</span>,
@@ -81,26 +88,26 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
     },
     {
       key: "contractHours",
-      header: "VERTRAGSH",
+      header: t("columns.contractHours"),
       align: "right",
       compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
       cell: (row) => (
         <span className="font-mono tabular-nums text-[var(--text-secondary)]">
-          {row.contractHours === null ? "n/a" : `${fmt(row.contractHours)} h`}
+          {row.contractHours === null ? na : `${fmt(row.contractHours)} h`}
         </span>
       ),
-      csv: (row) => (row.contractHours === null ? "n/a" : row.contractHours),
-      title: "Vertragsstunden der aktiven Projekte",
+      csv: (row) => (row.contractHours === null ? na : row.contractHours),
+      title: t("titles.contractHours"),
     },
     {
       key: "possibleMissingServices",
-      header: "MÖGLICHERWEISE FEHLEND",
+      header: t("columns.missing"),
       className: "max-w-[280px]",
       compare: (a, b) => a.possibleMissingServices.length - b.possibleMissingServices.length,
       cell: (row) => <span className="text-[var(--text-muted)]">{missingText(row)}</span>,
       csv: (row) => missingText(row),
       search: (row) => missingText(row),
-      title: "Transparenter Cross-Selling-Hinweis, keine Verkaufslogik",
+      title: t("titles.missing"),
     },
   ];
 
@@ -109,45 +116,38 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
       rows={rows}
       columns={columns}
       rowKey={(row) => row.legalEntityId}
-      title="Multi-Service Matrix"
-      hint="KUNDEN / LEGAL ENTITIES × AKTIVE SERVICES"
+      title={t("title")}
+      hint={t("hint")}
       exportName="multi-service-matrix"
-      searchPlaceholder="Kunde suchen…"
+      searchPlaceholder={t("searchPlaceholder")}
       defaultPageSize={25}
       freezeFirstColumn
       maxBodyHeight="52vh"
       collapsible
       defaultOpen
-      summary={`${rows.length} Kunden · ${totalProjects} aktive Projekte · ${fmt(totalHours)} h`}
-      emptyText={
-        model.customerMappingAvailable
-          ? "Keine aktiven, stabil zugeordneten Kundenprojekte verfügbar."
-          : "Customer-Master-Mapping nicht verfügbar."
-      }
+      summary={t("summary", { customers: String(rows.length), projects: String(totalProjects), hours: fmt(totalHours) })}
+      emptyText={model.customerMappingAvailable ? t("empty.noRows") : t("empty.noMapping")}
       footnote={
         <span className="block space-y-1 leading-relaxed">
           {/* Totals span every row, not the current page. */}
           <span className="block text-[var(--text-secondary)]">
-            Gesamt über alle {rows.length} Kunden: {totalProjects} aktive Projekte ·{" "}
-            {fmt(totalHours)} h Vertragsstunden
-            {hoursUnknown > 0 ? ` (${hoursUnknown} Kunden ohne belastbare Stunden: n/a)` : ""} ·{" "}
-            {singleService} Kunden mit nur einem Service
+            {t("totals", { customers: String(rows.length), projects: String(totalProjects), hours: fmt(totalHours) })}
+            {hoursUnknown > 0 ? t("unknownHours", { count: String(hoursUnknown) }) : ""}
+            {t("singleService", { count: String(singleService) })}
           </span>
           <span className="block">
-            Eine Zelle zeigt die Anzahl aktiver/offener Projekte des Kunden für den Service.
-            „Möglicherweise fehlend“ ist ein transparenter Cross-Selling-Hinweis, keine Verkaufslogik.
+            {t("note")}
           </span>
           {(model.activeProjectsWithoutCustomerMapping !== 0 || model.activeProjectsWithoutServiceMapping !== 0) && (
             <span className="block text-[var(--warning)]">
-              Datenqualität:{" "}
-              {model.activeProjectsWithoutCustomerMapping === null
-                ? "Customer Mapping n/a"
-                : `${model.activeProjectsWithoutCustomerMapping} aktive Projekte ohne Customer Mapping`}{" "}
-              ·{" "}
-              {model.activeProjectsWithoutServiceMapping === null
-                ? "Service Mapping n/a"
-                : `${model.activeProjectsWithoutServiceMapping} aktive Projekte ohne Service Mapping`}
-              .
+              {t("dataQuality", {
+                customer: model.activeProjectsWithoutCustomerMapping === null
+                  ? tm("values.customerMappingNa")
+                  : t("withoutCustomerMapping", { count: String(model.activeProjectsWithoutCustomerMapping) }),
+                service: model.activeProjectsWithoutServiceMapping === null
+                  ? tm("values.serviceMappingNa")
+                  : t("withoutServiceMapping", { count: String(model.activeProjectsWithoutServiceMapping) }),
+              })}
             </span>
           )}
         </span>

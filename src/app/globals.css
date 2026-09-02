@@ -844,3 +844,129 @@ body {
 .btn-secondary:hover {
   background: rgba(145, 194, 183, 0.06);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MOTION VOCABULARY — the premium pass, defined once.
+ *
+ * Three moves, and only three, so every page that adopts them feels like the
+ * same product rather than a collection of effects:
+ *
+ *   .rise-in       an element settles into place on arrival (page load only)
+ *   .stagger       children of this element rise in sequence, 45ms apart
+ *   .bar-grow      a horizontal bar draws itself from zero
+ *
+ * All of it is CSS keyframes on load, not scroll-triggered JS: these pages are
+ * server components and the motion is predetermined, which is the same
+ * reasoning brand-mark-assemble documents above. Durations sit under 500ms so
+ * the data is readable before a colleague finishes reaching for the mouse —
+ * this is an operations console, not a landing page, and the numbers are the
+ * point. The vocabulary announces the page; it must never delay it.
+ *
+ * Reduced motion kills every entrance outright (bars render full, elements
+ * render placed) rather than speeding them up: "less motion, faster" is still
+ * motion.
+ * ═══════════════════════════════════════════════════════════════════════ */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 0.45s var(--ease-out) both;
+}
+.stagger > * {
+  animation: rise-in 0.45s var(--ease-out) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger > *:nth-child(2) { animation-delay: 0.075s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.165s; }
+.stagger > *:nth-child(5) { animation-delay: 0.21s; }
+.stagger > *:nth-child(6) { animation-delay: 0.255s; }
+.stagger > *:nth-child(7) { animation-delay: 0.3s; }
+.stagger > *:nth-child(n + 8) { animation-delay: 0.345s; }
+
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: none; }
+}
+.bar-grow {
+  transform-origin: left center;
+  animation: bar-grow 0.7s var(--ease-settle) 0.25s both;
+}
+
+/*
+ * Card presence under the cursor. The lift is 1px and the glow is at the low
+ * end of perceptible — the intent is "this surface is alive", not "look at
+ * me". Interactive rows inside cards already have their own hover states;
+ * this is for the card as an object.
+ *
+ * Transition lives here rather than per-page so every .card-elev in the app
+ * behaves identically the moment it exists.
+ */
+.card-elev {
+  transition:
+    box-shadow 0.25s var(--ease-settle),
+    border-color 0.25s var(--ease-settle),
+    transform 0.25s var(--ease-settle);
+}
+.card-elev:hover {
+  border-color: var(--border-strong);
+  box-shadow:
+    var(--shadow-card),
+    0 4px 24px -12px rgba(145, 194, 183, 0.25);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in,
+  .stagger > *,
+  .bar-grow {
+    animation: none;
+  }
+  .card-elev,
+  .card-elev:hover {
+    transform: none;
+  }
+}
+
+/*
+ * Chart arrival, same philosophy as .rise-in: the line draws itself once on
+ * load (pathLength is normalised to 1 in the SVG, so the dash math is unit),
+ * the fill breathes in behind it, and the LATEST point carries a resting
+ * emphasis — the dataviz rule that the newest figure is the one the eye
+ * should land on. The halo pulses at whisper level; the hover marker still
+ * owns attention when a colleague is actually pointing.
+ */
+@keyframes chart-draw {
+  from { stroke-dashoffset: 1; }
+}
+.chart-draw {
+  stroke-dasharray: 1;
+  animation: chart-draw 0.9s var(--ease-settle) 0.15s both;
+}
+@keyframes chart-fill-in {
+  from { opacity: 0; }
+}
+.chart-fill-in {
+  animation: chart-fill-in 0.6s ease 0.5s both;
+}
+@keyframes endpoint-breathe {
+  0%, 100% { opacity: 0.22; }
+  50% { opacity: 0.1; }
+}
+.endpoint-halo {
+  animation: endpoint-breathe 3.2s ease-in-out 1s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-draw,
+  .chart-fill-in,
+  .endpoint-halo {
+    animation: none;
+  }
+}

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/utils/supabase/server";
 import { getSyncFreshness } from "@/lib/queries/time-dashboard";
 
@@ -28,10 +29,14 @@ import { getSyncFreshness } from "@/lib/queries/time-dashboard";
  * Only TrackingTime is listed, because TrackingTime is the only pipeline that
  * exists. When Factorial or Asana genuinely land, they get a row here and a
  * `raw.sync_run` source string to go with it.
+ *
+ * Wording comes from messages/{en,de}.json under `common.sync` -- this strip
+ * sits on every page, so it is shared vocabulary rather than the Overview's.
  */
 export async function SyncBar() {
   const supabase = await createClient();
   const freshness = await getSyncFreshness(supabase, "trackingtime");
+  const t = await getTranslations("common.sync");
 
   const colour =
     freshness.status === "ok"
@@ -56,15 +61,15 @@ export async function SyncBar() {
          the darkest surface anywhere in the app. */
       className="flex items-center gap-4 overflow-x-auto border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-1.5 font-mono text-[10px] sm:px-6 [&::-webkit-scrollbar]:hidden"
     >
-      <span className="flex-none tracking-[0.12em] text-[var(--text-faint)]">SYNC</span>
+      <span className="flex-none tracking-[0.12em] text-[var(--text-faint)]">{t("label")}</span>
 
       <span className={`flex flex-none items-center gap-1.5 ${textClass}`}>
         <span className="h-1.5 w-1.5 flex-none" style={{ background: colour }} />
-        TRACKINGTIME {describeAge(freshness.hoursSince)}
+        {t("trackingTime", { age: describeAge(t, freshness.hoursSince) })}
       </span>
 
       {freshness.inProgress ? (
-        <span className="flex-none text-[var(--text-muted)]">SYNC RUNNING</span>
+        <span className="flex-none text-[var(--text-muted)]">{t("running")}</span>
       ) : null}
 
       {/*
@@ -74,18 +79,21 @@ export async function SyncBar() {
       */}
       {freshness.failedSince > 0 ? (
         <span className="flex-none text-[var(--critical)]">
-          {freshness.failedSince} FAILED SINCE
+          {t("failedSince", { count: freshness.failedSince })}
         </span>
       ) : null}
 
       {freshness.recordCount !== null ? (
         <span className="hidden flex-none text-[var(--text-faint)] sm:inline">
-          {freshness.recordCount.toLocaleString("de-DE")} ROWS
+          {t("rows", { count: freshness.recordCount.toLocaleString("de-DE") })}
         </span>
       ) : null}
     </div>
   );
 }
+
+/** The translator for the `common.sync` namespace, as SyncBar resolves it. */
+type SyncTranslator = Awaited<ReturnType<typeof getTranslations<"common.sync">>>;
 
 /**
  * Hours since the last success as something a human reads at a glance.
@@ -93,9 +101,9 @@ export async function SyncBar() {
  * Null means no successful run has EVER been recorded, which is a different
  * statement from "0h ago" and must not render as one.
  */
-function describeAge(hoursSince: number | null): string {
-  if (hoursSince === null) return "NEVER RUN";
-  if (hoursSince < 1) return "< 1H AGO";
-  if (hoursSince < 48) return `${hoursSince}H AGO`;
-  return `${Math.floor(hoursSince / 24)}D AGO`;
+function describeAge(t: SyncTranslator, hoursSince: number | null): string {
+  if (hoursSince === null) return t("neverRun");
+  if (hoursSince < 1) return t("underOneHour");
+  if (hoursSince < 48) return t("hoursAgo", { hours: hoursSince });
+  return t("daysAgo", { days: Math.floor(hoursSince / 24) });
 }

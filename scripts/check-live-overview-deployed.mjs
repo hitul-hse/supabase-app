@@ -128,8 +128,8 @@ if (!session) {
 }
 console.log(`  rendering as: ${email}\n`);
 
-const { chromium } = await import("playwright");
-const browser = await chromium.launch();
+const { launchChromium } = await import("./lib/launch-chromium.mjs");
+const browser = await launchChromium();
 try {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
   await ctx.addInitScript(() => {

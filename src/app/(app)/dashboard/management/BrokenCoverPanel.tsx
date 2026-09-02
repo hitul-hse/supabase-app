@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
 import type { BrokenCoverProject, BrokenCoverSummary } from "@/lib/queries/broken-cover";
 import { ReassignmentPicker } from "./ReassignmentPicker";
@@ -34,12 +35,13 @@ import { ReassignmentPicker } from "./ReassignmentPicker";
  * they are needed, whoever happens to be off.
  */
 
-const kindLabel: Record<BrokenCoverProject["kind"], string> = {
-  mutual: "GEGENSEITIG",
-  self: "SELBSTVERTRETUNG",
+const kindKey: Record<BrokenCoverProject["kind"], "kinds.mutual" | "kinds.self"> = {
+  mutual: "kinds.mutual",
+  self: "kinds.self",
 };
 
 export function BrokenCoverPanel({ summary }: { summary: BrokenCoverSummary }) {
+  const t = useTranslations("management.brokenCover");
   const [showSelf, setShowSelf] = useState(false);
 
   const mutual = summary.projects.filter((p) => p.kind === "mutual");
@@ -49,8 +51,7 @@ export function BrokenCoverPanel({ summary }: { summary: BrokenCoverSummary }) {
     return (
       <Card>
         <p className="text-sm text-[var(--text-secondary)]">
-          Keine defekten Vertretungen: niemand vertritt sich selbst, und kein Paar
-          vertritt sich ausschließlich gegenseitig.
+          {t("empty")}
         </p>
       </Card>
     );
@@ -61,12 +62,14 @@ export function BrokenCoverPanel({ summary }: { summary: BrokenCoverSummary }) {
       <div className="flex flex-col gap-3">
         <div>
           <h2 className="text-sm font-medium text-[var(--text-primary)]">
-            Defekte Vertretungen
+            {t("title")}
           </h2>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            {summary.mutualCoverCount} Projekte mit gegenseitiger Vertretung (fallen paarweise aus),{" "}
-            {summary.selfCoverCount} mit Selbstvertretung (Vertretung = Verantwortlicher).
-            Betroffen: {summary.peopleAffected.join(", ")}.
+            {t("summary", {
+              mutual: summary.mutualCoverCount,
+              self: summary.selfCoverCount,
+              people: summary.peopleAffected.join(", "),
+            })}
           </p>
         </div>
 
@@ -87,7 +90,7 @@ export function BrokenCoverPanel({ summary }: { summary: BrokenCoverSummary }) {
           className="self-start text-xs text-[var(--text-secondary)] underline decoration-dotted underline-offset-2"
           onClick={() => setShowSelf((v) => !v)}
         >
-          {showSelf ? "Selbstvertretungen einklappen" : `${self.length} Selbstvertretungen anzeigen`}
+          {showSelf ? t("collapseSelf") : t("showSelf", { count: self.length })}
         </button>
         {showSelf && (
           <ul className="flex flex-col gap-1.5">
@@ -102,6 +105,7 @@ export function BrokenCoverPanel({ summary }: { summary: BrokenCoverSummary }) {
 }
 
 function BrokenCoverRow({ project }: { project: BrokenCoverProject }) {
+  const t = useTranslations("management.brokenCover");
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--border)] px-3 py-2">
       <div className="flex min-w-0 flex-col gap-0.5">
@@ -112,20 +116,20 @@ function BrokenCoverRow({ project }: { project: BrokenCoverProject }) {
               project.kind === "mutual" ? "text-[var(--warning,#d99b3d)]" : "text-[var(--text-secondary)]"
             }`}
           >
-            {kindLabel[project.kind]}
+            {t(kindKey[project.kind])}
           </span>
           {project.kind === "mutual" && project.pairSize > 1 && (
             <span
               className="font-mono text-[9px] text-[var(--text-muted)]"
-              title="So viele Projekte fallen gemeinsam aus, wenn dieses Paar gleichzeitig fehlt"
+              title={t("pairTitle")}
             >
-              ×{project.pairSize} im Paar
+              {t("pairSize", { count: project.pairSize })}
             </span>
           )}
         </span>
         <span className="text-xs text-[var(--text-secondary)]">
-          {project.responsibleName} · Vertretung: {project.replacementName}
-          {project.kind === "self" && " (dieselbe Person)"}
+          {t("cover", { responsible: project.responsibleName, replacement: project.replacementName })}
+          {project.kind === "self" && t("samePerson")}
         </span>
       </div>
 

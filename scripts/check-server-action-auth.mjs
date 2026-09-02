@@ -231,8 +231,8 @@ if (!up) {
   process.exit(1);
 }
 
-const { chromium } = await import("playwright");
-const browser = await chromium.launch();
+const { launchChromium } = await import("./lib/launch-chromium.mjs");
+const browser = await launchChromium();
 
 const now = Math.floor(Date.now() / 1000);
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");

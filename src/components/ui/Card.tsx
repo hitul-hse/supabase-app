@@ -220,7 +220,7 @@ export function StatTile({
       {progressPercent !== null && (
         <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
           <div
-            className="h-full rounded-full"
+            className="bar-grow h-full rounded-full"
             style={{
               width: `${Math.min(100, Math.max(0, progressPercent))}%`,
               background: toneColour,

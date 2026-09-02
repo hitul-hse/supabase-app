@@ -20,7 +20,7 @@
  *      truncated one.
  */
 import { readFileSync } from "node:fs";
-import { chromium } from "playwright";
+import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
 
 const env = {};
@@ -69,7 +69,7 @@ const VIEWPORT_H = 900;
  */
 const MAX_SCREENS = 6;
 
-const browser = await chromium.launch();
+const browser = await launchChromium();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: VIEWPORT_H } });
 await ctx.addCookies(cookies);
 const page = await ctx.newPage();

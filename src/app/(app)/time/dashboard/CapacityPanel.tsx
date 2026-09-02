@@ -19,9 +19,14 @@
  * or customer above answers "who has room on THIS kind of work".
  */
 
+import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { LegendDot } from "@/components/ui/Charts";
+import { DrillDialog, type Drill } from "@/components/DrillDialog";
 import type { CapacityView, CapacityRow } from "@/lib/queries/time-insights";
+import { secondsToHours } from "@/lib/time-transform";
+import type { DrillDatum } from "./drill-data";
 
 const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
@@ -34,8 +39,44 @@ const BAND: Record<CapacityRow["band"], { color: string; label: string }> = {
   open: { color: "var(--good)", label: "WIDE OPEN" },
 };
 
-export function CapacityPanel({ data }: { data: CapacityView }) {
+export function CapacityPanel({
+  data,
+  projectsByMember,
+}: {
+  data: CapacityView;
+  /**
+   * Each person's hours by project, keyed by member id, folded by the page
+   * from the SAME entries `data` came from. When present, every load bar
+   * opens the answer to "what are they spending that time on" in place.
+   */
+  projectsByMember?: Record<string, DrillDatum[]>;
+}) {
   const { rows, weeks, available } = data;
+  const t = useTranslations("drill");
+  const [drill, setDrill] = useState<Drill | null>(null);
+
+  const openPerson = (r: CapacityRow) => {
+    const projects = projectsByMember?.[String(r.memberId)] ?? [];
+    setDrill({
+      kicker: `${r.loadPercent}% LOGGED LOAD · ${BAND[r.band].label}`,
+      title: t("time.personProjects.title", { name: r.name }),
+      headline: `${h(r.trackedHours)}h`,
+      headlineValue: r.trackedHours,
+      check: "sum",
+      subline:
+        r.billablePercent === null
+          ? `of ~${h(r.nominalHours)}h nominal`
+          : `${t("billableShare", { percent: r.billablePercent })} · of ~${h(r.nominalHours)}h nominal`,
+      rows: projects.map((d) => ({
+        name: d.name ?? t("noProject"),
+        sub: d.sub ?? undefined,
+        value: `${h(secondsToHours(d.seconds))}h · ${t("entries", { count: d.entries })}`,
+        magnitude: d.seconds / 3600,
+        tone: d.name === null ? "muted" : "accent",
+      })),
+      footer: t("time.personProjects.footer"),
+    });
+  };
 
   if (rows.length === 0) {
     return (
@@ -99,8 +140,9 @@ export function CapacityPanel({ data }: { data: CapacityView }) {
         <div className="flex flex-col gap-1.5">
           {rows.map((r) => {
             const band = BAND[r.band];
-            return (
-              <div key={r.memberId} className="flex items-center gap-2" title={`${r.name}: ${h(r.trackedHours)}h logged of ~${h(r.nominalHours)}h nominal`}>
+            const readout = `${r.name}: ${h(r.trackedHours)}h logged of ~${h(r.nominalHours)}h nominal`;
+            const inner = (
+              <>
                 <span className="w-[8.5rem] flex-none truncate text-right text-[11px] text-[var(--text-secondary)]">
                   {r.name}
                 </span>
@@ -128,10 +170,33 @@ export function CapacityPanel({ data }: { data: CapacityView }) {
                 <span className="hidden w-[9.5rem] flex-none font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)] sm:block">
                   {band.label}
                 </span>
+              </>
+            );
+            // The whole row is the hit target when a drill exists: a bar is a
+            // poor thing to aim at and the name alone is narrow. Without drill
+            // data the row stays the plain div it always was.
+            return projectsByMember ? (
+              <button
+                key={r.memberId}
+                type="button"
+                onClick={() => openPerson(r)}
+                aria-haspopup="dialog"
+                aria-label={t("open", { title: r.name })}
+                data-drill-trigger={`capacity-${r.memberId}`}
+                title={readout}
+                className="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] text-left transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              >
+                {inner}
+              </button>
+            ) : (
+              <div key={r.memberId} className="flex items-center gap-2" title={readout}>
+                {inner}
               </div>
             );
           })}
         </div>
+
+        {drill && <DrillDialog drill={drill} onClose={() => setDrill(null)} />}
 
         <p className="text-[10px] leading-relaxed text-[var(--text-faint)]">
           &ldquo;Load&rdquo; is tracked hours over a nominal 40h/week — a planning signal, not a

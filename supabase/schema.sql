@@ -1030,18 +1030,21 @@ create policy "role-scoped read on project_sections"
 
 create policy "role-scoped insert on project_sections"
   on project_sections for insert to authenticated
-  with check (can_view_task_parent(project_id, time_project_id)
+  with check (can_view_task_parent(project_id, time_project_id)
+
     and (time_project_id is null or app_user_has_permission('projects:write')));
 
 create policy "role-scoped update on project_sections"
   on project_sections for update to authenticated
   using (can_view_task_parent(project_id, time_project_id))
-  with check (can_view_task_parent(project_id, time_project_id)
+  with check (can_view_task_parent(project_id, time_project_id)
+
     and (time_project_id is null or app_user_has_permission('projects:write')));
 
 create policy "role-scoped delete on project_sections"
   on project_sections for delete to authenticated
-  using (can_view_task_parent(project_id, time_project_id)
+  using (can_view_task_parent(project_id, time_project_id)
+
     and (time_project_id is null or app_user_has_permission('projects:write')));
 
 -- Write access to project_tasks (Phase 2: Task &amp; Project Management).
@@ -1062,13 +1065,19 @@ create policy "role-scoped delete on project_sections"
 create policy "role-scoped insert on project_tasks"
   on project_tasks for insert to authenticated
   with check (
-    can_view_task_parent(project_id, time_project_id)
+    can_view_task_parent(project_id, time_project_id)
+
     and (time_project_id is null or app_user_has_permission('projects:write'))
-    and (parent_task_id is null or (
-      project_id is not distinct from task_project_id(parent_task_id)
-      and time_project_id is not distinct from task_time_project_id(parent_task_id)))
-    and (section_id is null or (
-      project_id is not distinct from section_project_id(section_id)
+    and (parent_task_id is null or (
+
+      project_id is not distinct from task_project_id(parent_task_id)
+
+      and time_project_id is not distinct from task_time_project_id(parent_task_id)))
+
+    and (section_id is null or (
+
+      project_id is not distinct from section_project_id(section_id)
+
       and time_project_id is not distinct from section_time_project_id(section_id)))
   );
 
@@ -1076,19 +1085,26 @@ create policy "role-scoped update on project_tasks"
   on project_tasks for update to authenticated
   using (can_view_task_parent(project_id, time_project_id))
   with check (
-    can_view_task_parent(project_id, time_project_id)
+    can_view_task_parent(project_id, time_project_id)
+
     and (time_project_id is null or app_user_has_permission('projects:write'))
-    and (parent_task_id is null or (
-      project_id is not distinct from task_project_id(parent_task_id)
-      and time_project_id is not distinct from task_time_project_id(parent_task_id)))
-    and (section_id is null or (
-      project_id is not distinct from section_project_id(section_id)
+    and (parent_task_id is null or (
+
+      project_id is not distinct from task_project_id(parent_task_id)
+
+      and time_project_id is not distinct from task_time_project_id(parent_task_id)))
+
+    and (section_id is null or (
+
+      project_id is not distinct from section_project_id(section_id)
+
       and time_project_id is not distinct from section_time_project_id(section_id)))
   );
 
 create policy "role-scoped delete on project_tasks"
   on project_tasks for delete to authenticated
-  using (can_view_task_parent(project_id, time_project_id)
+  using (can_view_task_parent(project_id, time_project_id)
+
     and (time_project_id is null or app_user_has_permission('projects:write')));
 
 -- Task comments (Asana-equivalent: collaboration on a task). Scoped through
@@ -2384,7 +2400,9 @@ select
   end                                                           as burn_percent
 from time.project p
 left join time.customer c on c.id = p.customer_id
-left join time.entry e    on e.project_id = p.id and e.duration_seconds is not null
+left join time.entry e    on e.project_id = p.id
+                        and e.duration_seconds is not null
+                        and e.started_at <= now()          -- planned time is not logged time
 group by p.id, p.name, p.is_billable, p.is_archived, c.id, c.name, p.estimated_hours;
 
 grant select on time.project_summary to authenticated;
@@ -2411,7 +2429,9 @@ select
   count(e.id)                                                   as entry_count,
   max(e.started_at)                                             as last_activity_at
 from time.customer c
-left join time.entry e on e.customer_id = c.id and e.duration_seconds is not null
+left join time.entry e on e.customer_id = c.id
+                      and e.duration_seconds is not null
+                      and e.started_at <= now()              -- planned time is not logged time
 group by c.id, c.name, c.is_archived;
 
 grant select on time.customer_summary to authenticated;

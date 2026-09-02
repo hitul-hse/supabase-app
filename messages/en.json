@@ -239,7 +239,10 @@
         "subline": "{billable}h billable · {people, plural, one {# person} other {# people}} · {entries, plural, one {# entry} other {# entries}}",
         "footer": "TOP 8 EACH BY HOURS, REST FOLDED INTO ONE ROW · ALL-TIME, CALENDAR TIME INCLUDED · FUTURE-DATED ENTRIES EXCLUDED",
         "gap": "Difference to the ledger figure",
-        "needsPermission": "Seeing who logged these hours needs the “View All Timesheets” permission."
+        "needsPermission": "Seeing who logged these hours needs the “View All Timesheets” permission.",
+        "notAuthenticated": "Not authenticated.",
+        "notPermitted": "Not permitted.",
+        "badProject": "Bad project id."
       }
     },
     "days": "{count, plural, one {# day} other {# days}}",
@@ -725,5 +728,42 @@
       "noEmail": "no email on record"
     },
     "unlinkedNote": "{unlinked} of the {tracked} people on TrackingTime have no Hub sign-in yet, so they cannot see their own hours."
+  },
+  "timeDashboard": {
+    "strip": {
+      "covers": "Every figure covers {period}",
+      "totalHours": {
+        "label": "TOTAL HOURS"
+      },
+      "billable": {
+        "label": "BILLABLE",
+        "sub": "{percent}% of logged",
+        "title": "Show only billable entries"
+      },
+      "nonBillable": {
+        "label": "NON-BILLABLE",
+        "sub": "{percent}% of logged",
+        "title": "Show only non-billable entries"
+      },
+      "people": {
+        "label": "PEOPLE",
+        "sub": "over {days, plural, one {# active day} other {# active days}}",
+        "title": "Distinct people with at least one entry in this selection"
+      },
+      "projects": {
+        "label": "PROJECTS",
+        "sub": "{count, plural, one {# customer} other {# customers}}",
+        "title": "Distinct projects with at least one entry in this selection"
+      },
+      "avgDay": {
+        "label": "AVG / ACTIVE DAY",
+        "sub": "hours per day worked",
+        "title": "Total hours divided by the number of days that actually have entries, not by the length of the period"
+      },
+      "calendarExcluded": {
+        "note": "<mono>{hours}</mono> of calendar time is excluded from these figures.",
+        "include": "<link>Include it</link> to match TrackingTime’s own report."
+      }
+    }
   }
 }

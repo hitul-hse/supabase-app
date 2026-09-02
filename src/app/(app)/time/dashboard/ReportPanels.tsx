@@ -27,6 +27,7 @@ function hrs(h: number): string {
 /* --------------------------------------------------------------- KPI strip */
 
 function Kpi({
+  tile,
   label,
   value,
   sub,
@@ -36,6 +37,12 @@ function Kpi({
   drill,
   drillId,
 }: {
+  /**
+   * The tile's handle for gates and scripts (`data-tile`), always the English
+   * label regardless of locale, so a check that waits for TOTAL HOURS finds it
+   * on the German page too. `label` is what the reader sees.
+   */
+  tile: string;
   label: string;
   value: string;
   sub?: string;
@@ -81,20 +88,20 @@ function Kpi({
   // whether one long day is dragging the average.
   if (href) {
     return (
-      <Link href={href} scroll={false} data-tile={label} title={title} className={interactive}>
+      <Link href={href} scroll={false} data-tile={tile} title={title} className={interactive}>
         {body}
       </Link>
     );
   }
   if (drill) {
     return (
-      <DrillTrigger drill={drill} id={drillId} data-tile={label} className={`${interactive} w-full`}>
+      <DrillTrigger drill={drill} id={drillId} data-tile={tile} className={`${interactive} w-full`}>
         {body}
       </DrillTrigger>
     );
   }
   return (
-    <div className={shell} data-tile={label} title={title}>
+    <div className={shell} data-tile={tile} title={title}>
       {body}
     </div>
   );
@@ -136,7 +143,7 @@ export async function TotalsStrip({
   totals,
   billableHref,
   nonBillableHref,
-  groupLabel,
+  period,
   calendarExcludedSeconds = 0,
   includeCalendarHref,
   drills,
@@ -144,8 +151,8 @@ export async function TotalsStrip({
   totals: Totals;
   billableHref?: string;
   nonBillableHref?: string;
-  /** What "PEOPLE"/"PROJECTS" are counted over, for the tooltip. */
-  groupLabel?: string;
+  /** The date range every figure covers (`from → to`), for the TOTAL HOURS tooltip. */
+  period?: string;
   /**
    * Seconds withheld by the calendar exclusion, 0 when calendar time is already
    * included. Stated next to TOTAL HOURS because the number is large enough
@@ -163,6 +170,9 @@ export async function TotalsStrip({
   drills?: TimeTileDrillData;
 }) {
   const t = await getTranslations("drill");
+  // The strip's own words -- labels, sublines, tooltips -- live under
+  // timeDashboard.strip; the popups they open keep reading `drill`.
+  const s = await getTranslations("timeDashboard.strip");
   // Average over ACTIVE days, not calendar days in the range. Dividing by the
   // full span would report a part-time consultant who works Tuesdays as though
   // they were idle four days a week, which is a different claim entirely.
@@ -188,7 +198,7 @@ export async function TotalsStrip({
    * rows up itself rather than trust this comment.
    */
   const totalHoursDrill: Drill | undefined = drills && {
-    kicker: "TOTAL HOURS",
+    kicker: s("totalHours.label"),
     title: t("time.totalHours.title"),
     headline: hrs(totals.totalHours),
     headlineValue: totals.totalHours,
@@ -198,7 +208,7 @@ export async function TotalsStrip({
     footer: t("time.totalHours.footer"),
   };
   const peopleDrill: Drill | undefined = drills && {
-    kicker: "PEOPLE",
+    kicker: s("people.label"),
     title: t("time.people.title"),
     headline: String(totals.memberCount),
     headlineValue: totals.memberCount,
@@ -208,12 +218,12 @@ export async function TotalsStrip({
     footer: t("time.people.footer"),
   };
   const projectsDrill: Drill | undefined = drills && {
-    kicker: "PROJECTS",
+    kicker: s("projects.label"),
     title: t("time.projects.title"),
     headline: String(totals.projectCount),
     headlineValue: totals.projectCount,
     check: "count",
-    subline: `${totals.customerCount} ${totals.customerCount === 1 ? "customer" : "customers"}`,
+    subline: s("projects.sub", { count: totals.customerCount }),
     rows: drills.byProject
       .filter((d) => d.id !== null)
       .map((d) => hoursRow(d, noProject, billableLabel)),
@@ -222,7 +232,7 @@ export async function TotalsStrip({
   const avgDayDrill: Drill | undefined =
     drills && perDay !== null
       ? {
-          kicker: "AVG / ACTIVE DAY",
+          kicker: s("avgDay.label"),
           title: t("time.avgDay.title"),
           headline: hrs(Math.round(perDay * 10) / 10),
           headlineValue: perDay,
@@ -244,49 +254,55 @@ export async function TotalsStrip({
     <>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <Kpi
-        label="TOTAL HOURS"
+        tile="TOTAL HOURS"
+        label={s("totalHours.label")}
         value={hrs(totals.totalHours)}
-        sub={`${totals.entryCount.toLocaleString("en-GB")} entries`}
+        sub={t("entries", { count: totals.entryCount })}
         strong
-        title={groupLabel}
+        title={period ? s("covers", { period }) : undefined}
         drill={totalHoursDrill}
         drillId="time-total-hours"
       />
       <Kpi
-        label="BILLABLE"
+        tile="BILLABLE"
+        label={s("billable.label")}
         value={hrs(totals.billableHours)}
-        sub={totals.billablePercent === null ? "—" : `${totals.billablePercent}% of logged`}
+        sub={totals.billablePercent === null ? "—" : s("billable.sub", { percent: totals.billablePercent })}
         href={billableHref}
-        title="Show only billable entries"
+        title={s("billable.title")}
       />
       <Kpi
-        label="NON-BILLABLE"
+        tile="NON-BILLABLE"
+        label={s("nonBillable.label")}
         value={hrs(nonBillableHours)}
-        sub={totals.billablePercent === null ? "—" : `${100 - totals.billablePercent}% of logged`}
+        sub={totals.billablePercent === null ? "—" : s("nonBillable.sub", { percent: 100 - totals.billablePercent })}
         href={nonBillableHref}
-        title="Show only non-billable entries"
+        title={s("nonBillable.title")}
       />
       <Kpi
-        label="PEOPLE"
+        tile="PEOPLE"
+        label={s("people.label")}
         value={String(totals.memberCount)}
-        sub={`over ${totals.activeDays} active ${totals.activeDays === 1 ? "day" : "days"}`}
-        title="Distinct people with at least one entry in this selection"
+        sub={s("people.sub", { days: totals.activeDays })}
+        title={s("people.title")}
         drill={peopleDrill}
         drillId="time-people"
       />
       <Kpi
-        label="PROJECTS"
+        tile="PROJECTS"
+        label={s("projects.label")}
         value={String(totals.projectCount)}
-        sub={`${totals.customerCount} ${totals.customerCount === 1 ? "customer" : "customers"}`}
-        title="Distinct projects with at least one entry in this selection"
+        sub={s("projects.sub", { count: totals.customerCount })}
+        title={s("projects.title")}
         drill={projectsDrill}
         drillId="time-projects"
       />
       <Kpi
-        label="AVG / ACTIVE DAY"
+        tile="AVG / ACTIVE DAY"
+        label={s("avgDay.label")}
         value={perDay === null ? "—" : hrs(Math.round(perDay * 10) / 10)}
-        sub="hours per day worked"
-        title="Total hours divided by the number of days that actually have entries, not by the length of the period"
+        sub={s("avgDay.sub")}
+        title={s("avgDay.title")}
         drill={avgDayDrill}
         drillId="time-avg-day"
       />
@@ -297,17 +313,23 @@ export async function TotalsStrip({
         absence of a note as "nothing was excluded". */}
     {calendarExcludedHours > 0 && (
       <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-        <span className="font-mono">{hrs(calendarExcludedHours)}</span> of calendar time is excluded
-        from these figures.{" "}
-        {includeCalendarHref ? (
-          <a
-            href={includeCalendarHref}
-            className="text-[var(--accent)] underline-offset-2 hover:underline"
-          >
-            Include it
-          </a>
-        ) : null}{" "}
-        to match TrackingTime&rsquo;s own report.
+        {s.rich("calendarExcluded.note", {
+          hours: hrs(calendarExcludedHours),
+          mono: (chunks) => <span className="font-mono">{chunks}</span>,
+        })}{" "}
+        {s.rich("calendarExcluded.include", {
+          // Without a target there is nothing to include, so the link text is
+          // dropped and the rest of the sentence stays -- as it did before.
+          link: (chunks) =>
+            includeCalendarHref ? (
+              <a
+                href={includeCalendarHref}
+                className="text-[var(--accent)] underline-offset-2 hover:underline"
+              >
+                {chunks}
+              </a>
+            ) : null,
+        })}
       </p>
     )}
     </>

@@ -138,9 +138,18 @@ ok(base.scope.orders === ORDERS, `scope counts all ${ORDERS} orders read`, `got 
   const bad = readLog.filter((c) => c.ordered === null || c.ranges.length === 0);
   ok(bad.length === 0, "every read is ordered before it is ranged",
     bad.map((c) => `${c.table}: ordered=${c.ordered} ranges=${c.ranges.length}`).join(" | "));
-  ok(readLog.every((c) => c.table === "projects"),
-    "the probes read the order book and nothing else",
-    [...new Set(readLog.map((c) => c.table))].join(", "));
+  /*
+   * The read set is pinned, not merely bounded: a probe that quietly starts
+   * reading a new table should fail here and be added deliberately. `people`
+   * joined the set with the Factorial reference probe (audit check E4). The
+   * cross-schema reads (time, projects, crm) never reach `from()` on this
+   * stub, which has no `.schema()`; the module files those probes as
+   * could-not-run instead, which check-data-hygiene-claims pins.
+   */
+  const tables = [...new Set(readLog.map((c) => c.table))].sort();
+  ok(tables.join(",") === "people,projects",
+    "the probes read the order book and the people table, and nothing else",
+    tables.join(", "));
 }
 
 /* The default page size is part of the contract, not just its ceiling. Asserting

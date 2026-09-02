@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { IconArrowRight, IconCheck } from "@/components/nav-icons";
+import { IconArrowRight, IconCheck, IconWarning } from "@/components/nav-icons";
 import { MobileDisclosure } from "@/components/MobileDisclosure";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
@@ -16,6 +16,7 @@ import {
   getDataHygiene,
   type HygieneFinding,
   type SubjectKind,
+  type UnavailableReason,
 } from "@/lib/queries/data-hygiene";
 import { requireProfile } from "@/utils/supabase/require-profile";
 
@@ -53,6 +54,15 @@ export const dynamic = "force-dynamic";
  * There are none. The probes that found nothing are listed by name in a "checks
  * that passed" line instead of getting a panel each. A page of empty panels
  * trains the reader to stop reading.
+ *
+ * CHECKS THAT COULD NOT RUN
+ * -------------------------
+ * A third list, beside findings and clean checks. Four probes ported from the
+ * nightly data audit read tables outside the order book, and two of those live
+ * in schemas ADR-002 §2 keeps out of PostgREST until they carry RLS. A probe
+ * whose read faulted is named here with the reason, because the only two other
+ * places it could go are both lies: in "clean" it is a pass nobody measured, and
+ * absent it is indistinguishable from a check nobody wrote.
  *
  * PAGING, NOT SAMPLING
  * --------------------
@@ -113,6 +123,29 @@ const UNAVAILABLE: Record<string, { qualifier: string; body: string }> = {
       + "hygiene report is worse than none, because it reads as \u201cnothing more to "
       + "fix\u201d. Clearing this needs the probes\u2019 ceiling raised, not a retry.",
   },
+  /* Unreachable for the order book itself, which is in `public`; present so the
+     reason type and this table cannot drift apart. */
+  unexposed: {
+    qualifier: "SCHEMA NOT SERVED",
+    body:
+      "The order book lives in a schema PostgREST does not serve to the app. This "
+      + "is a configuration state, not a permissions fault, and nothing is known "
+      + "about the data either way.",
+  },
+};
+
+/**
+ * Why a single probe did not run, in one clause. Rendered beside the probe's
+ * name in the "could not run" card, so each reason has to say what the READER
+ * should conclude: for `unexposed` that is "expected, see ADR-002", not "go and
+ * check the database".
+ */
+const SKIPPED: Record<UnavailableReason, string> = {
+  denied: "the read was refused or came back empty — this session cannot see the rows",
+  failed: "the read failed; the error is logged server-side",
+  truncated: "more rows than the probes will reason about",
+  unexposed:
+    "the schema is not served by PostgREST — expected until it carries RLS (ADR-002 §2)",
 };
 
 const KIND_STYLE: Record<HygieneFinding["kind"], { label: string; className: string; title: string }> = {
@@ -178,6 +211,7 @@ const SUBJECT: Record<SubjectKind, { one: string; many: string; column: string }
   customer: { one: "customer", many: "customers", column: "CUSTOMER" },
   account: { one: "account", many: "accounts", column: "ACCOUNT NO." },
   group: { one: "duplicate name", many: "duplicate names", column: "ORDER NAME" },
+  person: { one: "person", many: "people", column: "PERSON" },
 };
 
 export default async function DataHygienePage({ searchParams }: { searchParams: SearchParams }) {
@@ -342,6 +376,14 @@ export default async function DataHygienePage({ searchParams }: { searchParams: 
               <span>{hygiene.scope.customers.toLocaleString("en-GB")} CUSTOMER SPELLINGS</span>
               <span>{hygiene.scope.accountNumbers.toLocaleString("en-GB")} LEXWARE ACCOUNTS</span>
               <span>{hygiene.scope.probes} CHECKS RUN</span>
+              {/* Only while there IS one. An unconditional "0 COULD NOT RUN"
+                  would be a line spent reassuring about a state that has no
+                  panel and no card. */}
+              {hygiene.skipped.length > 0 && (
+                <span data-metric="hygiene-skipped">
+                  {hygiene.skipped.length} COULD NOT RUN
+                </span>
+              )}
             </div>
 
             {hygiene.findings.length > 0 && (
@@ -450,6 +492,36 @@ export default async function DataHygienePage({ searchParams }: { searchParams: 
                           test:design-system enforces it. */}
                       <IconCheck className="h-3 w-3 flex-none text-[var(--good)]" />
                       {title}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            {/* The third outcome. Named with its reason, so a probe whose table
+                this session cannot read is neither counted clean nor missing
+                from the report without trace. Not `role="alert"`: for the
+                schemas ADR-002 keeps unexposed this is the expected state. */}
+            {hygiene.skipped.length > 0 && (
+              <Card>
+                <CardHeader
+                  title="Checks that could not run"
+                  qualifier={`${hygiene.skipped.length} NOT RUN`}
+                />
+                <ul className="flex flex-col gap-1 px-4 pb-4">
+                  {hygiene.skipped.map((probe) => (
+                    <li
+                      key={probe.key}
+                      data-hygiene-skipped={probe.key}
+                      className="flex items-start gap-1.5 text-[12px] text-[var(--text-faint)]"
+                    >
+                      <IconWarning className="mt-0.5 h-3 w-3 flex-none text-[var(--warning)]" />
+                      <span className="min-w-0">
+                        <span className="text-[var(--text-secondary)]">{probe.title}</span>
+                        <span className="block font-mono text-[10px] tracking-[0.02em]">
+                          {probe.source}: {SKIPPED[probe.reason]}
+                        </span>
+                      </span>
                     </li>
                   ))}
                 </ul>

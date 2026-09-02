@@ -217,6 +217,35 @@ ok(!h.unavailable, "the fixture produces a report");
     + "that a check ran and passed, which is precisely what did not happen");
 }
 
+/* ------------- a probe that cannot read its table is never "clean" -------- */
+
+/*
+ * The four audit-ported probes read tables outside the order book, through
+ * schemas this stub client cannot address. The only honest outcome for them
+ * here is "could not run": in `clean` they would be four passes nobody
+ * measured, and as findings they would be counting rows that were never read.
+ * ADR-002 §2 makes this the LIVE state of two of them today, so the fixture
+ * pins the shape the page actually shows an exec.
+ */
+{
+  const { AUDIT_PROBES } = await import("../src/lib/queries/data-hygiene.ts");
+  const keys = Object.keys(AUDIT_PROBES);
+  const skipped = new Map((h.skipped ?? []).map((s) => [s.key, s]));
+  const notSkipped = keys.filter((k) => !skipped.has(k));
+  ok(notSkipped.length === 0,
+    "a client that cannot address the other schemas files every audit probe as could-not-run",
+    `${notSkipped.join(", ")} — reported as ${notSkipped.map((k) => (h.clean.includes(AUDIT_PROBES[k]) ? "clean" : "a finding")).join(", ")}`);
+  const wrongReason = [...skipped.values()].filter((s) => s.reason !== "unexposed");
+  ok(wrongReason.length === 0,
+    "the reason is that the schema is unreachable, not an outage or a permissions fault",
+    wrongReason.map((s) => `${s.key}: ${s.reason}`).join(" | "));
+  const leaked = keys.filter((k) => h.clean.includes(AUDIT_PROBES[k]));
+  ok(leaked.length === 0, "no could-not-run probe leaks into the clean list", leaked.join(", "));
+  ok(h.scope.probes === h.findings.length + h.clean.length,
+    "CHECKS RUN counts only probes that ran",
+    `probes=${h.scope.probes}, findings=${h.findings.length}, clean=${h.clean.length}, skipped=${skipped.size}`);
+}
+
 console.log(failures === 0
   ? "\nHYGIENE CLAIMS ARE EARNED: identity verdicts match their evidence, no defect is double-reported, no headline understates"
   : `\n${failures} claim check(s) failed`);

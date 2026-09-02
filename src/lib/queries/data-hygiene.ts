@@ -11,6 +11,17 @@
  * module does not make; they are listed in the audit script and are the obvious
  * next additions, NOT checks that were considered and dismissed.
  *
+ * FOUR MORE come from the rig's nightly data audit (~/.data-audit/checks, first
+ * run 1 Sep 2026): checks A, B, D3 and E4, ported with the audit's own pairing
+ * rules so the panel and the audit's markdown report state the same figure. They
+ * read `time.project`, `time.project_summary`, `projects.project_order`,
+ * `crm.legal_entity`, `crm.factorial_person_reference` and `people` beside the
+ * order book. A supporting read that fails does NOT take the report down and
+ * does NOT render as clean: the probe is listed as one that COULD NOT RUN, with
+ * the reason. Today that is the state of D3 and E4 -- ADR-002 §2 keeps the `crm`
+ * and `projects` schemas out of PostgREST until they carry RLS, so the exec's
+ * own client cannot read them and the page says so rather than guessing.
+ *
  * Two kinds of finding, kept visually distinct because they demand different
  * responses:
  *
@@ -49,8 +60,17 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { fetchAllPaged } from "./paged";
 
 type SupabaseTyped = SupabaseClient<Database>;
+
+/**
+ * The generated types cover public only. The other schemas are read through the
+ * same typed server client, exactly as management-data-quality.ts does, and never
+ * written to from here.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const schema = (supabase: SupabaseTyped, name: string) => (supabase as any).schema(name);
 
 /** How a finding was established. Drives the badge and the wording. */
 export type FindingKind = "exact" | "heuristic";
@@ -62,7 +82,7 @@ export type FindingKind = "exact" | "heuristic";
  * would be meaningless. `group` is a cluster of orders (a repeated order name),
  * which is why it counts towards neither.
  */
-export type SubjectKind = "order" | "customer" | "account" | "group";
+export type SubjectKind = "order" | "customer" | "account" | "group" | "person";
 
 /**
  * A column of a finding's table, beyond the subject.
@@ -216,12 +236,37 @@ export type UnavailableReason =
   /** The read threw. The message is logged server-side, never rendered. */
   | "failed"
   /** More rows came back than the probes are willing to reason about. */
-  | "truncated";
+  | "truncated"
+  /**
+   * The table lives in a schema PostgREST does not serve to the app at all
+   * (406 PGRST106). Not a permissions fault and not an outage: ADR-002 §2 keeps
+   * `crm` and `projects` unexposed until they carry RLS, so this is the expected
+   * state of any probe that needs them, and it must read as "not run" rather
+   * than as either of the other two.
+   */
+  | "unexposed";
+
+/**
+ * A probe that could not run, and why. The third outcome beside a finding and a
+ * clean check. A supporting read that faults must land HERE: routed to `clean`
+ * it would be a clean bill of health for a table nobody read, and taking the
+ * whole report down for it would hide eight working probes behind one that
+ * ADR-002 says cannot work yet.
+ */
+export type HygieneSkipped = {
+  key: string;
+  title: string;
+  reason: UnavailableReason;
+  /** The read that faulted, as `schema.table`, so the reader knows which one. */
+  source: string;
+};
 
 export type DataHygiene = {
   findings: HygieneFinding[];
   /** Probes that ran and found nothing. Named, so "clean" is visible evidence. */
   clean: string[];
+  /** Probes that could not run. Named, so a missing panel is never read as clean. */
+  skipped: HygieneSkipped[];
   scope: HygieneScope;
   checkedAt: string;
   /** True when no report could be produced. See `unavailableReason` for why. */
@@ -232,6 +277,22 @@ export type DataHygiene = {
 
 /** Per-finding page numbers, keyed by finding key. 1-based; missing means 1. */
 export type HygienePages = Record<string, number>;
+
+/**
+ * The four probes ported from the nightly audit, by key and title.
+ *
+ * Exported because `clean` lists probes by TITLE, and a gate that wants to
+ * prove "this probe ran and found nothing" needs the title for a key without
+ * restating it -- a restated title drifts, and then the gate infers "clean"
+ * from absence, which is exactly the inference a silently missing probe would
+ * pass. check-data-hygiene-audit-findings reads these.
+ */
+export const AUDIT_PROBES = {
+  unlinked_hub_project: "Orders no TrackingTime project points at",
+  budget_disagreement: "Contracted hours disagree with the TrackingTime budget",
+  customer_master_drift: "Order filed under two different customers",
+  factorial_reference_mismatch: "Factorial reference disagrees with the person's profile",
+} as const;
 
 export type HygieneOptions = {
   /**
@@ -324,12 +385,87 @@ const NAME_STOP = new Set([
 
 type ProjectRow = {
   id: string;
+  /** The order number `projects.project_order.order_number` joins on. */
+  code: string | null;
   name: string | null;
   customer: string | null;
   customer_legal_entity_id: string | null;
   owner_person_id: string | null;
   contract_hours: number | null;
 };
+
+/**
+ * One supporting read: its rows, or the reason it produced none.
+ *
+ * `fault` is a discriminant, so `if (x.fault)` narrows to the failed shape and
+ * the success branch sees `rows: T[]` without an assertion.
+ */
+type Support<T> =
+  | { rows: T[]; fault: null; message: null }
+  | { rows: null; fault: UnavailableReason; message: string };
+
+/**
+ * What kind of fault a thrown read was. PGRST106 is checked FIRST: its message
+ * does not mention permissions, but a schema PostgREST refuses to name is a
+ * configuration state (ADR-002 §2), and reporting it as "the read failed" would
+ * send somebody to look for an outage that is not there.
+ */
+const classifyFault = (message: string): UnavailableReason => {
+  if (/PGRST106|schemas are exposed|invalid schema/i.test(message)) return "unexposed";
+  if (/permission|denied|rls|jwt|not authorized|row-level/i.test(message)) return "denied";
+  return "failed";
+};
+
+/**
+ * Read a supporting table fully, or say why it could not be read.
+ *
+ * `.order()` before `.range()` on every page (house rule), batches in parallel
+ * via fetchAllPaged. An EMPTY read is a fault, not a result, for the same reason
+ * the order book's is: RLS filters rows rather than raising, and none of these
+ * tables is legitimately empty in this company -- an empty `time.project` would
+ * make every order "unlinked" and an empty reference table would make the
+ * Factorial check "clean", both of them lies told in the reassuring direction.
+ */
+async function readSupport<T>(
+  supabase: SupabaseTyped,
+  schemaName: string,
+  table: string,
+  columns: string,
+  orderBy: string,
+): Promise<Support<T>> {
+  const source = `${schemaName}.${table}`;
+  /*
+   * A client with no `.schema()` cannot address anything outside `public` --
+   * the fixture stub the gates drive is one. That is the same state as a schema
+   * PostgREST does not serve, seen from the client's side, and it is filed the
+   * same way rather than as an outage: nothing failed, nothing is logged, the
+   * probe simply cannot run through this client.
+   */
+  if (schemaName !== "public" && typeof (supabase as { schema?: unknown }).schema !== "function") {
+    return { rows: null, fault: "unexposed", message: `${source}: client cannot address schema ${schemaName}` };
+  }
+  try {
+    const client = schemaName === "public"
+      ? (supabase as never as SupabaseClient)
+      : schema(supabase, schemaName);
+    const res = await fetchAllPaged<T>((from, to) =>
+      client.from(table).select(columns).order(orderBy).range(from, to));
+    if (res.truncated) {
+      return { rows: null, fault: "truncated", message: `${source}: more rows than the probes will reason about` };
+    }
+    if (res.rows.length === 0) {
+      return { rows: null, fault: "denied", message: `${source}: empty read` };
+    }
+    return { rows: res.rows, fault: null, message: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { rows: null, fault: classifyFault(message), message: `${source}: ${message}` };
+  }
+}
+
+/** Hours to one decimal, or an em dash for a figure nobody entered. */
+const hoursCell = (v: number | string | null | undefined) =>
+  v === null || v === undefined ? "\u2014" : Number(v).toFixed(1);
 
 /** An empty scope, for the paths that return before anything is measured. */
 const NO_SCOPE: HygieneScope = {
@@ -364,14 +500,14 @@ export async function getDataHygiene(
     const res = await readAll<ProjectRow>(
       supabase,
       "projects",
-      "id, name, customer, customer_legal_entity_id, owner_person_id, contract_hours",
+      "id, code, name, customer, customer_legal_entity_id, owner_person_id, contract_hours",
       "id",
     );
     projects = res.rows;
     if (res.truncated) {
       // Refuse to report on a partial read rather than understate the problem.
       return {
-        findings: [], clean: [], scope: NO_SCOPE, checkedAt,
+        findings: [], clean: [], skipped: [], scope: NO_SCOPE, checkedAt,
         unavailable: true, unavailableReason: "truncated",
       };
     }
@@ -394,7 +530,7 @@ export async function getDataHygiene(
      */
     if (projects.length === 0) {
       return {
-        findings: [], clean: [], scope: NO_SCOPE, checkedAt,
+        findings: [], clean: [], skipped: [], scope: NO_SCOPE, checkedAt,
         unavailable: true, unavailableReason: "denied",
       };
     }
@@ -414,7 +550,7 @@ export async function getDataHygiene(
     const denied = /permission|denied|rls|jwt|not authorized|row-level/i.test(message);
     if (!denied) console.error("[data-hygiene] probe read failed:", message);
     return {
-      findings: [], clean: [], scope: NO_SCOPE, checkedAt,
+      findings: [], clean: [], skipped: [], scope: NO_SCOPE, checkedAt,
       unavailable: true, unavailableReason: denied ? "denied" : "failed",
     };
   }
@@ -1103,6 +1239,386 @@ export async function getDataHygiene(
     });
   }
 
+  /* ------------- 9-12. the nightly audit's findings, ported (A, B, D3, E4) --- */
+
+  /*
+   * Six supporting reads, in parallel, each returning rows OR a fault. A probe
+   * whose read faulted is recorded in `skipped` with the reason and never
+   * reaches `clean`. Failures that are neither RLS nor an unexposed schema are
+   * logged once here, so an outage leaves evidence somewhere.
+   */
+  type TimeProjectRow = { id: number | string; hub_project_id: string | null };
+  type SummaryRow = { project_id: number | string; estimated_hours: number | string | null };
+  type OrderRow = { order_number: string | null; legal_entity_id: string | null };
+  type EntityRow = { id: string; legal_name: string | null };
+  type ReferenceRow = { id: number | string; person_id: string | null; external_id: string | null };
+  type PersonRow = { id: string; name: string | null; factorial_employee_id: string | null };
+
+  const [timeProjects, summaries, orders, entities, references, people] = await Promise.all([
+    readSupport<TimeProjectRow>(supabase, "time", "project", "id, hub_project_id", "id"),
+    readSupport<SummaryRow>(supabase, "time", "project_summary", "project_id, estimated_hours", "project_id"),
+    readSupport<OrderRow>(supabase, "projects", "project_order", "order_number, legal_entity_id", "order_number"),
+    readSupport<EntityRow>(supabase, "crm", "legal_entity", "id, legal_name", "id"),
+    readSupport<ReferenceRow>(supabase, "crm", "factorial_person_reference", "id, person_id, external_id", "id"),
+    readSupport<PersonRow>(supabase, "public", "people", "id, name, factorial_employee_id", "id"),
+  ]);
+  {
+    const outages = [timeProjects, summaries, orders, entities, references, people]
+      .filter((s) => s.fault === "failed")
+      .map((s) => s.message);
+    if (outages.length) console.error("[data-hygiene] supporting read failed:", outages.join(" | "));
+  }
+
+  const skipped: HygieneSkipped[] = [];
+  /** Record a probe as not run because `source` faulted. */
+  const skip = (key: string, title: string, source: string, reason: UnavailableReason) =>
+    skipped.push({ key, title, reason, source });
+
+  /* ------------------ 9. hub orders no TrackingTime project points at ----- */
+
+  {
+    const title = AUDIT_PROBES.unlinked_hub_project;
+    if (timeProjects.fault) {
+      skip("unlinked_hub_project", title, "time.project", timeProjects.fault);
+    } else {
+      /*
+       * Audit check A, bucket `unlinked`. The ONLY link between an order and
+       * its TrackingTime hours is time.project.hub_project_id (the reference
+       * table crm.trackingtime_project_reference is empty), so an order nothing
+       * points at can never receive a logged hour: its contracted hours sit in
+       * "Nicht zugeordnet" on every management view for the life of the order.
+       */
+      const linked = new Set<string>();
+      for (const t of timeProjects.rows) if (t.hub_project_id) linked.add(t.hub_project_id);
+      const unlinked = projects.filter((p) => !linked.has(p.id));
+      const rows: HygieneRow[] = unlinked.map((p) => ({
+        id: p.id,
+        subject: p.id,
+        detail:
+          `${(p.customer ?? "unknown customer").trim()} — ${(p.name ?? "").trim() || "(unnamed)"}: `
+          + "no TrackingTime project links to this order",
+        href: null,
+        cells: {
+          orderName: (p.name ?? "").trim() === "" ? "(unnamed)" : (p.name ?? "").trim(),
+          customer: (p.customer ?? "unknown customer").trim(),
+          contracted: hoursCell(p.contract_hours),
+        },
+        // Contracted hours with no way to ever burn them is the costly case; an
+        // unlinked order with no figure is only unlinked.
+        severe: Number(p.contract_hours ?? 0) > 0,
+      }));
+      rows.sort(
+        (a, b) => Number(b.severe) - Number(a.severe)
+          || Number(b.cells.contracted === "—" ? 0 : b.cells.contracted)
+            - Number(a.cells.contracted === "—" ? 0 : a.cells.contracted)
+          || a.subject.localeCompare(b.subject),
+      );
+      // Floored at 0, as in probe 6: a negative must not cancel real hours.
+      const stranded = unlinked.reduce(
+        (sum, p) => sum + Math.max(0, Number(p.contract_hours ?? 0) || 0), 0);
+      record({
+        key: "unlinked_hub_project",
+        title,
+        kind: "exact",
+        subjectKind: "order",
+        action:
+          "No hours can reach these orders, so their burn is 0% for ever and their "
+          + "contracted hours land in “not assigned” on every management view. "
+          + "Link the TrackingTime project to the order by its exact id — never by "
+          + "name — or close the order if no work is tracked against it.",
+        method:
+          "Every order in the book checked for at least one time.project row whose "
+          + "hub_project_id equals the order id. None is the finding. This is the "
+          + "audit's check A; name-based suspicions are deliberately not used, "
+          + "because the link itself is the thing that must be exact (ADR-001).",
+        impact:
+          `${shareOfOrders(unlinked.length)} unreachable from TrackingTime · `
+          + `${stranded.toFixed(1)} contracted hours can never receive logged time`,
+        count: unlinked.length,
+        columns: [
+          { key: "orderName", label: "ORDER" },
+          { key: "customer", label: "CUSTOMER" },
+          { key: "contracted", label: "HOURS", align: "right", mono: true,
+            hint: "Contracted hours on this order. A dash means no figure was ever entered." },
+        ],
+        rows,
+      });
+    }
+  }
+
+  /* --------------- 10. contracted hours vs TrackingTime budget ----------- */
+
+  {
+    const title = AUDIT_PROBES.budget_disagreement;
+    if (timeProjects.fault) {
+      skip("budget_disagreement", title, "time.project", timeProjects.fault);
+    } else if (summaries.fault) {
+      skip("budget_disagreement", title, "time.project_summary", summaries.fault);
+    } else {
+      /*
+       * Audit check B, bucket `mismatch`, with its pairing rule copied rather
+       * than approximated so the panel reproduces the audit's headline:
+       *
+       *   - pair via time.project.hub_project_id, and only TT projects that
+       *     have a project_summary row (the audit's inner join);
+       *   - one hub order with several TT projects compares against the SUM of
+       *     their estimated_hours, and is reported once;
+       *   - "no budget" is 0 on both sides by convention, so a pair where either
+       *     side is not > 0 is a MISSING budget, not a disagreement, and is
+       *     counted but not listed (see `method`);
+       *   - the difference is rounded to 0.01 h first, and anything under 0.05 h
+       *     is agreement.
+       */
+      const EPS = 0.05;
+      const estimateByTt = new Map<string, number | null>();
+      for (const s of summaries.rows) {
+        estimateByTt.set(
+          String(s.project_id),
+          s.estimated_hours === null || s.estimated_hours === undefined ? null : Number(s.estimated_hours),
+        );
+      }
+      const estimatesByHub = new Map<string, (number | null)[]>();
+      for (const t of timeProjects.rows) {
+        if (!t.hub_project_id || !estimateByTt.has(String(t.id))) continue;
+        if (!estimatesByHub.has(t.hub_project_id)) estimatesByHub.set(t.hub_project_id, []);
+        estimatesByHub.get(t.hub_project_id)!.push(estimateByTt.get(String(t.id))!);
+      }
+      const rows: HygieneRow[] = [];
+      let paired = 0;
+      let oneSided = 0;
+      let disputed = 0;
+      for (const p of projects) {
+        const estimates = estimatesByHub.get(p.id);
+        if (!estimates) continue;
+        paired += 1;
+        const n = estimates.length;
+        const sum = estimates.reduce<number>((s, e) => s + (e ?? 0), 0);
+        const tt = n > 1 ? sum : (estimates[0] ?? 0);
+        const contract = Number(p.contract_hours ?? 0);
+        const delta = Math.round((tt - contract) * 100) / 100;
+        if (!(tt > 0) || !(contract > 0)) {
+          // Both none is nothing to say; one side none is a missing budget.
+          if (tt > 0 || contract > 0) oneSided += 1;
+          continue;
+        }
+        if (Math.abs(delta) < EPS) continue;
+        disputed += Math.abs(delta);
+        const signed = `${delta > 0 ? "+" : "-"}${Math.abs(delta).toFixed(1)}`;
+        rows.push({
+          id: p.id,
+          subject: p.id,
+          detail:
+            `${(p.customer ?? "unknown customer").trim()} — contract ${contract.toFixed(1)} h, `
+            + `TrackingTime ${tt.toFixed(1)} h (${signed} h across ${n} TT ${n === 1 ? "project" : "projects"})`,
+          href: null,
+          cells: {
+            customer: (p.customer ?? "unknown customer").trim(),
+            contract: contract.toFixed(1),
+            tracked: tt.toFixed(1),
+            difference: signed,
+            ttProjects: String(n),
+          },
+          // The audit's own "high" threshold: a hundred hours apart is a
+          // different contract, not a rounding.
+          severe: Math.abs(delta) >= 100,
+        });
+      }
+      rows.sort(
+        (a, b) => Math.abs(Number(b.cells.difference)) - Math.abs(Number(a.cells.difference))
+          || a.subject.localeCompare(b.subject),
+      );
+      record({
+        key: "budget_disagreement",
+        title,
+        kind: "heuristic",
+        subjectKind: "order",
+        action:
+          "Both systems claim to know the ceiling for these orders and they differ, so "
+          + "burn in TrackingTime and consumed-percent in the hub read against different "
+          + "denominators. Decide which figure is the contract, then correct the other "
+          + "at its source — the workbook for the hub, TrackingTime for the estimate.",
+        method:
+          "Orders paired with their TrackingTime projects by time.project.hub_project_id "
+          + "(audit check B). One order with several TT projects is compared against the "
+          + "SUM of their estimates and listed once. Listed only when BOTH sides are above "
+          + "zero and differ by 0.05 h or more. One-sided budgets are NOT listed here: 0 "
+          + "means “no budget set” on both sides by convention, so a figure on one "
+          + "side only is a missing budget with a mechanical fix (enter it), not two "
+          + "figures in dispute.",
+        impact:
+          `${rows.length} of ${paired} paired orders disagree · `
+          + `${disputed.toFixed(1)} h in dispute (sum of |difference|) · `
+          + `${oneSided} one-sided ${oneSided === 1 ? "budget" : "budgets"} not listed`,
+        count: rows.length,
+        columns: [
+          { key: "customer", label: "CUSTOMER" },
+          { key: "contract", label: "CONTRACT", align: "right", mono: true,
+            hint: "Contracted hours on the hub order." },
+          { key: "tracked", label: "TT", align: "right", mono: true,
+            hint: "estimated_hours of the linked TrackingTime project, summed when there are several." },
+          { key: "difference", label: "DIFF", align: "right", mono: true,
+            hint: "TrackingTime minus contract, in hours. Positive means TrackingTime allows more." },
+          { key: "ttProjects", label: "TT PROJ.", align: "right", mono: true, secondary: true,
+            hint: "How many TrackingTime projects point at this order." },
+        ],
+        rows,
+      });
+    }
+  }
+
+  /* ------------ 11. the customer master disagrees with itself ------------ */
+
+  {
+    const title = AUDIT_PROBES.customer_master_drift;
+    if (orders.fault) {
+      skip("customer_master_drift", title, "projects.project_order", orders.fault);
+    } else if (entities.fault) {
+      skip("customer_master_drift", title, "crm.legal_entity", entities.fault);
+    } else {
+      /*
+       * Audit check D3. public.projects.customer_legal_entity_id and
+       * projects.project_order.legal_entity_id describe the same order, joined
+       * on project_order.order_number = projects.code, and the management
+       * matrix keys on one while the projects list keys on the other -- so the
+       * order lands under a different customer depending on the page.
+       *
+       * The disagreement is proven by key; WHICH side is right is not, so the
+       * panel is filed as worth-a-look. Rows where both sides are set and
+       * differ are the serious ones (two real customers claim one order);
+       * a null on one side is a link somebody has yet to make.
+       */
+      const orderEntity = new Map<string, string | null>();
+      for (const o of orders.rows) if (o.order_number) orderEntity.set(o.order_number, o.legal_entity_id);
+      const entityName = new Map<string, string>();
+      for (const e of entities.rows) entityName.set(e.id, (e.legal_name ?? "").trim() || e.id);
+      const nameOf = (id: string | null) => (id ? entityName.get(id) ?? id : "(not linked)");
+
+      const rows: HygieneRow[] = [];
+      let hours = 0;
+      for (const p of projects) {
+        if (!p.code || !orderEntity.has(p.code)) continue;
+        const projectSide = p.customer_legal_entity_id ?? null;
+        const orderSide = orderEntity.get(p.code) ?? null;
+        if (projectSide === orderSide) continue;
+        hours += Math.max(0, Number(p.contract_hours ?? 0) || 0);
+        rows.push({
+          id: p.id,
+          subject: p.id,
+          detail: `project side ${nameOf(projectSide)}, order side ${nameOf(orderSide)}`,
+          href: null,
+          cells: {
+            projectEntity: nameOf(projectSide),
+            orderEntity: nameOf(orderSide),
+            contracted: hoursCell(p.contract_hours),
+          },
+          severe: Boolean(projectSide && orderSide),
+        });
+      }
+      rows.sort(
+        (a, b) => Number(b.severe) - Number(a.severe)
+          || Number(b.cells.contracted === "—" ? 0 : b.cells.contracted)
+            - Number(a.cells.contracted === "—" ? 0 : a.cells.contracted)
+          || a.subject.localeCompare(b.subject),
+      );
+      const bothSet = rows.filter((r) => r.severe).length;
+      record({
+        key: "customer_master_drift",
+        title,
+        kind: "heuristic",
+        subjectKind: "order",
+        action:
+          "Barred rows name two real customers for one order, and a human has to say "
+          + "which is the contract partner before either record is touched. Rows with "
+          + "one side not linked are a link waiting to be made — copy the known side "
+          + "across in the customer master, never by name similarity.",
+        method:
+          "public.projects.customer_legal_entity_id compared with "
+          + "projects.project_order.legal_entity_id for the same order number "
+          + "(audit check D3). Any difference, including a null on one side, is the "
+          + "finding. Names are shown for reading only; the comparison is on ids.",
+        impact:
+          `${shareOfOrders(rows.length)} filed under two customers · `
+          + `${hours.toFixed(1)} contracted hours · ${bothSet} with both sides set`,
+        count: rows.length,
+        columns: [
+          { key: "projectEntity", label: "PROJECT SIDE",
+            hint: "The legal entity public.projects links to." },
+          { key: "orderEntity", label: "ORDER SIDE",
+            hint: "The legal entity projects.project_order links to." },
+          { key: "contracted", label: "HOURS", align: "right", mono: true,
+            hint: "Contracted hours on this order. A dash means no figure was ever entered." },
+        ],
+        rows,
+      });
+    }
+  }
+
+  /* --------- 12. Factorial id stored twice for one person, differently ---- */
+
+  {
+    const title = AUDIT_PROBES.factorial_reference_mismatch;
+    if (references.fault) {
+      skip("factorial_reference_mismatch", title, "crm.factorial_person_reference", references.fault);
+    } else if (people.fault) {
+      skip("factorial_reference_mismatch", title, "public.people", people.fault);
+    } else {
+      /*
+       * Audit check E4. crm.factorial_person_reference.external_id and
+       * public.people.factorial_employee_id both store the Factorial employee
+       * id for one person. Backfilled on 2 Sep 2026, so this is expected to be
+       * clean -- and it stays listed as a check that ran, because "clean today"
+       * is only evidence while somebody keeps looking.
+       */
+      const personById = new Map<string, PersonRow>();
+      for (const p of people.rows) personById.set(p.id, p);
+      const rows: HygieneRow[] = [];
+      for (const r of references.rows) {
+        const person = r.person_id ? personById.get(r.person_id) : undefined;
+        const profileId = person?.factorial_employee_id ?? null;
+        const referenceId = r.external_id ?? null;
+        if (r.person_id && profileId === referenceId) continue;
+        rows.push({
+          id: `ref-${r.id}`,
+          subject: person?.name?.trim() || (r.person_id ? `person ${r.person_id}` : "(no person linked)"),
+          detail: `reference says ${referenceId ?? "(empty)"}, profile says ${profileId ?? "(empty)"}`,
+          href: null,
+          cells: {
+            reference: referenceId ?? "(empty)",
+            profile: profileId ?? "(empty)",
+          },
+          // Two different ids is worse than one missing: it is two different
+          // employees' records reaching one person.
+          severe: Boolean(referenceId && profileId),
+        });
+      }
+      rows.sort((a, b) => Number(b.severe) - Number(a.severe) || a.subject.localeCompare(b.subject));
+      record({
+        key: "factorial_reference_mismatch",
+        title,
+        kind: "exact",
+        subjectKind: "person",
+        action:
+          "Two places store the Factorial id for one person and they disagree, or one "
+          + "is empty. The reference table is the authority once a human confirms it; "
+          + "backfilling the profile from it is then mechanical.",
+        method:
+          "Every crm.factorial_person_reference row compared, by person_id, with "
+          + "public.people.factorial_employee_id (audit check E4). A missing person, "
+          + "a missing id on either side, or two different ids is the finding.",
+        impact: `${rows.length} of ${references.rows.length} references disagree with the profile`,
+        count: rows.length,
+        columns: [
+          { key: "reference", label: "REFERENCE ID", mono: true,
+            hint: "crm.factorial_person_reference.external_id" },
+          { key: "profile", label: "PROFILE ID", mono: true,
+            hint: "public.people.factorial_employee_id" },
+        ],
+        rows,
+      });
+    }
+  }
+
+
   // Worst first, and heuristics after exact findings of the same size: a reader
   // should meet provable problems before suspicions.
   findings.sort((a, b) => {
@@ -1113,6 +1629,7 @@ export async function getDataHygiene(
   return {
     findings,
     clean,
+    skipped,
     scope: {
       orders: orderCount,
       customers,

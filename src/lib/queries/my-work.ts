@@ -164,7 +164,44 @@ export type MyProject = {
    * never blank and never a guess.
    */
   services: string[];
+  /**
+   * Working links for this project -- the chat room, board or folder the team
+   * actually opens. Imported from the masterdata workbook into
+   * `public.project_link`, which is visible exactly when the project is.
+   *
+   * Usually EMPTY, and that is not a gap: measured on the 2026 workbook, only
+   * 178 order numbers carry any link at all, and most carry one or two. An
+   * absent link means nobody recorded one, which the UI shows by rendering
+   * nothing -- unlike an unmeasured HOUR, there is no figure being withheld, so
+   * "n/a" would overstate the case.
+   */
+  links: MyLink[];
 };
+
+/** One outbound working link on a project. */
+export type MyLink = {
+  kind: "asana" | "google_chat" | "google_drive" | "microsoft_teams" | "trackingtime";
+  url: string;
+  label: string | null;
+};
+
+/** Short chip labels, kept beside the type so the UI cannot invent its own. */
+export const LINK_LABEL: Record<MyLink["kind"], string> = {
+  asana: "ASANA",
+  google_chat: "CHAT",
+  google_drive: "DRIVE",
+  microsoft_teams: "TEAMS",
+  trackingtime: "TT",
+};
+
+/** Stable display order, so a row's chips do not reshuffle between requests. */
+export const LINK_ORDER: MyLink["kind"][] = [
+  "google_chat",
+  "microsoft_teams",
+  "asana",
+  "trackingtime",
+  "google_drive",
+];
 
 export type MyCustomer = {
   /** Canonical entity id, or null when only the text name is known. */
@@ -365,6 +402,14 @@ type ServiceRowLite = {
   service: { name: string | null } | null;
 };
 
+/** One row of public.project_link. */
+type LinkRowLite = {
+  project_id: string | null;
+  kind: string | null;
+  url: string | null;
+  label: string | null;
+};
+
 /*
  * Canonical grouping keys on `projects.customer_legal_entity_id` and NOTHING
  * ELSE. Two measured reasons, either of which alone would be decisive:
@@ -532,6 +577,53 @@ async function fetchMyServices(
 }
 
 /**
+ * Working links for this person's projects.
+ *
+ * `public.project_link` carries a single SELECT policy,
+ * `can_view_project(project_id)` -- the same predicate that scopes the projects
+ * themselves. So this read cannot widen what the page shows, and needs no
+ * permission key of its own: a link is visible exactly when its project is.
+ *
+ * Wrapped in try/catch and degrading to NO links, because losing this table
+ * costs the page a convenience and nothing else -- every project, hour and role
+ * still renders. Contrast `fetchMyProjects`, whose failure is deliberately NOT
+ * caught: losing that one costs the page everything.
+ */
+async function fetchMyLinks(
+  supabase: SupabaseTyped,
+  projectIds: string[],
+): Promise<{ rows: LinkRowLite[]; truncated: boolean }> {
+  if (projectIds.length === 0) return { rows: [], truncated: false };
+
+  try {
+    const rows: LinkRowLite[] = [];
+    let truncated = false;
+    const CHUNK = 200;
+    for (let i = 0; i < projectIds.length; i += CHUNK) {
+      const slice = projectIds.slice(i, i + CHUNK);
+      if (slice.length === 0) continue;
+      const page = await fetchAllPaged<LinkRowLite>(
+        (from, to) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .from("project_link")
+            .select("project_id, kind, url, label")
+            .in("project_id", slice)
+            .order("project_id")
+            .order("kind")
+            .range(from, to),
+        { maxPages: Math.max(1, Math.ceil(slice.length / PAGE) + 1) },
+      );
+      truncated = truncated || page.truncated;
+      rows.push(...page.rows);
+    }
+    return { rows, truncated };
+  } catch {
+    return { rows: [], truncated: false };
+  }
+}
+
+/**
  * Every masterdata responsibility row naming this person.
  *
  * READ-ONLY, and gated by the table's own `can_view_project(project_id)`
@@ -590,6 +682,7 @@ export function assembleMyWork(
   assignments: AssignmentRowLite[],
   responsibilities: ResponsibilityRowLite[] = [],
   services: ServiceRowLite[] = [],
+  links: LinkRowLite[] = [],
   truncated = false,
   /*
    * Defaults to TRUE so that this stays a pure function with its existing
@@ -633,6 +726,23 @@ export function assembleMyWork(
     servicesByProject.set(s.hub_project_id, set);
   }
 
+  // Links per project, in the declared display order so a row's chips do not
+  // reshuffle between requests. An unknown kind from the database is DROPPED
+  // rather than rendered: the check constraint should make it impossible, and a
+  // chip with no label is worse than no chip.
+  const linksByProject = new Map<string, MyLink[]>();
+  for (const l of links) {
+    if (!l.project_id || !l.url || !l.kind) continue;
+    if (!(l.kind in LINK_LABEL)) continue;
+    const kind = l.kind as MyLink["kind"];
+    const list = linksByProject.get(l.project_id) ?? [];
+    list.push({ kind, url: l.url, label: l.label });
+    linksByProject.set(l.project_id, list);
+  }
+  for (const list of linksByProject.values()) {
+    list.sort((a, b) => LINK_ORDER.indexOf(a.kind) - LINK_ORDER.indexOf(b.kind));
+  }
+
   const rows: MyProject[] = [];
   for (const p of projects) {
     const isOwner = p.owner_person_id === personId;
@@ -669,6 +779,7 @@ export function assembleMyWork(
     const entityId = entity?.id ?? p.customer_legal_entity_id ?? null;
     const canonicalName = entity?.legal_name ?? null;
     const projectServices = [...(servicesByProject.get(p.id) ?? [])].sort();
+    const projectLinks = linksByProject.get(p.id) ?? [];
 
     rows.push({
       id: p.id,
@@ -694,6 +805,7 @@ export function assembleMyWork(
           : null,
       dueDate: dueOrNull(p.due),
       services: projectServices,
+      links: projectLinks,
     });
   }
 
@@ -945,9 +1057,10 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
     ];
     // Neither depends on the other -- same round-trip reasoning as the
     // assignments/responsibilities pair above.
-    const [projects, services] = await Promise.all([
+    const [projects, services, links] = await Promise.all([
       fetchMyProjects(supabase, personId, projectIds),
       fetchMyServices(supabase, projectIds),
+      fetchMyLinks(supabase, projectIds),
     ]);
 
     return assembleMyWork(
@@ -957,6 +1070,7 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
       assignments.rows,
       responsibilities.rows,
       services.rows,
+      links.rows,
       assignments.truncated || projects.truncated || responsibilities.truncated || services.truncated,
       canSeeBudgets,
     );

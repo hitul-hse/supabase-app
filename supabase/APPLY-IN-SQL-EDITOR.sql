@@ -284,7 +284,11 @@ comment on function time.contract_period_logged_hours(bigint) is
   'it between periods automatically.';
 
 -- A convenience view for the UI and reports: every period with its burn.
-create or replace view time.contract_period_status as
+-- security_invoker: the caller's own projects:contracts:read policy decides which
+-- periods come back. INLINE on purpose -- a plain `create or replace view` resets
+-- reloptions to null and would un-fix the view every time this file is re-pasted.
+create or replace view time.contract_period_status
+with (security_invoker = true) as
 select
   cp.id,
   cp.project_id,
@@ -683,7 +687,11 @@ grant select, update on public.overbooking_alert to authenticated;
  * Getting this wrong is how "it said it sent" happens. The whole reason this
  * migration exists is that silence looked like success.
  */
-create or replace view public.budget_alert_feed as
+-- security_invoker added 2026-09-03: this file says SAFE TO RE-RUN, and a plain
+-- `create or replace view` resets reloptions to null -- re-pasting it would have
+-- undone 20260825141000_views_must_not_bypass_rls.sql without saying so.
+create or replace view public.budget_alert_feed
+with (security_invoker = true) as
 select
   a.id,
   a.created_at,

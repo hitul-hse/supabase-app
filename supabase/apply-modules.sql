@@ -1109,3 +1109,47 @@ grant all on all tables    in schema time to service_role;
 grant all on all sequences in schema time to service_role;
 alter default privileges in schema time grant all on tables    to service_role;
 alter default privileges in schema time grant all on sequences to service_role;
+
+
+-- 10. anon holds no write-shaped privilege
+-- ---------------------------------------------------------------------------
+-- Deliberately last, for the same reason as section 9: `on all tables in
+-- schema` resolves the list at execution time.
+--
+-- Supabase's stock DEFAULT PRIVILEGES on schema public grant `arwdDxtm` -- ALL
+-- eight privileges, including TRUNCATE and (on 17+) MAINTAIN -- to `anon` at
+-- table-creation time. Measured on production 2026-09-03: 33 of 36 relations
+-- in public carried them, `people` and `weekly_employee_summary` among them.
+--
+-- RLS is not a defence against that. Row-level security is not evaluated for
+-- TRUNCATE, REFERENCES, TRIGGER or MAINTAIN; Postgres checks the table
+-- privilege and executes. Demonstrated in PGlite by
+-- scripts/check-anon-grants-migration.mjs, which truncates an RLS-protected
+-- table as anon and then watches the equivalent DELETE be refused.
+--
+-- Without these four statements a database built from this file is born in the
+-- vulnerable state, which is how the live one got there. Existing databases are
+-- repaired by supabase/migrations/20260903120000_anon_holds_no_write_privileges.sql,
+-- which covers the module schemas too; only public exists at this point in the
+-- file, so only public is named here.
+--
+-- SELECT is deliberately kept: the goal is removing writes nothing uses, not
+-- reads something might. `anon` reads nothing in practice --
+-- scripts/check-no-anonymous-read.mjs proves that behaviourally, through RLS,
+-- with a live unauthenticated HTTP request against every relation.
+
+revoke insert, update, delete, truncate, references, trigger
+  on all tables in schema public from anon;
+alter default privileges in schema public
+  revoke insert, update, delete, truncate, references, trigger on tables from anon;
+
+-- MAINTAIN is PostgreSQL 17+ and does not parse at all before it.
+do $$ begin
+  if current_setting('server_version_num')::int >= 170000 then
+    execute 'revoke maintain on all tables in schema public from anon';
+    execute 'alter default privileges in schema public revoke maintain on tables from anon';
+  end if;
+end $$;
+
+revoke update on all sequences in schema public from anon;
+alter default privileges in schema public revoke update on sequences from anon;

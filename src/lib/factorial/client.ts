@@ -28,11 +28,27 @@ import "server-only";
 
 const BASE = "https://api.factorialhr.com/api/2026-07-01";
 
-/** The ONLY employee fields this feature is allowed to carry. */
+/**
+ * The ONLY employee fields this feature is allowed to carry.
+ *
+ * `email` was removed on 2026-09-03. Two reasons, and both matter:
+ *
+ *  - MINIMISATION. Factorial's `email` field is the employee's PERSONAL address
+ *    (measured on the live roster: 3 of 43 employees carry a private
+ *    yahoo/outlook/gmail address there while `login_email` holds the work one).
+ *    Nothing on this page needs it, and Art. 5(1)(c) says a field nothing needs
+ *    is a field we do not carry.
+ *
+ *  - ADR-001. While it existed, src/lib/queries/factorial-hours.ts keyed its
+ *    identity join on it and then fell back to display_name equality when it
+ *    missed — which it did, precisely for the people whose personal address is
+ *    not their work address. Identity now resolves through
+ *    crm.factorial_person_reference on the employee id; there is deliberately no
+ *    email in this type for a future join to reach for.
+ */
 export type FactorialPerson = {
   factorialId: string;
   fullName: string;
-  email: string | null;
   active: boolean;
 };
 
@@ -103,7 +119,6 @@ export async function fetchFactorialPeople(): Promise<FactorialPerson[]> {
       out.push({
         factorialId: String(row.id),
         fullName: String(row.full_name ?? `${row.first_name ?? ""} ${row.last_name ?? ""}`).trim(),
-        email: row.email ? String(row.email).toLowerCase().trim() : null,
         active: row.active === true,
       });
     }

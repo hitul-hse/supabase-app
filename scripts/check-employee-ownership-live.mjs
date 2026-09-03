@@ -42,8 +42,20 @@ async function compile(srcPath, outName, rewrites = {}) {
 // Stubs for the app-only imports.
 const serverOnly = join(dir, "server-only.cjs");
 writeFileSync(serverOnly, "module.exports = {};");
+// The query layer asks src/lib/budget-visibility.ts whether the caller may see
+// project budgets before it selects a budget column. Compiled for real rather
+// than stubbed: its only runtime import is the constant map in
+// @/lib/permissions, so it pulls in no Supabase client, and a stub would let a
+// broken gate pass here.
+const budgetVisibilityFile = await compile(
+  "src/lib/budget-visibility.ts",
+  "budget-visibility.cjs",
+  { "@/lib/permissions": posix(await compile("src/lib/permissions.ts", "permissions.cjs")) },
+);
+
 const pagedFile = await compile("src/lib/queries/paged.ts", "paged.cjs");
 const contractFile = await compile("src/lib/queries/management-contract-hours.ts", "contract.cjs", {
+  "@/lib/budget-visibility": posix(budgetVisibilityFile),
   "@/lib/database.types": posix(serverOnly),
   "@/lib/queries/paged": posix(pagedFile),
   "server-only": posix(serverOnly),
@@ -51,9 +63,11 @@ const contractFile = await compile("src/lib/queries/management-contract-hours.ts
 // allowExitOnIdle: the module holds a pg Pool this gate cannot reach to end;
 // without it, process.exit trips a libuv teardown assert on Windows.
 const mappingFile = await compile("src/lib/queries/management-customer-mapping.ts", "mapping.cjs", {
+  "@/lib/budget-visibility": posix(budgetVisibilityFile),
   "server-only": posix(serverOnly),
 });
 const ownershipFile = await compile("src/lib/queries/management-employee-ownership.ts", "ownership.cjs", {
+  "@/lib/budget-visibility": posix(budgetVisibilityFile),
   "@/lib/database.types": posix(serverOnly),
   "@/lib/queries/paged": posix(pagedFile),
   "@/lib/queries/management-contract-hours": posix(contractFile),

@@ -89,7 +89,8 @@
       "budgetRisk": {
         "label": "PROJEKTE ÜBER BUDGET",
         "noProjects": "KEINE PROJEKTE MIT ERFASSTER ZEIT",
-        "allTime": "GESAMTZEITRAUM · {count} AKTIVE PROJEKTE · {noBudget} OHNE BUDGET"
+        "allTime": "GESAMTZEITRAUM · {count} AKTIVE PROJEKTE · {noBudget} OHNE BUDGET",
+        "withheld": "BUDGETS FÜR IHRE ROLLE NICHT SICHTBAR"
       }
     },
     "filters": {
@@ -190,7 +191,8 @@
         "budgetH": "BUDGET H",
         "loggedH": "ERFASST H",
         "burn": "VERBRAUCH"
-      }
+      },
+      "budgetWithheld": "NICHT SICHTBAR"
     }
   },
   "drill": {
@@ -325,7 +327,8 @@
         "label": "AUSLASTUNGSAUSBLICK",
         "hint": "{hours} Planstunden/Jahr je Mitarbeiter",
         "aria": "Auslastungsausblick — Details öffnen"
-      }
+      },
+      "contractHoursWithheld": "FÜR IHRE ROLLE NICHT SICHTBAR"
     },
     "tabs": {
       "ariaLabel": "Management-Bereiche",
@@ -702,7 +705,8 @@
       "decisionFieldsRequired": "Antrag und Entscheidungsgrund sind erforderlich.",
       "changeApplied": "Änderung angewendet.",
       "requestRejected": "Änderungsantrag abgelehnt."
-    }
+    },
+    "budgetsWithheld": "Kommerzielle Vertragsstunden sind für Ihre Rolle nicht sichtbar. Alle Stundenwerte in dieser Matrix werden daher weggelassen und nicht als Null dargestellt."
   },
   "people": {
     "header": {

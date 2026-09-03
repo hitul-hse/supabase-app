@@ -89,7 +89,8 @@
       "budgetRisk": {
         "label": "PROJECTS OVER BUDGET",
         "noProjects": "NO PROJECTS WITH LOGGED TIME",
-        "allTime": "ALL TIME · {count} ACTIVE PROJECTS · {noBudget} WITH NO BUDGET"
+        "allTime": "ALL TIME · {count} ACTIVE PROJECTS · {noBudget} WITH NO BUDGET",
+        "withheld": "BUDGETS NOT VISIBLE TO YOUR ROLE"
       }
     },
     "filters": {
@@ -190,7 +191,8 @@
         "budgetH": "BUDGET H",
         "loggedH": "LOGGED H",
         "burn": "BURN"
-      }
+      },
+      "budgetWithheld": "WITHHELD"
     }
   },
   "drill": {
@@ -325,7 +327,8 @@
         "label": "UTILISATION OUTLOOK",
         "hint": "{hours} plan hours/year per person",
         "aria": "Utilisation outlook — open details"
-      }
+      },
+      "contractHoursWithheld": "NOT VISIBLE TO YOUR ROLE"
     },
     "tabs": {
       "ariaLabel": "Management sections",
@@ -702,7 +705,8 @@
       "decisionFieldsRequired": "Request and decision reason are required.",
       "changeApplied": "Change applied.",
       "requestRejected": "Change request rejected."
-    }
+    },
+    "budgetsWithheld": "Commercial contract hours are not visible to your role, so every hour figure in this matrix is omitted rather than shown as zero."
   },
   "people": {
     "header": {

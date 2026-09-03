@@ -240,6 +240,7 @@ export default async function MyWorkPage() {
               <MyWorkTables
                 projects={work.projects}
                 customers={work.customers}
+                budgetsWithheld={work.budgetsWithheld}
                 showMyHours={!work.myHoursUnpopulated}
                 roleCounts={work.totals.roleCounts}
                 footnote={

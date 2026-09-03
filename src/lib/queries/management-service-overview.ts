@@ -1,5 +1,22 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { canReadBudgets, budgetAwareColumns } from "@/lib/budget-visibility";
+
+/**
+ * The `projects` read for this panel, with the budget column present only when
+ * the caller holds projects:contracts:read.
+ *
+ * Omitted rather than blanked afterwards, so the figure never enters the
+ * payload at all -- see src/lib/budget-visibility.ts. The dynamic column list
+ * is invisible to PostgREST's generated types (a non-literal .select() argument
+ * resolves to ParserError), so the cast is confined to this one helper and the
+ * rows are re-narrowed at the call site, the same escape hatch my-work.ts uses.
+ */
+function projectsSelect(supabase: SupabaseTyped, columns: string, canSeeBudgets: boolean) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (supabase as any).from("projects").select(budgetAwareColumns(columns, canSeeBudgets)) as any;
+}
+
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -138,9 +155,18 @@ async function readCustomerMasterReferences(
 export async function getManagementServiceOverview(
   supabase: SupabaseTyped,
 ): Promise<ServiceOverviewRow[]> {
+  /*
+   * Asked before the reads, and it decides the SELECT LIST: when the caller may
+   * not see budgets, contract_hours is never requested, so the figure does not
+   * reach the payload. The page-level banner on the Management dashboard states
+   * that the figures are withheld -- without it, an omitted column arrives as
+   * 0 h and reads as a real allocation of zero.
+   */
+  const canSeeBudgets = await canReadBudgets(supabase);
+
   try {
     const [{ data: projects }, { data: assignments }, { data: replacements }, timeProjects, customerMaster] = await Promise.all([
-      supabase.from("projects").select("id, contract_hours, status, owner_person_id"),
+      projectsSelect(supabase, "id, contract_hours, status, owner_person_id", canSeeBudgets),
       supabase.from("person_assignments").select("project_id, person_id"),
       /*
        * Untyped through a cast because `project_responsibility` is newer than

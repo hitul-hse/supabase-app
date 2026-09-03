@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { canReadBudgets, budgetAwareColumns } from "@/lib/budget-visibility";
 
 /**
  * Who could take over a project, and how loaded are they already?
@@ -105,9 +106,21 @@ export async function getReassignmentCandidates(
     .select("project_id, person_id, role")
     .in("person_id", ids);
 
-  const { data: ownedProjects } = await supabase
+  /*
+   * The budget column is omitted for a caller without projects:contracts:read.
+   * This read needs no separate "withheld" flag, unusually: the sum below
+   * already tracks `sawNumber` separately from the total (added by
+   * 20260826120000 so an unmeasured order reads n/a rather than 0), and an
+   * absent column leaves sawNumber false. A withheld portfolio therefore
+   * renders "n/a" through the path that already existed for "nobody measured
+   * this", which is the honest answer in both cases: no figure is being
+   * claimed.
+   */
+  const canSeeBudgets = await canReadBudgets(supabase);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: ownedProjects } = await (supabase as any)
     .from("projects")
-    .select("id, owner_person_id, contract_hours")
+    .select(budgetAwareColumns("id, owner_person_id, contract_hours", canSeeBudgets))
     .in("owner_person_id", ids);
 
   const responsibleCount = new Map<string, number>();
@@ -127,7 +140,7 @@ export async function getReassignmentCandidates(
    * than 0 — that null is the whole point of the migration.
    */
   const hoursByPerson = new Map<string, { sum: number; sawNumber: boolean }>();
-  for (const p of (ownedProjects ?? []) as { owner_person_id: string; contract_hours: number | null }[]) {
+  for (const p of (ownedProjects ?? []) as { owner_person_id: string; contract_hours?: number | null }[]) {
     const cur = hoursByPerson.get(p.owner_person_id) ?? { sum: 0, sawNumber: false };
     if (p.contract_hours !== null && p.contract_hours !== undefined) {
       cur.sum += num(p.contract_hours);

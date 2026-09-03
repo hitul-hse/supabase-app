@@ -125,8 +125,34 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
+      {/*
+        Commercial contract hours are withheld from a caller without
+        projects:contracts:read. This page is reached on hr:contract:read, which
+        is EMPLOYMENT contracts -- a different permission over different data --
+        so an hr reader lands here holding one and not the other. Every hour in
+        the matrix below is 0 for them because the column was never selected, so
+        the banner is what stops that reading as a real allocation of zero.
+      */}
+      {model.budgetsWithheld && (
+        <p
+          data-testid="management-budgets-withheld"
+          className="border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--text-secondary)]"
+        >
+          {t("budgetsWithheld")}
+        </p>
+      )}
+
       <div className="grid gap-[var(--card-gap)] sm:grid-cols-3">
+        {model.budgetsWithheld ? (
+          <StatTile
+            label={t("tiles.contractHours.label")}
+            value="n/a"
+            data-metric="management-contract-hours"
+            hint={t("tiles.contractHoursWithheld")}
+          />
+        ) : (
         <button type="button" onClick={openContractHoursDrill} aria-label={t("tiles.contractHours.aria")} className="card-elev block w-full cursor-pointer text-left"><StatTile label={t("tiles.contractHours.label")} value={fmt(model.totalContractHours)} unit="h" tone="good" data-metric="management-contract-hours" hint={t("tiles.contractHours.hint")} /></button>
+        )}
         <StatTile label={t("tiles.projects.label")} value={model.projectCount} hint={t("tiles.projects.hint")} />
         <button type="button" onClick={openUtilisationDrill} aria-label={t("tiles.outlook.aria")} className="card-elev block w-full cursor-pointer text-left"><StatTile label={t("tiles.outlook.label")} value={fmt(overallUtilisation)} unit="%" hint={t("tiles.outlook.hint", { hours: planHours })} data-metric="management-utilisation-outlook" /></button>
       </div>

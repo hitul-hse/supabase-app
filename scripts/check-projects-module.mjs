@@ -85,6 +85,22 @@ try {
   // next/link needs a router context that does not exist outside a request, so
   // it is replaced with a plain <a>. The href is what this gate asserts on, and
   // the real Link renders exactly that attribute.
+  /*
+   * The budget-visibility chokepoint, compiled for real rather than stubbed.
+   *
+   * projects-live now routes its column list through budgetAwareColumns(), and
+   * that function is a pure string transform this gate's assertions depend on:
+   * a stub returning the columns unchanged would let a broken redaction pass
+   * here. Its only runtime import is @/lib/permissions, a plain constant map,
+   * so compiling it costs nothing and pulls in no Supabase client.
+   */
+  const permissionsFile = await compile("src/lib/permissions.ts", "permissions.cjs");
+  const budgetVisibilityFile = await compile(
+    "src/lib/budget-visibility.ts",
+    "budget-visibility.cjs",
+    { "@/lib/permissions": posix(permissionsFile) },
+  );
+
   const linkStub = join(dir, "link-stub.cjs");
   writeFileSync(
     linkStub,
@@ -96,6 +112,7 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
     await compile("src/lib/queries/projects-live.ts", "projects-live.cjs", {
       "@/lib/locale-format": posix(formatFile),
       "@/lib/time-transform": posix(transformFile),
+      "@/lib/budget-visibility": posix(budgetVisibilityFile),
       "./trackingtime-report": posix(stub),
     }),
   );

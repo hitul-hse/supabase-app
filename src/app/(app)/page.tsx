@@ -59,6 +59,7 @@ export default async function OverviewPage({
   const range = parseOverviewRange(params);
   const team = parseOverviewTeam(params.team);
   const {
+    budgetsWithheld,
     metrics,
     weeks,
     teams,
@@ -691,7 +692,11 @@ export default async function OverviewPage({
                         className="shrink-0 font-mono text-[11px] font-semibold"
                         style={{ color: toneColour(prj.tone) }}
                       >
-                        {prj.burnPercent !== null ? `${prj.burnPercent}%` : t("projectLedger.noBudget")}
+                        {prj.burnPercent !== null
+                          ? `${prj.burnPercent}%`
+                          : budgetsWithheld
+                            ? t("projectLedger.budgetWithheld")
+                            : t("projectLedger.noBudget")}
                       </span>
                     </div>
                     <span className="font-mono text-[10px] text-[var(--text-muted)]">
@@ -777,7 +782,11 @@ export default async function OverviewPage({
                         }
                         className="w-[74px] shrink-0 justify-center"
                       >
-                        {prj.burnPercent !== null ? `${prj.burnPercent}%` : t("projectLedger.noBudget")}
+                        {prj.burnPercent !== null
+                          ? `${prj.burnPercent}%`
+                          : budgetsWithheld
+                            ? t("projectLedger.budgetWithheld")
+                            : t("projectLedger.noBudget")}
                       </Pill>
                     </div>
                   </div>

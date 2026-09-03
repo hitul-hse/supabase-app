@@ -40,6 +40,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { secondsToHours } from "@/lib/time-transform";
 import { fetchAllEntries, type ReportEntry, type TimeFilters } from "./trackingtime-report";
+import { canReadBudgets, budgetAwareColumns } from "@/lib/budget-visibility";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -75,8 +76,18 @@ export type ProjectRecord = {
   isArchived: boolean;
 };
 
-const PROJECT_SELECT = `
-  id, name, code, customer_id, estimated_hours, is_billable, is_archived,
+/**
+ * The columns, with the budget omitted for a caller who may not see it.
+ *
+ * /projects and /projects/[id] are gated on projects:read_all, which only exec
+ * holds, and exec holds projects:contracts:read -- so today this never
+ * subtracts anything. It is here because the page gate and the budget
+ * permission are two independent decisions, and the ledger must not start
+ * leaking budgets the day somebody widens the first one. The read layer states
+ * its own requirement rather than relying on a caller three files away.
+ */
+const projectSelect = (canSeeBudgets: boolean) => `
+  ${budgetAwareColumns("id, name, code, customer_id, estimated_hours, is_billable, is_archived", canSeeBudgets)},
   customer:customer_id ( name ),
   service:service_id ( name )
 `;
@@ -92,10 +103,11 @@ const PROJECT_SELECT = `
 export async function fetchAllProjects(supabase: SupabaseTyped): Promise<ProjectRecord[]> {
   const out: ProjectRecord[] = [];
   try {
+    const canSeeBudgets = await canReadBudgets(supabase);
     for (let page = 0; page < MAX_PAGES; page++) {
       const { data, error } = await timeSchema(supabase)
         .from("project")
-        .select(PROJECT_SELECT)
+        .select(projectSelect(canSeeBudgets))
         .order("name")
         .range(page * PAGE, page * PAGE + PAGE - 1);
 
@@ -130,9 +142,10 @@ export async function fetchProject(
   id: number,
 ): Promise<ProjectRecord | null> {
   try {
+    const canSeeBudgets = await canReadBudgets(supabase);
     const { data } = await timeSchema(supabase)
       .from("project")
-      .select(PROJECT_SELECT)
+      .select(projectSelect(canSeeBudgets))
       .eq("id", id)
       .maybeSingle();
 

@@ -1208,8 +1208,19 @@ insert into app_role (role_key, display_name, seniority) values
   ('exec', 'Executive', 4),
   ('dept_head', 'Department Head', 3),
   ('project_manager', 'Project Manager', 2),
+  -- Sales exists to read commercial terms: it is the third role that may see a
+  -- project budget, alongside exec and dept_head. seniority 2, the same rung as
+  -- project_manager, because it is a peer discipline rather than a step in the
+  -- delivery reporting line -- nothing gates on seniority, every gate reads
+  -- app_role_permission, so this is a sort value and not a privilege.
+  -- See supabase/migrations/20260903120000_budgets_are_commercial_not_general.sql.
+  ('sales', 'Sales', 2),
   ('employee', 'Employee', 1)
 on conflict (role_key) do nothing;
+
+-- NOTE: production also carries an 'hr' role that this file has never seeded.
+-- That drift predates this change and is deliberately not fixed here; it is
+-- called out at the permission-catalogue block further down.
 
 -- Module registry. is_live=false is the default and the safe one: a module
 -- appears here as soon as we start on it, but its tile stays hidden until it
@@ -1323,7 +1334,17 @@ insert into app_role_permission (role_key, permission_key) values
   ('employee', 'people:read_own'),
   ('employee', 'projects:read_own'),
   ('employee', 'timesheets:read_own'), ('employee', 'timesheets:write'),
-  ('employee', 'sync:read')
+  ('employee', 'sync:read'),
+
+  -- Sales gets exactly employee's baseline so a salesperson can use the app at
+  -- all. The ONE key that differs is projects:contracts:read, granted further
+  -- down with the rest of the later-migration catalogue. projects:read_own and
+  -- not :read_dept/:read_all is deliberate and may be too narrow in practice --
+  -- see the note at that grant.
+  ('sales', 'people:read_own'),
+  ('sales', 'projects:read_own'),
+  ('sales', 'timesheets:read_own'), ('sales', 'timesheets:write'),
+  ('sales', 'sync:read')
 on conflict (role_key, permission_key) do nothing;
 
 -- Re-tag module ownership for any environment where add_permission_system.sql
@@ -1361,7 +1382,8 @@ insert into app_role_permission (role_key, permission_key) values
   ('dept_head', 'hr:leave:approve'), ('dept_head', 'hr:clocking:write'),
   ('project_manager', 'hr:leave:read'), ('project_manager', 'hr:leave:write'),
   ('project_manager', 'hr:clocking:write'),
-  ('employee', 'hr:leave:write'), ('employee', 'hr:clocking:write')
+  ('employee', 'hr:leave:write'), ('employee', 'hr:clocking:write'),
+  ('sales', 'hr:leave:write'), ('sales', 'hr:clocking:write')
 on conflict (role_key, permission_key) do nothing;
 
 -- Keys that reached production through later migrations and were never folded
@@ -1442,12 +1464,31 @@ insert into app_role_permission (role_key, permission_key) values
   ('dept_head', 'projects:alerts:read'), ('dept_head', 'projects:alerts:acknowledge'),
 
   ('project_manager', 'my_work:read_own'),
-  ('project_manager', 'projects:contracts:read'),
   ('project_manager', 'projects:alerts:read'),
 
   ('employee', 'my_work:read_own'),
-  ('employee', 'projects:contracts:read')
+
+  -- THE BUDGET KEY. Held by exec, dept_head and sales, and by nobody else.
+  -- project_manager and employee held it until 2026-09-03; hitul's decision
+  -- was that a project budget is a commercial term and belongs to those three
+  -- roles. See 20260903120000_budgets_are_commercial_not_general.sql for what
+  -- that revoke does and does not reach.
+  --
+  -- SCOPE CAVEAT: sales holds projects:read_own, so it sees budgets only on
+  -- projects it owns or is assigned to. Widening that is a project-scope
+  -- decision (projects:read_dept / :read_all) and is deliberately NOT assumed
+  -- here.
+  ('sales', 'my_work:read_own'),
+  ('sales', 'projects:contracts:read')
 on conflict (role_key, permission_key) do nothing;
+
+-- Defensive for an environment built by replaying older files: those seeded
+-- projects:contracts:read to employee and project_manager, and `on conflict do
+-- nothing` above cannot remove a row that is already there. A database
+-- rebuilt from this file alone never has them, so this is a no-op there.
+delete from app_role_permission
+ where permission_key = 'projects:contracts:read'
+   and role_key in ('employee', 'project_manager', 'hr');
 
 -- ---------------------------------------------------------------------------
 -- 6. Vendor-sourced data
@@ -2367,8 +2408,27 @@ group by date_trunc('week', e.started_at);
 grant select on time.org_week to authenticated;
 
 
--- Per-project rollup. Hours only -- no rates, so it is safe for anyone whose
--- RLS lets them see the underlying entries.
+-- Per-project rollup. Hours worked only -- no rates.
+--
+-- THE BUDGET COLUMNS ARE PERMISSION-GATED, the rest of the row is not.
+-- estimated_hours and burn_percent are a commercial term (what the customer
+-- agreed to pay for) and are NULL unless the caller holds
+-- projects:contracts:read. Everything else here is timesheet fact: a person
+-- who may not see the budget may still see how much time went into the work.
+--
+-- This is not belt-and-braces, it is the only gate. time.project's own SELECT
+-- policy is literally `true`, so before the redaction any signed-in caller --
+-- including one whose profile does not exist or is deactivated -- read every
+-- budget in the portfolio through this view. Measured on production
+-- 2026-09-03: 256 projects with a real estimate, up to 1200 h, returned to a
+-- caller with no profile at all.
+--
+-- NULL here is AMBIGUOUS between "withheld" and "nobody set a budget" (the
+-- schema stores no-budget as 0 and unknown as null -- DESIGN.md rule 6).
+-- Callers must resolve that from the caller's own permission, never by
+-- inferring it from the null: see src/lib/budget-visibility.ts. In particular,
+-- do NOT recompute an over-budget count from these columns without checking
+-- the permission first, or a redacted null silently reports "0 over budget".
 --
 -- LEFT JOIN from project, so a project with no time logged still appears with
 -- zeroes. An inner join would hide exactly the projects worth asking about.
@@ -2381,7 +2441,13 @@ select
   p.is_archived,
   c.id                                                          as customer_id,
   c.name                                                        as customer_name,
-  p.estimated_hours,
+  -- Cast back to numeric(10,2): a bare CASE drops the typmod, and `create or
+  -- replace view` cannot change a view column's data type, so the un-cast form
+  -- fails against any database that already has this view.
+  (case
+    when (select public.app_user_has_permission('projects:contracts:read'))
+    then p.estimated_hours
+  end)::numeric(10,2)                                           as estimated_hours,
   coalesce(sum(e.duration_seconds), 0)                          as total_seconds,
   coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0) as billable_seconds,
   coalesce(sum(e.duration_seconds) filter (where e.is_calendar), 0) as calendar_seconds,
@@ -2392,8 +2458,12 @@ select
   max(e.started_at)                                             as last_activity_at,
   -- Budget burn. estimated_hours is HOURS, duration_seconds is SECONDS.
   -- nullif guards a zero or absent estimate: "no budget set" must read as
-  -- unknown, not as 0% or a division error.
+  -- unknown, not as 0% or a division error. Withheld from a caller without
+  -- projects:contracts:read for the same reason as estimated_hours: a burn
+  -- percentage IS the budget, expressed as a ratio.
   case
+    when not (select public.app_user_has_permission('projects:contracts:read'))
+    then null::numeric
     when coalesce(p.estimated_hours, 0) > 0
     then round((coalesce(sum(e.duration_seconds), 0) / 3600.0)
                / nullif(p.estimated_hours, 0) * 100, 1)
@@ -2405,6 +2475,7 @@ left join time.entry e    on e.project_id = p.id
                         and e.started_at <= now()          -- planned time is not logged time
 group by p.id, p.name, p.is_billable, p.is_archived, c.id, c.name, p.estimated_hours;
 
+revoke all on time.project_summary from anon;
 grant select on time.project_summary to authenticated;
 
 

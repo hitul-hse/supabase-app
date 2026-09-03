@@ -746,8 +746,27 @@ group by date_trunc('week', e.started_at);
 grant select on time.org_week to authenticated;
 
 
--- Per-project rollup. Hours only -- no rates, so it is safe for anyone whose
--- RLS lets them see the underlying entries.
+-- Per-project rollup. Hours worked only -- no rates.
+--
+-- THE BUDGET COLUMNS ARE PERMISSION-GATED, the rest of the row is not.
+-- estimated_hours and burn_percent are a commercial term (what the customer
+-- agreed to pay for) and are NULL unless the caller holds
+-- projects:contracts:read. Everything else here is timesheet fact: a person
+-- who may not see the budget may still see how much time went into the work.
+--
+-- This is not belt-and-braces, it is the only gate. time.project's own SELECT
+-- policy is literally `true`, so before the redaction any signed-in caller --
+-- including one whose profile does not exist or is deactivated -- read every
+-- budget in the portfolio through this view. Measured on production
+-- 2026-09-03: 256 projects with a real estimate, up to 1200 h, returned to a
+-- caller with no profile at all.
+--
+-- NULL here is AMBIGUOUS between "withheld" and "nobody set a budget" (the
+-- schema stores no-budget as 0 and unknown as null -- DESIGN.md rule 6).
+-- Callers must resolve that from the caller's own permission, never by
+-- inferring it from the null: see src/lib/budget-visibility.ts. In particular,
+-- do NOT recompute an over-budget count from these columns without checking
+-- the permission first, or a redacted null silently reports "0 over budget".
 --
 -- LEFT JOIN from project, so a project with no time logged still appears with
 -- zeroes. An inner join would hide exactly the projects worth asking about.
@@ -760,7 +779,13 @@ select
   p.is_archived,
   c.id                                                          as customer_id,
   c.name                                                        as customer_name,
-  p.estimated_hours,
+  -- Cast back to numeric(10,2): a bare CASE drops the typmod, and `create or
+  -- replace view` cannot change a view column's data type, so the un-cast form
+  -- fails against any database that already has this view.
+  (case
+    when (select public.app_user_has_permission('projects:contracts:read'))
+    then p.estimated_hours
+  end)::numeric(10,2)                                           as estimated_hours,
   coalesce(sum(e.duration_seconds), 0)                          as total_seconds,
   coalesce(sum(e.duration_seconds) filter (where e.is_billable), 0) as billable_seconds,
   coalesce(sum(e.duration_seconds) filter (where e.is_calendar), 0) as calendar_seconds,
@@ -771,8 +796,12 @@ select
   max(e.started_at)                                             as last_activity_at,
   -- Budget burn. estimated_hours is HOURS, duration_seconds is SECONDS.
   -- nullif guards a zero or absent estimate: "no budget set" must read as
-  -- unknown, not as 0% or a division error.
+  -- unknown, not as 0% or a division error. Withheld from a caller without
+  -- projects:contracts:read for the same reason as estimated_hours: a burn
+  -- percentage IS the budget, expressed as a ratio.
   case
+    when not (select public.app_user_has_permission('projects:contracts:read'))
+    then null::numeric
     when coalesce(p.estimated_hours, 0) > 0
     then round((coalesce(sum(e.duration_seconds), 0) / 3600.0)
                / nullif(p.estimated_hours, 0) * 100, 1)
@@ -784,6 +813,7 @@ left join time.entry e    on e.project_id = p.id
                         and e.started_at <= now()          -- planned time is not logged time
 group by p.id, p.name, p.is_billable, p.is_archived, c.id, c.name, p.estimated_hours;
 
+revoke all on time.project_summary from anon;
 grant select on time.project_summary to authenticated;
 
 

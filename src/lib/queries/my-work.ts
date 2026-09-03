@@ -58,6 +58,7 @@
  */
 import type { SupabaseTyped } from "./types";
 import { fetchAllPaged, PAGE } from "./paged";
+import { canReadBudgets } from "@/lib/budget-visibility";
 import { getSignedInUser } from "./request-cache";
 
 /* --------------------------------------------------------------- shapes */
@@ -170,8 +171,13 @@ export type MyCustomer = {
   roleCounts: Record<MyRole, number>;
   /** The strongest claim held on any project for this customer. */
   topRole: MyRole;
-  /** Sum of contract hours across your projects for this customer. */
-  contractHours: number;
+  /**
+   * Sum of contract hours across your projects for this customer, or null when
+   * the caller may not see budgets. NOT 0 in that case: 0 is a real, common and
+   * different state here ("nobody set a budget"), so a withheld sum that came
+   * back as 0 would be indistinguishable from an unbudgeted customer.
+   */
+  contractHours: number | null;
   /** Sum of logged hours across your projects for this customer. */
   loggedHours: number;
   /*
@@ -191,6 +197,18 @@ export type MyCustomer = {
 };
 
 export type MyWork = {
+  /**
+   * True when project budgets were withheld from this caller.
+   *
+   * /my-work has no permission gate beyond a session, so every role reaches it,
+   * including the three that lost projects:contracts:read on 2026-09-03. Every
+   * contractHours and consumedPercent below is null for such a caller, and the
+   * table already renders null as "no budget" -- a sentence about the project
+   * rather than about the reader, and a false one. The UI reads this flag to
+   * say "withheld" instead, and the CSV export omits the columns rather than
+   * exporting blanks that would be read as zeroes in a spreadsheet.
+   */
+  budgetsWithheld: boolean;
   /** The person this book of work belongs to — null when the account is unlinked. */
   personId: string | null;
   personName: string | null;
@@ -206,7 +224,8 @@ export type MyWork = {
      * This is the number an operations person means by "my customers".
      */
     customersLed: number;
-    contractHours: number;
+    /** Null when budgets are withheld from the caller -- never 0. */
+    contractHours: number | null;
     loggedHours: number;
     myLoggedHours: number;
     /** How many of `projects` have measured hours. See MyCustomer above. */
@@ -494,6 +513,15 @@ export function assembleMyWork(
   assignments: AssignmentRowLite[],
   responsibilities: ResponsibilityRowLite[] = [],
   truncated = false,
+  /*
+   * Defaults to TRUE so that this stays a pure function with its existing
+   * behaviour for every caller that does not pass it (the unit tests exercise
+   * the role ladder, not the permission). The one production caller,
+   * getMyWork(), always passes the real answer. A default of `false` would be
+   * the safer-looking choice but would silently blank budgets in those tests
+   * and hide a regression in the ladder behind an unrelated change.
+   */
+  canSeeBudgets = true,
 ): MyWork {
   const assignmentByProject = new Map<string, AssignmentRowLite>();
   for (const a of assignments) {
@@ -541,7 +569,9 @@ export function assembleMyWork(
           ? "replacement"
           : "assigned";
 
-    const contractHours = budgetOrNull(p.contract_hours);
+    // Redacted here, at the single point where the column becomes a field, so
+    // no downstream sum, percentage or CSV column can reconstruct it.
+    const contractHours = canSeeBudgets ? budgetOrNull(p.contract_hours) : null;
     const loggedHours = numOrNull(p.logged_hours);
 
     // Canonical identity when it exists, free text when it does not. The
@@ -624,7 +654,7 @@ export function assembleMyWork(
         projectCount: 0,
         roleCounts: emptyCounts(),
         topRole: "assigned",
-        contractHours: 0,
+        contractHours: canSeeBudgets ? 0 : null,
         loggedHours: 0,
         myLoggedHours: 0,
         measuredProjectCount: 0,
@@ -638,7 +668,7 @@ export function assembleMyWork(
     c.projectCount += 1;
     c.roleCounts[r.role] += 1;
     if (rank(r.role) < rank(c.topRole)) c.topRole = r.role;
-    c.contractHours += r.contractHours ?? 0;
+    c.contractHours = canSeeBudgets ? (c.contractHours ?? 0) + (r.contractHours ?? 0) : null;
     c.loggedHours += r.loggedHours ?? 0;
     // Counted from loggedHours, not contractHours: "measured" means we know what
     // was worked, which is exactly what the sum above is claiming.
@@ -675,7 +705,7 @@ export function assembleMyWork(
       // Only surfaced when the merge actually collapsed distinct spellings —
       // a single-alias list would just repeat the heading.
       aliases: aliasSet.size > 1 ? aliases : [],
-      contractHours: round1(c.contractHours),
+      contractHours: c.contractHours === null ? null : round1(c.contractHours),
       loggedHours: round1(c.loggedHours),
       myLoggedHours: round1(c.myLoggedHours),
     };
@@ -697,6 +727,7 @@ export function assembleMyWork(
     personName,
     customers,
     projects: rows,
+    budgetsWithheld: !canSeeBudgets,
     totals: {
       customers: customers.length,
       projects: rows.length,
@@ -704,7 +735,9 @@ export function assembleMyWork(
       customersLed: customers.filter(
         (c) => c.topRole === "responsible" || c.topRole === "owner",
       ).length,
-      contractHours: round1(rows.reduce((s, r) => s + (r.contractHours ?? 0), 0)),
+      contractHours: canSeeBudgets
+        ? round1(rows.reduce((s, r) => s + (r.contractHours ?? 0), 0))
+        : null,
       loggedHours: round1(rows.reduce((s, r) => s + (r.loggedHours ?? 0), 0)),
       myLoggedHours: round1(rows.reduce((s, r) => s + (r.myLoggedHours ?? 0), 0)),
       measuredProjectCount: rows.filter((r) => r.loggedHours !== null).length,
@@ -728,6 +761,10 @@ function emptyWork(
   loadFailed = false,
 ): MyWork {
   return {
+    // An empty book of work has no budgets to withhold, so this is honestly
+    // false rather than inherited: the reason there is nothing here is stated
+    // by `unlinked` / `loadFailed`, not by the budget permission.
+    budgetsWithheld: false,
     personId,
     personName,
     customers: [],
@@ -789,9 +826,11 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
      *
      * The project read must follow, because its id list is the union of both.
      */
-    const [assignments, responsibilities] = await Promise.all([
+    const [assignments, responsibilities, canSeeBudgets] = await Promise.all([
       fetchMyAssignments(supabase, personId),
       fetchMyResponsibilities(supabase, personId),
+      // Asked in the same round trip as the reads it governs, not after them.
+      canReadBudgets(supabase),
     ]);
 
     // The union of every id this person has ANY claim on. Responsibility rows
@@ -814,6 +853,7 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
       assignments.rows,
       responsibilities.rows,
       assignments.truncated || projects.truncated || responsibilities.truncated,
+      canSeeBudgets,
     );
   } catch {
     // A failed read must NOT render as "you have no work": that is the same

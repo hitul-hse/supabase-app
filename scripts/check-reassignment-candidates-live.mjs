@@ -48,7 +48,19 @@ async function compile(srcPath, outName, rewrites = {}) {
 
 const serverOnly = join(dir, "server-only.cjs");
 writeFileSync(serverOnly, "module.exports = {};");
+// The query layer asks src/lib/budget-visibility.ts whether the caller may see
+// project budgets before it selects a budget column. Compiled for real rather
+// than stubbed: its only runtime import is the constant map in
+// @/lib/permissions, so it pulls in no Supabase client, and a stub would let a
+// broken gate pass here.
+const budgetVisibilityFile = await compile(
+  "src/lib/budget-visibility.ts",
+  "budget-visibility.cjs",
+  { "@/lib/permissions": posix(await compile("src/lib/permissions.ts", "permissions.cjs")) },
+);
+
 const modFile = await compile("src/lib/queries/reassignment-candidates.ts", "candidates.cjs", {
+  "@/lib/budget-visibility": posix(budgetVisibilityFile),
   "@/lib/database.types": posix(serverOnly),
   "server-only": posix(serverOnly),
 });

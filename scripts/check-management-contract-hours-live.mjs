@@ -47,9 +47,21 @@ async function compile(srcPath, outName, rewrites = {}) {
 const serverOnly = join(dir, "server-only.cjs");
 writeFileSync(serverOnly, "module.exports = {};");
 const pagedFile = await compile("src/lib/queries/paged.ts", "paged.cjs");
+// The panel asks budget-visibility whether the caller may see commercial
+// contract hours before it selects the column. Compiled for real (its only
+// runtime import is the constant map in @/lib/permissions) so this gate
+// exercises the same code path production does.
+const permissionsFile = await compile("src/lib/permissions.ts", "permissions.cjs");
+const budgetVisibilityFile = await compile(
+  "src/lib/budget-visibility.ts",
+  "budget-visibility.cjs",
+  { "@/lib/permissions": posix(permissionsFile) },
+);
+
 const contractFile = await compile("src/lib/queries/management-contract-hours.ts", "contract.cjs", {
   "@/lib/database.types": posix(serverOnly),
   "@/lib/queries/paged": posix(pagedFile),
+  "@/lib/budget-visibility": posix(budgetVisibilityFile),
   "server-only": posix(serverOnly),
 });
 

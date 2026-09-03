@@ -134,9 +134,14 @@ check(
   policies.length === declaredPolicies,
   `declared ${declaredPolicies}, found ${policies.length}`,
 );
+// 5 since 2026-09-03: `sales` was added as the third role allowed to read
+// project budgets. The number is asserted rather than derived on purpose --
+// a role appearing in this file is a privilege decision, and it should not be
+// possible to add one without a human editing this line. `exec` first pins the
+// seniority ordering, not just the count.
 check(
-  "app_role seeded with 4 roles",
-  seeded.length === 4 && seeded[0].role_key === "exec",
+  "app_role seeded with 5 roles",
+  seeded.length === 5 && seeded[0].role_key === "exec",
   seeded.map((r) => r.role_key).join(","),
 );
 

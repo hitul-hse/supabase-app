@@ -41,6 +41,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { secondsToHours } from "@/lib/time-transform";
 import { fetchAllPaged } from "@/lib/queries/paged";
+import { canReadBudgets, budgetAwareColumns } from "@/lib/budget-visibility";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -772,9 +773,19 @@ export async function getFilterOptions(supabase: SupabaseTyped): Promise<FilterO
 
   try {
     const t = timeSchema(supabase);
+    /*
+     * This is a FILTER PICKER, and it carried the budget of every project in
+     * it. /time/dashboard is reached on timesheets:read_all, which exec and hr
+     * hold -- and hr does not hold projects:contracts:read. Omitted from the
+     * select rather than dropped afterwards, so the number is never fetched;
+     * estimatedHours then arrives null, which is what the picker already
+     * renders for a project with no estimate.
+     */
+    const canSeeBudgets = await canReadBudgets(supabase);
+    const projectColumns = budgetAwareColumns("id,name,estimated_hours", canSeeBudgets);
     const [m, p, c, s] = await Promise.all([
       t.from("member").select("id,display_name").eq("is_archived", false).order("display_name"),
-      t.from("project").select("id,name,estimated_hours,customer:customer_id(name)").order("name").limit(PAGE),
+      t.from("project").select(`${projectColumns},customer:customer_id(name)`).order("name").limit(PAGE),
       t.from("customer").select("id,name").order("name").limit(PAGE),
       t.from("service").select("id,name").order("sort_order"),
     ]);

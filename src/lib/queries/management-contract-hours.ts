@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { fetchAllPaged } from "@/lib/queries/paged";
+import { canReadBudgets } from "@/lib/budget-visibility";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -67,6 +68,18 @@ export type UtilisationOutlookRow = {
 };
 
 export type ManagementContractHours = {
+  /**
+   * True when the caller does not hold projects:contracts:read.
+   *
+   * /dashboard/management is gated on hr:contract:read, which exec and hr hold.
+   * `hr:contract:read` is EMPLOYMENT contracts (a person's contracted weekly
+   * hours); this panel is COMMERCIAL contract hours (what a customer agreed to
+   * pay for). They are different data behind similar words, and after
+   * 2026-09-03 hr holds the first and not the second. Without this flag every
+   * cell in the matrix would render 0 h -- a complete, confident, wrong
+   * allocation table -- because contract_hours is simply not selected below.
+   */
+  budgetsWithheld: boolean;
   totalContractHours: number;
   rows: ManagementRow[];
   drilldown: Record<ManagementPerson, ManagementProject[]>;
@@ -103,6 +116,24 @@ function canonicalService(value: string): ManagementService | null {
 }
 
 /**
+ * The `projects` read for this panel, with the budget column present only when
+ * the caller may see it.
+ *
+ * The column list is dynamic, which PostgREST's generated types cannot express
+ * (a non-literal argument to .select() resolves to ParserError), so it takes
+ * the same confined escape hatch my-work.ts uses: cast once here, re-narrow at
+ * the call site. Confined to this helper rather than sprayed across the three
+ * places the rows are consumed.
+ */
+function projectsSelect(supabase: SupabaseTyped, withBudgets: boolean) {
+  const columns = withBudgets
+    ? "id, name, customer, contract_hours"
+    : "id, name, customer";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (supabase as any).from("projects").select(columns) as any;
+}
+
+/**
  * Read-only management model.
  *
  * Contract hours come from public.projects. The only safe service relation is
@@ -113,7 +144,17 @@ function canonicalService(value: string): ManagementService | null {
 export async function getManagementContractHours(
   supabase: SupabaseTyped,
 ): Promise<ManagementContractHours> {
+  /*
+   * Asked before the reads, and it decides the SELECT LIST rather than
+   * filtering afterwards: when the caller may not see budgets, contract_hours
+   * is not requested at all, so the figure never enters the process, the
+   * payload or a React prop. Blanking it after the fact would leave it in the
+   * server's memory and one refactor away from the wire.
+   */
+  const canSeeBudgets = await canReadBudgets(supabase);
+
   const empty: ManagementContractHours = {
+    budgetsWithheld: !canSeeBudgets,
     totalContractHours: 0,
     rows: ALL_SERVICES.map((service) => ({
       service,
@@ -134,7 +175,7 @@ export async function getManagementContractHours(
 
   try {
     const [{ data: projects }, { data: people }, { data: assignments }, timeProjects] = await Promise.all([
-      supabase.from("projects").select("id, name, customer, contract_hours"),
+      projectsSelect(supabase, canSeeBudgets),
       supabase.from("people").select("id, name"),
       supabase.from("person_assignments").select("person_id, project_id, project_name, share_percent"),
       fetchAllPaged<Record<string, unknown>>((from, to) =>
@@ -167,10 +208,10 @@ export async function getManagementContractHours(
     }
 
     const rows = new Map(empty.rows.map((row) => [row.service, row]));
-    const projectById = new Map((projects as { id: string; name: string; customer: string; contract_hours: number }[]).map((project) => [project.id, project]));
+    const projectById = new Map((projects as { id: string; name: string; customer: string; contract_hours?: number }[]).map((project) => [project.id, project]));
     const assignmentsByPerson = new Map<ManagementPerson, ManagementProject[]>();
 
-    for (const project of projects as { id: string; name: string; customer: string; contract_hours: number }[]) {
+    for (const project of projects as { id: string; name: string; customer: string; contract_hours?: number }[]) {
       empty.totalContractHours += n(project.contract_hours);
     }
 
@@ -203,7 +244,7 @@ export async function getManagementContractHours(
     const mappedProjectIds = new Set(
       [...serviceByProject.keys()].filter((projectId) => projectById.has(projectId)),
     );
-    empty.unmappedContractHours = (projects as { id: string; contract_hours: number }[])
+    empty.unmappedContractHours = (projects as { id: string; contract_hours?: number }[])
       .filter((project) => !mappedProjectIds.has(project.id))
       .reduce((sum, project) => sum + n(project.contract_hours), 0);
     empty.projectCount = projects.length;

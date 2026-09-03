@@ -54,6 +54,7 @@ import {
 } from "./team-lead-live";
 import { fetchAllPaged } from "./paged";
 import { secondsToHours } from "@/lib/time-transform";
+import { canReadBudgets } from "@/lib/budget-visibility";
 import { teamLabel } from "@/lib/teams";
 
 type SupabaseTyped = SupabaseClient<Database>;
@@ -238,6 +239,18 @@ export type OverviewProject = {
 };
 
 export type OverviewData = {
+  /**
+   * Whether project budgets were withheld from this caller.
+   *
+   * Carried on the payload rather than re-derived in the page, so the number
+   * and the explanation for its absence always come from the same decision.
+   * When true, every `estimatedHours` and `burnPercent` below is null BECAUSE
+   * OF THE PERMISSION, not because no budget was set -- and the page must say
+   * so. Without this flag the ledger renders "NO BUDGET" against all eight
+   * rows, which is a statement about the portfolio rather than about the
+   * reader, and it is false.
+   */
+  budgetsWithheld: boolean;
   metrics: OverviewMetric[];
   weeks: OrgWeekRow[];
   teams: TeamUtilisation[];
@@ -305,6 +318,23 @@ function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
  */
 
 /**
+ * Budget posture, or the reason there isn't one.
+ *
+ * Three states, not two, and the third is the point. "withheld" and
+ * "unavailable" both produce no numbers, but they are different facts about the
+ * world and the tile says different things: one is "you may not see this", the
+ * other is "we could not read it". Collapsing them into a bare `null` made the
+ * budget-risk tile render "no projects have a budget set" at a reader who was
+ * simply not allowed to know -- a plausible statement about the portfolio,
+ * produced by a permission check. That is the exact substitution DESIGN.md
+ * rule 6 forbids.
+ */
+type BudgetPosture =
+  | { state: "visible"; activeProjects: number; overBudget: number; noBudget: number }
+  | { state: "withheld" }
+  | { state: "unavailable" };
+
+/**
  * Budget posture across the WHOLE active portfolio, not the ledger's top 8.
  *
  * The over-budget tile links to /projects, and /projects counts every active
@@ -318,7 +348,22 @@ function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
  */
 async function getBudgetPosture(
   supabase: SupabaseTyped,
-): Promise<{ activeProjects: number; overBudget: number; noBudget: number } | null> {
+): Promise<BudgetPosture> {
+  /*
+   * A caller without projects:contracts:read gets NO POSTURE, not a posture
+   * computed from redacted data.
+   *
+   * time.project_summary now returns estimated_hours as NULL for such a caller.
+   * Every line below still runs happily on nulls: `Number(null) > 0` is false,
+   * so overBudget comes out 0 and noBudget comes out "all of them". That is a
+   * confident, plausible, wrong answer -- "no project is over budget" -- and
+   * nothing on screen would say it was computed from data the reader was not
+   * allowed to see. Returning null makes the tile say it is withheld instead.
+   *
+   * Checked BEFORE the read rather than after, so the budgets never enter the
+   * process at all.
+   */
+  if (!(await canReadBudgets(supabase))) return { state: "withheld" };
   try {
     const { data, error } = await timeSchema(supabase)
       .from("project_summary")
@@ -326,7 +371,7 @@ async function getBudgetPosture(
       .eq("is_archived", false)
       .order("project_id", { ascending: true })
       .range(0, 9999);
-    if (error || !data) return null;
+    if (error || !data) return { state: "unavailable" };
     const rows = data as { project_id: number; total_seconds: number | null; estimated_hours: number | null }[];
 
     // project_summary counts PLANNED entries dated into the future (Netto / 26
@@ -350,6 +395,7 @@ async function getBudgetPosture(
       secondsToHours(Math.max(0, num(r.total_seconds) - (futureByProject.get(r.project_id) ?? 0)));
 
     return {
+      state: "visible",
       activeProjects: rows.length,
       // The view writes "no budget" as 0, not null (84 of 338 rows) -- a budget
       // is real only when > 0. Same rule as projects-live.ts isOver:
@@ -358,7 +404,7 @@ async function getBudgetPosture(
       noBudget: rows.filter((r) => !(Number(r.estimated_hours) > 0)).length,
     };
   } catch {
-    return null;
+    return { state: "unavailable" };
   }
 }
 
@@ -536,9 +582,10 @@ export async function getLiveOverview(
 
   // Portfolio-wide (see getBudgetPosture). The ledger rows are a top-8 slice
   // and must not be the denominator of a KPI that links to the full list.
-  const overBudget = budgetPosture?.overBudget ?? null;
-  const noBudget = budgetPosture?.noBudget ?? 0;
-  const activeProjects = budgetPosture?.activeProjects ?? 0;
+  const overBudget = budgetPosture.state === "visible" ? budgetPosture.overBudget : null;
+  const noBudget = budgetPosture.state === "visible" ? budgetPosture.noBudget : 0;
+  const activeProjects = budgetPosture.state === "visible" ? budgetPosture.activeProjects : 0;
+  const budgetsWithheld = budgetPosture.state === "withheld";
 
   const metrics: OverviewMetric[] = [
     {
@@ -627,7 +674,12 @@ export async function getLiveOverview(
       label: { key: "tiles.budgetRisk.label" },
       value: overBudget === null ? null : String(overBudget),
       subtext:
-        overBudget === null
+        // Withheld is said out loud. Falling through to "noProjects" here would
+        // tell a project manager that no project in the portfolio has a budget,
+        // which is both false and indistinguishable from the truth.
+        budgetsWithheld
+          ? { key: "tiles.budgetRisk.withheld" }
+          : overBudget === null
           ? { key: "tiles.budgetRisk.noProjects" }
           : // Naming the unbudgeted count matters: "0 over budget" sounds like
             // health, but it is meaningless if most projects have no budget to
@@ -672,6 +724,7 @@ export async function getLiveOverview(
   const teamOptions = buildTeamOptions(rosterPeople);
 
   return {
+    budgetsWithheld,
     metrics,
     weeks,
     teams,

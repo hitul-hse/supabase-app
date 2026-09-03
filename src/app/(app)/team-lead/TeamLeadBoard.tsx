@@ -41,7 +41,8 @@ export function TeamLeadBoard({
   const [approvedAll, setApprovedAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { weeks, rows, teamUtilisationPercent, activeCount, idleCount, overBudgetProjects } = board;
+  const { weeks, rows, teamUtilisationPercent, activeCount, idleCount, overBudgetProjects, budgetsWithheld } =
+    board;
   const range = weeks.length ? `${weeks[0].label}–${weeks[weeks.length - 1].label}` : "";
 
   const handleApprove = async (id: string) => {
@@ -111,12 +112,22 @@ export function TeamLeadBoard({
             hint="ACTIVE MEMBERS"
             tone={idleCount > 0 ? "warning" : "neutral"}
           />
+          {/*
+            A count of 0 and a withheld count are different facts. project_manager
+            and hr reach this board on workload:read but do not hold
+            projects:contracts:read, so for them the list is empty for a reason
+            that has nothing to do with the portfolio. Showing "0 PROJECTS OVER
+            ESTIMATE" to those readers would be a health claim made out of a
+            permission check -- so the tile reports no value and says why.
+          */}
           <StatTile
             label="OVER ESTIMATE"
-            value={overBudgetProjects.filter((p) => p.burnPercent >= 100).length}
-            hint="PROJECTS"
+            value={budgetsWithheld ? "n/a" : overBudgetProjects.filter((p) => p.burnPercent >= 100).length}
+            hint={budgetsWithheld ? "BUDGETS NOT VISIBLE TO YOUR ROLE" : "PROJECTS"}
             tone={
-              overBudgetProjects.some((p) => p.burnPercent >= 100) ? "critical" : "neutral"
+              !budgetsWithheld && overBudgetProjects.some((p) => p.burnPercent >= 100)
+                ? "critical"
+                : "neutral"
             }
           />
         </div>
@@ -200,7 +211,11 @@ export function TeamLeadBoard({
               </span>
             </div>
 
-            {overBudgetProjects.length === 0 ? (
+            {budgetsWithheld ? (
+              <div className="p-4 text-center font-mono text-[12px] text-[var(--text-muted)]">
+                PROJECT BUDGETS ARE NOT VISIBLE TO YOUR ROLE
+              </div>
+            ) : overBudgetProjects.length === 0 ? (
               <div className="p-4 text-center font-mono text-[12px] text-[var(--text-muted)]">
                 NO PROJECT WITH AN ESTIMATE HAS LOGGED TIME YET
               </div>

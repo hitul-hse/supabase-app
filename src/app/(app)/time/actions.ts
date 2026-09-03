@@ -44,6 +44,7 @@ import {
   type ContractPeriodInput,
 } from "@/lib/budget-guard";
 import { notifyOverbooking } from "@/lib/overbooking-notify";
+import { canReadBudgets } from "@/lib/budget-visibility";
 
 /**
  * What every action returns.
@@ -414,11 +415,27 @@ async function checkBudget(
    * as a refusal would block honest work, and one that dropped it would restore
    * the silence this feature exists to end.
    */
+  /*
+   * Whether this reader may be TOLD the figures.
+   *
+   * The guard's behaviour does not depend on this -- the booking is blocked or
+   * allowed identically either way. Only the wording changes: without
+   * projects:contracts:read the message names no budget, no logged total and no
+   * overrun. Otherwise an employee could enumerate the whole portfolio's
+   * commercial terms by attempting a one-hour booking against each project and
+   * reading the refusals, which is a permission check answering the question it
+   * was meant to refuse.
+   *
+   * Resolved here rather than inside the message helpers so those stay pure and
+   * unit-testable.
+   */
+  const budgetsVisible = await canReadBudgets(supabase);
+
   if (decision.allowed) {
-    return { refusal: null, warning: warningMessage(decision, projectName) };
+    return { refusal: null, warning: warningMessage(decision, projectName, budgetsVisible) };
   }
 
-  return { refusal: refusalMessage(decision, projectName), warning: null };
+  return { refusal: refusalMessage(decision, projectName, budgetsVisible), warning: null };
 }
 
 /** Whole days from one ISO date to another; negative once the end has passed. */

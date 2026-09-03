@@ -317,10 +317,64 @@ function describeContract(contract: BudgetDecision["contract"]): string {
   return bits.length ? ` (${bits.join(", ")})` : "";
 }
 
-/** The message a user sees when a booking is REFUSED. */
-export function refusalMessage(d: BudgetDecision, projectName: string): string {
+/**
+ * The same verdict, worded WITHOUT any figure.
+ *
+ * A refusal has to say enough that the person knows what to do next, and the
+ * obvious wording -- "this would take the project past its 400 h budget" --
+ * states the budget to someone who, since 2026-09-03, may not be allowed to
+ * know it. An employee could have read every commercial budget in the
+ * portfolio by trying to book an hour against each project and reading the
+ * refusals back: a permission check that the error message answers for you.
+ *
+ * So the numbers come out and the ACTION stays in. Nothing here mentions the
+ * ceiling, the hours logged, the overrun or the percentage; the reader still
+ * learns that the work cannot be booked here and who can change that. The
+ * guard's behaviour is identical either way -- this is about what is said, not
+ * about what is allowed.
+ */
+export function redactedReason(d: BudgetDecision): string {
+  switch (d.level) {
+    case "outside_contract":
+      return (
+        "This date is not covered by any contract period on this project. The hours are recorded, " +
+        "but the contract likely needs renewing before they can be billed."
+      );
+    case "already_over":
+      return (
+        "This project has already used its agreed budget, so no further time can be booked against it."
+      );
+    case "over":
+      return "This booking would take the project past its agreed budget.";
+    case "exhausted":
+      return "This uses the last of the project's agreed budget. Nothing remains after this entry.";
+    case "approaching":
+      return "This project is approaching its agreed budget.";
+    default:
+      // "within" and "unbudgeted" are never surfaced to a reader by the two
+      // message helpers below, but a default that leaks would be one refactor
+      // from being surfaced, so it says nothing quantitative either.
+      return "This entry is within the project's agreed budget.";
+  }
+}
+
+/**
+ * The message a user sees when a booking is REFUSED.
+ *
+ * `budgetsVisible` is REQUIRED to be passed explicitly by callers that have a
+ * reader in front of them; it defaults to true so the pure unit tests of the
+ * decision logic keep asserting the full wording. The one production caller
+ * (src/app/(app)/time/actions.ts) resolves it from
+ * projects:contracts:read.
+ */
+export function refusalMessage(
+  d: BudgetDecision,
+  projectName: string,
+  budgetsVisible = true,
+): string {
+  const reason = budgetsVisible ? d.reason : redactedReason(d);
   return (
-    `${d.reason} Booking blocked on “${projectName}”. ` +
+    `${reason} Booking blocked on “${projectName}”. ` +
     "Sales have been notified so the budget can be raised or the work re-scoped. " +
     "Log the time against another project, or ask for the budget to be extended."
   );
@@ -333,18 +387,23 @@ export function refusalMessage(d: BudgetDecision, projectName: string): string {
  * way out, a warning needs a heads-up and no interruption. Returns null when
  * there is nothing to say, so callers can pass any decision through.
  */
-export function warningMessage(d: BudgetDecision, projectName: string): string | null {
+export function warningMessage(
+  d: BudgetDecision,
+  projectName: string,
+  budgetsVisible = true,
+): string | null {
   if (!d.warn) return null;
+  const reason = budgetsVisible ? d.reason : redactedReason(d);
   if (d.level === "outside_contract") {
     return (
-      `${d.reason} Recorded against “${projectName}”. ` +
+      `${reason} Recorded against “${projectName}”. ` +
       "Ask sales to confirm the renewal so these hours sit inside a contract period."
     );
   }
   if (d.level === "exhausted") {
-    return `${d.reason} Recorded against “${projectName}”. Further work needs the budget extending.`;
+    return `${reason} Recorded against “${projectName}”. Further work needs the budget extending.`;
   }
-  return `${d.reason} Recorded against “${projectName}”.`;
+  return `${reason} Recorded against “${projectName}”.`;
 }
 
 function clampPercent(n: number): number {

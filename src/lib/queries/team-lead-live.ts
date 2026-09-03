@@ -35,6 +35,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { isSharedMailbox } from "./people-live";
 import { fetchAllPaged } from "@/lib/queries/paged";
+import { canReadBudgets } from "@/lib/budget-visibility";
 
 type SupabaseTyped = SupabaseClient<Database>;
 
@@ -236,6 +237,12 @@ export type TeamLeadBoardData = {
   activeCount: number;
   /** Projects over their estimate, worth a lead's attention. */
   overBudgetProjects: TeamProject[];
+  /**
+   * True when the list above is empty BECAUSE the caller may not see budgets,
+   * not because nothing is over budget. The board renders a different sentence
+   * for each; an empty list on its own reads as good news.
+   */
+  budgetsWithheld: boolean;
   /** The range every figure on the page covers. */
   range: BoardRange;
   /** This calendar month against the previous one, or null with no data. */
@@ -418,7 +425,7 @@ export async function getLiveTeamLeadBoard(
    */
   const emptyPaged = { rows: [] as EntryRow[], truncated: false };
   const emptyMom = { rows: [] as MomRow[], truncated: false };
-  const [memberRes, entryRes, momRes, serviceRes, overBudgetProjects] = await Promise.all([
+  const [memberRes, entryRes, momRes, serviceRes, budgetRisk] = await Promise.all([
     timeSchema(supabase)
       .from("member")
       .select("id, display_name, email, is_archived, weekly_hours, team"),
@@ -459,6 +466,7 @@ export async function getLiveTeamLeadBoard(
       teamUtilisationPercent: null,
       activeCount: 0,
       overBudgetProjects: [],
+      budgetsWithheld: budgetRisk.withheld,
       range: r,
       monthComparison: null,
       travelRows: [],
@@ -633,7 +641,8 @@ export async function getLiveTeamLeadBoard(
     teamUtilisationPercent:
       contractedSeconds > 0 ? Math.round((trackedSeconds / contractedSeconds) * 100) : null,
     activeCount: rows.filter((row) => !row.isArchived).length,
-    overBudgetProjects,
+    overBudgetProjects: budgetRisk.projects,
+    budgetsWithheld: budgetRisk.withheld,
     range: r,
     monthComparison,
     travelRows,
@@ -651,7 +660,22 @@ export async function getLiveTeamLeadBoard(
  * estimate; rendering those at 0% would read as healthy when the honest answer is
  * "nobody budgeted this".
  */
-async function getOverBudgetProjects(supabase: SupabaseTyped): Promise<TeamProject[]> {
+async function getOverBudgetProjects(
+  supabase: SupabaseTyped,
+): Promise<{ projects: TeamProject[]; withheld: boolean }> {
+  /*
+   * Withheld is NOT the empty list.
+   *
+   * /team-lead is reachable on `workload:read`, which project_manager and hr
+   * hold -- and neither holds projects:contracts:read after 2026-09-03. The
+   * query below filters on estimated_hours, which time.project_summary now
+   * redacts to NULL for those callers, so it would return zero rows and the
+   * board would render "no projects are over budget" at exactly the people who
+   * are not allowed to know. Checked first, and reported as withheld so the
+   * board can say which of the two it is.
+   */
+  if (!(await canReadBudgets(supabase))) return { projects: [], withheld: true };
+
   const { data, error } = await timeSchema(supabase)
     .from("project_summary")
     .select("project_id, project_name, estimated_hours, total_seconds, is_archived, burn_percent")
@@ -661,19 +685,22 @@ async function getOverBudgetProjects(supabase: SupabaseTyped): Promise<TeamProje
     .order("burn_percent", { ascending: false })
     .limit(TEAM_PROJECTS);
 
-  if (error || !data) return [];
+  if (error || !data) return { projects: [], withheld: false };
 
   type SummaryRow = {
     project_id: number; project_name: string | null;
     estimated_hours: number | null; total_seconds: number | null; burn_percent: number | null;
   };
-  return (data as SummaryRow[])
-    .filter((p) => Number(p.total_seconds) > 0)
-    .map((p) => ({
-      projectId: Number(p.project_id),
-      name: p.project_name ?? `Project ${p.project_id}`,
-      loggedHours: Math.round(Number(p.total_seconds) / 360) / 10,
-      estimatedHours: Number(p.estimated_hours),
-      burnPercent: Math.round(Number(p.burn_percent ?? 0)),
-    }));
+  return {
+    withheld: false,
+    projects: (data as SummaryRow[])
+      .filter((p) => Number(p.total_seconds) > 0)
+      .map((p) => ({
+        projectId: Number(p.project_id),
+        name: p.project_name ?? `Project ${p.project_id}`,
+        loggedHours: Math.round(Number(p.total_seconds) / 360) / 10,
+        estimatedHours: Number(p.estimated_hours),
+        burnPercent: Math.round(Number(p.burn_percent ?? 0)),
+      })),
+  };
 }

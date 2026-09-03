@@ -253,9 +253,24 @@ try {
    * way, teamKey the other. Both are written to disk BEFORE either is
    * required, so CommonJS resolves the cycle the same way the bundler does.
    */
+  /*
+   * team-lead-live now asks budget-visibility whether the caller may see
+   * budgets before it reads the over-budget list. Compiled for real rather than
+   * stubbed: its only runtime import is the plain constant map in
+   * @/lib/permissions, so it drags in no Supabase client, and a stub would let
+   * a broken gate pass here.
+   */
+  const permissionsFile = await compile("src/lib/permissions.ts", "permissions.cjs");
+  const budgetVisibilityFile = await compile(
+    "src/lib/budget-visibility.ts",
+    "budget-visibility.cjs",
+    { "@/lib/permissions": posix(permissionsFile) },
+  );
+
   const leadFile = await compile("src/lib/queries/team-lead-live.ts", "team-lead-live.cjs", {
     "./people-live": posix(join(dir, "people-live.cjs")),
     "@/lib/queries/paged": posix(pagedFile),
+    "@/lib/budget-visibility": posix(budgetVisibilityFile),
     "@/lib/database.types": posix(transformFile),
   });
 

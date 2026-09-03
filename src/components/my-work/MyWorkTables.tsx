@@ -82,11 +82,22 @@ export function MyWorkTables({
   projects,
   customers,
   showMyHours,
+  budgetsWithheld,
   roleCounts,
   footnote,
 }: {
   projects: MyProject[];
   customers: MyCustomer[];
+  /**
+   * True when the caller does not hold projects:contracts:read.
+   *
+   * Changes what a null budget MEANS, so it changes what the cell says: "no
+   * budget" is a fact about the project, "withheld" is a fact about the reader.
+   * It also drops the two budget columns from the CSV entirely rather than
+   * exporting empty cells -- a blank in a spreadsheet column headed BUDGET is
+   * read as zero by the next person to open it.
+   */
+  budgetsWithheld: boolean;
   /** False when person_assignments.logged_hours is unpopulated for this user. */
   showMyHours: boolean;
   /** Totals per rung, used to label the filter chips honestly. */
@@ -204,11 +215,17 @@ export function MyWorkTables({
         header: "BUDGET",
         align: "right",
         compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
-        title: "Contracted hours. 'no budget' means nobody set one, which is not a budget of zero.",
+        title: budgetsWithheld
+          ? "Project budgets are not visible to your role."
+          : "Contracted hours. 'no budget' means nobody set one, which is not a budget of zero.",
         csv: (r) => r.contractHours ?? "",
         cell: (r) => (
           <span className="font-mono text-[11px] text-[var(--text-muted)]">
-            {r.contractHours === null ? "no budget" : hours(r.contractHours)}
+            {budgetsWithheld
+              ? "withheld"
+              : r.contractHours === null
+                ? "no budget"
+                : hours(r.contractHours)}
           </span>
         ),
       },
@@ -217,11 +234,13 @@ export function MyWorkTables({
         header: "BURN",
         align: "right",
         compare: (a, b) => cmpNum(a.consumedPercent, b.consumedPercent),
-        title: "Logged over contracted. n/a when there is no budget to burn against.",
+        title: budgetsWithheld
+          ? "Burn is the budget expressed as a ratio, so it is withheld too."
+          : "Logged over contracted. n/a when there is no budget to burn against.",
         csv: (r) => r.consumedPercent ?? "",
         cell: (r) => (
           <span className={`font-mono text-[11px] ${burnClass(r.consumedPercent)}`}>
-            {r.consumedPercent === null ? "n/a" : `${r.consumedPercent}%`}
+            {budgetsWithheld ? "withheld" : r.consumedPercent === null ? "n/a" : `${r.consumedPercent}%`}
           </span>
         ),
       },
@@ -260,7 +279,7 @@ export function MyWorkTables({
     }
 
     return cols;
-  }, [showMyHours]);
+  }, [showMyHours, budgetsWithheld]);
 
   const customerColumns: Column<MyCustomer>[] = useMemo(() => {
     const cols: Column<MyCustomer>[] = [
@@ -357,14 +376,21 @@ export function MyWorkTables({
         key: "budget",
         header: "BUDGET",
         align: "right",
-        compare: (a, b) => a.contractHours - b.contractHours,
-        title: "Contracted hours summed across your projects for this customer",
-        csv: (r) => r.contractHours,
+        compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
+        title: budgetsWithheld
+          ? "Project budgets are not visible to your role."
+          : "Contracted hours summed across your projects for this customer",
+        csv: (r) => r.contractHours ?? "",
         cell: (r) => (
           <span className="font-mono text-[11px] text-[var(--text-muted)]">
             {/* 0 summed contract hours across the group means no budget was set
-                on any of them, which is not a budget of zero. */}
-            {r.contractHours > 0 ? hours(r.contractHours) : "no budget"}
+                on any of them, which is not a budget of zero -- and null means
+                the reader may not see it, which is neither. */}
+            {budgetsWithheld
+              ? "withheld"
+              : (r.contractHours ?? 0) > 0
+                ? hours(r.contractHours)
+                : "no budget"}
           </span>
         ),
       },
@@ -387,7 +413,7 @@ export function MyWorkTables({
     }
 
     return cols;
-  }, [showMyHours]);
+  }, [showMyHours, budgetsWithheld]);
 
   const roleChips: { value: MyRole | "all"; label: string; count: number }[] = [
     {

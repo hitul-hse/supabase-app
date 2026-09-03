@@ -1,0 +1,147 @@
+name: Sync Factorial
+
+# The scheduled refresh of the Factorial -> Hub identity map.
+#
+# WHY THIS EXISTS: it did not. Measured 2026-09-03, raw.sync_run held 26 rows
+# and every one of them was source='trackingtime'. There was no Factorial
+# workflow at all, and crm.factorial_person_reference had last been written on
+# 2026-09-01 by a human running scripts/sync-factorial-identity.mjs by hand.
+#
+# That degraded in the quietest way available. The mapping table and the review
+# queue both looked healthy -- 23 active mappings, a fully-worked queue with
+# nothing open -- because they WERE healthy on the day someone last ran the
+# script. Every colleague who joined or left Factorial after that date was
+# simply absent from the map, and no page, gate or log said so.
+#
+# DELIBERATELY SEPARATE FROM ci.yml, for the same reason sync-trackingtime.yml
+# is: CI must never hold live credentials or touch production data. This
+# workflow does, so the boundary stays legible.
+
+on:
+  schedule:
+    # 06:23 UTC daily, and the ordering is not arbitrary.
+    #
+    # This sync classifies Factorial employees by joining through time.member,
+    # and it can only resolve someone whose member row already carries
+    # hub_person_id. That column is populated by link-time-members.mjs, which
+    # runs as a step INSIDE sync-trackingtime.yml. Running Factorial first would
+    # push a colleague into the review queue as 'bridged_unlinked' who would
+    # have resolved cleanly an hour later -- correct behaviour producing
+    # avoidable human work.
+    #
+    # TrackingTime is scheduled at 04:17. Observed real starts across the last
+    # week range from 04:20 to 05:36: GitHub's scheduler queues and delays under
+    # load, sometimes by well over an hour. 06:23 leaves ~45 minutes of margin
+    # beyond the worst start yet seen plus its ~60s runtime. Off the hour on
+    # purpose -- the :00 spike is exactly what causes those delays.
+    - cron: "23 6 * * *"
+
+  # Manual trigger. The first question after a failure is "can I just run it
+  # again", and the second is "can I see what it would do before it does it".
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report what would change, write nothing (no sync_run row either)"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  # Two concurrent runs would both upsert the same (source_system, external_id,
+  # entity_type, account_ref) rows. That is safe by design, but it doubles the
+  # load on an API whose rate limits are not published for GETs.
+  # cancel-in-progress is FALSE: this sync commits in one transaction, and
+  # killing it mid-write is worse than letting it finish late.
+  group: sync-factorial
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Resolve identities
+    runs-on: ubuntu-latest
+    # 43 employees over one paginated endpoint, ~350ms per page, plus a handful
+    # of small queries. Measured end to end at well under a minute. Ten minutes
+    # is generous; the default 360 would let a wedged call burn six hours.
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync identities
+        env:
+          FACTORIAL_API_KEY: ${{ secrets.FACTORIAL_API_KEY }}
+          FACTORIAL_COMPANY_ID: ${{ secrets.FACTORIAL_COMPANY_ID }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # INPUTS TRAVEL THROUGH env, NEVER THROUGH `${{ }}` IN A run: BLOCK.
+          #
+          # `${{ inputs.x }}` is substituted into the script TEXT before bash
+          # sees it, so anything a dispatcher can type becomes shell source in a
+          # step holding the service credential. sync-trackingtime.yml does this
+          # at its lines 83 and 86 and should be given the same treatment.
+          #
+          # As an env var the value is data: bash expands "$DRY_RUN" at runtime
+          # and never parses it as syntax, whatever it contains.
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          # Fail early and loudly rather than recording a "successful" run that
+          # did nothing. A missing secret is the likeliest cause of a sync that
+          # appears to work -- and this script exits 2 on a missing credential,
+          # which is indistinguishable from a real failure in the Actions UI
+          # unless we say which it was here.
+          for name in FACTORIAL_API_KEY FACTORIAL_COMPANY_ID SUPABASE_DB_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "$name is not set -- add it as a repository secret."
+              echo "See the PR that introduced this workflow for what each one is."
+              exit 1
+            fi
+          done
+
+          # SUPABASE_DB_URL must be the SESSION POOLER url on a hosted runner.
+          # db.<ref>.supabase.co publishes an AAAA record and no A record
+          # (measured 2026-09-03), and GitHub runners have no IPv6 route, so the
+          # direct url fails at connect with ENETUNREACH -- before the script can
+          # record anything. Caught here so the reason is in the log rather than
+          # inferred from a stack trace. Checked by shape, so the secret itself
+          # is never echoed.
+          case "$SUPABASE_DB_URL" in
+            *@db.*.supabase.co*)
+              echo "SUPABASE_DB_URL points at the DIRECT host (db.<ref>.supabase.co)."
+              echo "That host is IPv6-only and this runner is IPv4-only."
+              echo "Use the Session pooler url (port 5432) from Supabase > Connect."
+              exit 1
+              ;;
+          esac
+
+          if [ "${DRY_RUN:-false}" = "true" ]; then
+            echo "MODE: dry run — nothing will be written, and no sync_run row either."
+            node scripts/sync-factorial-identity.mjs --dry-run
+          else
+            echo "MODE: write"
+            node scripts/sync-factorial-identity.mjs --write
+          fi
+
+      - name: Report freshness
+        # Runs even when the sync failed -- that is exactly when someone wants to
+        # know how old the map now is. The failure is already recorded in
+        # raw.sync_run by the script itself, so this reads real state rather than
+        # repeating what the previous step just printed.
+        #
+        # `|| true`: this is a report at the end of a sync, not the gate. The
+        # gate is `npm run check:factorial-freshness`, which is the same script
+        # and does fail. Turning a green sync red because a PREVIOUS run was old
+        # would be reporting yesterday's problem against today's run.
+        if: always()
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: node scripts/check-factorial-freshness.mjs || true

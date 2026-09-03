@@ -41,7 +41,10 @@ import path from "node:path";
 import os from "node:os";
 import { launchChromium } from "./lib/launch-chromium.mjs";
 
-const BASE = process.env.BASE ?? "http://localhost:3002";
+// :3002 was the health-portal worktree's dev server while that page was being
+// rebuilt; it was retired when the work merged on 2026-09-02, and the gate then
+// timed out on a dead port every night. The rig's dev server is :3000.
+const BASE = process.env.BASE ?? "http://localhost:3000";
 const PATH_UNDER_TEST = "/admin/system-health";
 const EMAIL = process.env.REVIEW_EMAIL;
 const PASSWORD = process.env.REVIEW_PW;

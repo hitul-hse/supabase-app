@@ -79,6 +79,7 @@
         "check:action-auth": "node scripts/check-server-action-auth.mjs",
         "check:oauth-success": "node scripts/check-oauth-success-path.mjs",
         "sync:factorial-identity": "node scripts/sync-factorial-identity.mjs",
+        "sync:factorial-identity:write": "node scripts/sync-factorial-identity.mjs --write",
         "sync:trackingtime": "node scripts/sync-trackingtime.mjs",
         "sync:full": "node scripts/sync-trackingtime.mjs --full",
         "check:sync-freshness": "node scripts/check-sync-freshness.mjs",
@@ -217,6 +218,7 @@
         "check:factorial-auth": "node scripts/check-factorial-auth.mjs",
         "check:factorial-harvest": "node scripts/check-factorial-harvest.mjs",
         "check:factorial-classifier-schema": "node scripts/check-factorial-classifier-schema-agree.mjs",
+        "check:factorial-freshness": "node scripts/check-factorial-freshness.mjs",
         "check:shared-mailbox-pattern": "node scripts/check-shared-mailbox-pattern.mjs",
         "check:new-gates-can-fail": "node scripts/check-new-gates-can-fail.mjs",
         "test:no-anonymous-read": "node scripts/check-no-anonymous-read.mjs"

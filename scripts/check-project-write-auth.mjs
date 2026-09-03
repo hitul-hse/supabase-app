@@ -119,6 +119,27 @@ try {
   const cacheStub = join(dir, "cache-stub.cjs");
   writeFileSync(cacheStub, `module.exports = { revalidatePath: () => {} };`);
 
+  // actions.ts reports its refusals from the catalogue now, so it imports
+  // next-intl/server. getTranslations() throws outside a Next request ("not
+  // supported in Client Components"), so it is answered here from the real
+  // messages/en.json -- the shape check-data-table-primitive.mjs established.
+  // A translator over the true catalogue rather than an identity function, so
+  // a refusal that lost its message key still shows up as the key path.
+  const intlStub = join(dir, "next-intl-server-stub.cjs");
+  writeFileSync(
+    intlStub,
+    `const { createTranslator } = require("next-intl");
+const messages = require("${resolve("messages/en.json").replace(/\\/g, "/")}");
+exports.getLocale = async () => "en";
+exports.getTranslations = async (arg) =>
+  createTranslator({
+    locale: "en",
+    messages,
+    namespace: typeof arg === "string" ? arg : arg?.namespace,
+  });
+`,
+  );
+
   const compileTs = async (srcPath, outName, rewrites = {}) => {
     let code = readFileSync(srcPath, "utf8");
     for (const [from, to] of Object.entries(rewrites)) {
@@ -143,6 +164,7 @@ try {
   const compiled = await compileTs("src/app/(app)/projects/actions.ts", "actions.cjs", {
     "@/utils/supabase/server": serverStub,
     "next/cache": cacheStub,
+    "next-intl/server": intlStub,
     "@/lib/permissions": permissions,
   });
 

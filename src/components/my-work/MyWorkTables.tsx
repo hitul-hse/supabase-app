@@ -198,6 +198,24 @@ export function MyWorkTables({
         cell: (r) => <StatusBadge status={r.status} tone={statusTone(r.status)} />,
       },
       {
+        key: "service",
+        header: "SERVICE",
+        className: "w-[10rem]",
+        compare: (a, b) => cmpText(a.services.join(", "), b.services.join(", ")),
+        descFirst: false,
+        title:
+          "TrackingTime service tag, not a contractual agreement -- the framework-agreement table is not populated yet.",
+        search: (r) => r.services.join(" "),
+        csv: (r) => r.services.join(" / "),
+        cell: (r) => (
+          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+            {/* No time.project row at all for this project (9 of 54 on live
+                data) -- honest n/a, never a blank cell or a guessed service. */}
+            {r.services.length > 0 ? r.services.join(" · ") : "n/a"}
+          </span>
+        ),
+      },
+      {
         key: "logged",
         header: "LOGGED",
         align: "right",
@@ -263,7 +281,9 @@ export function MyWorkTables({
     // hours. On live data they do not, and a column reading 0 beside a real team
     // figure is a plausible wrong number — the page states the gap instead.
     if (showMyHours) {
-      cols.splice(6, 0, {
+      // Inserted right after BUDGET (now index 6 -- SERVICE pushed it back one
+      // slot), so it lands between BUDGET and BURN exactly as before.
+      cols.splice(7, 0, {
         key: "mine",
         header: "MINE",
         align: "right",
@@ -356,6 +376,33 @@ export function MyWorkTables({
                 <RoleBadge role={x} />
               </span>
             ))}
+          </div>
+        ),
+      },
+      {
+        key: "services",
+        header: "SERVICES",
+        className: "w-[12rem]",
+        compare: (a, b) => cmpText(a.services.join(", "), b.services.join(", ")),
+        descFirst: false,
+        title:
+          "TrackingTime service tags across this customer's projects, not a contractual agreement.",
+        search: (r) => r.services.join(" "),
+        csv: (r) => r.services.join(" / "),
+        cell: (r) => (
+          <div className="flex flex-wrap items-center gap-1">
+            {r.services.length > 0 ? (
+              r.services.map((s) => (
+                <span
+                  key={s}
+                  className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
+                >
+                  {s}
+                </span>
+              ))
+            ) : (
+              <span className="font-mono text-[11px] text-[var(--text-faint)]">n/a</span>
+            )}
           </div>
         ),
       },

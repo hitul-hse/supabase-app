@@ -34,29 +34,48 @@ const MATCH_LABEL: Record<PersonComparison["matchState"], string> = {
   matched: "Both",
   factorial_only: "HR only",
   trackingtime_only: "TT only",
+  unresolved: "Unresolved",
+};
+
+const MATCH_TITLE: Record<PersonComparison["matchState"], string> = {
+  matched:
+    "Matched on the exact Factorial employee id, through crm.factorial_person_reference to a hub person "
+    + "and on to their TrackingTime member. Never on a name.",
+  factorial_only:
+    "The identity chain resolved to a hub person, and that person has no TrackingTime member. "
+    + "A measured fact: no TrackingTime account.",
+  trackingtime_only:
+    "Logs project time in TrackingTime; no active Factorial employee resolves to this member.",
+  unresolved:
+    "The identity chain does not resolve this Factorial employee to a hub person, so their project "
+    + "hours are UNKNOWN, not zero and not absent. Decide it in the Factorial identity queue "
+    + "(/admin/factorial-identity); a machine may not guess by name.",
 };
 
 /*
  * Match-state chip. Muted by design: "Both" is the normal case and should not
- * shout; the two partial states are the interesting ones and get the teal tint.
+ * shout; the partial states are the interesting ones and get the teal tint.
+ *
+ * "Unresolved" is louder than the other two on purpose. It is not a property of
+ * the colleague — it is an unanswered question about our own data, and it sits
+ * on a row whose hours columns all read "—". Left in the same muted teal as
+ * "HR only" it would read as another ordinary category rather than as work
+ * waiting in the identity queue.
  */
 function MatchChip({ state }: { state: PersonComparison["matchState"] }) {
+  const unresolved = state === "unresolved";
   const partial = state !== "matched";
   return (
     <span
       className={
-        "inline-block rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-[0.04em] " +
-        (partial
-          ? "border-[var(--border-strong)] bg-[var(--accent-wash)] text-[var(--text-secondary)]"
-          : "border-[var(--border)] text-[var(--text-faint)]")
+        "inline-block rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-[0.04em] "
+        + (unresolved
+          ? "border-[var(--warning)] text-[var(--warning)]"
+          : partial
+            ? "border-[var(--border-strong)] bg-[var(--accent-wash)] text-[var(--text-secondary)]"
+            : "border-[var(--border)] text-[var(--text-faint)]")
       }
-      title={
-        state === "factorial_only"
-          ? "In Factorial (clocks attendance) but has no TrackingTime account"
-          : state === "trackingtime_only"
-            ? "Logs project time in TrackingTime but is not an active Factorial employee"
-            : "Matched across both systems by exact work email"
-      }
+      title={MATCH_TITLE[state]}
     >
       {MATCH_LABEL[state]}
     </span>
@@ -102,7 +121,7 @@ function PairBar({
 }
 
 export function FactorialHoursPanel({ report }: { report: FactorialHoursReport }) {
-  const { people, totals, factorialError, windowDays, windowFrom, windowTo } = report;
+  const { people, totals, factorialError, identity, windowDays, windowFrom, windowTo } = report;
 
   const maxHours = Math.max(
     ...people.map((p) => Math.max(p.presentHours ?? 0, p.loggedHours ?? 0)),
@@ -110,6 +129,7 @@ export function FactorialHoursPanel({ report }: { report: FactorialHoursReport }
   );
 
   const matched = people.filter((p) => p.matchState === "matched").length;
+  const unresolved = people.filter((p) => p.matchState === "unresolved").length;
   const billableShare =
     totals.loggedHours > 0 ? Math.round((totals.billableHours / totals.loggedHours) * 100) : null;
 
@@ -240,6 +260,48 @@ export function FactorialHoursPanel({ report }: { report: FactorialHoursReport }
       )}
 
       {/*
+        The identity chain is a source like any other, so when it is DOWN the
+        page says so in the same shape as an unreachable Factorial. Without this
+        banner an unreadable crm.factorial_person_reference renders as a table
+        where nobody logs any hours, which reads as an answer.
+      */}
+      {!identity.available && (
+        <Card className="px-4 py-3">
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--critical)]">
+              IDENTITY CHAIN UNAVAILABLE
+            </span>
+            <span className="text-[12px] text-[var(--text-secondary)]">{identity.fault}</span>
+          </div>
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-faint)]">
+            Every Factorial employee below is shown as Unresolved and their TrackingTime hours as —.
+            That is the honest state: without crm.factorial_person_reference there is no lawful way to
+            say whose hours are whose, and this page will not fall back to matching names.
+          </p>
+        </Card>
+      )}
+
+      {identity.available && unresolved > 0 && (
+        <Card className="px-4 py-3">
+          <div className="flex items-baseline gap-2.5">
+            <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--warning)]">
+              {unresolved} UNRESOLVED {unresolved === 1 ? "IDENTITY" : "IDENTITIES"}
+            </span>
+            <span className="text-[12px] text-[var(--text-secondary)]">
+              {identity.resolved} of {identity.resolved + identity.unresolved} active Factorial
+              employees resolve to a hub person.
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-faint)]">
+            Their Logged, Billable and % Bill columns read — because we do not know which
+            TrackingTime member they are, not because they logged nothing. Resolve them in the
+            Factorial identity queue at /admin/factorial-identity and they appear here with hours;
+            ADR-001 forbids this page from guessing by name.
+          </p>
+        </Card>
+      )}
+
+      {/*
         Four headline figures. Each hint states the denominator, because the
         totals deliberately cover DIFFERENT people counts: presence sums over
         those who clock, logged sums over those with a TT account, and the two
@@ -275,7 +337,12 @@ export function FactorialHoursPanel({ report }: { report: FactorialHoursReport }
         <StatTile
           label="MATCHED IDENTITIES"
           value={`${matched} / ${people.length}`}
-          hint="exact work-email or name key, never similarity"
+          hint={
+            unresolved > 0
+              ? `${unresolved} unresolved — exact Factorial employee id only, never a name`
+              : "exact Factorial employee id only, never a name"
+          }
+          tone={unresolved > 0 ? "warning" : "neutral"}
           data-metric="factorial-matched-count"
         />
       </div>
@@ -303,7 +370,10 @@ export function FactorialHoursPanel({ report }: { report: FactorialHoursReport }
             Present is contracted working time clocked in Factorial; Logged is project work
             tracked in TrackingTime with calendar placeholders excluded. The two measure
             different things and overlap imperfectly, so no column subtracts one from the
-            other. — always means unmeasured, never zero.
+            other. — always means unmeasured, never zero. Identity is resolved on the exact
+            Factorial employee id through the recorded decisions in the identity queue; a row
+            marked Unresolved has no lawful link to a TrackingTime member, so its project
+            columns are unmeasured rather than empty.
           </>
         }
       />
@@ -320,9 +390,12 @@ export function FactorialHoursPanel({ report }: { report: FactorialHoursReport }
         />
         <div className="grid grid-cols-1 gap-px bg-[var(--divider)] sm:grid-cols-2 lg:grid-cols-3">
           {report.teams
-            .filter((t) => t.memberNames.length > 0)
+            .filter((t) => t.memberFactorialIds.length > 0)
             .map((team) => {
-              const members = people.filter((p) => team.memberNames.includes(p.name));
+              // Exact id membership. Matching on p.name here would be the same
+              // ADR-001 violation the join below the fold was fixed for.
+              const ids = new Set(team.memberFactorialIds);
+              const members = people.filter((p) => p.factorialId !== null && ids.has(p.factorialId));
               const withPresent = members.filter((p) => p.presentHours !== null);
               const withLogged = members.filter((p) => p.loggedHours !== null);
               const present = withPresent.reduce((s, p) => s + (p.presentHours ?? 0), 0);

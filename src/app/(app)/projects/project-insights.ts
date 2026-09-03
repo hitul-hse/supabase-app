@@ -37,6 +37,17 @@ export type ProjectFilters = {
 
 export type ProjectFacet = "over" | "risk" | "healthy" | "nobudget" | "idle";
 
+/**
+ * The bucket a project with no customer falls into.
+ *
+ * It is a KEY, not a label: the filter set, the customer options and the
+ * portfolio rows all agree on this exact string, and `filterProjectRows` tests
+ * membership with it. Translating it in place would silently unselect the
+ * bucket the moment the reader switches language, so the key stays English and
+ * the components render `drill.noCustomer` in its place.
+ */
+export const NO_CUSTOMER = "(no customer)";
+
 export const EMPTY_PROJECT_FILTERS: ProjectFilters = {
   query: "",
   customers: new Set(),
@@ -76,7 +87,7 @@ export function filterProjectRows(rows: ProjectListRow[], f: ProjectFilters): Pr
       (p.customerName ?? "").toLowerCase().includes(q) ||
       (p.code ?? "").toLowerCase().includes(q);
     const matchesCustomer =
-      f.customers.size === 0 || f.customers.has(p.customerName ?? "(no customer)");
+      f.customers.size === 0 || f.customers.has(p.customerName ?? NO_CUSTOMER);
     const matchesFacet =
       f.facets.size === 0 || [...f.facets].some((x) => matchesProjectFacet(p, x));
     const matchesBillable =
@@ -135,7 +146,7 @@ export function customerPortfolioFromRows(rows: ProjectListRow[]): CustomerPortf
   const byCustomer = new Map<string, Acc>();
   for (const p of rows) {
     if (p.actualHours <= 0 && (p.estimatedHours ?? 0) <= 0) continue;
-    const name = p.customerName ?? "(no customer)";
+    const name = p.customerName ?? NO_CUSTOMER;
     let a = byCustomer.get(name);
     if (!a) {
       a = { hours: 0, billableHours: 0, projects: 0, committed: 0, committedDelivered: 0, hasBudget: false };

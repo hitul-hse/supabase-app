@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
@@ -75,6 +76,7 @@ export default async function TimePage({
 }) {
   await requirePermission("/time", PERMISSIONS.TIMESHEETS_READ_OWN);
   const supabase = await createClient();
+  const t = await getTranslations("time.page");
 
   const params = await searchParams;
   const weekStart = parseWeekParam(params.week);
@@ -143,17 +145,18 @@ export default async function TimePage({
     <PageTransition>
       <div className="flex flex-col">
         <PageHeader
-          category={view === "track" ? "TIME TRACKING / TRACK" : "TIME TRACKING / RECORDS"}
-          title="Time"
-          meta={
-            view === "track"
-              ? `TRACKINGTIME-EQUIVALENT · SECONDS · ${
-                  running ? "TIMER RUNNING" : "NO TIMER RUNNING"
-                }`
-              : `TRACKINGTIME-EQUIVALENT · SECONDS · ${
-                  scope === "mine" ? "MY TIME" : "TEAM"
-                }`
-          }
+          category={view === "track" ? t("categoryTrack") : t("categoryRecords")}
+          title={t("title")}
+          meta={t("meta", {
+            state:
+              view === "track"
+                ? running
+                  ? t("timerRunning")
+                  : t("timerIdle")
+                : scope === "mine"
+                  ? t("scopeMine")
+                  : t("scopeTeam"),
+          })}
         />
 
         {/* canReadAll decides whether the dashboard tab is offered: /time/dashboard
@@ -170,10 +173,7 @@ export default async function TimePage({
           />
 
           {unlinked ? (
-            <EmptyState
-              title="No time-tracking record linked to your account"
-              description="Your account isn't linked to a Time Tracking member yet, so there is no personal time to show. That is expected before the first TrackingTime import runs, or if your email doesn't match a tracked user. Switch to Team to see what you're permitted to view, or ask an administrator to link it."
-            />
+            <EmptyState title={t("unlinkedTitle")} description={t("unlinkedBody")} />
           ) : view === "track" && lookups !== null ? (
             <TimeTracker
               running={running}
@@ -187,10 +187,7 @@ export default async function TimePage({
               <TimeTotalsStrip totals={totals} />
 
               {entries.length === 0 ? (
-                <EmptyState
-                  title="Nothing tracked this week"
-                  description="Entries appear here once time is tracked or imported from TrackingTime. An empty list can also mean you don't have access to anybody else's time, which is the access model working rather than a fault."
-                />
+                <EmptyState title={t("emptyTitle")} description={t("emptyBody")} />
               ) : (
                 <TimeEntryList days={days} showMember={scope === "team"} />
               )}

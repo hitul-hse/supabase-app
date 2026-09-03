@@ -1,7 +1,17 @@
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ProjectBudgetStatusRow } from "@/lib/queries/types";
 import { Card } from "@/components/ui/Card";
+import { fmtInt, tagFor } from "@/lib/locale-format";
 
-const euro = (value: number) => `€${Math.round(value).toLocaleString("de-DE")}`;
+/**
+ * Euros in the reader's language.
+ *
+ * This used to pin de-DE unconditionally, which was right when the whole Hub
+ * printed German digits and wrong once the reader can choose: an English page
+ * would have shown "€1.234" beside "1,234.5h". It follows the request locale
+ * like every other figure on these pages.
+ */
+const euro = (value: number, locale: string) => `€${fmtInt(value, locale)}`;
 
 /**
  * Budget burn and margin for a project.
@@ -10,8 +20,12 @@ const euro = (value: number) => `€${Math.round(value).toLocaleString("de-DE")}
  * project can invoice well and still lose money once non-billable hours are
  * paid for, and revenue on its own hides that.
  */
-export function BudgetPanel({ status }: { status: ProjectBudgetStatusRow | null }) {
+export async function BudgetPanel({ status }: { status: ProjectBudgetStatusRow | null }) {
   if (!status) return null;
+
+  const t = await getTranslations("projects.budgetPanel");
+  const locale = await getLocale();
+  const num = (n: number) => n.toLocaleString(tagFor(locale), { maximumFractionDigits: 1 });
 
   const hoursLogged = Number(status.hours_logged ?? 0);
   const budgetHours = status.budget_hours == null ? null : Number(status.budget_hours);
@@ -34,34 +48,29 @@ export function BudgetPanel({ status }: { status: ProjectBudgetStatusRow | null 
     <Card as="section" className="flex flex-col gap-4 p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-2.5">
-          <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Budget &amp; margin</h2>
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">
-            APPROVED HOURS ONLY
-          </span>
+          <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{t("title")}</h2>
+          <span className="font-mono text-[10px] text-[var(--text-muted)]">{t("qualifier")}</span>
         </div>
 
         {overBudget && (
           <span className="bg-[var(--critical-wash)] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--critical)]">
-            Over budget
+            {t("overBudget")}
           </span>
         )}
         {nearLimit && (
           <span className="bg-[var(--warning-wash)] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--warning)]">
-            Past {status.budget_alert_percent}% alert
+            {t("pastAlert", { percent: status.budget_alert_percent ?? 0 })}
           </span>
         )}
       </div>
 
       {budgetHours == null ? (
-        <p className="text-[12px] text-[var(--text-muted)]">
-          No hours budget set for this project, so there is nothing to burn down against. An
-          exec can set one to enable overrun warnings.
-        </p>
+        <p className="text-[12px] text-[var(--text-muted)]">{t("noBudget")}</p>
       ) : (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between font-mono text-[11px]">
             <span className="text-[var(--text-secondary)]">
-              {hoursLogged} of {budgetHours} h
+              {t("ofHours", { logged: num(hoursLogged), budget: num(budgetHours) })}
             </span>
             <span style={{ color: barColor }}>{percent ?? 0}%</span>
           </div>
@@ -71,7 +80,7 @@ export function BudgetPanel({ status }: { status: ProjectBudgetStatusRow | null 
             aria-valuenow={percent ?? 0}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Hours budget consumed"
+            aria-label={t("barLabel")}
           >
             <div
               className="h-full transition-[width] duration-500"
@@ -85,12 +94,15 @@ export function BudgetPanel({ status }: { status: ProjectBudgetStatusRow | null 
       )}
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-[var(--border)] pt-4 sm:grid-cols-4">
-        <Figure label="BILLABLE HOURS" value={`${Number(status.billable_hours_logged ?? 0)} h`} />
-        <Figure label="REVENUE" value={euro(revenue)} />
-        <Figure label="COST" value={euro(cost)} hint="all hours, billable or not" />
         <Figure
-          label="MARGIN"
-          value={euro(margin)}
+          label={t("billableHours")}
+          value={t("hours", { hours: num(Number(status.billable_hours_logged ?? 0)) })}
+        />
+        <Figure label={t("revenue")} value={euro(revenue, locale)} />
+        <Figure label={t("cost")} value={euro(cost, locale)} hint={t("costHint")} />
+        <Figure
+          label={t("margin")}
+          value={euro(margin, locale)}
           color={margin < 0 ? "var(--critical)" : "var(--good)"}
         />
       </div>

@@ -37,7 +37,9 @@
       "running": "SYNC LÄUFT",
       "failedSince": "{count} FEHLGESCHLAGEN SEITDEM",
       "rows": "{count} ZEILEN"
-    }
+    },
+    "show": "ANZEIGEN",
+    "hide": "AUSBLENDEN"
   },
   "overview": {
     "title": "Übersicht",
@@ -714,7 +716,13 @@
     },
     "sourceLabel": "QUELLE: TRACKINGTIME + HUB",
     "filters": {
-      "hubOnly": "NUR IM HUB"
+      "hubOnly": "NUR IM HUB",
+      "team": "Nach Team filtern",
+      "allTeams": "Alle Teams ({count})",
+      "noTeam": "Kein Team hinterlegt",
+      "clear": "{count, plural, one {# FILTER} other {# FILTER}} ZURÜCKSETZEN",
+      "noMatchQuery": "Niemand entspricht „{query}“.",
+      "noMatchFilters": "Niemand entspricht diesen Filtern."
     },
     "row": {
       "hubMarker": "HUB",
@@ -725,9 +733,147 @@
       "hubOnlyTitle": "Diese Person ist im Hub (aus Factorial) angelegt, hat aber kein TrackingTime-Mitglied; daher lässt sich nichts Zeitbasiertes messen.",
       "noTrackingTime": "KEIN TRACKINGTIME-KONTO",
       "noTrackingTimeAccount": "Kein TrackingTime-Konto, daher gibt es keine Projektzeiten anzuzeigen.",
-      "noEmail": "keine E-Mail hinterlegt"
+      "noEmail": "keine E-Mail hinterlegt",
+      "nominal": "NOMINELL {hours} H/WOCHE",
+      "nominalTitle": "Standardwert des TrackingTime-Kontos, keine vertraglich vereinbarte Größe",
+      "noRole": "KEINE ROLLE",
+      "noTeam": "KEIN TEAM HINTERLEGT",
+      "archived": "IN TRACKINGTIME ARCHIVIERT",
+      "viewInDashboard": "Im Dashboard ansehen",
+      "manageUsers": "Benutzer verwalten"
     },
-    "unlinkedNote": "{unlinked} von {tracked} Personen in TrackingTime haben noch keinen Hub-Login und können ihre eigenen Stunden daher nicht sehen."
+    "unlinkedNote": "{unlinked} von {tracked} Personen in TrackingTime haben noch keinen Hub-Login und können ihre eigenen Stunden daher nicht sehen.",
+    "title": "Mitarbeiter & Profile",
+    "category": "HSE HUB / AUFZEICHNUNGEN",
+    "tabs": {
+      "label": "Mitarbeiteransicht",
+      "directory": "Verzeichnis",
+      "orgChart": "Organigramm"
+    },
+    "empty": {
+      "meta": "KEINE AUFZEICHNUNGEN SICHTBAR",
+      "title": "Für Sie sind keine Mitarbeiter sichtbar",
+      "description": "Entweder ist der TrackingTime-Import noch nicht gelaufen, oder Ihre Rolle erlaubt nur den Zugriff auf den eigenen Datensatz. Wenden Sie sich an die Administration oder starten Sie die TrackingTime-Synchronisation."
+    },
+    "roster": {
+      "heading": "Mitarbeiter",
+      "count": "{shown} VON {matching}",
+      "totalSuffix": "({total} GESAMT)",
+      "pagerNoun": "Mitarbeiter"
+    },
+    "search": {
+      "label": "Mitarbeiter nach Name, E-Mail oder Rolle suchen",
+      "placeholder": "Name, E-Mail, Rolle suchen…"
+    },
+    "chips": {
+      "hasLoggedTime": "HAT ZEIT ERFASST",
+      "noHubAccount": "KEIN HUB-KONTO",
+      "includeArchived": "ARCHIVIERTE EINSCHLIESSEN",
+      "overCapacity": "ÜBER KAPAZITÄT",
+      "lowUtilisation": "GERINGE AUSLASTUNG",
+      "onTrack": "IM PLAN",
+      "noUtilisationData": "KEINE AUSLASTUNGSDATEN"
+    },
+    "columns": {
+      "name": "NAME",
+      "hours": "STUNDEN",
+      "billable": "ABRECHENBAR"
+    },
+    "tiles": {
+      "hoursLogged": "ERFASSTE STUNDEN",
+      "entries": "{count, plural, one {# EINTRAG} other {# EINTRÄGE}}",
+      "billableShare": "ABRECHENBARER ANTEIL",
+      "billableHours": "{hours} H ABRECHENBAR",
+      "utilisation": "AUSLASTUNG",
+      "utilisationHint": "VON NOMINELL 40 H, AKTIVE WOCHEN",
+      "weeksActive": "AKTIVE WOCHEN",
+      "lastActivity": "ZULETZT {date}",
+      "noActivity": "KEINE AKTIVITÄT"
+    },
+    "projects": {
+      "heading": "Projekte",
+      "meta": "TOP {count} NACH STUNDEN · TRACKINGTIME",
+      "none": "Auf kein Projekt wurde Zeit erfasst.",
+      "project": "PROJEKT",
+      "logged": "ERFASST",
+      "share": "ANTEIL",
+      "hours": "{hours} h"
+    },
+    "orgChart": {
+      "empty": {
+        "title": "Keine aktiven Mitarbeiter",
+        "body": "Im TrackingTime-Verzeichnis ist derzeit niemand aktiv."
+      },
+      "heading": "Berichtsstruktur",
+      "source": "IM HUB HINTERLEGT · TRACKINGTIME FÜHRT KEINE HIERARCHIE",
+      "placed": "{placed} VON {total} EINGEORDNET",
+      "teams": "{count, plural, one {# TEAM} other {# TEAMS}}",
+      "degraded": {
+        "title": "Unvollständiges Organigramm",
+        "body": "Die unternehmensweite Organigramm-Ansicht ist nicht verfügbar; angezeigt werden daher nur die Mitarbeiter, die Sie sehen dürfen. Das ist nicht die gesamte Organisation. Die Administration muss die ausstehende Datenbankmigration einspielen."
+      },
+      "cycles": {
+        "title": "{count, plural, one {# Berichtsschleife erfasst} other {# Berichtsschleifen erfasst}}",
+        "body": "Einige Mitarbeiter berichten im Kreis aneinander und lassen sich daher nicht im Baum einordnen. Die Betroffenen stehen unten als nicht eingeordnet — lösen Sie eine ihrer Berichtslinien auf."
+      },
+      "noLines": {
+        "title": "Noch keine Berichtslinien hinterlegt",
+        "body": "TrackingTime führt nicht, wer an wen berichtet; es lässt sich daher nichts importieren.",
+        "canEdit": "Nutzen Sie BEARBEITEN neben einer Person, um deren Vorgesetzten zu hinterlegen — das Organigramm baut sich dann von selbst auf.",
+        "readOnly": "Jemand mit der Berechtigung, Mitarbeiter zu bearbeiten, kann sie hinterlegen."
+      },
+      "reportsToHeader": "BERICHTET AN",
+      "reports": "{count, plural, one {# UNTERSTELLTER} other {# UNTERSTELLTE}}",
+      "noAccount": "KEIN KONTO",
+      "noAccountTitle": "Noch kein Hub-Login",
+      "edit": "BEARBEITEN",
+      "close": "SCHLIESSEN",
+      "unplaced": {
+        "heading": "Noch nicht eingeordnet",
+        "count": "{count} VON {total}"
+      },
+      "reportsTo": "Berichtet an",
+      "nobody": "Niemand (Spitze des Organigramms)",
+      "saveManager": "Vorgesetzten speichern",
+      "saving": "Wird gespeichert…",
+      "team": "TEAM",
+      "teamNone": "— Keins —",
+      "jobTitle": "POSITION",
+      "jobTitlePlaceholder": "z. B. Fachkraft für Arbeitssicherheit",
+      "saveDetails": "Angaben speichern",
+      "jobTitleNote": "POSITION IST NICHT DASSELBE WIE {role} — DAS IST DIE TRACKINGTIME-ZUGRIFFSSTUFE DIESER PERSON, NICHT IHRE ROLLE HIER"
+    },
+    "rates": {
+      "label": "ABRECHENBARER STUNDENSATZ",
+      "valueLabel": "ABRECHENBARER WERT (FREIGEGEBEN)",
+      "amount": "{amount} €",
+      "perHour": "/ H",
+      "perHours": "/ {hours} H",
+      "ratePlaceholder": "€/h",
+      "edit": "bearbeiten",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…",
+      "cancel": "Abbrechen",
+      "error": "Der Satz konnte nicht aktualisiert werden."
+    },
+    "actions": {
+      "rate": {
+        "invalid": "Bitte geben Sie einen gültigen, nicht negativen Satz ein.",
+        "noPermission": "Sie haben keine Berechtigung, abrechenbare Stundensätze zu setzen."
+      },
+      "org": {
+        "notSignedIn": "Sie sind nicht angemeldet.",
+        "noPermission": "Sie haben keine Berechtigung, Mitarbeiter zu bearbeiten.",
+        "missingMember": "Welche Person? Die Mitglieds-ID fehlte.",
+        "badSupervisor": "Dieser Vorgesetzte konnte nicht identifiziert werden.",
+        "adminUnavailable": "Admin-Client nicht verfügbar.",
+        "selfReport": "Niemand kann an sich selbst berichten.",
+        "loop": "Das würde eine Berichtsschleife erzeugen — die gewählte Person berichtet bereits an diese, direkt oder über jemand anderen.",
+        "lineCleared": "Berichtslinie entfernt.",
+        "lineSaved": "Berichtslinie gespeichert.",
+        "detailsSaved": "Gespeichert."
+      }
+    }
   },
   "timeDashboard": {
     "strip": {
@@ -764,6 +910,284 @@
         "note": "<mono>{hours}</mono> Kalenderzeit sind aus diesen Zahlen ausgeschlossen.",
         "include": "<link>Einbeziehen</link>, um TrackingTimes eigenem Bericht zu entsprechen."
       }
+    },
+    "page": {
+      "category": "TRACKINGTIME / DASHBOARD",
+      "title": "TrackingTime API Dashboard",
+      "meta": "{period} · {entries} EINTRÄGE · {hours} H",
+      "filteredTo": "Gefiltert nach",
+      "removeFilter": "Diesen Filter entfernen",
+      "clearAll": "Alle entfernen",
+      "truncated": "Diese Auswahl überschreitet die Auswertungsgrenze, daher decken die Zahlen unten nur die neuesten Einträge im Zeitraum ab. Zeitraum eingrenzen oder einen Filter setzen, um eine exakte Summe zu erhalten.",
+      "emptyTitle": "Keine erfasste Zeit in dieser Auswahl",
+      "emptyBody": "Keine Einträge passen zu den aktuellen Filtern. Zeitraum erweitern oder einen Filter entfernen. Ein leeres Ergebnis kann auch bedeuten, dass die eigene Rolle die Zeiten anderer nicht sehen darf — das ist das Berechtigungsmodell und kein Fehler. Kalender-Platzhalter sind zudem ausgeschlossen, solange sie nicht zugeschaltet werden.",
+      "entryCap": "Die Eintragstabelle listet die {limit} neuesten von {total} Einträgen im Zeitraum. Jede Summe oben umfasst alle {total}; für den Rest den Zeitraum eingrenzen."
+    },
+    "filters": {
+      "updating": "AKTUALISIERE…",
+      "fromDate": "Von-Datum",
+      "toDate": "Bis-Datum",
+      "reset": "Filter zurücksetzen",
+      "groupBy": "GRUPPIEREN NACH",
+      "trendLabel": "TREND",
+      "period": {
+        "today": "Heute",
+        "this_week": "Diese Woche",
+        "last_week": "Letzte Woche",
+        "this_month": "Dieser Monat",
+        "last_month": "Letzter Monat",
+        "this_year": "Dieses Jahr",
+        "all": "Gesamtzeitraum"
+      },
+      "billable": {
+        "all": "Alle",
+        "yes": "Abrechenbar",
+        "no": "Nicht abr."
+      },
+      "calendar": {
+        "label": "Kalenderzeit",
+        "title": "Kalender-Platzhalter machen 46 % der importierten Ereignisse und 40 % der erfassten Stunden aus. Standardmäßig aus, damit weitgehend unbewusst entstandene Zeit die Abrechenbarkeitsquote nicht verzerrt — 37 % dieser Stunden sind allerdings abrechenbar, deshalb wird die verborgene Summe oben ausgewiesen."
+      },
+      "bucket": {
+        "day": "Täglich",
+        "week": "Wöchentlich",
+        "month": "Monatlich"
+      }
+    },
+    "dimensions": {
+      "member": {
+        "label": "Mitarbeiter",
+        "lower": "Mitarbeiter",
+        "count": "{count, plural, one {# Mitarbeiter} other {# Mitarbeiter}}"
+      },
+      "project": {
+        "label": "Projekt",
+        "lower": "Projekt",
+        "count": "{count, plural, one {# Projekt} other {# Projekte}}"
+      },
+      "customer": {
+        "label": "Kunde",
+        "lower": "Kunde",
+        "count": "{count, plural, one {# Kunde} other {# Kunden}}"
+      },
+      "service": {
+        "label": "Service",
+        "lower": "Service",
+        "count": "{count, plural, one {# Service} other {# Services}}"
+      },
+      "task": {
+        "label": "Aufgabe",
+        "lower": "Aufgabe",
+        "count": "{count, plural, one {# Aufgabe} other {# Aufgaben}}"
+      }
+    },
+    "select": {
+      "all": "Alle",
+      "allWithCount": "Alle ({count})",
+      "nSelected": "{count} ausgewählt",
+      "search": "{label} suchen…",
+      "optionsAll": "{total, plural, one {# Option} other {# Optionen}}",
+      "optionsShown": "{shown} von {total, plural, one {# Option} other {# Optionen}}",
+      "keys": "↑↓ bewegen · ⏎ wählen · esc schließen",
+      "noMatch": "Keine {label}-Treffer für „{query}“",
+      "selectThese": "Diese auswählen",
+      "selectTheseN": "Diese {count} auswählen",
+      "selectTheseTitle": "Alle {count} Treffer zur Auswahl hinzufügen",
+      "selectTheseHint": "Erst suchen — alle Optionen auszuwählen entspricht keiner Auswahl",
+      "clear": "Zurücksetzen",
+      "clearN": "{count} zurücksetzen"
+    },
+    "trend": {
+      "title": {
+        "day": "TREND TÄGLICH",
+        "week": "TREND WÖCHENTLICH",
+        "month": "TREND MONATLICH"
+      },
+      "aria": {
+        "day": "Trend täglich, {count} Intervalle: abrechenbare und erfasste Stunden im Zeitverlauf",
+        "week": "Trend wöchentlich, {count} Intervalle: abrechenbare und erfasste Stunden im Zeitverlauf",
+        "month": "Trend monatlich, {count} Intervalle: abrechenbare und erfasste Stunden im Zeitverlauf"
+      },
+      "cw": "KW {week}",
+      "weekFrom": "{week} · ab {day}",
+      "readout": "{label} · <bill>{billable} abrechenbar</bill> + <non>{nonBillable} nicht abrechenbar</non> = {total} · {entries}",
+      "buckets": "{count, plural, one {# Intervall} other {# Intervalle}}",
+      "lastOf": "letzte {shown} von {total} Intervallen",
+      "legend": "· <bill>abrechenbar</bill> + <non>nicht abrechenbar</non> zur Gesamtsumme gestapelt · überfahren",
+      "clickToFilter": "· zum Filtern klicken",
+      "peak": "Spitze {label} · {hours}",
+      "barAria": "{label}: {total} gesamt, {billable} abrechenbar, {entries}"
+    },
+    "donut": {
+      "title": "ABRECHENBAR-AUFTEILUNG",
+      "hint": "Anteil anklicken zum Filtern",
+      "billable": "Abrechenbar",
+      "nonBillable": "Nicht abrechenbar",
+      "centreLabel": "abrechenbar",
+      "aria": "Abrechenbar-Aufteilung: {percent} von {hours} abrechenbar",
+      "legendBillable": "{hours} ABRECHENBAR",
+      "legendNonBillable": "{hours} NICHT ABRECHENBAR",
+      "note": "Erfasste Zeit, aufgeteilt nach dem Abrechenbar-Kennzeichen jedes TrackingTime-Eintrags. Die Prozentwerte beziehen sich auf die Stunden der aktuellen Auswahl — Zeitraum oder Filter zu ändern ändert diesen Wert."
+    },
+    "capacity": {
+      "title": "Kapazität für neue Aufgaben",
+      "qualifierEmpty": "ERFASSTE AUSLASTUNG vs. SOLL",
+      "qualifier": "ERFASSTE AUSLASTUNG vs. SOLL 40 H/WOCHE · {weeks, plural, one {# WOCHE} other {# WOCHEN}} IM ZEITRAUM",
+      "empty": "Keine erfasste Zeit in dieser Auswahl, daher gibt es keine Auslastung zu beurteilen.",
+      "band": {
+        "over": "ÜBER KAPAZITÄT",
+        "full": "VOLL AUSGELASTET",
+        "steady": "STABIL",
+        "light": "KAPAZITÄT FREI",
+        "open": "WEITGEHEND FREI"
+      },
+      "legend": {
+        "room": "FREI",
+        "steady": "STABIL",
+        "atCap": "AUSGEL.",
+        "over": "ÜBER"
+      },
+      "availableLabel": "VERFÜGBAR FÜR NEUE AUFGABEN · {count, plural, one {# MITARBEITER} other {# MITARBEITER}}",
+      "availableTitle": "{name}: {percent} erfasste Auslastung, rund {spare} der Soll-Kapazität frei über {weeks, plural, one {# Woche} other {# Wochen}}",
+      "spareFree": "~{hours} frei",
+      "noneAvailable": "In dieser Auswahl sitzt niemand leicht — alle mit erfasster Zeit liegen über der Hälfte ihrer Soll-Auslastung. Um jemanden frei zu bekommen, die obersten Zeilen unten ansehen und prüfen, wofür die Zeit aufgewendet wird.",
+      "rowTitle": "{name}: {tracked} erfasst von ~{nominal} Soll",
+      "drillKicker": "{percent} ERFASSTE AUSLASTUNG · {band}",
+      "drillSubPlain": "von ~{nominal} Soll",
+      "drillSub": "{share} · von ~{nominal} Soll",
+      "note": "„Auslastung“ sind erfasste Stunden gegen eine nominelle 40-Stunden-Woche — ein Planungssignal, kein Urteil: Beratungswochen enthalten auch nicht erfasste Büroarbeit, ein kurzer Balken bedeutet also Spielraum bei erfasster Projektarbeit, keinen leeren Schreibtisch. Oben nach Service oder Kunde filtern, um zu fragen, wer für eine bestimmte Art von Arbeit Kapazität hat."
+    },
+    "insights": {
+      "shareKicker": "{percent} VON {hours}",
+      "concentration": {
+        "title": "Kundenkonzentration",
+        "qualifier": "1 KÄSTCHEN = 1 % VON {hours}",
+        "summaryEmpty": "Keine Kunden in dieser Auswahl",
+        "summary": "Top {count} halten {percent} von {hours}",
+        "summaryBiggest": "· größter {name} {percent}",
+        "empty": "Keine Kunden in dieser Auswahl.",
+        "aria": "Kundenkonzentration: {list}, alles Übrige {hours}",
+        "listItem": "{name} {percent}",
+        "everythingElse": "alles Übrige",
+        "legendValue": "{percent} · {hours}",
+        "dependency": "{name} allein macht {percent} der Stunden dieser Auswahl aus — eine Konzentration, die man bei Kapazitäts- und Preisplanung kennen sollte."
+      },
+      "pattern": {
+        "title": "Wann gearbeitet wird",
+        "qualifier": "ERFASSTE STUNDEN NACH WOCHENTAG × STARTSTUNDE · EUROPA/BERLIN",
+        "empty": "Keine erfasste Zeit in dieser Auswahl.",
+        "aria": "Erfasste Stunden nach Wochentag und Startstunde",
+        "cellNone": "{day} {hour}:00: nichts erfasst",
+        "cell": "{day} {hour}:00–{hour}:59: {hours} erfasst",
+        "note": "Die Farbe ist wurzelskaliert: die morgendliche Spitze zur vollen Stunde (Vor-Ort-Termine) würde die übrige Woche sonst plattdrücken. Wochenendzeilen erscheinen nur, wenn am Wochenende gearbeitet wurde."
+      },
+      "serviceMix": {
+        "title": "Service-Mix nach Monat",
+        "qualifier": "ANTEIL AN DEN STUNDEN DES MONATS",
+        "aria": "Service-Mix je Monat als Anteil an den Stunden des Monats",
+        "readout": "{label}: {hours} — {segments}",
+        "segment": "{name} {percent}",
+        "note": "Bewusst Anteil statt Volumen: der Trend oben zeigt bereits, wie viel gearbeitet wurde; hier geht es darum, WELCHE Art von Arbeit es war und wie sich dieser Mix von Monat zu Monat verschiebt."
+      }
+    },
+    "tables": {
+      "relative": {
+        "today": "heute",
+        "yesterday": "gestern",
+        "days": "vor {count} T",
+        "months": "vor {count} Mon.",
+        "years": "vor {count} J."
+      },
+      "breakdown": {
+        "title": "NACH {dimension}",
+        "hint": "Namen wählen, um den Bericht einzugrenzen",
+        "narrowTo": "Bericht auf {name} eingrenzen",
+        "search": "{dimension} suchen…",
+        "empty": "In dieser Auswahl wurde dafür keine Zeit erfasst ({dimension}).",
+        "summary": "{items} mit erfasster Zeit",
+        "hours": "Stunden",
+        "billable": "Abrechenbar",
+        "billPct": "Abr. %",
+        "billPctTitle": "Abrechenbarer Anteil der in dieser Zeile erfassten Zeit. Zeilen ohne erfasste Zeit zeigen —.",
+        "entries": "Einträge",
+        "last": "Zuletzt",
+        "lastTitle": "Jüngster Eintrag im gewählten Zeitraum",
+        "share": "Anteil",
+        "shareTitle": "Anteil an den Gesamtstunden der Auswahl. Die Zahl ist der tatsächliche Anteil; der Balken ist auf die größte Zeile skaliert, damit die Spalte die Zeilen untereinander vergleicht."
+      },
+      "budget": {
+        "title": "BUDGETVERBRAUCH",
+        "hint": "{count} über Budget",
+        "project": "Projekt",
+        "budget": "Budget",
+        "actual": "Ist",
+        "actualTitle": "Nur Stunden, die im gewählten Zeitraum erfasst wurden",
+        "remaining": "Verbleibend",
+        "remainingTitle": "Negativ ist die Überschreitung. Aufsteigend sortiert stehen die schlimmsten Überschreitungen oben.",
+        "burn": "Verbrauch",
+        "search": "Projekt suchen…",
+        "footnote": "Projekte ohne Schätzung werden weggelassen und nicht mit 0 % ausgewiesen — keine Schätzung heißt, dass niemand ein Budget gesetzt hat.",
+        "empty": "Für kein Projekt dieser Auswahl ist eine Stundenschätzung hinterlegt.",
+        "summary": "{projects} mit Schätzung · {over} über Budget"
+      },
+      "economics": {
+        "revenue": "UMSATZ",
+        "cost": "KOSTEN",
+        "margin": "MARGE",
+        "marginValue": "{margin} · {percent}",
+        "title": "PROJEKTWIRTSCHAFTLICHKEIT",
+        "hint": "Sätze sind je Eintrag stichtagsgenau · nur Geschäftsleitung",
+        "colProject": "Projekt",
+        "colHours": "Stunden",
+        "colRevenue": "Umsatz",
+        "colCost": "Kosten",
+        "colMargin": "Marge",
+        "colMarginPct": "%",
+        "marginPctTitle": "Marge als Anteil am Umsatz. Ein Projekt ohne Umsatz zeigt — statt 0 %.",
+        "search": "Projekt suchen…",
+        "empty": "Für kein Projekt dieses Zeitraums liegen sowohl erfasste Zeit als auch ein Satz vor.",
+        "footnoteFiltered": "Begrenzt auf die Projekte dieser Auswahl, aber jede Zeile zeigt den vollen Projektumsatz des Zeitraums: Sätze werden in einer Security-Definer-Funktion aufgelöst, die nur einen Zeitraum entgegennimmt — die Filter nach Mitarbeiter und Abrechenbarkeit erreichen sie nicht.",
+        "footnote": "Begrenzt auf die Projekte und den Zeitraum dieser Auswahl. Sätze werden in einer Security-Definer-Funktion aufgelöst, daher ist hier keine Summe je unvollständig.",
+        "summary": "{projects} · Umsatz, Kosten und Marge je Projekt"
+      },
+      "entries": {
+        "title": "ZEITEINTRÄGE",
+        "hint": "die Zeilen, aus denen jede Zahl oben abgeleitet ist",
+        "date": "Datum",
+        "member": "Mitarbeiter",
+        "projectTask": "Projekt / Aufgabe",
+        "customer": "Kunde",
+        "duration": "Dauer",
+        "type": "Typ",
+        "billable": "ABRECHENBAR",
+        "calendar": "KALENDER",
+        "search": "Eintrag suchen…",
+        "empty": "Kein Eintrag in dieser Auswahl.",
+        "summary": "{entries} · die Zeilen, aus denen jede Zahl oben abgeleitet ist"
+      }
+    },
+    "freshness": {
+      "imported": "Aus der TrackingTime-API importiert {age} ({stamp})",
+      "syncingNote": "· eine Synchronisation läuft gerade",
+      "ageUnderHour": "vor weniger als einer Stunde",
+      "ageHours": "{count, plural, one {vor # Stunde} other {vor # Stunden}}",
+      "ageDays": "{count, plural, one {vor # Tag} other {vor # Tagen}}",
+      "neverRefreshed": "Diese Daten wurden noch nie automatisch aktualisiert",
+      "isOld": "Diese Daten sind {age} aktualisiert worden",
+      "lastRefreshed": "Diese Daten wurden zuletzt {age} aktualisiert",
+      "withStamp": "{headline} ({stamp})",
+      "failedSince": "{count, plural, one {# Synchronisationsversuch ist} other {# Synchronisationsversuche sind}} seitdem fehlgeschlagen, die Zahlen unten stimmen also, werden aber nicht mehr aktualisiert.",
+      "manualOnly": "Jede Zahl unten stammt aus einem einmaligen manuellen Import und gibt daher dessen Stand wieder, nicht den von heute.",
+      "snapshot": "Jede Zahl unten ist eine Momentaufnahme dieses Imports, keine Live-Auswertung.",
+      "runningNow": "Gerade läuft eine Synchronisation — bitte in Kürze neu laden.",
+      "runCommand": "Zum Aktualisieren `npm run sync:trackingtime` ausführen."
+    },
+    "window": {
+      "w4": "4 Wochen",
+      "w12": "12 Wochen",
+      "w26": "6 Monate",
+      "w52": "12 Monate",
+      "weekView": "Wochenansicht →"
     }
   },
   "systemHealth": {
@@ -996,5 +1420,520 @@
         "budgetUse": "Datenbankgröße vs. Budget"
       }
     }
+  },
+  "time": {
+    "page": {
+      "categoryTrack": "ZEITERFASSUNG / ERFASSEN",
+      "categoryRecords": "ZEITERFASSUNG / EINTRÄGE",
+      "title": "Zeit",
+      "meta": "TRACKINGTIME-ÄQUIVALENT · SEKUNDEN · {state}",
+      "timerRunning": "TIMER LÄUFT",
+      "timerIdle": "KEIN TIMER AKTIV",
+      "scopeMine": "MEINE ZEIT",
+      "scopeTeam": "TEAM",
+      "unlinkedTitle": "Mit diesem Konto ist kein Zeiterfassungs-Datensatz verknüpft",
+      "unlinkedBody": "Dieses Konto ist noch keinem Mitarbeiter der Zeiterfassung zugeordnet, daher gibt es keine persönliche Zeit anzuzeigen. Das ist vor dem ersten TrackingTime-Import zu erwarten oder wenn die E-Mail-Adresse zu keinem erfassten Nutzer passt. Auf „Team“ wechseln, um zu sehen, was einsehbar ist, oder eine Administratorin um die Zuordnung bitten.",
+      "emptyTitle": "Diese Woche nichts erfasst",
+      "emptyBody": "Einträge erscheinen hier, sobald Zeit erfasst oder aus TrackingTime importiert wurde. Eine leere Liste kann auch bedeuten, dass kein Zugriff auf die Zeiten anderer besteht — das ist das Berechtigungsmodell und kein Fehler."
+    },
+    "tabs": {
+      "track": "Erfassen",
+      "records": "Einträge",
+      "mine": "Meine Zeit",
+      "team": "Team",
+      "prevWeek": "Vorherige Woche",
+      "nextWeek": "Nächste Woche",
+      "thisWeek": "Diese Woche",
+      "range": "{from} – {to}"
+    },
+    "totals": {
+      "logged": "ERFASST",
+      "billable": "ABRECHENBAR",
+      "billableHint": "{percent} der erfassten Zeit",
+      "calendar": "KALENDER",
+      "calendarHint": "Platzhalter, nicht als Arbeit gezählt",
+      "decimal": "DEZIMAL",
+      "decimalHint": "Stunden, für die Rechnungsstellung"
+    },
+    "entries": {
+      "untitled": "Eintrag ohne Titel",
+      "noCustomer": "Kein Kunde",
+      "noProject": "Kein Projekt",
+      "running": "läuft",
+      "billable": "abrechenbar",
+      "invoiced": "abgerechnet",
+      "calendar": "Kalender"
+    },
+    "weekSummary": {
+      "title": "Wochenübersicht",
+      "meta": "WOCHE AB {week} · {count, plural, one {# MITARBEITER} other {# MITARBEITER}}",
+      "member": "Mitarbeiter",
+      "logged": "Erfasst",
+      "billable": "Abrechenbar",
+      "calendar": "Kalender",
+      "contracted": "Vertragsstunden",
+      "utilisation": "Auslastung",
+      "note": "Kalenderzeit wird getrennt ausgewiesen, weil sie überwiegend aus synchronisierten Platzhaltern und nicht aus bewusster Arbeit besteht — in die Summe eingerechnet würde sie jeden Auslastungswert hier aufblähen."
+    },
+    "tracker": {
+      "readOnly": "Diese Rolle darf Zeiten einsehen, aber nicht erfassen, daher sind diese Bedienelemente deaktiviert. Das ist das Berechtigungsmodell und kein Fehler.",
+      "project": "Projekt",
+      "task": "Aufgabe",
+      "service": "Service",
+      "noProject": "Kein Projekt",
+      "noTask": "Keine Aufgabe",
+      "noService": "Kein Service",
+      "taskFallback": "Aufgabe {id}",
+      "unpaid": "(unbezahlt)",
+      "timerRunning": "Timer läuft",
+      "stop": "Stoppen",
+      "stopping": "Wird gestoppt…",
+      "discard": "Verwerfen",
+      "startPanel": "Timer starten",
+      "startButton": "Timer starten",
+      "starting": "Wird gestartet…",
+      "notes": "Notizen",
+      "notesTimerPlaceholder": "Woran wird gerade gearbeitet?",
+      "notesManualPlaceholder": "Woran wurde gearbeitet?",
+      "billable": "Abrechenbar",
+      "manualPanel": "Zeit manuell erfassen",
+      "date": "Datum",
+      "from": "Von",
+      "to": "Bis",
+      "save": "Eintrag hinzufügen",
+      "saving": "Wird gespeichert…",
+      "utcNote": "Zeiten werden in UTC gelesen — so, wie Einträge gespeichert und angezeigt werden.",
+      "today": "Heute",
+      "todayEmpty": "Heute noch nichts erfasst.",
+      "invoiced": "abgerechnet",
+      "delete": "Löschen",
+      "deleteAria": "Eintrag löschen: {name}",
+      "untitled": "ohne Titel",
+      "runningLine": "{customer} / {project}",
+      "runningLineService": "{customer} / {project} / {service}",
+      "untitledEntry": "Eintrag ohne Titel",
+      "noCustomer": "Kein Kunde"
+    },
+    "actions": {
+      "notSignedIn": "Sie sind nicht angemeldet.",
+      "notPermitted": "Diese Rolle darf keine Zeit erfassen.",
+      "noMemberRow": "Dieses Konto ist noch keinem Mitarbeiter der Zeiterfassung zugeordnet, daher gibt es nichts, worauf Zeit gebucht werden könnte. Eine Administratorin kann die Zuordnung herstellen.",
+      "pickProjectOrTaskTimer": "Vor dem Start des Timers ein Projekt oder eine Aufgabe wählen.",
+      "timerAlreadyRunning": "Es läuft bereits ein Timer. Diesen stoppen, bevor ein neuer gestartet wird.",
+      "noTimerRunning": "Es läuft kein Timer.",
+      "clampedAtDay": "Der Timer lief länger als 24 Stunden und wurde auf 24:00 begrenzt. Den Eintrag bearbeiten, falls das nicht stimmt.",
+      "invalidDateTime": "Ein gültiges Datum mit Start- und Endzeit eingeben.",
+      "endBeforeStartSplit": "Die Endzeit muss nach der Startzeit liegen. Eine Schicht über Mitternacht in zwei Einträge aufteilen.",
+      "endBeforeStart": "Die Endzeit muss nach der Startzeit liegen.",
+      "tooLong": "Ein einzelner Eintrag darf nicht länger als 24 Stunden sein.",
+      "future": "Zeit kann nicht in der Zukunft erfasst werden.",
+      "tooFarBack": "Zeit kann nicht weiter als {days} Tage in der Vergangenheit erfasst werden. Bitte eine Administratorin um die Nachtragung.",
+      "pickProjectOrTaskEntry": "Für diesen Eintrag ein Projekt oder eine Aufgabe wählen.",
+      "noEntrySpecified": "Es wurde kein Eintrag angegeben.",
+      "entryGoneEdit": "Dieser Eintrag existiert nicht mehr oder darf nicht bearbeitet werden.",
+      "onlyOwnEdit": "Es kann nur die eigene Zeit bearbeitet werden.",
+      "invoicedNoEdit": "Dieser Eintrag wurde abgerechnet und kann nicht mehr geändert werden. Bitte an eine Administratorin wenden.",
+      "entryGoneDelete": "Dieser Eintrag existiert nicht mehr oder darf nicht gelöscht werden.",
+      "onlyOwnDelete": "Es kann nur die eigene Zeit gelöscht werden.",
+      "invoicedNoDelete": "Dieser Eintrag wurde abgerechnet und kann nicht gelöscht werden."
+    }
+  },
+  "projects": {
+    "title": "Projekte",
+    "header": {
+      "meta": "{projects} PROJEKTE · {hours} H ERFASST"
+    },
+    "truncated": "Dieses Portfolio überschreitet die Auswertungsgrenze; die Stunden unten decken daher nur die jüngsten Einträge ab. Summen je Projekt können zu niedrig ausfallen.",
+    "empty": {
+      "title": "Noch keine Projekte",
+      "description": "Aus TrackingTime wurde noch nichts importiert. Der nächtliche Sync füllt diese Liste; manuell startet ihn `npm run sync:trackingtime`."
+    },
+    "noAccess": {
+      "title": "Sie haben keinen Zugriff auf das Projektportfolio",
+      "description": "Alle Projekte zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Ihre eigene Projektzeit sehen Sie unter Zeit. Eine Administratorin kann weiteren Zugriff unter Rollenberechtigungen erteilen.",
+      "action": "Zu Zeit →"
+    },
+    "filters": {
+      "searchLabel": "Projekte nach Name, Kunde oder Code suchen",
+      "searchPlaceholder": "Projekte suchen …",
+      "all": "Alle",
+      "billable": "Abrechenbar",
+      "nonBillable": "Nicht abr.",
+      "clear": "Zurücksetzen",
+      "countAll": "{count} PROJEKTE",
+      "countOf": "{shown} VON {total}",
+      "facets": {
+        "over": "ÜBER BUDGET",
+        "risk": "GEFÄHRDET",
+        "healthy": "GESUND",
+        "nobudget": "KEIN BUDGET",
+        "idle": "KEINE AKTIVITÄT"
+      }
+    },
+    "customer": {
+      "label": "KUNDE",
+      "allNone": "Alle",
+      "all": "Alle ({count})",
+      "selected": "{count} ausgewählt",
+      "searchPlaceholder": "Kunde suchen…",
+      "countOf": "{shown} von {total}",
+      "noun": "{count, plural, one {Kunde} other {Kunden}}",
+      "selectedSuffix": " · {count} ausgewählt",
+      "noMatch": "Kein Kunde passt zu „{query}“",
+      "clear": "{count} zurücksetzen",
+      "listLabel": "Kunde"
+    },
+    "tiles": {
+      "projects": {
+        "label": "PROJEKTE",
+        "hint": "in dieser Ansicht"
+      },
+      "hours": {
+        "label": "ERFASSTE STUNDEN",
+        "hint": "bis heute erfasst"
+      },
+      "billable": {
+        "label": "ABRECHENBAR",
+        "hint": "{hours} h abrechenbar"
+      },
+      "over": {
+        "label": "ÜBER BUDGET",
+        "needsAttention": "erfordert Aufmerksamkeit",
+        "allWithin": "alles im Budget"
+      },
+      "noBudget": {
+        "label": "KEIN BUDGET",
+        "hint": "Verbrauch nicht ermittelbar"
+      }
+    },
+    "drills": {
+      "customerCount": "{count, plural, one {# Kunde} other {# Kunden}}",
+      "overBy": "{hours} über"
+    },
+    "disclosure": {
+      "charts": {
+        "title": "Portfolio-Charts",
+        "empty": "Keine Projekte passen zum aktuellen Filter",
+        "summary": "{over} über Budget · {noBudget} ohne Budget · {projects} Projekte"
+      },
+      "customers": {
+        "title": "Kunden",
+        "empty": "Noch keine Kundenstunden erfasst",
+        "summary": "{count} Kunden · Top 5 halten {share}",
+        "biggest": " · größter {name}"
+      }
+    },
+    "ledger": {
+      "title": "PROJEKTÜBERSICHT",
+      "count": "{count} PROJEKTE",
+      "empty": {
+        "title": "Keine Projekte gefunden",
+        "description": "Kein Projekt passt zu den aktuellen Filtern. Oben zurücksetzen bringt das gesamte Portfolio zurück."
+      },
+      "noCustomer": "Kein Kunde",
+      "loggedH": "{hours} H ERFASST",
+      "budgetH": "{hours} H BUDGET",
+      "noBudget": "KEIN BUDGET",
+      "never": "nie",
+      "pagerNoun": "Projekte",
+      "showFewer": "WENIGER ZEIGEN · {shown} VON {total} PROJEKTEN",
+      "showMore": "{count} WEITERE AUF DIESER SEITE ZEIGEN · {shown} VON {total} PROJEKTEN",
+      "columns": {
+        "project": "PROJEKT",
+        "customer": "KUNDE",
+        "budget": "BUDGET",
+        "logged": "ERFASST",
+        "consumed": "VERBRAUCH",
+        "people": "MITARBEITER",
+        "last": "ZULETZT"
+      }
+    },
+    "health": {
+      "title": "Portfolio-Gesundheit",
+      "qualifier": "{count} PROJEKTE",
+      "centreLabel": "mit Budget",
+      "chartLabel": "Portfolio-Gesundheit über {total} Projekte: {over} über Budget, {risk} gefährdet, {healthy} gesund, {noBudget} ohne Budget",
+      "slices": {
+        "over": "Über Budget",
+        "risk": "Gefährdet",
+        "healthy": "Gesund",
+        "noBudget": "Kein Budget"
+      },
+      "note": "Projekte nach Budgetverbrauch — erfasste Stunden als Anteil am Budget. Über Budget heißt mehr als 100 %, gefährdet 85–100 %. Projekte ohne hinterlegtes Budget werden separat gezählt und nie als gesund unterstellt."
+    },
+    "topProjects": {
+      "title": "Wohin die Stunden gehen",
+      "qualifier": "TOP 10 NACH ERFASSTEN STUNDEN",
+      "note": "Die zehn Projekte mit den meisten erfassten Stunden. Die Länge zeigt geleisteten Aufwand, nicht Honorar oder Budget — ein langer Balken kann ein großes Projekt sein oder ein kleines, das überläuft."
+    },
+    "burnDonuts": {
+      "title": "Budgetverbrauch",
+      "qualifier": "TOP 5 PROJEKTE MIT BUDGET NACH VERBRAUCH · SCHÄTZUNGEN UNTER 10 H ALS PLATZHALTER AUSGESCHLOSSEN",
+      "empty": "Noch trägt kein Projekt ein echtes Budget — jede hinterlegte Schätzung liegt unter der 10-h-Platzhaltergrenze, es gibt also keinen Verbrauch zu zeigen.",
+      "slices": {
+        "over": "Über Budget",
+        "used": "Verbrauchte Stunden",
+        "remaining": "Verbleibende Stunden"
+      },
+      "left": "{hours} übrig",
+      "over": "{hours} über",
+      "chartLabel": "{name}: {logged} von {estimate} geschätzten Stunden verbraucht ({percent} verbraucht), {centre}",
+      "note": "Erfasste Stunden gegen die Schätzung. Der Ring füllt sich bis 100 % und nicht weiter; Überschreitungen verrät die Zahl in der Mitte, nicht der Bogen — zwei volle rote Ringe liegen nicht zwingend gleich weit darüber."
+    },
+    "customerCharts": {
+      "title": "Kunden",
+      "qualifier": "NACH GELEISTETEN STUNDEN",
+      "empty": "Noch keine Kundenstunden erfasst.",
+      "biggest": {
+        "title": "Größte Kunden",
+        "qualifier": "TOP 5 = {share} VON {hours} H",
+        "chartLabel": "Anteil der geleisteten Stunden je Kunde: {list}"
+      },
+      "more": "{count} weitere",
+      "concentration": "{name} allein steht für {share} der geleisteten Stunden, die Top fünf für {top5} — eine Konzentration, die bei Kapazitäts- und Preisplanung zählt.",
+      "note": "Der Anteil jedes Kunden an den geleisteten Stunden. Das misst Aufwand, nicht Honorar — die Sätze unterscheiden sich je Kunde, der größte Abschnitt ist also nicht zwingend der größte Kunde.",
+      "capacity": {
+        "title": "Kapazität gegen Zusage",
+        "qualifier": "GELEISTETE vs. BUDGETIERTE STUNDEN · GERINGSTER SPIELRAUM ZUERST",
+        "delivered": "GELEISTET",
+        "overBudget": "ÜBER BUDGET",
+        "empty": "Kein Kunde hat ein Projekt mit Budget, an dem sich Kapazität messen ließe.",
+        "over": "{hours} über",
+        "left": "{hours} übrig",
+        "link": "Alle Projekte nach Verbrauch ansehen →"
+      }
+    },
+    "detail": {
+      "title": "Projekt",
+      "noAccess": {
+        "title": "Sie haben keinen Zugriff auf dieses Projekt",
+        "description": "Einen Projektdatensatz zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Eine Administratorin kann sie unter Rollenberechtigungen erteilen."
+      },
+      "meta": "{customer}{code} · {entries} EINTRÄGE",
+      "noCustomer": "KEIN KUNDE",
+      "allProjects": "← Alle Projekte",
+      "pills": {
+        "archived": "ARCHIVIERT",
+        "billable": "ABRECHENBAR",
+        "nonBillable": "NICHT ABRECHENBAR"
+      },
+      "truncated": "Dieses Projekt hat mehr Einträge als die Auswertungsgrenze zulässt; die Zahlen oben decken daher nur die jüngsten ab.",
+      "stats": {
+        "budget": {
+          "label": "BUDGET",
+          "agreed": "vereinbart",
+          "notSet": "nicht hinterlegt"
+        },
+        "logged": {
+          "label": "ERFASST",
+          "hint": "bis heute"
+        },
+        "remaining": {
+          "label": "VERBLEIBEND",
+          "over": "über Budget",
+          "left": "übrig",
+          "noBudget": "Kein Budget"
+        },
+        "consumed": {
+          "label": "VERBRAUCH",
+          "unknown": "Verbrauch nicht ermittelbar",
+          "ofBudget": "vom Budget"
+        },
+        "billable": {
+          "label": "ABRECHENBAR",
+          "hint": "der erfassten Stunden"
+        }
+      },
+      "footnote": "Die Zahlen umfassen alle erfasste Zeit dieses Projekts, einschließlich Kalendereinträgen. <link>Im TrackingTime-API-Dashboard öffnen</link>, um nach Zeitraum, Mitarbeiter oder Abrechenbarkeit zu filtern."
+    },
+    "burnChart": {
+      "title": "Stunden im Zeitverlauf",
+      "empty": "Für dieses Projekt wurde noch keine Zeit erfasst.",
+      "qualifier": "KUMULIERT · MONATLICH · BEOBACHTET",
+      "logged": "ERFASST",
+      "budget": "BUDGET"
+    },
+    "contributors": {
+      "title": "Wer daran gearbeitet hat",
+      "empty": "Noch hat niemand Zeit erfasst.",
+      "billableUnit": "abr.",
+      "hoursUnit": "h"
+    },
+    "taskTable": {
+      "title": "Zeit nach Aufgabe",
+      "topOf": "TOP {shown} VON {total}",
+      "empty": "Keine Aufgaben erfasst."
+    },
+    "contract": {
+      "title": "Vertrag",
+      "intro": "Die vom Vertrieb vereinbarten Stunden und die Laufzeit dazu. Eine Verlängerung lässt jede frühere Periode bestehen.",
+      "renew": "Vertrag verlängern",
+      "none": "Für dieses Projekt sind keine Vertragskonditionen hinterlegt.",
+      "fallback": " Die Budgetprüfung greift auf die aus TrackingTime übernommene Schätzung von <strong>{hours}</strong> zurück, die der Anbieter bei jedem Sync überschreibt. Hinterlegen Sie die vereinbarten Konditionen, damit das Budget Bestand hat.",
+      "noBudgetToEnforce": " Es gibt kein Budget durchzusetzen, Buchungen darauf werden also nie abgelehnt.",
+      "notInstalled": {
+        "title": "Vertragskonditionen sind in der Datenbank noch nicht aktiviert, niemand kann sie also hinterlegen — auch die Geschäftsführung nicht. Das ist kein Berechtigungsproblem.",
+        "apply": "Wenden Sie <first></first> und danach <second></second> an, dann wird dieses Panel bearbeitbar."
+      },
+      "record": "Vertragskonditionen hinterlegen",
+      "recording": "Wird hinterlegt ...",
+      "noPermission": "Vertragskonditionen sind kaufmännisch, daher können nur Geschäftsführung und Abteilungsleitung sie hinterlegen.",
+      "gap": "Kein Vertrag deckt den heutigen Tag ab. Periode {period} endete am {endsOn}. Seither erfasste Stunden liegen außerhalb jeder Vertragsperiode: Sie werden weiterhin erfasst, lassen sich aber erst nach bestätigter Verlängerung gegen ein Budget prüfen.",
+      "period": "Periode {period}{reference}",
+      "dates": "{startsOn} bis {endsOn}{remaining}",
+      "daysLeft": " · noch {days} Tage",
+      "ended": " · beendet",
+      "hoursOf": "{logged} / {budget} h",
+      "remaining": "{hours} h verbleibend",
+      "overBudget": "{hours} h über dem vereinbarten Budget",
+      "warnNote": "Buchungen warnen ab {percent} % und werden über 100 % abgelehnt. Nur Stunden mit einem Datum innerhalb dieser Periode zählen darauf ein.",
+      "correct": "Diese Konditionen korrigieren",
+      "renewIntro": "Hinterlegen Sie die verlängerten Konditionen, sobald der Vertrieb sie bestätigt. Das legt eine neue Periode an; Periode {period} behält ihr eigenes Budget und die darauf gebuchten Stunden. Die neue Periode darf die alte nicht überlappen, sie beginnt also meist am Tag danach.",
+      "confirmRenewal": "Verlängerung bestätigen",
+      "renewing": "Wird verlängert ...",
+      "cancel": "Abbrechen",
+      "correctIntro": "Eine Korrektur ändert die Konditionen einer Periode, ohne die darauf gebuchten Stunden anzutasten. Nutzen Sie sie für Übertragungsfehler, nicht für eine Verlängerung.",
+      "saveCorrection": "Korrektur speichern",
+      "saving": "Wird gespeichert ...",
+      "history": {
+        "title": "Vertragshistorie",
+        "intro": "Jede frühere Periode behält ihr eigenes Budget und ihre eigenen gebuchten Stunden. Eine Verlängerung überschreibt nichts.",
+        "columns": {
+          "period": "Zeitraum",
+          "dates": "Zeitraum",
+          "budget": "Budget",
+          "booked": "Gebucht",
+          "burn": "Verbrauch",
+          "reference": "Referenz"
+        },
+        "dates": "{startsOn} bis {endsOn}",
+        "hours": "{hours} h"
+      },
+      "fields": {
+        "budgetHours": "Vereinbarte Stunden",
+        "budgetHoursPlaceholder": "z. B. 8",
+        "startsOn": "Vertragsbeginn",
+        "endsOn": "Vertragsende",
+        "reference": "Vertragsreferenz",
+        "optional": "optional",
+        "warnAt": "Warnung ab %",
+        "warnAtHint": "Ab hier warnen Buchungen. Ein kleiner Retainer und ein großes Programm wollen selten denselben Punkt.",
+        "notes": "Notizen"
+      },
+      "barNoBudget": "Kein Budget",
+      "barUsed": "{percent} Prozent des Budgets verbraucht"
+    },
+    "tasks": {
+      "title": "Aufgaben & Stunden",
+      "openOf": "{open} OFFEN VON {total}",
+      "viewList": "Liste",
+      "viewBoard": "Board",
+      "addName": "Name der neuen Aufgabe",
+      "addOwner": "Verantwortlich",
+      "addEstimate": "Schätz. h",
+      "adding": "Wird angelegt …",
+      "add": "Aufgabe anlegen",
+      "columns": {
+        "task": "AUFGABE",
+        "estimate": "SCHÄTZ.",
+        "logged": "ERFASST",
+        "statusOwner": "STATUS / VERANTWORTLICH"
+      },
+      "pagerNoun": "Aufgaben",
+      "status": {
+        "notStarted": "NICHT BEGONNEN",
+        "inProgress": "IN ARBEIT",
+        "over33": "ÜBER 33 %",
+        "done": "ERLEDIGT"
+      },
+      "subtaskCount": "{done} von {total} Teilaufgaben zu {name}",
+      "commentCount": "{count} Kommentare zu {name}",
+      "deleteTask": "{name} löschen",
+      "deleteComment": "Kommentar löschen",
+      "noSubtasks": "Noch keine Teilaufgaben.",
+      "addSubtask": "Teilaufgabe hinzufügen …",
+      "addSubtaskButton": "Hinzufügen",
+      "noComments": "Noch keine Kommentare.",
+      "addComment": "Kommentar hinzufügen …",
+      "postComment": "Senden",
+      "unassigned": "Nicht zugewiesen",
+      "overdue": "ÜBERFÄLLIG ",
+      "due": "FÄLLIG ",
+      "moveTo": "Verschieben nach: {name}",
+      "moveToUnfiled": "Verschieben nach: Nicht einsortiert",
+      "moveLabel": "{name} in eine andere Spalte verschieben",
+      "unfiled": "NICHT EINSORTIERT",
+      "noTasks": "Keine Aufgaben",
+      "wipTitle": "{count} von einem WIP-Limit von {limit}",
+      "newColumn": "Neue Spalte …",
+      "noColumns": {
+        "title": "Noch keine Spalten",
+        "description": "Legen Sie eine Spalte an, um den Ablauf dieses Projekts zu formen — Eingang, Ortstermin, Bericht entworfen, was auch immer passt. Die Spalten hier sind dieselben Gruppen wie in der Listenansicht."
+      }
+    },
+    "actions": {
+      "denied": "Sie haben keine Berechtigung, dieses Projekt zu ändern.",
+      "noParent": "Diese Aufgabe hängt an keinem Projekt.",
+      "nameRequired": "Der Aufgabenname ist erforderlich.",
+      "added": "„{name}“ angelegt.",
+      "sectionNoParent": "Diese Spalte hängt an keinem Projekt.",
+      "sectionNameRequired": "Benennen Sie die Spalte zuerst."
+    },
+    "contractActions": {
+      "notSignedIn": "Sie sind nicht angemeldet.",
+      "denied": "Ihre Rolle darf Vertragskonditionen nicht ändern. Vertragsbudgets sind kaufmännische Konditionen und daher der Geschäftsführung und der Abteilungsleitung vorbehalten.",
+      "overlap": "{hint} Jedes Datum darf nur zu einer Vertragsperiode gehören, sonst kann die Budgetprüfung nicht entscheiden, welches Budget gilt.",
+      "overlapHint": "Dieser Zeitraum überlappt eine Vertragsperiode, die für dieses Projekt bereits besteht.",
+      "invalid": "Diese Werte ergeben keinen gültigen Vertrag: Prüfen Sie, dass das Budget über null liegt und das Enddatum nicht vor dem Startdatum.",
+      "duplicate": "Eine Vertragsperiode mit dieser Nummer besteht für dieses Projekt bereits. Laden Sie die Seite neu und versuchen Sie es erneut.",
+      "missingProject": "Projekt fehlt.",
+      "missingPeriod": "Vertragsperiode fehlt.",
+      "budgetRequired": "Geben Sie das vereinbarte Budget in Stunden an, über null.",
+      "renewalBudgetRequired": "Geben Sie das verlängerte Budget in Stunden an, über null.",
+      "datesRequired": "Geben Sie beide Vertragsdaten als jjjj-mm-tt an.",
+      "endBeforeStart": "Der Vertrag kann nicht vor seinem Beginn enden.",
+      "recorded": "Vertragsperiode {period} hinterlegt: {hours} h von {startsOn} bis {endsOn}.",
+      "renewed": "Als Vertragsperiode {period} verlängert: {hours} h von {startsOn} bis {endsOn}. Die vorherige Periode behält ihr eigenes Budget und die darauf gebuchten Stunden.",
+      "nextPeriod": "nächste",
+      "corrected": "Vertragsperiode aktualisiert."
+    },
+    "budgetPanel": {
+      "title": "Budget & Marge",
+      "qualifier": "NUR GENEHMIGTE STUNDEN",
+      "overBudget": "Über Budget",
+      "pastAlert": "Über {percent} %-Warnschwelle",
+      "noBudget": "Für dieses Projekt ist kein Stundenbudget hinterlegt, es gibt also nichts abzubauen. Die Geschäftsführung kann eines setzen, um Überschreitungswarnungen zu aktivieren.",
+      "ofHours": "{logged} von {budget} h",
+      "barLabel": "Verbrauchtes Stundenbudget",
+      "billableHours": "ABRECHENBARE STUNDEN",
+      "hours": "{hours} h",
+      "revenue": "UMSATZ",
+      "cost": "KOSTEN",
+      "costHint": "alle Stunden, abrechenbar oder nicht",
+      "margin": "MARGE"
+    }
+  },
+  "pager": {
+    "allCount": "ALLE {count, number} {noun}",
+    "range": "{from, number}–{to, number} VON {count, number} {noun}",
+    "perPage": "PRO SEITE",
+    "all": "ALLE",
+    "prev": "← ZURÜCK",
+    "next": "WEITER →",
+    "srAll": "Alle {count, number} {noun} werden angezeigt",
+    "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}"
+  },
+  "dataTable": {
+    "noRows": "keine Zeilen",
+    "allRows": "alle {count, number} Zeilen",
+    "range": "{from, number}–{to, number} von {count, number}",
+    "filteredFrom": "gefiltert aus {count, number}",
+    "searchPlaceholder": "Zeilen durchsuchen…",
+    "clearSearch": "Suche zurücksetzen",
+    "showEveryRow": "Alle Zeilen anzeigen",
+    "rowsPerPage": "{count, number} Zeilen pro Seite",
+    "all": "ALLE",
+    "csvTitle": "Diese Zeilen als CSV herunterladen — mit aktuellem Filter und aktueller Sortierung",
+    "empty": "Nichts anzuzeigen."
   }
 }

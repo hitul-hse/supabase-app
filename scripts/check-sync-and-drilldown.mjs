@@ -40,6 +40,11 @@ const PANELS = readdirSync(DASHBOARD_DIR)
   .map((f) => read(join(DASHBOARD_DIR, f)))
   .join("\n");
 const PAGE = read("src/app/(app)/time/dashboard/page.tsx");
+// The dashboard's visible words moved into the catalogue with the EN/DE
+// coverage work, so the assertions that ask "does the page SAY this?" read
+// the key from the source and the sentence from the catalogue.
+const EN = JSON.parse(read("messages/en.json"));
+const DE = JSON.parse(read("messages/de.json"));
 const WORKFLOW = read(".github/workflows/sync-trackingtime.yml");
 const PKG = JSON.parse(read("package.json"));
 
@@ -169,7 +174,10 @@ check(
 );
 check(
   "the freshness banner renders on the happy path too",
-  /status === "ok"/.test(PANELS) && /Imported from the TrackingTime API/.test(PANELS),
+  /status === "ok"/.test(PANELS) &&
+    /t\("imported"/.test(PANELS) &&
+    /Imported from the TrackingTime API/.test(EN.timeDashboard?.freshness?.imported ?? "") &&
+    /importiert/i.test(DE.timeDashboard?.freshness?.imported ?? ""),
   "hiding it when fresh trains people to assume freshness from its absence",
 );
 check(
@@ -215,7 +223,10 @@ check(
 );
 check(
   "active filters are shown as removable chips",
-  /activeDrills/.test(PAGE) && /Clear all/.test(PAGE),
+  /activeDrills/.test(PAGE) &&
+    /t\("page\.clearAll"\)/.test(PAGE) &&
+    /Clear all/.test(EN.timeDashboard?.page?.clearAll ?? "") &&
+    /entfernen/i.test(DE.timeDashboard?.page?.clearAll ?? ""),
   "otherwise a drill-down is a one-way door with no explanation of the smaller totals",
 );
 check(
@@ -244,7 +255,12 @@ check(
 );
 check(
   'the page title says "TrackingTime API Dashboard"',
-  /title="TrackingTime API Dashboard"/.test(PAGE),
+  // The product name is deliberately NOT translated: both catalogues carry it
+  // verbatim, so this still pins the exact words a reader sees in either
+  // language rather than merely proving a key is referenced.
+  /title=\{t\("page\.title"\)\}/.test(PAGE) &&
+    EN.timeDashboard?.page?.title === "TrackingTime API Dashboard" &&
+    DE.timeDashboard?.page?.title === "TrackingTime API Dashboard",
 );
 
 // ── 6. Wiring ──────────────────────────────────────────────────────────────

@@ -39,6 +39,11 @@ const check = (label, ok, detail = "") => {
 const ACTIONS = readFileSync(join(root, "src/app/(app)/time/actions.ts"), "utf8");
 const TRACKER = readFileSync(join(root, "src/app/(app)/time/TimeTracker.tsx"), "utf8");
 const PAGE = readFileSync(join(root, "src/app/(app)/time/page.tsx"), "utf8");
+// The user-facing sentences moved into the catalogue with the EN/DE coverage
+// work, so a gate that asks "does the user get a sentence?" has to follow them
+// there rather than grep actions.ts for English.
+const EN = JSON.parse(readFileSync(join(root, "messages/en.json"), "utf8"));
+const DE = JSON.parse(readFileSync(join(root, "messages/de.json"), "utf8"));
 
 // ── Re-implementations of the pure helpers, kept in lockstep with actions.ts ──
 // These are private to the module (not exported, because nothing else should
@@ -170,11 +175,16 @@ console.log("\n--- invoiced time is protected ----------------------------------
 
 check(
   "updateEntry refuses an invoiced entry",
-  /is_billed/.test(ACTIONS) && /invoiced and can no longer be changed/.test(ACTIONS),
+  /is_billed/.test(ACTIONS) &&
+    /msg\("invoicedNoEdit"\)/.test(ACTIONS) &&
+    /can no longer be changed/i.test(EN.time?.actions?.invoicedNoEdit ?? "") &&
+    /nicht mehr ge[äa]ndert/i.test(DE.time?.actions?.invoicedNoEdit ?? ""),
 );
 check(
   "deleteEntry refuses an invoiced entry",
-  /invoiced and cannot be deleted/.test(ACTIONS),
+  /msg\("invoicedNoDelete"\)/.test(ACTIONS) &&
+    /cannot be deleted/i.test(EN.time?.actions?.invoicedNoDelete ?? "") &&
+    /nicht gel[öo]scht/i.test(DE.time?.actions?.invoicedNoDelete ?? ""),
 );
 check(
   "deleteEntry scopes the delete by member as well as id",
@@ -194,12 +204,19 @@ check(
 );
 check(
   "an unlinked account gets its own message, not a permission error",
-  /isn't linked to a Time Tracking member/.test(ACTIONS),
+  /msg\("noMemberRow"\)/.test(ACTIONS) &&
+    /isn't linked to a Time Tracking member/.test(EN.time?.actions?.noMemberRow ?? "") &&
+    /keinem Mitarbeiter der Zeiterfassung zugeordnet/i.test(
+      DE.time?.actions?.noMemberRow ?? "",
+    ),
   "collapsing 'not linked' into 'not permitted' sends the admin to the wrong fix",
 );
 check(
   "a read-only role sees disabled controls with a reason",
-  /canWrite/.test(TRACKER) && /permits viewing time but not logging it/.test(TRACKER),
+  /canWrite/.test(TRACKER) &&
+    /t\("readOnly"\)/.test(TRACKER) &&
+    /permits viewing time but not logging it/.test(EN.time?.tracker?.readOnly ?? "") &&
+    /nicht erfassen/i.test(DE.time?.tracker?.readOnly ?? ""),
 );
 check(
   "the page passes the real permission result to the tracker",
@@ -214,7 +231,15 @@ check(
 );
 check(
   "a unique violation is translated, not swallowed",
-  /error\.code === "23505"/.test(ACTIONS) && /already running/.test(ACTIONS),
+  // Three links in one chain, because breaking any of them puts a raw Postgres
+  // "duplicate key value violates unique constraint" in front of a user:
+  // the branch on 23505, the catalogue key it answers with, and a real
+  // sentence behind that key in BOTH languages. Grepping actions.ts for
+  // "already running" would now only prove the English was never extracted.
+  /error\.code === "23505"/.test(ACTIONS) &&
+    /msg\("timerAlreadyRunning"\)/.test(ACTIONS) &&
+    /already running/i.test(EN.time?.actions?.timerAlreadyRunning ?? "") &&
+    /l[äa]uft bereits/i.test(DE.time?.actions?.timerAlreadyRunning ?? ""),
   "two rapid submits both pass the SELECT; the partial unique index is what actually prevents a double timer",
 );
 check(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { LivePerson } from "@/lib/queries/people-live";
 import type { OrgChartData } from "@/lib/queries/org-chart-live";
 import { PeopleDirectory } from "./PeopleDirectory";
@@ -46,6 +46,16 @@ export function PeopleSection({
 }) {
   const [view, setView] = useState<"directory" | "orgchart">("directory");
   const t = useTranslations("people");
+  /*
+   * The locale travels DOWN as a prop rather than each child calling
+   * useLocale() for itself. PeopleDirectory is rendered outside any provider by
+   * scripts/check-people-module.mjs -- it stubs next-intl with useTranslations
+   * alone -- so a useLocale() call inside it would throw there and take the
+   * whole gate down. As a prop it simply arrives undefined in that harness,
+   * which locale-format resolves to en-GB: exactly the rendering the gate
+   * asserts on.
+   */
+  const locale = useLocale();
 
   const tabClass = (active: boolean, extra = "") =>
     `${extra} px-3 py-1 text-[11px] font-medium transition-colors duration-150 ` +
@@ -61,14 +71,14 @@ export function PeopleSection({
           a background colour, so a screen-reader user was told "Directory,
           button" with no indication that one of the two was already showing.
         */}
-        <div role="tablist" aria-label="People view" className="flex border border-[var(--border-strong)]">
+        <div role="tablist" aria-label={t("tabs.label")} className="flex border border-[var(--border-strong)]">
           <button
             role="tab"
             aria-selected={view === "directory"}
             onClick={() => setView("directory")}
             className={tabClass(view === "directory")}
           >
-            Directory
+            {t("tabs.directory")}
           </button>
           <button
             role="tab"
@@ -76,7 +86,7 @@ export function PeopleSection({
             onClick={() => setView("orgchart")}
             className={tabClass(view === "orgchart", "border-l border-[var(--border-strong)]")}
           >
-            Org chart
+            {t("tabs.orgChart")}
           </button>
         </div>
 
@@ -98,6 +108,7 @@ export function PeopleSection({
           mailboxCount={mailboxCount}
           initialQuery={initialQuery}
           includeArchived={includeArchived}
+          locale={locale}
         />
       ) : (
         <OrgChartView chart={chart} canEdit={canEditPeople} />

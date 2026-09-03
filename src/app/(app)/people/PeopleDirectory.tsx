@@ -15,6 +15,7 @@ import {
   type SortDirection,
 } from "@/components/ui/Field";
 import { capacityLabel, type LivePerson } from "@/lib/queries/people-live";
+import { fmtNum, fmtPct } from "@/lib/locale-format";
 import { teamLabel } from "@/lib/teams";
 import { Pager, usePager } from "@/components/Pager";
 import { Card, StatTile } from "@/components/ui/Card";
@@ -42,8 +43,13 @@ import { Card, StatTile } from "@/components/ui/Card";
  * with the reason NO TRACKINGTIME ACCOUNT. The header states both numbers so
  * "20 people" can never be read as "20 people with tracked time".
  *
- * Only the strings this change added go through next-intl (namespace
- * `people`); the pre-existing English labels are untouched.
+ * LANGUAGE. Every user-visible string here now comes from the `people`
+ * namespace, and every figure is formatted for the request locale through
+ * @/lib/locale-format. Two figures used to be printed with a hard-coded
+ * "de-DE" -- German digits under English words -- so the English page now
+ * reads "5,638" and "1,234 ENTRIES" where it read "5.638" and "1.234 ENTRIES"
+ * before. That is the correction, not a regression: the separator follows the
+ * reader's language like everything else.
  */
 export function PeopleDirectory({
   people,
@@ -54,6 +60,7 @@ export function PeopleDirectory({
   mailboxCount,
   initialQuery = "",
   includeArchived = false,
+  locale,
 }: {
   people: LivePerson[];
   /** Rows with a TrackingTime account -- the roster this page has always counted. */
@@ -74,11 +81,23 @@ export function PeopleDirectory({
    * kind -- the rows were never fetched.
    */
   includeArchived?: boolean;
+  /**
+   * The reader's locale, for every figure on this page.
+   *
+   * A prop rather than useLocale(), because check-people-module.mjs renders
+   * this component directly against a next-intl stub that exports
+   * useTranslations alone. Undefined there, which locale-format reads as
+   * en-GB -- the rendering that gate asserts on.
+   */
+  locale?: string;
 }) {
   // `people` can legitimately be empty: RLS scopes the underlying reads, and a
   // fresh database has no import yet. The detail pane dereferences the
   // selection unconditionally, so without this guard the page white-screened.
   const t = useTranslations("people");
+  // "n/a" is one wording for the whole app, so it comes from `common` rather
+  // than being said a second time here.
+  const common = useTranslations("common");
   // Keyed by LivePerson.key, not memberId: Hub-only people have no member id.
   const [selectedKey, setSelectedKey] = useState<string | null>(people[0]?.key ?? null);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -135,9 +154,9 @@ export function PeopleDirectory({
       .map(([value, count]) => ({ value, label: teamLabel(value), count }))
       .sort((a, b) => a.label.localeCompare(b.label, "de"));
     return noTeam > 0
-      ? [...named, { value: NO_TEAM, label: "No team recorded", count: noTeam }]
+      ? [...named, { value: NO_TEAM, label: t("filters.noTeam"), count: noTeam }]
       : named;
-  }, [people]);
+  }, [people, t]);
 
   /** Counts per capacity band, over the FULL roster, same rule as the chips above. */
   const bandCounts = useMemo(() => {
@@ -266,26 +285,26 @@ export function PeopleDirectory({
     return (
       <>
         <PageHeader
-          category="HSE HUB / RECORDS"
-          title="People & Profiles"
-          meta="NO RECORDS VISIBLE"
+          category={t("category")}
+          title={t("title")}
+          meta={t("empty.meta")}
         />
         <div className="p-6">
           <EmptyState
-            title="No people are visible to you"
-            description="Either the TrackingTime import has not run yet, or your role only permits access to your own record. Ask an administrator, or run the TrackingTime sync."
+            title={t("empty.title")}
+            description={t("empty.description")}
           />
         </div>
       </>
     );
   }
 
-  const tone = (t: "critical" | "warning" | "good" | "neutral") =>
-    t === "critical"
+  const tone = (kind: "critical" | "warning" | "good" | "neutral") =>
+    kind === "critical"
       ? "var(--critical)"
-      : t === "warning"
+      : kind === "warning"
         ? "var(--warning)"
-        : t === "good"
+        : kind === "good"
           ? "var(--accent)"
           : "var(--text-muted)";
 
@@ -319,14 +338,16 @@ export function PeopleDirectory({
 
   return (
     <>
-      <PageHeader category="HSE HUB / RECORDS" title="People & Profiles" meta={headerMeta} />
+      <PageHeader category={t("category")} title={t("title")} meta={headerMeta} />
 
       <div className="flex min-h-[calc(100vh-130px)] flex-col border-b border-[var(--border)] lg:flex-row">
         {/* Left: roster */}
         <div className="flex w-full flex-none flex-col border-b border-[var(--border)] bg-[var(--sidebar)] lg:w-[330px] lg:border-b-0 lg:border-r">
           <div className="flex flex-col gap-2.5 border-b border-[var(--border)] p-4">
             <div className="flex items-baseline justify-between">
-              <span className="text-[14px] font-semibold text-[var(--text-primary)]">People</span>
+              <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+                {t("roster.heading")}
+              </span>
               {/* Shows what is on screen over the matching total, so a
                   truncated list cannot be mistaken for the whole roster. */}
               {/* A live region, so toggling a filter ANNOUNCES the new count.
@@ -338,16 +359,20 @@ export function PeopleDirectory({
                 aria-live="polite"
                 className="font-mono text-[10px] text-[var(--text-muted)]"
               >
-                {visiblePeople.length} OF {filteredPeople.length}
-                {filteredPeople.length !== people.length && ` (${people.length} TOTAL)`}
+                {t("roster.count", {
+                  shown: visiblePeople.length,
+                  matching: filteredPeople.length,
+                })}
+                {filteredPeople.length !== people.length &&
+                  ` ${t("roster.totalSuffix", { total: people.length })}`}
               </span>
             </div>
 
             <SearchInput
-              label="Search people by name, email or role"
+              label={t("search.label")}
               value={searchQuery}
               onValueChange={setSearchQuery}
-              placeholder="Search name, email, role…"
+              placeholder={t("search.placeholder")}
             />
 
             {/* data-people-filters marks the whole bar as one control group for
@@ -359,17 +384,19 @@ export function PeopleDirectory({
                   {/* Native <select>, per Field.tsx: a handful of teams needs no
                       search box, and it is one tap on a phone. */}
                   <Select
-                    label="Filter by team"
+                    label={t("filters.team")}
                     value={teamFilter}
                     onChange={(e) => setTeamFilter(e.target.value)}
                     className="w-full"
                   >
                     {/* The default is EVERYONE. A team filter that starts
                         pre-narrowed would misreport the roster size. */}
-                    <option key="__all" value="">All teams ({people.length})</option>
-                    {teamOptions.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label} ({t.count})
+                    <option key="__all" value="">
+                      {t("filters.allTeams", { count: people.length })}
+                    </option>
+                    {teamOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label} ({opt.count})
                       </option>
                     ))}
                   </Select>
@@ -382,7 +409,7 @@ export function PeopleDirectory({
                 onToggle={() => setOnlyLogged((v) => !v)}
                 count={loggedCount}
               >
-                HAS LOGGED TIME
+                {t("chips.hasLoggedTime")}
               </FilterChip>
               {/*
                 Surfaced as a filter, not just a badge: 16 of 19 active people
@@ -394,7 +421,7 @@ export function PeopleDirectory({
                 onToggle={() => setOnlyNoAccount((v) => !v)}
                 count={noAccountCount}
               >
-                NO HUB ACCOUNT
+                {t("chips.noHubAccount")}
               </FilterChip>
               {/*
                 Archived is a SERVER decision (getLivePeople's includeArchived),
@@ -409,7 +436,7 @@ export function PeopleDirectory({
                   onToggle={toggleArchived}
                   count={archivedCount}
                 >
-                  INCLUDE ARCHIVED
+                  {t("chips.includeArchived")}
                 </FilterChip>
               )}
               {/*
@@ -438,14 +465,14 @@ export function PeopleDirectory({
               truth is that they have logged nothing to measure.
             */}
             <div className="flex flex-wrap gap-1.5">
-              {CAPACITY_BANDS.map((b) => (
+              {CAPACITY_BANDS.map((band) => (
                 <FilterChip
-                  key={b.band}
-                  active={bands.includes(b.band)}
-                  onToggle={() => toggleBand(b.band)}
-                  count={bandCounts[b.band]}
+                  key={band}
+                  active={bands.includes(band)}
+                  onToggle={() => toggleBand(band)}
+                  count={bandCounts[band]}
                 >
-                  {b.label}
+                  {bandLabel(t, band)}
                 </FilterChip>
               ))}
             </div>
@@ -457,16 +484,22 @@ export function PeopleDirectory({
               <button
                 type="button"
                 onClick={clearFilters}
+                /* The control's English handle, identical in both languages, so
+                   a gate or Playwright script that looks for the clear
+                   affordance still finds it on the German page -- the device
+                   ReportPanels uses for data-tile. The words a person reads are
+                   the catalogue's. */
+                data-clear="CLEAR {activeFilterCount}"
                 className="self-start font-mono text-[10px] text-[var(--accent)] hover:underline"
               >
-                CLEAR {activeFilterCount} FILTER{activeFilterCount === 1 ? "" : "S"}
+                {t("filters.clear", { count: activeFilterCount })}
               </button>
             )}
             </div>
 
             <div className="flex items-center justify-between gap-2 border-t border-[var(--divider)] pt-2">
               <SortHeader
-                label="NAME"
+                label={t("columns.name")}
                 columnKey="name"
                 activeKey={sortKey}
                 direction={sortDir}
@@ -474,14 +507,14 @@ export function PeopleDirectory({
               />
               <div className="flex items-center gap-3">
                 <SortHeader
-                  label="HOURS"
+                  label={t("columns.hours")}
                   columnKey="hours"
                   activeKey={sortKey}
                   direction={sortDir}
                   onSort={handleSort}
                 />
                 <SortHeader
-                  label="BILLABLE"
+                  label={t("columns.billable")}
                   columnKey="billable"
                   activeKey={sortKey}
                   direction={sortDir}
@@ -500,14 +533,17 @@ export function PeopleDirectory({
             {filteredPeople.length === 0 && (
               <div className="flex flex-col items-start gap-2 p-4">
                 <p className="text-[12px] text-[var(--text-secondary)]">
-                  No one matches {query ? `“${searchQuery.trim()}”` : "these filters"}.
+                  {query
+                    ? t("filters.noMatchQuery", { query: searchQuery.trim() })
+                    : t("filters.noMatchFilters")}
                 </p>
                 <button
                   type="button"
                   onClick={clearFilters}
+                  data-clear="CLEAR {activeFilterCount}"
                   className="font-mono text-[10px] text-[var(--accent)] hover:underline"
                 >
-                  CLEAR {activeFilterCount} FILTER{activeFilterCount === 1 ? "" : "S"}
+                  {t("filters.clear", { count: activeFilterCount })}
                 </button>
               </div>
             )}
@@ -574,7 +610,9 @@ export function PeopleDirectory({
                           : "var(--accent)",
                     }}
                   >
-                    {person.billablePercent !== null ? `${person.billablePercent}%` : "n/a"}
+                    {person.billablePercent !== null
+                      ? fmtPct(person.billablePercent, locale)
+                      : common("notAvailable")}
                   </span>
                 </button>
               );
@@ -588,7 +626,7 @@ export function PeopleDirectory({
           <Pager
             state={pager}
             total={filteredPeople.length}
-            noun="people"
+            noun={t("roster.pagerNoun")}
             anchorRef={listRef}
             sizes={[10, 25, 50]}
           />
@@ -634,11 +672,11 @@ export function PeopleDirectory({
                       background: "var(--surface)",
                     }}
                   >
-                    {capacity.label}
+                    {bandLabel(t, bandOf(selectedPerson))}
                   </span>
                 ) : (
                   <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-faint)]">
-                    NO UTILISATION DATA
+                    {t("chips.noUtilisationData")}
                   </span>
                 )}
                 {/*
@@ -649,14 +687,18 @@ export function PeopleDirectory({
                 {selectedPerson.weeklyHours !== null && (
                   <span
                     className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
-                    title="TrackingTime account default, not a contracted figure"
+                    /* The basis stays NOMINAL in every language, and the handle
+                       says so where a script can read it: check-people-module
+                       asserts this page never calls the 40h week contracted. */
+                    data-basis="NOMINAL"
+                    title={t("detail.nominalTitle")}
                   >
-                    NOMINAL {selectedPerson.weeklyHours} H/WEEK
+                    {t("detail.nominal", { hours: selectedPerson.weeklyHours })}
                   </span>
                 )}
                 {!isHubOnly && (
                   <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
-                    {selectedPerson.accountRole ?? "NO ROLE"}
+                    {selectedPerson.accountRole ?? t("detail.noRole")}
                   </span>
                 )}
                 {/* Stated either way. "NO TEAM RECORDED" is the honest reading
@@ -673,11 +715,11 @@ export function PeopleDirectory({
                 >
                   {selectedPerson.team !== null
                     ? teamLabel(selectedPerson.team).toUpperCase()
-                    : "NO TEAM RECORDED"}
+                    : t("detail.noTeam")}
                 </span>
                 {selectedPerson.isArchived && (
                   <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--warning)]">
-                    ARCHIVED IN TRACKINGTIME
+                    {t("detail.archived")}
                   </span>
                 )}
                 {/*
@@ -689,7 +731,7 @@ export function PeopleDirectory({
                     warning badge on an unknown would be an accusation. */}
                 {selectedPerson.hasAccount === false && (
                   <span className="bg-[var(--surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--warning)]">
-                    NO HUB ACCOUNT
+                    {t("chips.noHubAccount")}
                   </span>
                 )}
               </div>
@@ -702,7 +744,7 @@ export function PeopleDirectory({
                   variant="secondary"
                   href={`/time/dashboard?members=${selectedPerson.memberId}`}
                 >
-                  View in dashboard
+                  {t("detail.viewInDashboard")}
                 </ButtonLink>
               </div>
             )}
@@ -716,43 +758,41 @@ export function PeopleDirectory({
           */}
           <div className="my-5 grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 lg:grid-cols-4">
             <StatTile
-              label="HOURS LOGGED"
+              label={t("tiles.hoursLogged")}
               value={
                 selectedPerson.totalHours !== null && selectedPerson.totalHours > 0
-                  ? selectedPerson.totalHours.toLocaleString("de-DE", {
-                      maximumFractionDigits: 0,
-                    })
+                  ? fmtNum(selectedPerson.totalHours, locale, 0)
                   : null
               }
               unit="h"
               hint={
                 selectedPerson.entryCount === null
                   ? t("detail.noTrackingTime")
-                  : `${selectedPerson.entryCount.toLocaleString("de-DE")} ENTRIES`
+                  : t("tiles.entries", { count: selectedPerson.entryCount })
               }
             />
             <StatTile
-              label="BILLABLE SHARE"
+              label={t("tiles.billableShare")}
               value={selectedPerson.billablePercent}
               unit="%"
               hint={
                 selectedPerson.billableHours === null
                   ? t("detail.noTrackingTime")
-                  : `${selectedPerson.billableHours.toLocaleString("de-DE", {
-                      maximumFractionDigits: 0,
-                    })} H BILLABLE`
+                  : t("tiles.billableHours", {
+                      hours: fmtNum(selectedPerson.billableHours, locale, 0),
+                    })
               }
             />
             <StatTile
-              label="UTILISATION"
+              label={t("tiles.utilisation")}
               value={selectedPerson.utilisationPercent}
               unit="%"
               // Not "OF CONTRACTED": the 40h basis is a TrackingTime default,
               // and calling it contracted would dress a default as a fact.
-              hint={isHubOnly ? t("detail.noTrackingTime") : "OF NOMINAL 40 H, WEEKS ACTIVE"}
+              hint={isHubOnly ? t("detail.noTrackingTime") : t("tiles.utilisationHint")}
             />
             <StatTile
-              label="WEEKS ACTIVE"
+              label={t("tiles.weeksActive")}
               value={
                 selectedPerson.weeksActive !== null && selectedPerson.weeksActive > 0
                   ? selectedPerson.weeksActive
@@ -762,8 +802,11 @@ export function PeopleDirectory({
                 isHubOnly
                   ? t("detail.noTrackingTime")
                   : selectedPerson.lastActivityAt
-                    ? `LAST ${selectedPerson.lastActivityAt.slice(0, 10)}`
-                    : "NO ACTIVITY"
+                    ? // The ISO day, deliberately not localised: it is a
+                      // machine-readable stamp, and the same eight characters
+                      // in both languages.
+                      t("tiles.lastActivity", { date: selectedPerson.lastActivityAt.slice(0, 10) })
+                    : t("tiles.noActivity")
               }
             />
           </div>
@@ -772,10 +815,10 @@ export function PeopleDirectory({
           <Card className="flex flex-col gap-3 p-4">
             <div className="flex items-baseline gap-2.5">
               <span className="text-[12px] font-semibold text-[var(--text-primary)]">
-                Projects
+                {t("projects.heading")}
               </span>
               <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                TOP {selectedPerson.assignments.length} BY HOURS · TRACKINGTIME
+                {t("projects.meta", { count: selectedPerson.assignments.length })}
               </span>
             </div>
 
@@ -783,15 +826,15 @@ export function PeopleDirectory({
               <p className="font-mono text-[11px] text-[var(--text-faint)]">
                 {/* Two different absences: "logged nothing" is a fact about a
                     member; "has no member" is the reason there is no fact. */}
-                {isHubOnly ? t("detail.noTrackingTimeAccount") : "No time logged against any project."}
+                {isHubOnly ? t("detail.noTrackingTimeAccount") : t("projects.none")}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <div className="grid min-w-[420px] grid-cols-12 border-b border-[var(--border)] pb-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                  <span className="col-span-6">PROJECT</span>
-                  <span className="col-span-2 text-right">LOGGED</span>
-                  <span className="col-span-2 text-right">BILLABLE</span>
-                  <span className="col-span-2 text-right">SHARE</span>
+                  <span className="col-span-6">{t("projects.project")}</span>
+                  <span className="col-span-2 text-right">{t("projects.logged")}</span>
+                  <span className="col-span-2 text-right">{t("columns.billable")}</span>
+                  <span className="col-span-2 text-right">{t("projects.share")}</span>
                 </div>
 
                 {selectedPerson.assignments.map((asg) => (
@@ -813,13 +856,13 @@ export function PeopleDirectory({
                       </span>
                     )}
                     <span className="col-span-2 text-right font-mono text-[var(--text-secondary)]">
-                      {asg.loggedHours.toLocaleString("de-DE", { maximumFractionDigits: 0 })} h
+                      {t("projects.hours", { hours: fmtNum(asg.loggedHours, locale, 0) })}
                     </span>
                     <span className="col-span-2 text-right font-mono text-[var(--text-secondary)]">
-                      {asg.billableHours.toLocaleString("de-DE", { maximumFractionDigits: 0 })} h
+                      {t("projects.hours", { hours: fmtNum(asg.billableHours, locale, 0) })}
                     </span>
                     <span className="col-span-2 text-right font-mono font-medium text-[var(--accent)]">
-                      {asg.sharePercent}%
+                      {fmtPct(asg.sharePercent, locale)}
                     </span>
                   </div>
                 ))}
@@ -836,7 +879,7 @@ export function PeopleDirectory({
                 {t("unlinkedNote", { unlinked: unlinkedCount, tracked: trackedCount })}
               </span>
               <ButtonLink variant="primary" href="/admin/users" className="whitespace-nowrap">
-                Manage users
+                {t("detail.manageUsers")}
               </ButtonLink>
             </Card>
           )}
@@ -857,12 +900,27 @@ type CapacityBand = "over" | "low" | "ontrack" | "unknown";
  * The band chips, in the order someone reads them: the two that need action,
  * then the healthy one, then the one that is an absence of data.
  */
-const CAPACITY_BANDS: { band: CapacityBand; label: string }[] = [
-  { band: "over", label: "OVER CAPACITY" },
-  { band: "low", label: "LOW UTILISATION" },
-  { band: "ontrack", label: "ON TRACK" },
-  { band: "unknown", label: "NO UTILISATION DATA" },
-];
+const CAPACITY_BANDS: CapacityBand[] = ["over", "low", "ontrack", "unknown"];
+
+/**
+ * One band, in the reader's language.
+ *
+ * A switch rather than a computed key, so every key is a literal the i18n gate
+ * can resolve against both catalogues. The chip and the detail badge both call
+ * it, which is what stops them wording the same band two ways.
+ */
+function bandLabel(t: (key: string) => string, band: CapacityBand): string {
+  switch (band) {
+    case "over":
+      return t("chips.overCapacity");
+    case "low":
+      return t("chips.lowUtilisation");
+    case "ontrack":
+      return t("chips.onTrack");
+    default:
+      return t("chips.noUtilisationData");
+  }
+}
 
 /**
  * Which band a person falls in.

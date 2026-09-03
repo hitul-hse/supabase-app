@@ -23,11 +23,13 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 import { FilterChip, SearchInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import type { Drill } from "@/components/DrillDialog";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import {
+  NO_CUSTOMER,
   customerPortfolioFromRows,
   filterProjectRows,
   hasActiveProjectFilters,
@@ -42,20 +44,29 @@ import { ProjectsLedger, type LedgerSort } from "./ProjectsLedger";
 import { CustomerMultiSelect } from "./CustomerMultiSelect";
 import { MobileDisclosure } from "@/components/MobileDisclosure";
 
-const FACETS: { key: ProjectFacet; label: string }[] = [
-  { key: "over", label: "OVER BUDGET" },
-  { key: "risk", label: "AT RISK" },
-  { key: "healthy", label: "HEALTHY" },
-  { key: "nobudget", label: "NO BUDGET" },
-  { key: "idle", label: "NO ACTIVITY" },
-];
+/**
+ * The status chips, in the order they are drawn.
+ *
+ * The FACET KEY is the identity -- what the filter set holds and what
+ * `matchesProjectFacet` switches on -- and the label is only its rendering, so
+ * switching language cannot silently change which rows a chip selects.
+ */
+const FACETS: ProjectFacet[] = ["over", "risk", "healthy", "nobudget", "idle"];
 
 export function ProjectsExplorer({
   rows,
   initialSort = "burn",
+  locale,
 }: {
   rows: ProjectListRow[];
   initialSort?: LedgerSort;
+  /**
+   * The request locale, handed down by the page rather than read with
+   * `useLocale()`. The projects gate renders this component bare, outside a
+   * request, where a next-intl hook other than the one it stubs would throw --
+   * and absent, every figure formats en-GB, exactly as it did before.
+   */
+  locale?: string;
 }) {
   const [filters, setFilters] = useState<ProjectFilters>({
     query: "",
@@ -64,13 +75,18 @@ export function ProjectsExplorer({
     billableOnly: null,
   });
 
+  // `drill` for the popup chrome the tiles open, `projects` for the page's own
+  // words. Both are read here so every derivation below can use them.
+  const t = useTranslations("drill");
+  const tp = useTranslations("projects");
+
   // Facet counts come from the FULL list, never the filtered one: a chip whose
   // count shrinks to match the current filter tells the reader nothing they
   // cannot already see, and makes it impossible to judge before clicking.
   const facetCounts = useMemo(
     () =>
       Object.fromEntries(
-        FACETS.map(({ key }) => [key, rows.filter((p) => matchesProjectFacet(p, key)).length]),
+        FACETS.map((key) => [key, rows.filter((p) => matchesProjectFacet(p, key)).length]),
       ) as Record<ProjectFacet, number>,
     [rows],
   );
@@ -79,7 +95,7 @@ export function ProjectsExplorer({
   const customerOptions = useMemo(() => {
     const byName = new Map<string, number>();
     for (const p of rows) {
-      const name = p.customerName ?? "(no customer)";
+      const name = p.customerName ?? NO_CUSTOMER;
       byName.set(name, (byName.get(name) ?? 0) + p.actualHours);
     }
     return [...byName.entries()]
@@ -91,6 +107,15 @@ export function ProjectsExplorer({
   const portfolio = useMemo(() => customerPortfolioFromRows(filtered), [filtered]);
 
   const active = hasActiveProjectFilters(filters);
+
+  /*
+   * The customer NAME is the filter key (project-insights.NO_CUSTOMER), so the
+   * "no customer" bucket keeps its English key and only its rendering follows
+   * the locale. Translating the key itself would unselect the bucket the moment
+   * the reader switches language.
+   */
+  const noCustomerLabel = t("noCustomer");
+  const displayCustomer = (name: string) => (name === NO_CUSTOMER ? noCustomerLabel : name);
 
   const totalHours = filtered.reduce((s, p) => s + p.actualHours, 0);
   const billableHours = filtered.reduce((s, p) => s + p.billableHours, 0);
@@ -105,9 +130,8 @@ export function ProjectsExplorer({
    * the billable hours, and the over-budget / no-budget lists COUNT to their
    * tiles. Rows that lead to a project record are links, never a second popup.
    */
-  const t = useTranslations("drill");
   const drills = useMemo<Partial<Record<ProjectTotalsTile, Drill>>>(() => {
-    const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+    const hrs = (n: number) => fmtHours(n, locale, 1);
     const noCustomer = t("noCustomer");
     const byCustomer = new Map<string, { projects: number; hours: number }>();
     for (const p of filtered) {
@@ -124,12 +148,12 @@ export function ProjectsExplorer({
 
     return {
       projects: {
-        kicker: "PROJECTS",
+        kicker: tp("tiles.projects.label"),
         title: t("projects.count.title"),
-        headline: filtered.length.toLocaleString("en-GB"),
+        headline: fmtInt(filtered.length, locale),
         headlineValue: filtered.length,
         check: "sum",
-        subline: `${customers.length} ${customers.length === 1 ? "customer" : "customers"}`,
+        subline: tp("drills.customerCount", { count: customers.length }),
         rows: customers
           .sort((a, b) => b[1].projects - a[1].projects)
           .map(([name, a]) => ({
@@ -141,9 +165,9 @@ export function ProjectsExplorer({
         footer: t("projects.count.footer"),
       },
       hours: {
-        kicker: "TRACKED HOURS",
+        kicker: tp("tiles.hours.label"),
         title: t("projects.hours.title"),
-        headline: `${h(totalHours)}h`,
+        headline: hrs(totalHours),
         headlineValue: totalHours,
         check: "sum",
         subline: t("projectCount", { count: filtered.length }),
@@ -152,26 +176,29 @@ export function ProjectsExplorer({
           .sort((a, b) => b[1].hours - a[1].hours)
           .map(([name, a]) => ({
             name,
-            value: `${h(a.hours)}h · ${t("projectCount", { count: a.projects })}`,
+            value: `${hrs(a.hours)} · ${t("projectCount", { count: a.projects })}`,
             magnitude: a.hours,
             tone: customerTone(name),
           })),
         footer: t("projects.hours.footer"),
       },
       billable: {
-        kicker: "BILLABLE",
+        kicker: tp("tiles.billable.label"),
         title: t("projects.billable.title"),
-        headline: billablePercent === null ? "—" : `${billablePercent}%`,
+        headline: billablePercent === null ? "—" : fmtPct(billablePercent, locale),
         headlineValue: billableHours,
         check: "sum",
-        subline: t("projects.billable.subline", { billable: h(billableHours), total: h(totalHours) }),
+        subline: t("projects.billable.subline", {
+          billable: fmtNum(billableHours, locale, 1),
+          total: fmtNum(totalHours, locale, 1),
+        }),
         rows: filtered
           .filter((p) => p.billableHours > 0)
           .sort((a, b) => b.billableHours - a.billableHours)
           .map((p) => ({
             name: p.name,
             sub: p.customerName ?? undefined,
-            value: `${h(p.billableHours)}h · ${t("billableShare", {
+            value: `${hrs(p.billableHours)} · ${t("billableShare", {
               percent: p.actualHours > 0 ? Math.round((p.billableHours / p.actualHours) * 100) : 0,
             })}`,
             magnitude: p.billableHours,
@@ -180,9 +207,9 @@ export function ProjectsExplorer({
         footer: t("projects.billable.footer"),
       },
       over: {
-        kicker: "OVER BUDGET",
+        kicker: tp("tiles.over.label"),
         title: t("projects.over.title"),
-        headline: overBudget.toLocaleString("en-GB"),
+        headline: fmtInt(overBudget, locale),
         headlineValue: overBudget,
         check: "count",
         subline: t("projectCount", { count: filtered.length }),
@@ -192,7 +219,9 @@ export function ProjectsExplorer({
           .map((p) => ({
             name: p.name,
             sub: p.customerName ?? undefined,
-            value: `${p.burnPercent}% · ${h(-(p.remainingHours ?? 0))}h over`,
+            value: `${fmtPct(p.burnPercent ?? 0, locale)} · ${tp("drills.overBy", {
+              hours: hrs(-(p.remainingHours ?? 0)),
+            })}`,
             magnitude: p.burnPercent ?? 0,
             href: record(p),
             tone: "critical" as const,
@@ -200,9 +229,9 @@ export function ProjectsExplorer({
         footer: t("projects.over.footer"),
       },
       noBudget: {
-        kicker: "NO BUDGET SET",
+        kicker: tp("tiles.noBudget.label"),
         title: t("projects.noBudget.title"),
-        headline: noBudget.toLocaleString("en-GB"),
+        headline: fmtInt(noBudget, locale),
         headlineValue: noBudget,
         check: "count",
         subline: t("projectCount", { count: filtered.length }),
@@ -212,7 +241,7 @@ export function ProjectsExplorer({
           .map((p) => ({
             name: p.name,
             sub: p.customerName ?? undefined,
-            value: `${h(p.actualHours)}h`,
+            value: hrs(p.actualHours),
             magnitude: p.actualHours,
             href: record(p),
             tone: "muted" as const,
@@ -220,7 +249,7 @@ export function ProjectsExplorer({
         footer: t("projects.noBudget.footer"),
       },
     };
-  }, [filtered, totalHours, billableHours, overBudget, noBudget, t]);
+  }, [filtered, totalHours, billableHours, overBudget, noBudget, t, tp, locale]);
 
   const toggleFacet = (f: ProjectFacet) =>
     setFilters((prev) => {
@@ -254,16 +283,58 @@ export function ProjectsExplorer({
   const topCustomer = portfolio.rows[0] ?? null;
   const chartsSummary =
     filtered.length === 0
-      ? "No projects match the current filter"
-      : `${overBudget} over budget · ${noBudget} without a budget · ${filtered.length} projects`;
+      ? tp("disclosure.charts.empty")
+      : tp("disclosure.charts.summary", {
+          over: fmtInt(overBudget, locale),
+          noBudget: fmtInt(noBudget, locale),
+          projects: fmtInt(filtered.length, locale),
+        });
   const customersSummary =
     portfolio.customerCount === 0
-      ? "No customer hours logged yet"
-      : `${portfolio.customerCount} customers · top 5 hold ${portfolio.top5SharePercent}%` +
-        (topCustomer ? ` · biggest ${topCustomer.name}` : "");
+      ? tp("disclosure.customers.empty")
+      : tp("disclosure.customers.summary", {
+          count: fmtInt(portfolio.customerCount, locale),
+          share: fmtPct(portfolio.top5SharePercent, locale),
+        }) +
+        (topCustomer
+          ? tp("disclosure.customers.biggest", { name: displayCustomer(topCustomer.name) })
+          : "");
 
   const clearAll = () =>
     setFilters({ query: "", customers: new Set(), facets: new Set(), billableOnly: null });
+
+  const facetLabels: Record<ProjectFacet, string> = {
+    over: tp("filters.facets.over"),
+    risk: tp("filters.facets.risk"),
+    healthy: tp("filters.facets.healthy"),
+    nobudget: tp("filters.facets.nobudget"),
+    idle: tp("filters.facets.idle"),
+  };
+
+  /*
+   * CustomerMultiSelect draws no words of its own (see its header: the projects
+   * gate renders it outside a request, where a next-intl hook throws), so the
+   * explorer resolves them here and hands them over.
+   */
+  const customerLabels = {
+    field: tp("customer.label"),
+    summaryAll: (total: number) =>
+      total ? tp("customer.all", { count: fmtInt(total, locale) }) : tp("customer.allNone"),
+    summarySelected: (count: number) => tp("customer.selected", { count: fmtInt(count, locale) }),
+    searchPlaceholder: tp("customer.searchPlaceholder"),
+    counts: (shown: number, total: number, selected: number) =>
+      `${
+        shown !== total
+          ? tp("customer.countOf", { shown: fmtInt(shown, locale), total: fmtInt(total, locale) })
+          : fmtInt(shown, locale)
+      } ${tp("customer.noun", { count: total })}${
+        selected > 0 ? tp("customer.selectedSuffix", { count: fmtInt(selected, locale) }) : ""
+      }`,
+    noMatch: (query: string) => tp("customer.noMatch", { query }),
+    clear: (count: number) => tp("customer.clear", { count: fmtInt(count, locale) }),
+    listLabel: tp("customer.listLabel"),
+    displayName: displayCustomer,
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -276,33 +347,35 @@ export function ProjectsExplorer({
           <SearchInput
             value={filters.query}
             onValueChange={(v) => setFilters((prev) => ({ ...prev, query: v }))}
-            label="Search projects by name, customer or code"
-            placeholder="Search projects…"
+            label={tp("filters.searchLabel")}
+            placeholder={tp("filters.searchPlaceholder")}
             className="w-full sm:w-64"
           />
           <CustomerMultiSelect
             options={customerOptions}
             selected={filters.customers}
             onChange={(next) => setFilters((prev) => ({ ...prev, customers: next }))}
+            locale={locale}
+            labels={customerLabels}
           />
           <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
             <BillableToggle
               on={filters.billableOnly === null}
               onClick={() => setFilters((prev) => ({ ...prev, billableOnly: null }))}
             >
-              All
+              {tp("filters.all")}
             </BillableToggle>
             <BillableToggle
               on={filters.billableOnly === true}
               onClick={() => setFilters((prev) => ({ ...prev, billableOnly: true }))}
             >
-              Billable
+              {tp("filters.billable")}
             </BillableToggle>
             <BillableToggle
               on={filters.billableOnly === false}
               onClick={() => setFilters((prev) => ({ ...prev, billableOnly: false }))}
             >
-              Non-bill.
+              {tp("filters.nonBillable")}
             </BillableToggle>
           </div>
 
@@ -313,26 +386,29 @@ export function ProjectsExplorer({
               aria-live="polite"
             >
               {filtered.length === rows.length
-                ? `${rows.length} PROJECTS`
-                : `${filtered.length} OF ${rows.length}`}
+                ? tp("filters.countAll", { count: fmtInt(rows.length, locale) })
+                : tp("filters.countOf", {
+                    shown: fmtInt(filtered.length, locale),
+                    total: fmtInt(rows.length, locale),
+                  })}
             </span>
             {active && (
               <Button variant="ghost" size="sm" onClick={clearAll}>
-                Clear
+                {tp("filters.clear")}
               </Button>
             )}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          {FACETS.map(({ key, label }) => (
+          {FACETS.map((key) => (
             <FilterChip
               key={key}
               active={filters.facets.has(key)}
               onToggle={() => toggleFacet(key)}
               count={facetCounts[key]}
             >
-              {label}
+              {facetLabels[key]}
             </FilterChip>
           ))}
         </div>
@@ -351,6 +427,20 @@ export function ProjectsExplorer({
         overBudget={overBudget}
         noBudget={noBudget}
         drills={drills}
+        locale={locale}
+        wording={{
+          projects: { label: tp("tiles.projects.label"), hint: tp("tiles.projects.hint") },
+          hours: { label: tp("tiles.hours.label"), hint: tp("tiles.hours.hint") },
+          billable: {
+            label: tp("tiles.billable.label"),
+            hint: tp("tiles.billable.hint", { hours: fmtNum(billableHours, locale, 1) }),
+          },
+          over: {
+            label: tp("tiles.over.label"),
+            hint: overBudget > 0 ? tp("tiles.over.needsAttention") : tp("tiles.over.allWithin"),
+          },
+          noBudget: { label: tp("tiles.noBudget.label"), hint: tp("tiles.noBudget.hint") },
+        }}
       />
 
       {/*
@@ -366,18 +456,24 @@ export function ProjectsExplorer({
         and the figures inside them are already stated in the summary line and
         the totals strip above.
       */}
-      <MobileDisclosure title="Portfolio charts" summary={chartsSummary}>
-        <PortfolioCharts rows={filtered} onFacet={toggleFacet} activeFacet={soleFacet} />
+      <MobileDisclosure title={tp("disclosure.charts.title")} summary={chartsSummary}>
+        <PortfolioCharts
+          rows={filtered}
+          onFacet={toggleFacet}
+          activeFacet={soleFacet}
+          locale={locale}
+        />
       </MobileDisclosure>
-      <MobileDisclosure title="Customers" summary={customersSummary}>
+      <MobileDisclosure title={tp("disclosure.customers.title")} summary={customersSummary}>
         <CustomerPortfolioCharts
           data={portfolio}
           onCustomer={toggleCustomer}
           activeCustomers={filters.customers}
+          locale={locale}
         />
       </MobileDisclosure>
 
-      <ProjectsLedger rows={filtered} initialSort={initialSort} />
+      <ProjectsLedger rows={filtered} initialSort={initialSort} locale={locale} />
     </div>
   );
 }

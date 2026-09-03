@@ -14,34 +14,40 @@
  */
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Card, CardHeader, ChartNote } from "@/components/ui/Card";
 import { Donut, LegendDot } from "@/components/ui/Charts";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { matchesFacet } from "./ProjectsLedger";
 import { burnColor } from "./ProjectPanels";
 import type { ProjectFacet } from "./project-insights";
+import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 
-/** Donut slice label -> the status facet clicking it should toggle. */
-const SLICE_TO_FACET: Record<string, ProjectFacet> = {
-  "Over budget": "over",
-  "At risk": "risk",
-  Healthy: "healthy",
-  "No budget": "nobudget",
-};
-
-const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+/**
+ * The four donut slices, in drawing order, keyed by the status facet clicking
+ * one should toggle.
+ *
+ * Donut hands its `onSelect` the slice LABEL, so the label→facet map has to be
+ * rebuilt from the translated labels rather than held as a constant: a German
+ * legend that still spoke of "Over budget" would cross-filter nothing.
+ */
+const SLICE_FACETS = ["over", "risk", "healthy", "nobudget"] as const;
 
 export function PortfolioCharts({
   rows,
   onFacet,
   activeFacet = null,
+  locale,
 }: {
   rows: ProjectListRow[];
   /** When given, the health donut cross-filters: clicking a slice toggles its
    * status facet on the page, the way clicking a mark filters in Power BI. */
   onFacet?: (facet: ProjectFacet) => void;
   activeFacet?: ProjectFacet | null;
+  /** The request locale, handed down by the explorer. Absent means en-GB. */
+  locale?: string;
 }) {
+  const t = useTranslations("projects");
   if (rows.length === 0) return null;
 
   /*
@@ -57,11 +63,21 @@ export function PortfolioCharts({
   );
   const unbudgeted = rows.filter((p) => p.burnPercent === null);
 
+  const sliceLabels: Record<(typeof SLICE_FACETS)[number], string> = {
+    over: t("health.slices.over"),
+    risk: t("health.slices.risk"),
+    healthy: t("health.slices.healthy"),
+    nobudget: t("health.slices.noBudget"),
+  };
+  const sliceToFacet: Record<string, ProjectFacet> = Object.fromEntries(
+    SLICE_FACETS.map((f) => [sliceLabels[f], f as ProjectFacet]),
+  );
+
   const slices = [
-    { label: "Over budget", value: over.length, color: "var(--critical)" },
-    { label: "At risk", value: risk.length, color: "var(--warning)" },
-    { label: "Healthy", value: healthy.length, color: "var(--accent)" },
-    { label: "No budget", value: unbudgeted.length, color: "var(--text-faint)" },
+    { label: sliceLabels.over, value: over.length, color: "var(--critical)" },
+    { label: sliceLabels.risk, value: risk.length, color: "var(--warning)" },
+    { label: sliceLabels.healthy, value: healthy.length, color: "var(--accent)" },
+    { label: sliceLabels.nobudget, value: unbudgeted.length, color: "var(--text-faint)" },
   ];
 
   const measured = over.length + risk.length + healthy.length;
@@ -77,26 +93,35 @@ export function PortfolioCharts({
   return (
     <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
       <Card className="flex flex-col lg:col-span-4">
-        <CardHeader title="Portfolio health" qualifier={`${rows.length} PROJECTS`} />
+        <CardHeader
+          title={t("health.title")}
+          qualifier={t("health.qualifier", { count: fmtInt(rows.length, locale) })}
+        />
         <div className="flex flex-1 flex-wrap items-center justify-center gap-x-7 gap-y-3 px-4 pb-5">
           <Donut
             slices={slices}
             centre={String(measured)}
-            centreLabel="budgeted"
-            label={`Portfolio health across ${rows.length} projects: ${over.length} over budget, ${risk.length} at risk, ${healthy.length} healthy, ${unbudgeted.length} without a budget`}
+            centreLabel={t("health.centreLabel")}
+            label={t("health.chartLabel", {
+              total: fmtInt(rows.length, locale),
+              over: fmtInt(over.length, locale),
+              risk: fmtInt(risk.length, locale),
+              healthy: fmtInt(healthy.length, locale),
+              noBudget: fmtInt(unbudgeted.length, locale),
+            })}
             onSelect={onFacet ? (sliceLabel) => {
-              const facet = SLICE_TO_FACET[sliceLabel];
+              const facet = sliceToFacet[sliceLabel];
               if (facet) onFacet(facet);
             } : undefined}
             activeLabel={
               activeFacet
-                ? (Object.entries(SLICE_TO_FACET).find(([, f]) => f === activeFacet)?.[0] ?? null)
+                ? (Object.entries(sliceToFacet).find(([, f]) => f === activeFacet)?.[0] ?? null)
                 : null
             }
           />
           <div className="flex flex-col gap-1.5">
             {slices.map((s) => {
-              const facet = SLICE_TO_FACET[s.label];
+              const facet = sliceToFacet[s.label];
               const isActive = activeFacet !== null && facet === activeFacet;
               // The legend rows are clickable too — a bigger hit target than the
               // ring, and the standard way to pick a category in a BI legend.
@@ -128,15 +153,11 @@ export function PortfolioCharts({
           the same thresholds the ledger filters on (matchesFacet), so clicking a
           slice and reading this line cannot disagree.
         */}
-        <ChartNote>
-          Projects by budget burn — logged hours as a share of the budget. Over
-          budget is above 100%, at risk is 85–100%. Projects with no budget set
-          are counted separately, never assumed healthy.
-        </ChartNote>
+        <ChartNote>{t("health.note")}</ChartNote>
       </Card>
 
       <Card tone="hero" className="flex flex-col lg:col-span-8">
-        <CardHeader title="Where the hours go" qualifier="TOP 10 BY LOGGED HOURS" />
+        <CardHeader title={t("topProjects.title")} qualifier={t("topProjects.qualifier")} />
         <div className="flex flex-1 flex-col justify-center gap-1.5 px-4 pb-4">
           {top.map((p) => (
             /*
@@ -166,7 +187,7 @@ export function PortfolioCharts({
                 />
               </div>
               <span className="col-span-2 text-right font-mono text-[11px] tabular-nums text-[var(--text-primary)]">
-                {h(p.actualHours)}h
+                {fmtHours(p.actualHours, locale, 1)}
               </span>
             </Link>
           ))}
@@ -177,14 +198,10 @@ export function PortfolioCharts({
           otherwise read effort as revenue, and the two diverge sharply on any
           project that is overrunning.
         */}
-        <ChartNote>
-          The ten projects with the most hours logged. Length is effort spent,
-          not fee or budget — a long bar can be a large engagement or a small one
-          running over.
-        </ChartNote>
+        <ChartNote>{t("topProjects.note")}</ChartNote>
       </Card>
 
-      <BurnDonutRow rows={rows} />
+      <BurnDonutRow rows={rows} locale={locale} />
     </div>
   );
 }
@@ -204,7 +221,8 @@ export function PortfolioCharts({
  * Over-budget rings go full-circle in --critical, and the overrun magnitude
  * lives in the centre label ("64h over") where it can actually be read.
  */
-function BurnDonutRow({ rows }: { rows: ProjectListRow[] }) {
+function BurnDonutRow({ rows, locale }: { rows: ProjectListRow[]; locale?: string }) {
+  const t = useTranslations("projects");
   const budgeted = rows.filter(
     (p) => p.estimatedHours !== null && p.estimatedHours >= 10 && p.burnPercent !== null,
   );
@@ -214,14 +232,10 @@ function BurnDonutRow({ rows }: { rows: ProjectListRow[] }) {
 
   return (
     <Card className="flex flex-col lg:col-span-12">
-      <CardHeader
-        title="Budget burn"
-        qualifier="TOP 5 BUDGETED PROJECTS BY BURN · ESTIMATES UNDER 10H EXCLUDED AS PLACEHOLDERS"
-      />
+      <CardHeader title={t("burnDonuts.title")} qualifier={t("burnDonuts.qualifier")} />
       {top.length === 0 ? (
         <p className="px-4 pb-5 text-[12px] text-[var(--text-faint)]">
-          No projects carry a real budget yet — every estimate on file is below
-          the 10h placeholder floor, so there is no burn to show.
+          {t("burnDonuts.empty")}
         </p>
       ) : (
         <div className="flex flex-wrap items-start justify-around gap-x-6 gap-y-4 px-4 pb-5">
@@ -229,13 +243,20 @@ function BurnDonutRow({ rows }: { rows: ProjectListRow[] }) {
             const est = p.estimatedHours!;
             const used = Math.min(p.actualHours, est);
             const slices = p.isOver
-              ? [{ label: "Over budget", value: est, color: "var(--critical)" }]
+              ? [{ label: t("burnDonuts.slices.over"), value: est, color: "var(--critical)" }]
               : [
-                  { label: "Hours used", value: used, color: burnColor(p.burnPercent) },
-                  { label: "Hours remaining", value: Math.max(est - used, 0), color: "var(--surface-2)" },
+                  { label: t("burnDonuts.slices.used"), value: used, color: burnColor(p.burnPercent) },
+                  {
+                    label: t("burnDonuts.slices.remaining"),
+                    value: Math.max(est - used, 0),
+                    color: "var(--surface-2)",
+                  },
                 ];
             const remaining = p.remainingHours ?? 0;
-            const centreLabel = remaining >= 0 ? `${h(remaining)}h left` : `${h(-remaining)}h over`;
+            const centreLabel =
+              remaining >= 0
+                ? t("burnDonuts.left", { hours: fmtHours(remaining, locale, 1) })
+                : t("burnDonuts.over", { hours: fmtHours(-remaining, locale, 1) });
             return (
               <Link
                 key={p.id}
@@ -244,11 +265,17 @@ function BurnDonutRow({ rows }: { rows: ProjectListRow[] }) {
               >
                 <Donut
                   slices={slices}
-                  centre={`${Math.round(p.burnPercent ?? 0)}%`}
+                  centre={fmtPct(Math.round(p.burnPercent ?? 0), locale)}
                   centreLabel={centreLabel}
                   size={104}
                   thickness={9}
-                  label={`${p.name}: ${h(p.actualHours)} of ${h(est)} estimated hours used (${Math.round(p.burnPercent ?? 0)}% burned), ${centreLabel}`}
+                  label={t("burnDonuts.chartLabel", {
+                    name: p.name,
+                    logged: fmtNum(p.actualHours, locale, 1),
+                    estimate: fmtNum(est, locale, 1),
+                    percent: fmtPct(Math.round(p.burnPercent ?? 0), locale),
+                    centre: centreLabel,
+                  })}
                 />
                 <span
                   className="w-full truncate text-center text-[11px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
@@ -257,7 +284,7 @@ function BurnDonutRow({ rows }: { rows: ProjectListRow[] }) {
                   {p.name}
                 </span>
                 <span className="font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
-                  {h(p.actualHours)}h / {h(est)}h
+                  {fmtHours(p.actualHours, locale, 1)} / {fmtHours(est, locale, 1)}
                 </span>
               </Link>
             );
@@ -271,11 +298,7 @@ function BurnDonutRow({ rows }: { rows: ProjectListRow[] }) {
         comparing two red rings deserves to know it rather than concluding the
         two projects are equally bad.
       */}
-      <ChartNote>
-        Hours logged against the estimate. The ring fills to 100% and no further,
-        so overruns are told by the centre figure, not the arc — two full red
-        rings are not necessarily equally over.
-      </ChartNote>
+      <ChartNote>{t("burnDonuts.note")}</ChartNote>
     </Card>
   );
 }

@@ -51,6 +51,7 @@
  * because a reader should not have to learn two disclosure dialects in one app.
  */
 
+import { useTranslations } from "next-intl";
 import { useId, useState, type ReactNode } from "react";
 
 export function MobileDisclosure({
@@ -74,6 +75,9 @@ export function MobileDisclosure({
   className?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  // The collapse toggle read SHOW/HIDE in English on the German page — the
+  // one word on this control, so it was the whole control untranslated.
+  const t = useTranslations("common");
   const id = useId();
 
   return (
@@ -106,7 +110,7 @@ export function MobileDisclosure({
           <span className="text-[10px] leading-tight text-[var(--text-faint)]">{summary}</span>
         </span>
         <span aria-hidden className="flex-none font-mono text-[10px] text-[var(--text-faint)]">
-          {open ? "HIDE" : "SHOW"}
+          {open ? t("hide") : t("show")}
         </span>
       </button>
 

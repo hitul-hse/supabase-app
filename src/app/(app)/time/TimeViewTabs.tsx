@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { shiftWeek } from "@/lib/queries/time";
+import { fmtDate } from "@/lib/locale-format";
 
 /**
  * View switch, scope switch and week stepper.
@@ -27,9 +29,9 @@ function Tab({ href, label, active }: { href: string; label: string; active: boo
   );
 }
 
-/** "17 Aug 2026", read in UTC to match how weeks and entries are stored. */
-function formatDay(day: string): string {
-  return new Date(`${day}T00:00:00.000Z`).toLocaleDateString("en-GB", {
+/** "17 Aug 2026" (de: "17. Aug. 2026"), read in UTC as weeks and entries are stored. */
+function formatDay(day: string, locale: string): string {
+  return fmtDate(new Date(`${day}T00:00:00.000Z`), locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -37,7 +39,7 @@ function formatDay(day: string): string {
   });
 }
 
-export function TimeViewTabs({
+export async function TimeViewTabs({
   weekStart,
   scope,
   view,
@@ -50,6 +52,8 @@ export function TimeViewTabs({
   /** Monday of the real current week, so "This week" can be disabled when on it. */
   currentWeek: string;
 }) {
+  const t = await getTranslations("time.tabs");
+  const locale = await getLocale();
   // Every link carries the whole state. Omitting a param would reset it to its
   // default, so switching scope would silently jump back to the current week.
   const url = (next: { week?: string; scope?: string; view?: string }) =>
@@ -73,8 +77,8 @@ export function TimeViewTabs({
       <div className="flex flex-wrap items-center gap-3">
         {/* Track first: logging time is the action, reading it is the report. */}
         <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
-          <Tab href={url({ view: "track" })} label="Track" active={view === "track"} />
-          <Tab href={url({ view: "records" })} label="Records" active={view === "records"} />
+          <Tab href={url({ view: "track" })} label={t("track")} active={view === "track"} />
+          <Tab href={url({ view: "records" })} label={t("records")} active={view === "records"} />
         </div>
 
         {/* Scope only means something for the records list — the tracker is
@@ -82,8 +86,8 @@ export function TimeViewTabs({
             would imply you could start a timer for a colleague. */}
         {view === "records" && (
           <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
-            <Tab href={url({ scope: "mine" })} label="My time" active={scope === "mine"} />
-            <Tab href={url({ scope: "team" })} label="Team" active={scope === "team"} />
+            <Tab href={url({ scope: "mine" })} label={t("mine")} active={scope === "mine"} />
+            <Tab href={url({ scope: "team" })} label={t("team")} active={scope === "team"} />
           </div>
         )}
       </div>
@@ -98,19 +102,19 @@ export function TimeViewTabs({
       <div className="flex flex-wrap items-center gap-2">
         <Link
           href={url({ week: shiftWeek(weekStart, -1) })}
-          aria-label="Previous week"
+          aria-label={t("prevWeek")}
           className="rounded-full border border-[var(--border)] px-3 py-1.5 font-mono text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
         >
           ←
         </Link>
 
         <span className="text-center font-mono text-[11px] tabular-nums text-[var(--text-secondary)] sm:min-w-[22ch]">
-          {formatDay(weekStart)} – {formatDay(weekEndDisplay)}
+          {t("range", { from: formatDay(weekStart, locale), to: formatDay(weekEndDisplay, locale) })}
         </span>
 
         <Link
           href={url({ week: shiftWeek(weekStart, 1) })}
-          aria-label="Next week"
+          aria-label={t("nextWeek")}
           className="rounded-full border border-[var(--border)] px-3 py-1.5 font-mono text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
         >
           →
@@ -120,14 +124,14 @@ export function TimeViewTabs({
             that looks clickable and does nothing. */}
         {onCurrentWeek ? (
           <span className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-faint)]">
-            This week
+            {t("thisWeek")}
           </span>
         ) : (
           <Link
             href={url({ week: currentWeek })}
             className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
           >
-            This week
+            {t("thisWeek")}
           </Link>
         )}
       </div>

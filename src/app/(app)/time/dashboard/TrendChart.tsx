@@ -15,26 +15,32 @@
  */
 import Link from "next/link";
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { TrendPoint } from "@/lib/queries/trackingtime-report";
 import { isoWeekNumber } from "@/lib/time-transform";
+import { fmtDate, fmtHours } from "@/lib/locale-format";
 
-function hrs(h: number): string {
-  return `${h.toLocaleString("en-GB", { maximumFractionDigits: 1 })}h`;
-}
+/** What the axis, the readout and the aria description need from the catalogue. */
+type Tr = (key: string, values?: Record<string, string | number>) => string;
 
-function label(isoDay: string, bucket: string): string {
+/**
+ * The axis label for one bucket, in the reader's language.
+ *
+ * "CW 34" is "KW 34" in German -- the abbreviation is what appears in the emails
+ * these hours get discussed in, and it differs per language, so it is a message
+ * rather than a hard-coded prefix. Month and day labels go through the locale's
+ * own date format; en maps to en-GB, so nothing on the English axis moves.
+ */
+function label(isoDay: string, bucket: string, locale: string, t: Tr): string {
   const d = new Date(`${isoDay}T00:00:00.000Z`);
   if (Number.isNaN(d.getTime())) return isoDay;
   if (bucket === "month") {
-    return d.toLocaleDateString("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" });
+    return fmtDate(d, locale, { month: "short", year: "2-digit", timeZone: "UTC" });
   }
   if (bucket === "week") {
-    // The calendar week, because that is the unit this business plans in --
-    // "CW 34" is what appears in the emails these hours get discussed in, while
-    // "17 Aug" has to be converted in the reader's head every time.
-    return `CW ${isoWeekNumber(d)}`;
+    return t("cw", { week: isoWeekNumber(d) });
   }
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  return fmtDate(d, locale, { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 /**
@@ -46,12 +52,12 @@ function label(isoDay: string, bucket: string): string {
  * readout and the screen-reader description have room for both, and those are
  * the two places a reader is asking "which week exactly?".
  */
-function labelWithDate(isoDay: string, bucket: string): string {
-  if (bucket !== "week") return label(isoDay, bucket);
+function labelWithDate(isoDay: string, bucket: string, locale: string, t: Tr): string {
+  if (bucket !== "week") return label(isoDay, bucket, locale, t);
   const d = new Date(`${isoDay}T00:00:00.000Z`);
   if (Number.isNaN(d.getTime())) return isoDay;
-  const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-  return `${label(isoDay, bucket)} · from ${day}`;
+  const day = fmtDate(d, locale, { day: "numeric", month: "short", timeZone: "UTC" });
+  return t("weekFrom", { week: label(isoDay, bucket, locale, t), day });
 }
 
 export function TrendChart({
@@ -74,10 +80,17 @@ export function TrendChart({
   hrefFor?: Record<string, string>;
 }) {
   const [active, setActive] = useState<string | null>(null);
+  const t = useTranslations("timeDashboard.trend");
+  const d = useTranslations("drill");
+  const locale = useLocale();
+  const hrs = (h: number) => fmtHours(h, locale);
+  // "week" is the fallback for anything unrecognised, exactly as the old ternary
+  // treated it: only "day" and "month" ever branched away from WEEKLY.
+  const bucketKey = bucket === "day" ? "day" : bucket === "month" ? "month" : "week";
+  const axis = (iso: string) => label(iso, bucket, locale, t);
+  const axisFull = (iso: string) => labelWithDate(iso, bucket, locale, t);
 
   if (points.length === 0) return null;
-
-  const bucketLabel = bucket === "day" ? "DAILY" : bucket === "month" ? "MONTHLY" : "WEEKLY";
 
   // The most RECENT window, because that is what a reader scanning a trend
   // cares about. Beyond ~90 bars each is a sliver and the axis labels collide.
@@ -95,24 +108,33 @@ export function TrendChart({
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
       <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-[var(--divider)] px-4 py-2.5">
         <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
-          {bucketLabel} TREND
+          {t(`title.${bucketKey}`)}
         </h2>
         {/* The readout replaces the hint in place rather than appearing beside
             it, so the header never reflows and the bars never shift under the
             cursor mid-hover. */}
         {hot ? (
           <span className="font-mono text-[10.5px] tabular-nums text-[var(--text-primary)]">
-            {labelWithDate(hot.bucket, bucket)} ·{" "}
-            <span className="text-[var(--accent)]">{hrs(hot.billableHours)} billable</span> +{" "}
-            <span className="text-[var(--text-secondary)]">{hrs(Math.max(0, hot.totalHours - hot.billableHours))} non-billable</span> ={" "}
-            {hrs(hot.totalHours)} · {hot.entryCount} {hot.entryCount === 1 ? "entry" : "entries"}
+            {t.rich("readout", {
+              label: axisFull(hot.bucket),
+              billable: hrs(hot.billableHours),
+              nonBillable: hrs(Math.max(0, hot.totalHours - hot.billableHours)),
+              total: hrs(hot.totalHours),
+              entries: d("entries", { count: hot.entryCount }),
+              bill: (chunks) => <span className="text-[var(--accent)]">{chunks}</span>,
+              non: (chunks) => <span className="text-[var(--text-secondary)]">{chunks}</span>,
+            })}
           </span>
         ) : (
           <span className="text-[10.5px] text-[var(--text-faint)]">
             {shown.length === points.length
-              ? `${points.length} ${points.length === 1 ? "bucket" : "buckets"}`
-              : `last ${shown.length} of ${points.length} buckets`}{" "}
-            · <span className="text-[var(--accent)]">billable</span> + <span className="text-[var(--text-secondary)]">non-billable</span> stacked to total · hover{hrefFor ? " · click to filter" : ""}
+              ? t("buckets", { count: points.length })
+              : t("lastOf", { shown: shown.length, total: points.length })}{" "}
+            {t.rich("legend", {
+              bill: (chunks) => <span className="text-[var(--accent)]">{chunks}</span>,
+              non: (chunks) => <span className="text-[var(--text-secondary)]">{chunks}</span>,
+            })}
+            {hrefFor ? ` ${t("clickToFilter")}` : ""}
           </span>
         )}
       </header>
@@ -179,7 +201,7 @@ export function TrendChart({
               preserveAspectRatio="none"
               className="h-full w-full"
               role="img"
-              aria-label={`${bucketLabel.toLowerCase()} trend, ${shown.length} buckets: billable and total hours over time`}
+              aria-label={t(`aria.${bucketKey}`, { count: shown.length })}
             >
               <defs>
                 <linearGradient id="tt-trend-fill" x1="0" y1="0" x2="0" y2="1">
@@ -273,7 +295,12 @@ export function TrendChart({
               onMouseEnter: () => setActive(p.bucket),
               onFocus: () => setActive(p.bucket),
               onBlur: () => setActive(null),
-              "aria-label": `${labelWithDate(p.bucket, bucket)}: ${hrs(p.totalHours)} total, ${hrs(p.billableHours)} billable, ${p.entryCount} entries`,
+              "aria-label": t("barAria", {
+                label: axisFull(p.bucket),
+                total: hrs(p.totalHours),
+                billable: hrs(p.billableHours),
+                entries: d("entries", { count: p.entryCount }),
+              }),
               className: `h-full flex-1 ${on ? "" : ""}cursor-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`,
             };
             return href ? (
@@ -286,11 +313,9 @@ export function TrendChart({
       </div>
 
       <div className="flex items-center justify-between border-t border-[var(--divider)] px-4 py-1.5 font-mono text-[9.5px] text-[var(--text-faint)]">
-        <span>{label(shown[0].bucket, bucket)}</span>
-        <span>
-          peak {label(peak.bucket, bucket)} · {hrs(peak.totalHours)}
-        </span>
-        <span>{label(shown[shown.length - 1].bucket, bucket)}</span>
+        <span>{axis(shown[0].bucket)}</span>
+        <span>{t("peak", { label: axis(peak.bucket), hours: hrs(peak.totalHours) })}</span>
+        <span>{axis(shown[shown.length - 1].bucket)}</span>
       </div>
     </section>
   );

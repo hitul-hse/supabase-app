@@ -28,6 +28,7 @@
  */
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 export type PagerState = {
   /** Zero-based index of the visible page. */
@@ -107,6 +108,12 @@ export function Pager({
   sizes?: number[];
 }) {
   const { page, size, start, end, pageCount, setPage, setSize } = state;
+  // The frame around the count was English on the German page ("PER PAGE",
+  // "OF", "PREV") while the noun it wrapped was already translated, so the line
+  // read half in each language. Counts go through ICU rather than
+  // toLocaleString("en-GB"), which formats them in the reader's locale for
+  // free and keeps the English rendering byte-identical.
+  const t = useTranslations("pager");
 
   // Announce the change, because moving between pages replaces the whole table without
   // moving focus -- a screen-reader user would otherwise get no indication anything
@@ -128,20 +135,27 @@ export function Pager({
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] px-3 py-2">
       <span className="font-mono text-[10.5px] text-[var(--text-faint)]">
-        {size === "all" ? (
-          <>ALL {total.toLocaleString("en-GB")} {noun.toUpperCase()}</>
-        ) : (
-          <>
-            {shownFrom.toLocaleString("en-GB")}–{shownTo.toLocaleString("en-GB")} OF{" "}
-            {total.toLocaleString("en-GB")} {noun.toUpperCase()}
-          </>
-        )}
+        {size === "all"
+          ? t("allCount", { count: total, noun: noun.toUpperCase() })
+          : t("range", {
+              from: shownFrom,
+              to: shownTo,
+              count: total,
+              noun: noun.toUpperCase(),
+            })}
       </span>
 
       <span ref={liveRef} role="status" aria-live="polite" className="sr-only">
         {size === "all"
-          ? `Showing all ${total} ${noun}`
-          : `Showing ${shownFrom} to ${shownTo} of ${total} ${noun}, page ${page + 1} of ${pageCount}`}
+          ? t("srAll", { count: total, noun })
+          : t("srRange", {
+              from: shownFrom,
+              to: shownTo,
+              count: total,
+              noun,
+              page: page + 1,
+              pages: pageCount,
+            })}
       </span>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -149,7 +163,7 @@ export function Pager({
             a laptop, 100 suits a large monitor where paging every 25 rows is friction. */}
         <div className="flex items-center gap-1">
           <span className="font-mono text-[9.5px] tracking-[0.06em] text-[var(--text-faint)]">
-            PER PAGE
+            {t("perPage")}
           </span>
           {[...sizes, "all" as const].map((s) => (
             <button
@@ -167,7 +181,7 @@ export function Pager({
                   : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-faint)] hover:text-[var(--text-primary)]"
               }`}
             >
-              {s === "all" ? "ALL" : s}
+              {s === "all" ? t("all") : s}
             </button>
           ))}
         </div>
@@ -180,7 +194,7 @@ export function Pager({
               disabled={page === 0}
               className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text-secondary)]"
             >
-              ← PREV
+              {t("prev")}
             </button>
             <span className="px-1 font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
               {page + 1} / {pageCount}
@@ -191,7 +205,7 @@ export function Pager({
               disabled={page >= pageCount - 1}
               className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text-secondary)]"
             >
-              NEXT →
+              {t("next")}
             </button>
           </div>
         )}

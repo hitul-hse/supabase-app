@@ -405,6 +405,10 @@ check(
  * that denies access has to tell them apart.
  */
 const panel = read("src/app/(app)/projects/ContractPanel.tsx");
+// The panel reports the unapplied-migration case from the catalogue since the
+// EN/DE coverage work, so the sentence is asserted where it now lives.
+const CONTRACT_EN = JSON.parse(read("messages/en.json")).projects?.contract ?? {};
+const CONTRACT_DE = JSON.parse(read("messages/de.json")).projects?.contract ?? {};
 const projectPage = read("src/app/(app)/projects/[id]/page.tsx");
 const alertQueries = read("src/lib/queries/budget-alerts.ts");
 
@@ -445,7 +449,9 @@ check(
 );
 check(
   "the contract panel also says the role is not the problem",
-  /not a permission problem/i.test(panel.replace(/\s+/g, " ")),
+  /t\("notInstalled\.title"\)/.test(panel) &&
+    /not a permission problem/i.test(CONTRACT_EN.notInstalled?.title ?? "") &&
+    /kein Berechtigungsproblem/i.test(CONTRACT_DE.notInstalled?.title ?? ""),
 );
 check(
   "the project page computes whether contracts are installed",

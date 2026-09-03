@@ -19,6 +19,7 @@
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
@@ -34,8 +35,7 @@ import { permissionKeyExists } from "@/lib/queries/budget-alerts";
 import { ContractPanel } from "../ContractPanel";
 import { StatTile } from "@/components/ui/Card";
 import { Pill } from "@/components/ui/Segmented";
-
-const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+import { fmtInt, fmtNum } from "@/lib/locale-format";
 
 export default async function ProjectDetailPage({
   params,
@@ -43,6 +43,10 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const profile = await requireProfile("/projects");
+
+  const t = await getTranslations("projects");
+  const locale = await getLocale();
+  const h = (n: number) => fmtNum(n, locale, 1);
 
   const { id: rawId } = await params;
   // Number("") is 0 and Number(" 12 ") is 12, so test the STRING shape rather
@@ -55,14 +59,14 @@ export default async function ProjectDetailPage({
     return (
       <PageTransition>
         <div className="flex flex-col">
-          <PageHeader category="PROJECTS" title="Project" />
+          <PageHeader title={t("detail.title")} />
           <div className="p-6">
             <EmptyState
-              title="You don't have access to this project"
-              description="Viewing a project record needs the 'View All Projects' permission, which your role doesn't hold. An administrator can grant it under Role Permissions."
+              title={t("detail.noAccess.title")}
+              description={t("detail.noAccess.description")}
               action={
                 <Link href="/time" className="text-[12px] font-medium text-[var(--accent)] hover:underline">
-                  Go to Time →
+                  {t("noAccess.action")}
                 </Link>
               }
             />
@@ -132,31 +136,43 @@ export default async function ProjectDetailPage({
     tone?: "neutral" | "good" | "warning" | "critical";
   }[] = [
     {
-      label: "BUDGET",
+      label: t("detail.stats.budget.label"),
       value: hasBudget ? h(project.estimatedHours!) : null,
       unit: "h",
-      hint: hasBudget ? "agreed" : "not set",
+      hint: hasBudget ? t("detail.stats.budget.agreed") : t("detail.stats.budget.notSet"),
     },
-    { label: "LOGGED", value: h(totals.actualHours), unit: "h", hint: "to date" },
     {
-      label: "REMAINING",
+      label: t("detail.stats.logged.label"),
+      value: h(totals.actualHours),
+      unit: "h",
+      hint: t("detail.stats.logged.hint"),
+    },
+    {
+      label: t("detail.stats.remaining.label"),
       value: totals.remainingHours === null ? null : h(totals.remainingHours),
       unit: "h",
-      hint: totals.isOver ? "over budget" : hasBudget ? "left" : "no budget set",
+      hint: totals.isOver
+        ? t("detail.stats.remaining.over")
+        : hasBudget
+          ? t("detail.stats.remaining.left")
+          : t("detail.stats.remaining.noBudget"),
       tone: totals.isOver ? "critical" : "neutral",
     },
     {
-      label: "CONSUMED",
+      label: t("detail.stats.consumed.label"),
       value: totals.burnPercent === null ? null : String(totals.burnPercent),
       unit: "%",
-      hint: totals.burnPercent === null ? "burn unknowable" : "of budget",
+      hint:
+        totals.burnPercent === null
+          ? t("detail.stats.consumed.unknown")
+          : t("detail.stats.consumed.ofBudget"),
       tone: burnTone(totals.burnPercent),
     },
     {
-      label: "BILLABLE",
+      label: t("detail.stats.billable.label"),
       value: h(totals.billableHours),
       unit: "h",
-      hint: "of logged hours",
+      hint: t("detail.stats.billable.hint"),
     },
   ];
 
@@ -164,23 +180,30 @@ export default async function ProjectDetailPage({
     <PageTransition>
       <div className="flex flex-col">
         <PageHeader
-          category="PROJECTS / RECORD"
           title={project.name}
-          meta={`${project.customerName ?? "NO CUSTOMER"}${project.code ? ` · ${project.code}` : ""} · ${totals.entryCount.toLocaleString("en-GB")} ENTRIES`}
+          meta={t("detail.meta", {
+            customer: project.customerName ?? t("detail.noCustomer"),
+            // A project code is a proper noun and never translated; it is
+            // interpolated whole so the separator does not strand when absent.
+            code: project.code ? ` · ${project.code}` : "",
+            entries: fmtInt(totals.entryCount, locale),
+          })}
           actions={
             <Link
               href="/projects"
               className="rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
             >
-              ← All projects
+              {t("detail.allProjects")}
             </Link>
           }
         />
 
         <div className="flex flex-col gap-5 page-shell">
           <div className="flex flex-wrap gap-2">
-            {project.isArchived && <Pill>ARCHIVED</Pill>}
-            <Pill>{project.isBillable ? "BILLABLE" : "NON-BILLABLE"}</Pill>
+            {project.isArchived && <Pill>{t("detail.pills.archived")}</Pill>}
+            <Pill>
+              {project.isBillable ? t("detail.pills.billable") : t("detail.pills.nonBillable")}
+            </Pill>
             {project.serviceName && <Pill>{project.serviceName.toUpperCase()}</Pill>}
             {totals.firstEntry && (
               <Pill>
@@ -211,8 +234,7 @@ export default async function ProjectDetailPage({
 
           {truncated && (
             <p className="card-elev rounded-[var(--radius-card)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
-              This project has more entries than the reporting ceiling, so the figures above cover
-              only the most recent ones.
+              {t("detail.truncated")}
             </p>
           )}
 
@@ -224,13 +246,46 @@ export default async function ProjectDetailPage({
             canWrite={canWriteContracts}
             featureInstalled={contractsInstalled}
             fallbackEstimateHours={project.estimatedHours}
+            locale={locale}
           />
 
-          <BurnChart points={burn} estimatedHours={project.estimatedHours} />
+          <BurnChart
+            points={burn}
+            estimatedHours={project.estimatedHours}
+            wording={{
+              title: t("burnChart.title"),
+              empty: t("burnChart.empty"),
+              qualifier: t("burnChart.qualifier"),
+              logged: t("burnChart.logged"),
+              budget: t("burnChart.budget"),
+            }}
+          />
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <ContributorTable rows={contributors} />
-            <TaskTable rows={tasks} />
+            <ContributorTable
+              rows={contributors}
+              locale={locale}
+              wording={{
+                title: t("contributors.title"),
+                empty: t("contributors.empty"),
+                billableUnit: t("contributors.billableUnit"),
+                hoursUnit: t("contributors.hoursUnit"),
+              }}
+            />
+            <TaskTable
+              rows={tasks}
+              locale={locale}
+              wording={{
+                title: t("taskTable.title"),
+                empty: t("taskTable.empty"),
+                hoursUnit: t("contributors.hoursUnit"),
+                topOf: (shown, total) =>
+                  t("taskTable.topOf", {
+                    shown: fmtInt(shown, locale),
+                    total: fmtInt(total, locale),
+                  }),
+              }}
+            />
           </div>
 
           {/* Read-only for anyone without projects:write. The forms are the
@@ -244,6 +299,7 @@ export default async function ProjectDetailPage({
               sections={board.sections}
               commentsByTask={board.commentsByTask}
               currentUserId={canWrite ? profile.userId : null}
+              locale={locale}
             />
           </div>
 
@@ -251,14 +307,16 @@ export default async function ProjectDetailPage({
               all-time and unfiltered on purpose; the dashboard is where you
               narrow by date, member or billability. */}
           <p className="text-[11px] text-[var(--text-faint)]">
-            Figures cover all recorded time on this project, including calendar entries.{" "}
-            <Link
-              href={`/time/dashboard?projects=${project.id}&preset=all&group=member`}
-              className="text-[var(--accent)] underline-offset-2 hover:underline"
-            >
-              Open in the TrackingTime API Dashboard
-            </Link>{" "}
-            to filter by period, person or billability.
+            {t.rich("detail.footnote", {
+              link: (chunks) => (
+                <Link
+                  href={`/time/dashboard?projects=${project.id}&preset=all&group=member`}
+                  className="text-[var(--accent)] underline-offset-2 hover:underline"
+                >
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         </div>
       </div>

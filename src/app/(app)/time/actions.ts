@@ -33,6 +33,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/utils/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
 import {
@@ -85,6 +86,20 @@ type Client = Awaited<ReturnType<typeof createClient>>;
 const timeSchema = (s: Client) => (s as any).schema("time");
 
 /**
+ * One refusal sentence, in the caller's language.
+ *
+ * Every message resolved here is USER-FACING -- the tracker renders it verbatim
+ * in its inline feedback -- so it follows the request locale, the pattern
+ * projects/project-drilldown.ts established. Postgres's own `error.message` is
+ * deliberately NOT routed through here: those are operator text, and inventing a
+ * German rendering of a constraint failure would hide which constraint fired.
+ */
+const msg = async (
+  key: string,
+  values?: Record<string, string | number>,
+): Promise<string> => (await getTranslations("time.actions"))(key, values);
+
+/**
  * Everything an action needs before it may write: an authenticated session, the
  * `timesheets:write` permission, and a `time.member` row to attribute the entry
  * to.
@@ -103,7 +118,7 @@ async function authorise(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: { ok: false, message: "You are not signed in." } };
+    return { error: { ok: false, message: await msg("notSignedIn") } };
   }
 
   // Checked in the app as well as in RLS. The policy would reject the insert
@@ -115,7 +130,7 @@ async function authorise(
 
   if (canWrite !== true) {
     return {
-      error: { ok: false, message: "Your role does not permit logging time." },
+      error: { ok: false, message: await msg("notPermitted") },
     };
   }
 
@@ -129,7 +144,7 @@ async function authorise(
       error: {
         ok: false,
         message:
-          "Your account isn't linked to a Time Tracking member yet, so there is nothing to log time against. An administrator can link it.",
+          await msg("noMemberRow"),
       },
     };
   }
@@ -452,7 +467,7 @@ export async function startTimer(formData: FormData): Promise<TimeActionResult> 
   // in the week as an unattributed block nobody can attribute later. Requiring
   // one of the two is the lightest possible guard that keeps the data useful.
   if (projectId === null && taskId === null) {
-    return { ok: false, message: "Pick a project or a task before starting the timer." };
+    return { ok: false, message: await msg("pickProjectOrTaskTimer") };
   }
 
   const { data: existing } = await timeSchema(supabase)
@@ -464,7 +479,7 @@ export async function startTimer(formData: FormData): Promise<TimeActionResult> 
     .maybeSingle();
 
   if (existing) {
-    return { ok: false, message: "A timer is already running. Stop it before starting another." };
+    return { ok: false, message: await msg("timerAlreadyRunning") };
   }
 
   /*
@@ -530,7 +545,7 @@ export async function startTimer(formData: FormData): Promise<TimeActionResult> 
 
   if (error) {
     if (error.code === "23505") {
-      return { ok: false, message: "A timer is already running. Stop it before starting another." };
+      return { ok: false, message: await msg("timerAlreadyRunning") };
     }
     return { ok: false, message: error.message };
   }
@@ -564,7 +579,7 @@ export async function stopTimer(): Promise<TimeActionResult> {
     .limit(1)
     .maybeSingle();
 
-  if (!running) return { ok: false, message: "No timer is running." };
+  if (!running) return { ok: false, message: await msg("noTimerRunning") };
 
   const endedAt = new Date();
   const startedAt = new Date(running.started_at);
@@ -597,7 +612,7 @@ export async function stopTimer(): Promise<TimeActionResult> {
   return {
     ok: true,
     message: wasClamped
-      ? "Timer ran longer than 24 hours and was capped at 24:00. Edit the entry if that isn't right."
+      ? await msg("clampedAtDay")
       : undefined,
   };
 }
@@ -644,7 +659,7 @@ export async function createEntry(formData: FormData): Promise<TimeActionResult>
   const endedAt = combineInstant(date, endTime);
 
   if (!startedAt || !endedAt) {
-    return { ok: false, message: "Enter a valid date with a start and end time." };
+    return { ok: false, message: await msg("invalidDateTime") };
   }
 
   const startMs = new Date(startedAt).getTime();
@@ -657,13 +672,13 @@ export async function createEntry(formData: FormData): Promise<TimeActionResult>
   if (endMs <= startMs) {
     return {
       ok: false,
-      message: "The end time must be after the start time. Split a shift that crosses midnight into two entries.",
+      message: await msg("endBeforeStartSplit"),
     };
   }
 
   const durationSeconds = Math.floor((endMs - startMs) / 1000);
   if (durationSeconds > MAX_ENTRY_SECONDS) {
-    return { ok: false, message: "A single entry cannot be longer than 24 hours." };
+    return { ok: false, message: await msg("tooLong") };
   }
 
   // Guard rails on the date, in both directions. Far-future time is not
@@ -671,12 +686,12 @@ export async function createEntry(formData: FormData): Promise<TimeActionResult>
   // already-invoiced month.
   const now = Date.now();
   if (startMs > now + 86_400_000) {
-    return { ok: false, message: "You cannot log time in the future." };
+    return { ok: false, message: await msg("future") };
   }
   if (startMs < now - MAX_BACKDATE_DAYS * 86_400_000) {
     return {
       ok: false,
-      message: `You cannot log time more than ${MAX_BACKDATE_DAYS} days in the past. Ask an administrator to add it.`,
+      message: await msg("tooFarBack", { days: MAX_BACKDATE_DAYS }),
     };
   }
 
@@ -687,7 +702,7 @@ export async function createEntry(formData: FormData): Promise<TimeActionResult>
   const isBillable = formData.get("is_billable") === "on";
 
   if (projectId === null && taskId === null) {
-    return { ok: false, message: "Pick a project or a task for this entry." };
+    return { ok: false, message: await msg("pickProjectOrTaskEntry") };
   }
 
   // Budget guard: this path knows exactly how many hours are being added, so it
@@ -759,7 +774,7 @@ export async function updateEntry(formData: FormData): Promise<TimeActionResult>
   if ("error" in auth) return auth.error;
 
   const entryId = optionalId(formData.get("entry_id"));
-  if (entryId === null) return { ok: false, message: "No entry was specified." };
+  if (entryId === null) return { ok: false, message: await msg("noEntrySpecified") };
 
   // Fetch first so we can distinguish "does not exist or not yours" (RLS returns
   // no row) from "invoiced, so locked". Both would otherwise surface as an
@@ -771,15 +786,15 @@ export async function updateEntry(formData: FormData): Promise<TimeActionResult>
     .maybeSingle();
 
   if (!existing) {
-    return { ok: false, message: "That entry no longer exists, or you may not edit it." };
+    return { ok: false, message: await msg("entryGoneEdit") };
   }
   if (existing.member_id !== auth.memberId) {
-    return { ok: false, message: "You can only edit your own time." };
+    return { ok: false, message: await msg("onlyOwnEdit") };
   }
   if (existing.is_billed) {
     return {
       ok: false,
-      message: "This entry has been invoiced and can no longer be changed. Ask an administrator.",
+      message: await msg("invoicedNoEdit"),
     };
   }
 
@@ -791,19 +806,19 @@ export async function updateEntry(formData: FormData): Promise<TimeActionResult>
   const endedAt = combineInstant(date, endTime);
 
   if (!startedAt || !endedAt) {
-    return { ok: false, message: "Enter a valid date with a start and end time." };
+    return { ok: false, message: await msg("invalidDateTime") };
   }
 
   const startMs = new Date(startedAt).getTime();
   const endMs = new Date(endedAt).getTime();
 
   if (endMs <= startMs) {
-    return { ok: false, message: "The end time must be after the start time." };
+    return { ok: false, message: await msg("endBeforeStart") };
   }
 
   const durationSeconds = Math.floor((endMs - startMs) / 1000);
   if (durationSeconds > MAX_ENTRY_SECONDS) {
-    return { ok: false, message: "A single entry cannot be longer than 24 hours." };
+    return { ok: false, message: await msg("tooLong") };
   }
 
   const notes = optionalText(formData.get("notes"));
@@ -865,7 +880,7 @@ export async function deleteEntry(formData: FormData): Promise<TimeActionResult>
   if ("error" in auth) return auth.error;
 
   const entryId = optionalId(formData.get("entry_id"));
-  if (entryId === null) return { ok: false, message: "No entry was specified." };
+  if (entryId === null) return { ok: false, message: await msg("noEntrySpecified") };
 
   const { data: existing } = await timeSchema(supabase)
     .from("entry")
@@ -874,13 +889,13 @@ export async function deleteEntry(formData: FormData): Promise<TimeActionResult>
     .maybeSingle();
 
   if (!existing) {
-    return { ok: false, message: "That entry no longer exists, or you may not delete it." };
+    return { ok: false, message: await msg("entryGoneDelete") };
   }
   if (existing.member_id !== auth.memberId) {
-    return { ok: false, message: "You can only delete your own time." };
+    return { ok: false, message: await msg("onlyOwnDelete") };
   }
   if (existing.is_billed) {
-    return { ok: false, message: "This entry has been invoiced and cannot be deleted." };
+    return { ok: false, message: await msg("invoicedNoDelete") };
   }
 
   const { error } = await timeSchema(supabase)

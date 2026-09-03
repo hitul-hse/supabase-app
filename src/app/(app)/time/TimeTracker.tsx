@@ -22,6 +22,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import type { TimeEntryRow, TimeLookups } from "@/lib/queries/time";
 import {
   createEntry,
@@ -49,6 +50,9 @@ function formatElapsed(totalSeconds: number): string {
 function clockValue(d: Date): string {
   return d.toISOString().slice(11, 16);
 }
+
+/** A tracker action the panel awaits and then reports the result of. */
+type TimerAction = { (): Promise<TimeActionResult> };
 
 function Feedback({ result }: { result: TimeActionResult | null }) {
   if (!result) return null;
@@ -108,6 +112,7 @@ function EntryFields({
   // Task and service selections live here, not in the parent, because only the
   // project drives cross-field narrowing. The task is cleared when the project
   // changes: a task belonging to the old project would submit silently wrong.
+  const t = useTranslations("time.tracker");
   const [taskId, setTaskId] = useState("");
   const [serviceId, setServiceId] = useState("");
 
@@ -125,8 +130,8 @@ function EntryFields({
     [lookups.projects],
   );
   const taskOptions = useMemo(
-    () => tasks.map((t) => ({ value: String(t.id), name: t.name ?? `Task ${t.id}` })),
-    [tasks],
+    () => tasks.map((k) => ({ value: String(k.id), name: k.name ?? t("taskFallback", { id: k.id }) })),
+    [tasks, t],
   );
   const serviceOptions = useMemo(
     () =>
@@ -134,16 +139,17 @@ function EntryFields({
         value: String(s.id),
         // Unpaid travel is a real commercial distinction the vendor hides
         // inside the label text. Surfacing it here stops somebody picking
-        // the wrong one of two near-identical names.
-        name: `${s.name}${s.isTravel && !s.isPaidTravel ? " (unpaid)" : ""}`,
+        // the wrong one of two near-identical names. The SERVICE NAME is the
+        // vendor's own and is never translated; only the qualifier is.
+        name: `${s.name}${s.isTravel && !s.isPaidTravel ? ` ${t("unpaid")}` : ""}`,
       })),
-    [lookups.services],
+    [lookups.services, t],
   );
 
   return (
     <>
       <SearchableSelect
-        label="Project"
+        label={t("project")}
         name="project_id"
         options={projectOptions}
         value={projectId}
@@ -151,25 +157,25 @@ function EntryFields({
           onProjectChange(next);
           setTaskId("");
         }}
-        allowEmpty={{ value: "", name: "No project" }}
+        allowEmpty={{ value: "", name: t("noProject") }}
         disabled={disabled}
       />
       <SearchableSelect
-        label="Task"
+        label={t("task")}
         name="task_id"
         options={taskOptions}
         value={taskId}
         onChange={setTaskId}
-        allowEmpty={{ value: "", name: "No task" }}
+        allowEmpty={{ value: "", name: t("noTask") }}
         disabled={disabled}
       />
       <SearchableSelect
-        label="Service"
+        label={t("service")}
         name="service_id"
         options={serviceOptions}
         value={serviceId}
         onChange={setServiceId}
-        allowEmpty={{ value: "", name: "No service" }}
+        allowEmpty={{ value: "", name: t("noService") }}
         disabled={disabled}
       />
     </>
@@ -192,6 +198,7 @@ function TimerPanel({
   lookups: TimeLookups;
   canWrite: boolean;
 }) {
+  const t = useTranslations("time.tracker");
   const [result, setResult] = useState<TimeActionResult | null>(null);
   const [pending, startAction] = useTransition();
   const [projectId, setProjectId] = useState("");
@@ -217,7 +224,7 @@ function TimerPanel({
   // begin typing after stopping a timer without reaching for the mouse.
   const firstField = useRef<HTMLSelectElement | null>(null);
 
-  function run(action: () => Promise<TimeActionResult>) {
+  function run(action: TimerAction) {
     startAction(async () => {
       setResult(await action());
     });
@@ -229,14 +236,22 @@ function TimerPanel({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
             <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#4ade80]">
-              Timer running
+              {t("timerRunning")}
             </span>
             <span className="truncate text-[13px] text-[var(--text-primary)]">
-              {running.taskName ?? "Untitled entry"}
+              {running.taskName ?? t("untitledEntry")}
             </span>
             <span className="font-mono text-[10px] text-[var(--text-muted)]">
-              {running.customerName ?? "No customer"} / {running.projectName ?? "No project"}
-              {running.serviceName ? ` / ${running.serviceName}` : ""}
+              {running.serviceName
+                ? t("runningLineService", {
+                    customer: running.customerName ?? t("noCustomer"),
+                    project: running.projectName ?? t("noProject"),
+                    service: running.serviceName,
+                  })
+                : t("runningLine", {
+                    customer: running.customerName ?? t("noCustomer"),
+                    project: running.projectName ?? t("noProject"),
+                  })}
             </span>
           </div>
 
@@ -256,7 +271,7 @@ function TimerPanel({
               disabled={pending}
               className={`${BUTTON} border-[#4ade80] text-[#4ade80] hover:bg-[#4ade80]/10`}
             >
-              {pending ? "Stopping…" : "Stop"}
+              {pending ? t("stopping") : t("stop")}
             </button>
 
             <button
@@ -269,7 +284,7 @@ function TimerPanel({
               // worth the friction.
               className={`${BUTTON} border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text-primary)]`}
             >
-              Discard
+              {t("discard")}
             </button>
           </div>
         </div>
@@ -287,7 +302,7 @@ function TimerPanel({
       className="card-elev flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4"
     >
       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
-        Start a timer
+        {t("startPanel")}
       </span>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -301,14 +316,14 @@ function TimerPanel({
 
       <div>
         <label className={LABEL} htmlFor="timer-notes">
-          Notes
+          {t("notes")}
         </label>
         <input
           id="timer-notes"
           name="notes"
           type="text"
           ref={firstField as unknown as React.Ref<HTMLInputElement>}
-          placeholder="What are you working on?"
+          placeholder={t("notesTimerPlaceholder")}
           disabled={!canWrite || pending}
           className={FIELD}
         />
@@ -323,7 +338,7 @@ function TimerPanel({
             disabled={!canWrite || pending}
             className="accent-[var(--accent)]"
           />
-          Billable
+          {t("billable")}
         </label>
 
         <button
@@ -331,7 +346,7 @@ function TimerPanel({
           disabled={!canWrite || pending}
           className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
         >
-          {pending ? "Starting…" : "Start timer"}
+          {pending ? t("starting") : t("startButton")}
         </button>
       </div>
 
@@ -351,6 +366,7 @@ function ManualPanel({
   /** Server-supplied so the default date matches the week the page is showing. */
   today: string;
 }) {
+  const t = useTranslations("time.tracker");
   const [result, setResult] = useState<TimeActionResult | null>(null);
   const [pending, startAction] = useTransition();
   const [projectId, setProjectId] = useState("");
@@ -387,13 +403,13 @@ function ManualPanel({
       className="card-elev flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4"
     >
       <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
-        Log time manually
+        {t("manualPanel")}
       </span>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className={LABEL} htmlFor="manual-date">
-            Date
+            {t("date")}
           </label>
           <input
             id="manual-date"
@@ -408,7 +424,7 @@ function ManualPanel({
 
         <div>
           <label className={LABEL} htmlFor="manual-start">
-            From
+            {t("from")}
           </label>
           <input
             id="manual-start"
@@ -423,7 +439,7 @@ function ManualPanel({
 
         <div>
           <label className={LABEL} htmlFor="manual-end">
-            To
+            {t("to")}
           </label>
           <input
             id="manual-end"
@@ -449,13 +465,13 @@ function ManualPanel({
 
       <div>
         <label className={LABEL} htmlFor="manual-notes">
-          Notes
+          {t("notes")}
         </label>
         <input
           id="manual-notes"
           name="notes"
           type="text"
-          placeholder="What did you work on?"
+          placeholder={t("notesManualPlaceholder")}
           disabled={!canWrite || pending}
           className={FIELD}
         />
@@ -470,7 +486,7 @@ function ManualPanel({
             disabled={!canWrite || pending}
             className="accent-[var(--accent)]"
           />
-          Billable
+          {t("billable")}
         </label>
 
         <button
@@ -478,7 +494,7 @@ function ManualPanel({
           disabled={!canWrite || pending}
           className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
         >
-          {pending ? "Saving…" : "Add entry"}
+          {pending ? t("saving") : t("save")}
         </button>
       </div>
 
@@ -488,7 +504,7 @@ function ManualPanel({
         {/* Stated rather than discovered on submit: the module reads and renders
             everything in UTC, so a user off UTC needs to know which clock these
             fields are on before they type a time, not after. */}
-        Times are read in UTC, matching how entries are stored and shown.
+        {t("utcNote")}
       </p>
     </form>
   );
@@ -503,6 +519,8 @@ function ManualPanel({
  * data. This list is scoped to the signed-in member's own day.
  */
 function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
+  const t = useTranslations("time.tracker");
+  const d = useTranslations("drill");
   const [result, setResult] = useState<TimeActionResult | null>(null);
   const [pending, startAction] = useTransition();
 
@@ -510,11 +528,9 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
     return (
       <Card className="p-4">
         <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
-          Today
+          {t("today")}
         </span>
-        <p className="mt-2 text-[12px] text-[var(--text-muted)]">
-          Nothing tracked today yet.
-        </p>
+        <p className="mt-2 text-[12px] text-[var(--text-muted)]">{t("todayEmpty")}</p>
       </Card>
     );
   }
@@ -523,10 +539,10 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
     <Card>
       <div className="flex items-center justify-between border-b border-[var(--divider)] px-4 py-2">
         <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
-          Today
+          {t("today")}
         </span>
         <span className="font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
-          {entries.length} {entries.length === 1 ? "entry" : "entries"}
+          {d("entries", { count: entries.length })}
         </span>
       </div>
 
@@ -535,10 +551,10 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
           <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-[12px] text-[var(--text-primary)]">
-                {e.taskName ?? e.notes ?? "Untitled entry"}
+                {e.taskName ?? e.notes ?? t("untitledEntry")}
               </span>
               <span className="truncate font-mono text-[10px] text-[var(--text-muted)]">
-                {e.projectName ?? "No project"}
+                {e.projectName ?? t("noProject")}
               </span>
             </div>
 
@@ -551,12 +567,12 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
                 rather than the control simply being absent. */}
             {e.isBilled ? (
               <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--text-faint)]">
-                invoiced
+                {t("invoiced")}
               </span>
             ) : (
               <button
                 type="button"
-                aria-label={`Delete entry: ${e.taskName ?? "untitled"}`}
+                aria-label={t("deleteAria", { name: e.taskName ?? t("untitled") })}
                 disabled={pending || e.isRunning}
                 onClick={() =>
                   startAction(async () => {
@@ -567,7 +583,7 @@ function TodayPanel({ entries }: { entries: TimeEntryRow[] }) {
                 }
                 className="border border-[var(--border-strong)] px-2 py-1 font-mono text-[10px] text-[var(--text-muted)] transition-colors hover:text-[#f87171] disabled:opacity-40"
               >
-                Delete
+                {t("delete")}
               </button>
             )}
           </li>
@@ -597,12 +613,12 @@ export function TimeTracker({
   /** False disables every control, so the panels explain rather than fail on submit. */
   canWrite: boolean;
 }) {
+  const t = useTranslations("time.tracker");
   return (
     <div className="flex flex-col gap-5">
       {!canWrite && (
         <p className="border border-[var(--border-strong)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
-          Your role permits viewing time but not logging it, so these controls are
-          disabled. That is the access model working rather than a fault.
+          {t("readOnly")}
         </p>
       )}
 

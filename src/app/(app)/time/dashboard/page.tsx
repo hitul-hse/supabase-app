@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
@@ -21,6 +22,7 @@ import {
   type TrendBucket,
 } from "@/lib/queries/trackingtime-report";
 import { getProjectEconomics, getSyncFreshness } from "@/lib/queries/time-dashboard";
+import { fmtInt, fmtNum } from "@/lib/locale-format";
 import {
   capacityByMember,
   customerConcentration,
@@ -144,6 +146,9 @@ export default async function TrackingTimeDashboardPage({
   if (!(await userHasPermission(PERMISSIONS.TIMESHEETS_READ_ALL))) {
     redirect("/time");
   }
+
+  const t = await getTranslations("timeDashboard");
+  const locale = await getLocale();
 
   const supabase = await createClient();
   const params = await searchParams;
@@ -330,14 +335,16 @@ export default async function TrackingTimeDashboardPage({
   // removable chips. Without this, a drill-down is a one-way door: the numbers
   // change, nothing says why, and the only way back is the browser button.
   const activeDrills = [
-    { label: "Member", ids: filters.memberIds, param: "members", options: options.members },
-    { label: "Project", ids: filters.projectIds, param: "projects", options: options.projects },
-    { label: "Customer", ids: filters.customerIds, param: "customers", options: options.customers },
-    { label: "Service", ids: filters.serviceIds, param: "services", options: options.services },
-  ].flatMap(({ label, ids, param, options: opts }) =>
+    // `dim` is the catalogue key AND the grouping key -- never a display label,
+    // so the chips read "Kunde" in German over exactly the same query string.
+    { dim: "member", ids: filters.memberIds, param: "members", options: options.members },
+    { dim: "project", ids: filters.projectIds, param: "projects", options: options.projects },
+    { dim: "customer", ids: filters.customerIds, param: "customers", options: options.customers },
+    { dim: "service", ids: filters.serviceIds, param: "services", options: options.services },
+  ].flatMap(({ dim, ids, param, options: opts }) =>
     ids.map((id) => ({
       key: `${param}:${id}`,
-      label,
+      label: t(`dimensions.${dim}.label`),
       // Fall back to the id when the entity is outside the current option set,
       // so a chip is never a blank rectangle.
       name: opts.find((o) => o.id === id)?.name ?? `#${id}`,
@@ -367,9 +374,13 @@ export default async function TrackingTimeDashboardPage({
     <PageTransition>
       <div className="flex flex-col">
         <PageHeader
-          category="TRACKINGTIME / DASHBOARD"
-          title="TrackingTime API Dashboard"
-          meta={`${period} · ${totals.entryCount.toLocaleString("en-GB")} ENTRIES · ${totals.totalHours.toLocaleString("en-GB", { maximumFractionDigits: 1 })}H`}
+          category={t("page.category")}
+          title={t("page.title")}
+          meta={t("page.meta", {
+            period,
+            entries: fmtInt(totals.entryCount, locale),
+            hours: fmtNum(totals.totalHours, locale, 1),
+          })}
         />
 
         {/* Reaching the other records surfaces from here. This replaces a
@@ -415,7 +426,7 @@ export default async function TrackingTimeDashboardPage({
           {activeDrills.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--text-faint)]">
-                Filtered to
+                {t("page.filteredTo")}
               </span>
               {activeDrills.map((chip) => (
                 <Link
@@ -429,7 +440,7 @@ export default async function TrackingTimeDashboardPage({
                   <span aria-hidden className="text-[var(--text-faint)] group-hover:text-[var(--critical)]">
                     ×
                   </span>
-                  <span className="sr-only">Remove this filter</span>
+                  <span className="sr-only">{t("page.removeFilter")}</span>
                 </Link>
               ))}
               <Link
@@ -444,23 +455,19 @@ export default async function TrackingTimeDashboardPage({
                 scroll={false}
                 className="text-[11px] text-[var(--text-secondary)] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
               >
-                Clear all
+                {t("page.clearAll")}
               </Link>
             </div>
           )}
 
           {truncated && (
             <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
-              This selection exceeds the reporting ceiling, so the figures below cover only the
-              most recent entries in range. Narrow the period or add a filter for an exact total.
+              {t("page.truncated")}
             </p>
           )}
 
           {entries.length === 0 ? (
-            <EmptyState
-              title="No time logged in this selection"
-              description="No entries match the current filters. Widen the date range or clear a filter. An empty result can also mean your role isn't permitted to see other people's time, which is the access model working rather than a fault — and note that calendar placeholders are excluded unless you switch them on."
-            />
+            <EmptyState title={t("page.emptyTitle")} description={t("page.emptyBody")} />
           ) : (
             <>
               <TotalsStrip
@@ -539,10 +546,10 @@ export default async function TrackingTimeDashboardPage({
 
               {entries.length > ENTRY_ROW_LIMIT && (
                 <p className="text-[10px] text-[var(--text-faint)]">
-                  The entry table lists the {ENTRY_ROW_LIMIT.toLocaleString("en-GB")} most recent of{" "}
-                  {entries.length.toLocaleString("en-GB")} entries in range. Every total above
-                  covers all {entries.length.toLocaleString("en-GB")}; narrow the period to list
-                  the rest.
+                  {t("page.entryCap", {
+                    limit: fmtInt(ENTRY_ROW_LIMIT, locale),
+                    total: fmtInt(entries.length, locale),
+                  })}
                 </p>
               )}
             </>

@@ -11,7 +11,7 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Card, CardHeader } from "@/components/ui/Card";
 import {
   HeatmapMatrix,
@@ -28,9 +28,27 @@ import type {
 } from "@/lib/queries/time-insights";
 import { WEEKDAY_LABELS } from "@/lib/queries/time-insights";
 import { secondsToHours } from "@/lib/time-transform";
-import type { CustomerDrillData, DrillDatum } from "./drill-data";
+import { fmtDate, fmtHours, fmtPct } from "@/lib/locale-format";
+import { NO_CUSTOMER_LABEL, type CustomerDrillData, type DrillDatum } from "./drill-data";
 
-const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+/**
+ * The heatmap's row labels, in the reader's language.
+ *
+ * WEEKDAY_LABELS is the ORDER contract (index 0 is Monday) and lives in the
+ * query module, where it is English by necessity. The words a reader sees are
+ * derived here from the locale instead: 2024-01-01 was a Monday, so day i of
+ * that week is weekday i. en-GB reproduces WEEKDAY_LABELS character for
+ * character ("Mon"…"Sun"), so the English heatmap is untouched; de gets
+ * "Mo"…"So".
+ */
+const MONDAY_EPOCH = Date.UTC(2024, 0, 1);
+const weekdayLabels = (locale: string): string[] =>
+  WEEKDAY_LABELS.map((_, i) =>
+    fmtDate(new Date(MONDAY_EPOCH + i * 86_400_000), locale, {
+      weekday: "short",
+      timeZone: "UTC",
+    }),
+  );
 
 /**
  * One legend line, a button when it can open its composition. The hit target
@@ -97,12 +115,29 @@ export function InsightPanels({
   customerDrills?: CustomerDrillData;
 }) {
   const t = useTranslations("drill");
+  const ins = useTranslations("timeDashboard.insights");
+  const locale = useLocale();
   const [drill, setDrill] = useState<Drill | null>(null);
+  const h = (n: number) => fmtHours(n, locale);
+  const pct = (n: number) => fmtPct(n, locale);
+
+  /**
+   * A customer's name as the reader sees it.
+   *
+   * "(no customer)" is a JOIN KEY, not a label: time-insights.ts and
+   * drill-data.ts both emit that exact string so the waffle legend and the
+   * popup it opens agree row for row, and `projectsByCustomer` is indexed by
+   * it. So it stays English in the DATA and is translated here, at render,
+   * on an exact match with the shared constant -- never on similarity, and
+   * never at the point the two sides are keyed together.
+   */
+  const shown = (name: string | null) =>
+    name === null || name === NO_CUSTOMER_LABEL ? t("noCustomer") : name;
 
   const projectRows = (list: DrillDatum[]): DrillRow[] =>
     list.map((d) => ({
       name: d.name ?? t("noProject"),
-      value: `${h(secondsToHours(d.seconds))}h · ${t("entries", { count: d.entries })}`,
+      value: `${h(secondsToHours(d.seconds))} · ${t("entries", { count: d.entries })}`,
       magnitude: d.seconds / 3600,
       tone: d.name === null ? "muted" : "accent",
     }));
@@ -110,9 +145,9 @@ export function InsightPanels({
   const openCustomer = (c: CustomerShare) => {
     if (!customerDrills) return;
     setDrill({
-      kicker: `${c.percent}% OF ${h(totalHours)}H`,
-      title: t("time.customerProjects.title", { name: c.name }),
-      headline: `${h(c.hours)}h`,
+      kicker: ins("shareKicker", { percent: pct(c.percent), hours: h(totalHours) }),
+      title: t("time.customerProjects.title", { name: shown(c.name) }),
+      headline: h(c.hours),
       headlineValue: c.hours,
       check: "sum",
       rows: projectRows(customerDrills.projectsByCustomer[c.name] ?? []),
@@ -126,16 +161,27 @@ export function InsightPanels({
     if (!customerDrills) return;
     const named = new Set(customers.map((c) => c.name));
     setDrill({
-      kicker: `${Math.round(((totalHours - customers.reduce((s, c) => s + c.hours, 0)) / Math.max(totalHours, 0.01)) * 1000) / 10}% OF ${h(totalHours)}H`,
+      kicker: ins("shareKicker", {
+        percent: fmtPct(
+          Math.round(
+            ((totalHours - customers.reduce((s, c) => s + c.hours, 0)) /
+              Math.max(totalHours, 0.01)) *
+              1000,
+          ) / 10,
+          locale,
+          1,
+        ),
+        hours: h(totalHours),
+      }),
       title: t("time.otherCustomers.title"),
-      headline: `${h(otherHours)}h`,
+      headline: h(otherHours),
       headlineValue: otherHours,
       check: "sum",
       rows: customerDrills.byCustomer
         .filter((d) => !named.has(d.name ?? ""))
         .map((d) => ({
-          name: d.name ?? t("noCustomer"),
-          value: `${h(secondsToHours(d.seconds))}h · ${t("entries", { count: d.entries })}`,
+          name: shown(d.name),
+          value: `${h(secondsToHours(d.seconds))} · ${t("entries", { count: d.entries })}`,
           magnitude: d.seconds / 3600,
         })),
       footer: t("time.otherCustomers.footer"),
@@ -144,7 +190,7 @@ export function InsightPanels({
 
   /* ---------------------------------------------------------- waffle */
   const waffleSlices = customers.map((c, i) => ({
-    label: c.name,
+    label: shown(c.name),
     value: c.hours,
     color: SERIES[i % SERIES.length],
   }));
@@ -152,19 +198,25 @@ export function InsightPanels({
   /* --------------------------------------------------------- heatmap */
   // Weekend rows are dropped when empty -- the healthy, usual case -- so the
   // five real rows get the vertical room. When weekend work exists, it shows.
-  const rowsWithWork = WEEKDAY_LABELS.map((label, i) => ({
-    label,
-    cells: pattern.cells[i],
-    any: pattern.cells[i]?.some((c) => c.hours !== null) ?? false,
-  })).filter((r, i) => i < 5 || r.any);
+  const rowsWithWork = weekdayLabels(locale)
+    .map((label, idx) => ({
+      label,
+      cells: pattern.cells[idx],
+      any: pattern.cells[idx]?.some((c) => c.hours !== null) ?? false,
+    }))
+    .filter((r, idx) => idx < 5 || r.any);
 
   const heatCells = rowsWithWork.map((r) =>
     r.cells.map((c, hi) => ({
       value: c.hours,
       readout:
         c.hours === null
-          ? `${r.label} ${pattern.hourLabels[hi]}:00: nothing tracked`
-          : `${r.label} ${pattern.hourLabels[hi]}:00–${pattern.hourLabels[hi]}:59: ${h(c.hours)}h tracked`,
+          ? ins("pattern.cellNone", { day: r.label, hour: pattern.hourLabels[hi] })
+          : ins("pattern.cell", {
+              day: r.label,
+              hour: pattern.hourLabels[hi],
+              hours: h(c.hours),
+            }),
     })),
   );
 
@@ -178,17 +230,35 @@ export function InsightPanels({
 
   /* ------------------------------------------------------ service mix */
   const serviceNames = serviceMix[0]?.segments.map((s) => s.name) ?? [];
+  // The month heading is re-derived from `m.month` (the ISO "2026-08") rather
+  // than taken from `m.label`, which the query module builds with a pinned
+  // en-GB. Uppercased short month: "AUG" in en, "AUG." in de.
+  const monthLabel = (m: ServiceMixMonth) =>
+    fmtDate(new Date(`${m.month}-01T00:00:00Z`), locale, {
+      month: "short",
+      timeZone: "UTC",
+    }).toUpperCase();
+
   const columns = serviceMix.map((m) => ({
-    label: m.label,
-    segments: m.segments.map((s, i) => ({
+    label: monthLabel(m),
+    segments: m.segments.map((s, idx) => ({
       label: s.name,
       value: s.hours,
-      color: SERIES[i % SERIES.length],
+      color: SERIES[idx % SERIES.length],
     })),
-    readout: `${m.label}: ${h(m.totalHours)}h — ${m.segments
-      .filter((s) => s.hours > 0)
-      .map((s) => `${s.name} ${Math.round((s.hours / m.totalHours) * 100)}%`)
-      .join(" · ")}`,
+    readout: ins("serviceMix.readout", {
+      label: monthLabel(m),
+      hours: h(m.totalHours),
+      segments: m.segments
+        .filter((s) => s.hours > 0)
+        .map((s) =>
+          ins("serviceMix.segment", {
+            name: s.name,
+            percent: pct(Math.round((s.hours / m.totalHours) * 100)),
+          }),
+        )
+        .join(" · "),
+    }),
   }));
 
   return (
@@ -216,57 +286,76 @@ export function InsightPanels({
       */}
       <MobileDisclosure
         className="lg:col-span-4"
-        title="Customer concentration"
+        title={ins("concentration.title")}
         summary={
           customers.length === 0
-            ? "No customers in this selection"
-            : `top ${customers.length} hold ${customers.reduce((s, c) => s + c.percent, 0)}% of ${h(totalHours)}h` +
-              (customers[0] ? ` · biggest ${customers[0].name} ${customers[0].percent}%` : "")
+            ? ins("concentration.summaryEmpty")
+            : ins("concentration.summary", {
+                count: customers.length,
+                percent: pct(customers.reduce((s, c) => s + c.percent, 0)),
+                hours: h(totalHours),
+              }) +
+              (customers[0]
+                ? ` ${ins("concentration.summaryBiggest", {
+                    name: shown(customers[0].name),
+                    percent: pct(customers[0].percent),
+                  })}`
+                : "")
         }
       >
         <Card className="flex h-full flex-col">
         <CardHeader
-          title="Customer concentration"
-          qualifier={`1 SQUARE = 1% OF ${h(totalHours)}H`}
+          title={ins("concentration.title")}
+          qualifier={ins("concentration.qualifier", { hours: h(totalHours) })}
         />
         <div className="flex flex-1 flex-col gap-3 px-4 pb-4">
           {customers.length === 0 ? (
             <p className="font-mono text-[11px] text-[var(--text-faint)]">
-              No customers in this selection.
+              {ins("concentration.empty")}
             </p>
           ) : (
             <>
               <Waffle
                 slices={waffleSlices}
-                label={`Customer concentration: ${customers
-                  .map((c) => `${c.name} ${c.percent}%`)
-                  .join(", ")}, everything else ${h(otherHours)}h`}
+                label={ins("concentration.aria", {
+                  list: customers
+                    .map((c) =>
+                      ins("concentration.listItem", { name: shown(c.name), percent: pct(c.percent) }),
+                    )
+                    .join(", "),
+                  hours: h(otherHours),
+                })}
               />
               <div className="flex flex-col gap-1">
                 {customers.map((c, i) => (
                   <LegendRow
                     key={c.name}
-                    label={c.name}
+                    label={shown(c.name)}
                     id={`customer-${i}`}
                     onOpen={customerDrills ? () => openCustomer(c) : undefined}
                   >
                     <LegendDot color={SERIES[i % SERIES.length]}>
-                      <span className="max-w-[11rem] truncate">{c.name}</span>
+                      <span className="max-w-[11rem] truncate">{shown(c.name)}</span>
                     </LegendDot>
                     <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
-                      {c.percent}% · {h(c.hours)}h
+                      {ins("concentration.legendValue", {
+                        percent: pct(c.percent),
+                        hours: h(c.hours),
+                      })}
                     </span>
                   </LegendRow>
                 ))}
                 {otherHours > 0 && (
                   <LegendRow
-                    label="everything else"
+                    label={ins("concentration.everythingElse")}
                     id="customer-others"
                     onOpen={customerDrills ? openOthers : undefined}
                   >
-                    <LegendDot color="var(--surface-2)">everything else</LegendDot>
+                    <LegendDot color="var(--surface-2)">
+                      {ins("concentration.everythingElse")}
+                    </LegendDot>
                     <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
-                      {h(otherHours)}h
+                      {h(otherHours)}
                     </span>
                   </LegendRow>
                 )}
@@ -274,9 +363,10 @@ export function InsightPanels({
               {/* The waffle's reason to exist: dependency, said plainly. */}
               {customers[0] && customers[0].percent >= 25 && (
                 <p className="mt-auto border-t border-[var(--border)] pt-2 text-[10px] leading-relaxed text-[var(--text-faint)]">
-                  {customers[0].name} alone is {customers[0].percent}% of this
-                  selection&rsquo;s hours — a concentration worth knowing when planning
-                  capacity or pricing.
+                  {ins("concentration.dependency", {
+                    name: shown(customers[0].name),
+                    percent: pct(customers[0].percent),
+                  })}
                 </p>
               )}
             </>
@@ -292,14 +382,11 @@ export function InsightPanels({
           scrolling. Collapsing the panel above already brings the route inside
           budget, so there is nothing to buy here. */}
       <Card className="flex flex-col lg:col-span-8">
-        <CardHeader
-          title="When the work happens"
-          qualifier="TRACKED HOURS BY WEEKDAY × START HOUR · EUROPE/BERLIN"
-        />
+        <CardHeader title={ins("pattern.title")} qualifier={ins("pattern.qualifier")} />
         <div className="px-4 pb-4">
           {pattern.maxHours === 0 ? (
             <p className="font-mono text-[11px] text-[var(--text-faint)]">
-              No tracked time in this selection.
+              {ins("pattern.empty")}
             </p>
           ) : (
             <>
@@ -308,13 +395,11 @@ export function InsightPanels({
                 colLabels={pattern.hourLabels}
                 cells={heatCells}
                 tone={tone}
-                label="Tracked hours by weekday and start hour"
+                label={ins("pattern.aria")}
                 rowLabelWidth="3.5rem"
               />
               <p className="pt-2 text-[10px] leading-relaxed text-[var(--text-faint)]">
-                Colour is square-root scaled: the on-the-hour morning spike (site
-                visits) would otherwise flatten the rest of the week. Weekend rows
-                appear only when weekend work exists.
+                {ins("pattern.note")}
               </p>
             </>
           )}
@@ -325,12 +410,12 @@ export function InsightPanels({
       {columns.length >= 2 && (
         <Card className="flex flex-col lg:col-span-12">
           <CardHeader
-            title="Service mix by month"
-            qualifier="SHARE OF EACH MONTH'S HOURS"
+            title={ins("serviceMix.title")}
+            qualifier={ins("serviceMix.qualifier")}
             actions={
               <div className="flex flex-wrap items-center gap-3">
-                {serviceNames.map((name, i) => (
-                  <LegendDot key={name} color={SERIES[i % SERIES.length]}>
+                {serviceNames.map((name, idx) => (
+                  <LegendDot key={name} color={SERIES[idx % SERIES.length]}>
                     {name.toUpperCase()}
                   </LegendDot>
                 ))}
@@ -339,15 +424,10 @@ export function InsightPanels({
           />
           <div className="flex flex-col px-4 pb-4">
             <div className="h-[190px]">
-              <StackedColumns100
-                columns={columns}
-                label="Service mix per month, as a share of that month's hours"
-              />
+              <StackedColumns100 columns={columns} label={ins("serviceMix.aria")} />
             </div>
             <p className="pt-2 text-[10px] leading-relaxed text-[var(--text-faint)]">
-              Share, not volume, on purpose: the trend chart above already shows how
-              much was worked; this shows what KIND of work it was and how that mix
-              shifts month to month.
+              {ins("serviceMix.note")}
             </p>
           </div>
         </Card>

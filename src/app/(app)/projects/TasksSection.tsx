@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { fmtInt } from "@/lib/locale-format";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskListView } from "./TaskListView";
 import { TaskBoardView } from "./TaskBoardView";
@@ -13,23 +15,27 @@ export function TasksSection({
   sections,
   commentsByTask,
   currentUserId,
+  locale,
 }: {
   parent: BoardParent;
   tasks: TaskWithSubtasks[];
   sections: ProjectSectionRow[];
   commentsByTask: Record<number, TaskComment[]>;
   currentUserId: string | null;
+  /** The request locale, handed down by the page. Absent means en-GB. */
+  locale?: string;
 }) {
+  const t = useTranslations("projects.tasks");
   const [view, setView] = useState<"list" | "board">("list");
   const openCount = tasks.filter((t) => t.status !== "DONE").length;
 
   return (
     <Card className="flex flex-col lg:col-span-7">
       <div className="flex items-baseline justify-between border-b border-[var(--divider)] p-4">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">Tasks &amp; hours</span>
+        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">{t("title")}</span>
         <div className="flex items-center gap-3">
           <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
-            {openCount} OPEN OF {tasks.length}
+            {t("openOf", { open: fmtInt(openCount, locale), total: fmtInt(tasks.length, locale) })}
           </span>
           <div className="flex border border-[var(--border-strong)]">
             <button
@@ -40,7 +46,7 @@ export function TasksSection({
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
               }`}
             >
-              List
+              {t("viewList")}
             </button>
             <button
               onClick={() => setView("board")}
@@ -50,7 +56,7 @@ export function TasksSection({
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
               }`}
             >
-              Board
+              {t("viewBoard")}
             </button>
           </div>
         </div>
@@ -64,9 +70,10 @@ export function TasksSection({
           tasks={tasks}
           commentsByTask={commentsByTask}
           currentUserId={currentUserId}
+          locale={locale}
         />
       ) : (
-        <TaskBoardView parent={parent} tasks={tasks} sections={sections} />
+        <TaskBoardView parent={parent} tasks={tasks} sections={sections} locale={locale} />
       )}
     </Card>
   );

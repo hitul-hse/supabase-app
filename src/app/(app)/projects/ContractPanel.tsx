@@ -17,6 +17,7 @@
  */
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import type { ContractPeriodRow } from "@/lib/queries/contract-periods";
 import {
   setContractTerms,
@@ -25,6 +26,7 @@ import {
   type ContractActionResult,
 } from "./contract-actions";
 import { Card } from "@/components/ui/Card";
+import { fmtNum, fmtPct } from "@/lib/locale-format";
 
 const LABEL =
   "block font-mono text-[9.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]";
@@ -33,9 +35,12 @@ const FIELD =
 const BUTTON =
   "border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 
-function h(n: number): string {
-  return n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
-}
+/**
+ * Dates stay as the ISO strings the database holds (yyyy-mm-dd) in both
+ * languages: they are also what the two date inputs below round-trip, and a
+ * localised display beside an ISO input would read as two different values for
+ * the same field.
+ */
 
 /** Burn colour, matching the thresholds used elsewhere in the app. */
 function burnTone(percent: number | null, warnAt: number): string {
@@ -47,12 +52,17 @@ function burnTone(percent: number | null, warnAt: number): string {
 
 /** A proportional bar. Over 100% it stays full and turns critical. */
 function BurnBar({ percent, warnAt }: { percent: number | null; warnAt: number }) {
+  const t = useTranslations("projects.contract");
   const clamped = Math.max(0, Math.min(100, percent ?? 0));
   return (
     <div
       className="h-1.5 w-full bg-[var(--surface-2)]"
       role="img"
-      aria-label={percent === null ? "No budget set" : `${percent.toFixed(0)} percent of budget used`}
+      aria-label={
+        percent === null
+          ? t("barNoBudget")
+          : t("barUsed", { percent: percent.toFixed(0) })
+      }
     >
       <div
         className="h-full transition-[width]"
@@ -61,6 +71,9 @@ function BurnBar({ percent, warnAt }: { percent: number | null; warnAt: number }
     </div>
   );
 }
+
+/** One of the three writes, as the panel hands it to `run`. */
+type ContractRunner = () => Promise<ContractActionResult>;
 
 function Feedback({ result }: { result: ContractActionResult | null }) {
   if (!result?.message) return null;
@@ -87,11 +100,12 @@ function TermFields({
   disabled: boolean;
   defaults?: Partial<ContractPeriodRow>;
 }) {
+  const t = useTranslations("projects.contract");
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div>
         <label className={LABEL} htmlFor="budget_hours">
-          Agreed hours
+          {t("fields.budgetHours")}
         </label>
         <input
           id="budget_hours"
@@ -101,13 +115,13 @@ function TermFields({
           required
           disabled={disabled}
           defaultValue={defaults?.budgetHours ?? ""}
-          placeholder="e.g. 8"
+          placeholder={t("fields.budgetHoursPlaceholder")}
           className={FIELD}
         />
       </div>
       <div>
         <label className={LABEL} htmlFor="starts_on">
-          Contract starts
+          {t("fields.startsOn")}
         </label>
         <input
           id="starts_on"
@@ -121,7 +135,7 @@ function TermFields({
       </div>
       <div>
         <label className={LABEL} htmlFor="ends_on">
-          Contract ends
+          {t("fields.endsOn")}
         </label>
         <input
           id="ends_on"
@@ -135,7 +149,7 @@ function TermFields({
       </div>
       <div>
         <label className={LABEL} htmlFor="contract_reference">
-          Contract reference
+          {t("fields.reference")}
         </label>
         <input
           id="contract_reference"
@@ -143,13 +157,13 @@ function TermFields({
           type="text"
           disabled={disabled}
           defaultValue={defaults?.contractReference ?? ""}
-          placeholder="optional"
+          placeholder={t("fields.optional")}
           className={FIELD}
         />
       </div>
       <div>
         <label className={LABEL} htmlFor="warn_at_percent">
-          Warn at %
+          {t("fields.warnAt")}
         </label>
         <input
           id="warn_at_percent"
@@ -162,13 +176,12 @@ function TermFields({
           className={FIELD}
         />
         <p className="mt-1 text-[10.5px] leading-snug text-[var(--text-faint)]">
-          Bookings warn from here on. A small retainer and a large programme
-          rarely want the same point.
+          {t("fields.warnAtHint")}
         </p>
       </div>
       <div className="sm:col-span-2 lg:col-span-3">
         <label className={LABEL} htmlFor="notes">
-          Notes
+          {t("fields.notes")}
         </label>
         <input
           id="notes"
@@ -176,7 +189,7 @@ function TermFields({
           type="text"
           disabled={disabled}
           defaultValue={defaults?.notes ?? ""}
-          placeholder="optional"
+          placeholder={t("fields.optional")}
           className={FIELD}
         />
       </div>
@@ -190,6 +203,7 @@ export function ContractPanel({
   canWrite,
   featureInstalled,
   fallbackEstimateHours,
+  locale,
 }: {
   projectId: number;
   periods: ContractPeriodRow[];
@@ -208,7 +222,13 @@ export function ContractPanel({
    * would leave people wondering where a refusal came from.
    */
   fallbackEstimateHours: number | null;
+  /** The request locale, handed down by the page. Absent means en-GB. */
+  locale?: string;
 }) {
+  const t = useTranslations("projects.contract");
+  const tc = useTranslations("common");
+  /** Hours to one decimal, in the reader's language. */
+  const h = (n: number) => fmtNum(n, locale, 1);
   const [result, setResult] = useState<ContractActionResult | null>(null);
   const [pending, startTransition] = useTransition();
   const [renewing, setRenewing] = useState(false);
@@ -218,7 +238,7 @@ export function ContractPanel({
   const latest = periods[0] ?? null;
   const history = periods.filter((p) => p.id !== current?.id);
 
-  const run = (fn: () => Promise<ContractActionResult>) =>
+  const run = (fn: ContractRunner) =>
     startTransition(async () => {
       const r = await fn();
       setResult(r);
@@ -233,12 +253,9 @@ export function ContractPanel({
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--divider)] px-4 py-3">
         <div>
           <h2 className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
-            Contract
+            {t("title")}
           </h2>
-          <p className="mt-0.5 text-[11.5px] text-[var(--text-faint)]">
-            The hours sales agreed, and the dates they cover. Renewing keeps
-            every previous period on record.
-          </p>
+          <p className="mt-0.5 text-[11.5px] text-[var(--text-faint)]">{t("intro")}</p>
         </div>
         {canWrite && periods.length > 0 && !renewing && (
           <button
@@ -249,7 +266,7 @@ export function ContractPanel({
             }}
             className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
           >
-            Renew contract
+            {t("renew")}
           </button>
         )}
       </header>
@@ -258,38 +275,38 @@ export function ContractPanel({
       {periods.length === 0 && (
         <div className="px-4 py-4">
           <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">
-            No contract terms recorded for this project.
-            {fallbackEstimateHours !== null && fallbackEstimateHours > 0 ? (
-              <>
-                {" "}
-                The budget guard is falling back to the{" "}
-                <strong className="text-[var(--text-primary)]">
-                  {h(fallbackEstimateHours)}h
-                </strong>{" "}
-                estimate synced from TrackingTime, which the vendor overwrites on
-                every sync. Record the agreed terms to make the budget stick.
-              </>
-            ) : (
-              " There is no budget to enforce, so bookings on it are never refused."
-            )}
+            {t("none")}
+            {fallbackEstimateHours !== null && fallbackEstimateHours > 0
+              ? t.rich("fallback", {
+                  hours: `${h(fallbackEstimateHours)}h`,
+                  strong: (chunks) => (
+                    <strong className="text-[var(--text-primary)]">{chunks}</strong>
+                  ),
+                })
+              : t("noBudgetToEnforce")}
           </p>
 
           {!featureInstalled ? (
             <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4">
               <p className="text-[12px] leading-relaxed text-[var(--text-primary)]">
-                Contract terms are not switched on in the database yet, so nobody can
-                record them -- including executives. This is not a permission problem.
+                {t("notInstalled.title")}
               </p>
               <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
-                Apply{" "}
-                <code className="font-mono text-[11px] text-[var(--text-primary)]">
-                  supabase/migrations/add_contract_periods.sql
-                </code>{" "}
-                and then{" "}
-                <code className="font-mono text-[11px] text-[var(--text-primary)]">
-                  supabase/migrations/add_budget_alert_visibility.sql
-                </code>
-                , and this panel becomes editable.
+                {/* The two migration paths are file names, not prose: they stay
+                    verbatim in both languages and only the sentence around
+                    them moves. */}
+                {t.rich("notInstalled.apply", {
+                  first: () => (
+                    <code className="font-mono text-[11px] text-[var(--text-primary)]">
+                      supabase/migrations/add_contract_periods.sql
+                    </code>
+                  ),
+                  second: () => (
+                    <code className="font-mono text-[11px] text-[var(--text-primary)]">
+                      supabase/migrations/add_budget_alert_visibility.sql
+                    </code>
+                  ),
+                })}
               </p>
             </div>
           ) : canWrite ? (
@@ -305,14 +322,13 @@ export function ContractPanel({
                   disabled={pending}
                   className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
                 >
-                  {pending ? "Recording..." : "Record contract terms"}
+                  {pending ? t("recording") : t("record")}
                 </button>
               </div>
             </form>
           ) : (
             <p className="mt-2 text-[11px] text-[var(--text-faint)]">
-              Contract terms are commercial, so only executives and department
-              heads can record them.
+              {t("noPermission")}
             </p>
           )}
           <Feedback result={result} />
@@ -324,10 +340,7 @@ export function ContractPanel({
         <div className="px-4 py-4">
           {current === null && latest !== null && (
             <p className="mb-4 border border-[var(--critical)] px-3 py-2 text-[11.5px] leading-relaxed text-[var(--critical)]">
-              No contract covers today. Period {latest.periodNo} ended on{" "}
-              {latest.endsOn}. Hours logged since then sit outside any contract
-              period: they are still recorded, but they cannot be checked against
-              a budget until the renewal is confirmed.
+              {t("gap", { period: latest.periodNo, endsOn: latest.endsOn })}
             </p>
           )}
 
@@ -335,14 +348,22 @@ export function ContractPanel({
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <span className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
-                  Period {current.periodNo}
-                  {current.contractReference ? ` · ${current.contractReference}` : ""}
+                  {t("period", {
+                    period: current.periodNo,
+                    // A contract reference is a proper noun; interpolated whole
+                    // so the separator does not strand when it is absent.
+                    reference: current.contractReference ? ` · ${current.contractReference}` : "",
+                  })}
                 </span>
                 <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-                  {current.startsOn} to {current.endsOn}
-                  {current.daysRemaining >= 0
-                    ? ` · ${current.daysRemaining} days left`
-                    : " · ended"}
+                  {t("dates", {
+                    startsOn: current.startsOn,
+                    endsOn: current.endsOn,
+                    remaining:
+                      current.daysRemaining >= 0
+                        ? t("daysLeft", { days: current.daysRemaining })
+                        : t("ended"),
+                  })}
                 </span>
               </div>
 
@@ -351,26 +372,30 @@ export function ContractPanel({
                   className="font-mono text-[24px] font-semibold tracking-[-0.02em]"
                   style={{ color: burnTone(current.burnPercent, current.warnAtPercent) }}
                 >
-                  {h(current.loggedHours)} / {h(current.budgetHours)} h
+                  {t("hoursOf", {
+                    logged: h(current.loggedHours),
+                    budget: h(current.budgetHours),
+                  })}
                 </span>
                 <span
                   className="font-mono text-[13px]"
                   style={{ color: burnTone(current.burnPercent, current.warnAtPercent) }}
                 >
-                  {current.burnPercent === null ? "n/a" : `${current.burnPercent}%`}
+                  {current.burnPercent === null
+                    ? tc("notAvailable")
+                    : fmtPct(current.burnPercent, locale)}
                 </span>
                 <span className="text-[11.5px] text-[var(--text-secondary)]">
                   {current.remainingHours >= 0
-                    ? `${h(current.remainingHours)}h remaining`
-                    : `${h(Math.abs(current.remainingHours))}h over the agreed budget`}
+                    ? t("remaining", { hours: h(current.remainingHours) })
+                    : t("overBudget", { hours: h(Math.abs(current.remainingHours)) })}
                 </span>
               </div>
 
               <BurnBar percent={current.burnPercent} warnAt={current.warnAtPercent} />
 
               <p className="text-[11px] text-[var(--text-faint)]">
-                Bookings warn from {current.warnAtPercent}% and are refused past
-                100%. Only hours dated inside this period count towards it.
+                {t("warnNote", { percent: current.warnAtPercent })}
               </p>
 
               {canWrite && correcting !== current.id && (
@@ -383,7 +408,7 @@ export function ContractPanel({
                     }}
                     className={`${BUTTON} border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text-primary)]`}
                   >
-                    Correct these terms
+                    {t("correct")}
                   </button>
                 </div>
               )}
@@ -398,10 +423,7 @@ export function ContractPanel({
             >
               <input type="hidden" name="project_id" value={projectId} />
               <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
-                Record the renewed terms once sales confirm them. This adds a new
-                period; period {latest?.periodNo ?? 1} keeps its own budget and
-                the hours already booked against it. The new period must not
-                overlap the old one, so it usually starts the day after it ended.
+                {t("renewIntro", { period: latest?.periodNo ?? 1 })}
               </p>
               <TermFields
                 disabled={pending}
@@ -420,7 +442,7 @@ export function ContractPanel({
                   disabled={pending}
                   className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
                 >
-                  {pending ? "Renewing..." : "Confirm renewal"}
+                  {pending ? t("renewing") : t("confirmRenewal")}
                 </button>
                 <button
                   type="button"
@@ -428,7 +450,7 @@ export function ContractPanel({
                   onClick={() => setRenewing(false)}
                   className={`${BUTTON} border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text-primary)]`}
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
               </div>
             </form>
@@ -443,9 +465,7 @@ export function ContractPanel({
               <input type="hidden" name="project_id" value={projectId} />
               <input type="hidden" name="period_id" value={correcting} />
               <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
-                Correcting a period changes its terms without touching the hours
-                booked against it. Use this for a transcription error, not for a
-                renewal.
+                {t("correctIntro")}
               </p>
               <TermFields
                 disabled={pending}
@@ -457,7 +477,7 @@ export function ContractPanel({
                   disabled={pending}
                   className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
                 >
-                  {pending ? "Saving..." : "Save correction"}
+                  {pending ? t("saving") : t("saveCorrection")}
                 </button>
                 <button
                   type="button"
@@ -465,7 +485,7 @@ export function ContractPanel({
                   onClick={() => setCorrecting(null)}
                   className={`${BUTTON} border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text-primary)]`}
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
               </div>
             </form>
@@ -477,22 +497,27 @@ export function ContractPanel({
           {history.length > 0 && (
             <div className="mt-5 border-t border-[var(--border)] pt-4">
               <h3 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
-                Contract history
+                {t("history.title")}
               </h3>
               <p className="mt-0.5 mb-2 text-[11px] text-[var(--text-faint)]">
-                Every previous term keeps its own budget and its own booked
-                hours. Nothing is overwritten by a renewal.
+                {t("history.intro")}
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-[11.5px]">
                   <thead>
                     <tr className="border-b border-[var(--border)] text-left font-mono text-[9.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
-                      <th className="py-1.5 pr-3 font-normal">Period</th>
-                      <th className="py-1.5 pr-3 font-normal">Dates</th>
-                      <th className="py-1.5 pr-3 text-right font-normal">Budget</th>
-                      <th className="py-1.5 pr-3 text-right font-normal">Booked</th>
-                      <th className="py-1.5 pr-3 text-right font-normal">Burn</th>
-                      <th className="py-1.5 font-normal">Reference</th>
+                      <th className="py-1.5 pr-3 font-normal">{t("history.columns.period")}</th>
+                      <th className="py-1.5 pr-3 font-normal">{t("history.columns.dates")}</th>
+                      <th className="py-1.5 pr-3 text-right font-normal">
+                        {t("history.columns.budget")}
+                      </th>
+                      <th className="py-1.5 pr-3 text-right font-normal">
+                        {t("history.columns.booked")}
+                      </th>
+                      <th className="py-1.5 pr-3 text-right font-normal">
+                        {t("history.columns.burn")}
+                      </th>
+                      <th className="py-1.5 font-normal">{t("history.columns.reference")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -502,19 +527,21 @@ export function ContractPanel({
                           {p.periodNo}
                         </td>
                         <td className="py-1.5 pr-3 font-mono tabular-nums text-[var(--text-secondary)]">
-                          {p.startsOn} to {p.endsOn}
+                          {t("history.dates", { startsOn: p.startsOn, endsOn: p.endsOn })}
                         </td>
                         <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-[var(--text-primary)]">
-                          {h(p.budgetHours)} h
+                          {t("history.hours", { hours: h(p.budgetHours) })}
                         </td>
                         <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-[var(--text-primary)]">
-                          {h(p.loggedHours)} h
+                          {t("history.hours", { hours: h(p.loggedHours) })}
                         </td>
                         <td
                           className="py-1.5 pr-3 text-right font-mono tabular-nums"
                           style={{ color: burnTone(p.burnPercent, p.warnAtPercent) }}
                         >
-                          {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
+                          {p.burnPercent === null
+                            ? tc("notAvailable")
+                            : fmtPct(p.burnPercent, locale)}
                         </td>
                         <td className="py-1.5 text-[var(--text-faint)]">
                           {p.contractReference ?? "-"}

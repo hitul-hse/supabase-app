@@ -18,7 +18,6 @@
 import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
-import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
 
@@ -72,7 +71,36 @@ const transformFile = await compile("src/lib/time-transform.ts", "time-transform
 // The card vocabulary is compiled for real: the strip renders StatTiles and
 // the assertions below run against their markup.
 const cardFile = await compile("src/components/ui/Card.tsx", "card.cjs");
+// Locale-aware number/date formatting moved out of the components on 2026-09-03
+// (the EN/DE coverage work). It is compiled for real, not stubbed: these
+// assertions read the rendered figures, so a stub would test nothing.
+const formatFile = await compile("src/lib/locale-format.ts", "locale-format.cjs");
+// The three components are async Server Components that read their words from
+// the catalogue through next-intl/server. getTranslations() and getLocale()
+// need the request context that only exists inside Next, so here they are
+// replaced by a translator over the real messages/en.json -- the same shape
+// check-data-table-primitive.mjs uses for the synchronous hooks. The words the
+// assertions below look for are therefore the catalogue's own: a missing key
+// renders as its key path and fails the check rather than passing on a stub.
+const intlFile = join(dir, "next-intl-server.cjs");
+writeFileSync(
+  intlFile,
+  `const { createTranslator } = require("next-intl");
+const messages = require("${posix(resolve("messages/en.json"))}");
+const locale = "en";
+exports.getLocale = async () => locale;
+exports.getTranslations = async (arg) =>
+  createTranslator({
+    locale,
+    messages,
+    namespace: typeof arg === "string" ? arg : arg?.namespace,
+  });
+`,
+);
+
 const alias = {
+  "next-intl/server": posix(intlFile),
+  "@/lib/locale-format": posix(formatFile),
   "@/lib/time-transform": posix(transformFile),
   "@/lib/queries/time": posix(transformFile),
   "@/components/ui/Card": posix(cardFile),
@@ -88,7 +116,12 @@ const { WeekSummaryTable } = require(
   await compile("src/app/(app)/time/WeekSummaryTable.tsx", "WeekSummaryTable.cjs", alias),
 );
 
-const render = (Component, props) => renderToStaticMarkup(h(Component, props));
+// These are async Server Components, so they are awaited down to an element
+// tree first: renderToStaticMarkup is synchronous and throws "a component
+// suspended while responding to synchronous input" if handed the promise
+// itself. Everything nested inside them -- Card, StatTile, EntryRow, Pill,
+// Utilisation -- is a plain synchronous component and renders as usual.
+const render = async (Component, props) => renderToStaticMarkup(await Component(props));
 
 // ── The totals strip ────────────────────────────────��──────────────────────
 // The same figures check-time-page-data.mjs seeds into Postgres:
@@ -103,7 +136,7 @@ const totals = {
   billablePercent: 57,
 };
 
-const totalsHtml = render(TimeTotalsStrip, { totals });
+const totalsHtml = await render(TimeTotalsStrip, { totals });
 
 check(
   "logged total renders 3:30, not 210:00 (seconds misread as minutes)",
@@ -115,7 +148,7 @@ check("the decimal figure for invoicing renders 3.50", totalsHtml.includes("3.50
 check("the billable share renders 57% of logged", totalsHtml.includes("57% of logged"));
 check("3 entries is pluralised", totalsHtml.includes("3 entries"));
 
-const emptyHtml = render(TimeTotalsStrip, {
+const emptyHtml = await render(TimeTotalsStrip, {
   totals: {
     totalSeconds: 0,
     billableSeconds: 0,
@@ -131,9 +164,9 @@ check(
   !emptyHtml.includes("0% of logged") && emptyHtml.includes("—"),
 );
 check("an empty week reads '0 entries'", emptyHtml.includes("0 entries"));
-check("one entry reads '1 entry', singular", render(TimeTotalsStrip, {
+check("one entry reads '1 entry', singular", (await render(TimeTotalsStrip, {
   totals: { ...totals, entryCount: 1 },
-}).includes("1 entry"));
+})).includes("1 entry"));
 
 // ── The entry list ─────────────────────────────────────────────────────────
 const entry = (over = {}) => ({
@@ -162,7 +195,7 @@ const days = [
   { date: "2026-08-18", entries: [], totalSeconds: 0 },
 ];
 
-const listHtml = render(TimeEntryList, { days, showMember: false });
+const listHtml = await render(TimeEntryList, { days, showMember: false });
 check("the task name is rendered", listHtml.includes("Site inspection"));
 check("the customer is rendered", listHtml.includes("Muster GmbH"));
 check("the project is rendered", listHtml.includes("DGUV V2 Betreuung"));
@@ -177,12 +210,12 @@ check(
 );
 check(
   "team view does render the member name",
-  render(TimeEntryList, { days, showMember: true }).includes("Anna Beck"),
+  (await render(TimeEntryList, { days, showMember: true })).includes("Anna Beck"),
 );
 
 // A calendar placeholder legitimately has no task, customer or project. Each
 // absence must read as a stated fact, not a blank cell that looks broken.
-const ghostHtml = render(TimeEntryList, {
+const ghostHtml = await render(TimeEntryList, {
   days: [
     {
       date: "2026-08-19",
@@ -207,7 +240,7 @@ check("a missing project reads 'No project'", ghostHtml.includes("No project"));
 check("calendar-sourced time is labelled", ghostHtml.includes("calendar"));
 check("a non-billable entry carries no billable pill", !/>billable</.test(ghostHtml));
 
-const runningHtml = render(TimeEntryList, {
+const runningHtml = await render(TimeEntryList, {
   days: [
     {
       date: "2026-08-20",
@@ -226,7 +259,7 @@ check("a running timer's end time is an ellipsis", runningHtml.includes("…"));
 // The complementary case, so the dash above cannot over-apply: a finished entry
 // of genuinely zero length is really zero and must still read "0:00". Without
 // this, "show a dash when the total is 0" would silently hide real zero days.
-const zeroLengthHtml = render(TimeEntryList, {
+const zeroLengthHtml = await render(TimeEntryList, {
   days: [
     {
       date: "2026-08-21",
@@ -241,7 +274,7 @@ check(
 );
 
 // ── The week summary ───────────────────────────────────────────────────────
-const summaryHtml = render(WeekSummaryTable, {
+const summaryHtml = await render(WeekSummaryTable, {
   weekStart: "2026-08-17",
   rows: [
     {

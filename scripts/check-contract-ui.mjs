@@ -41,6 +41,16 @@ const panel = read(PANEL);
 const page = read(PAGE);
 const migration = read(MIGRATION);
 const perms = read(PERMS);
+// The panel's and the actions' sentences live in the catalogue since the EN/DE
+// coverage work. Assertions about what a user is TOLD therefore read the key
+// from the source and the sentence from messages/{en,de}.json; a missing key
+// falls through to "" here and fails the check, as a silent panel should.
+const EN = JSON.parse(read("messages/en.json"));
+const DE = JSON.parse(read("messages/de.json"));
+const CONTRACT_EN = EN.projects?.contract ?? {};
+const CONTRACT_DE = DE.projects?.contract ?? {};
+const CA_EN = EN.projects?.contractActions ?? {};
+const CA_DE = DE.projects?.contractActions ?? {};
 
 /* --------------------------------------------------------------- the reads */
 
@@ -138,7 +148,9 @@ check(
 
 check(
   "an unauthenticated caller is refused explicitly",
-  /not signed in/i.test(actions),
+  /t\("notSignedIn"\)/.test(actions) &&
+    /not signed in/i.test(CA_EN.notSignedIn ?? "") &&
+    /nicht angemeldet/i.test(CA_DE.notSignedIn ?? ""),
 );
 
 check(
@@ -200,7 +212,9 @@ check(
 );
 check(
   "the renewal message states that the previous period is preserved",
-  /previous period keeps its own budget/i.test(actions),
+  /t\("renewed"/.test(actions) &&
+    /previous period keeps its own budget/i.test(CA_EN.renewed ?? "") &&
+    /beh[äa]lt ihr eigenes/i.test(CA_DE.renewed ?? ""),
   "this is the requirement; the confirmation should say it happened",
 );
 
@@ -214,12 +228,19 @@ check(
 
 check(
   "the panel shows the contract history as a table",
-  /Contract history/.test(panel) && /<table/.test(panel),
+  /t\("history\.title"\)/.test(panel) &&
+    /<table/.test(panel) &&
+    /Contract history/.test(CONTRACT_EN.history?.title ?? "") &&
+    /Vertragshistorie/.test(CONTRACT_DE.history?.title ?? ""),
   "the preserved history is the point of the feature, not a footnote",
 );
 check(
   "the history states that nothing is overwritten by a renewal",
-  /Nothing is overwritten by a renewal|keeps its own budget/i.test(panel),
+  /t\("history\.intro"\)/.test(panel) &&
+    /Nothing is overwritten by a renewal|keeps its own budget/i.test(
+      CONTRACT_EN.history?.intro ?? "",
+    ) &&
+    /[üu]berschreibt nichts|beh[äa]lt ihr eigenes/i.test(CONTRACT_DE.history?.intro ?? ""),
 );
 check(
   "each history row shows ITS OWN budget and ITS OWN booked hours",
@@ -227,12 +248,17 @@ check(
 );
 check(
   "a lapsed contract is called out on the project page",
-  /No contract covers today/i.test(panel),
+  /t\("gap"/.test(panel) &&
+    /No contract covers today/i.test(CONTRACT_EN.gap ?? "") &&
+    /Kein Vertrag deckt den heutigen Tag ab/i.test(CONTRACT_DE.gap ?? ""),
   "silence here is what let hours pile up outside a contract unnoticed",
 );
 check(
   "the vendor fallback is labelled as vendor-synced, not passed off as agreed",
-  /synced from TrackingTime/i.test(panel) && /overwrites/i.test(panel),
+  /t\.rich\("fallback"/.test(panel) &&
+    /synced from TrackingTime/i.test(CONTRACT_EN.fallback ?? "") &&
+    /overwrites/i.test(CONTRACT_EN.fallback ?? "") &&
+    /aus TrackingTime/i.test(CONTRACT_DE.fallback ?? ""),
 );
 check(
   "write controls are gated on the permission the server re-checks",
@@ -240,8 +266,12 @@ check(
 );
 check(
   "a read-only viewer is told why, rather than shown nothing",
-  /only executives and department heads can record them/i.test(panel) ||
-    /Contract terms are commercial/i.test(panel),
+  /t\("noPermission"\)/.test(panel) &&
+    (/only executives and department heads can record them/i.test(
+      CONTRACT_EN.noPermission ?? "",
+    ) ||
+      /Contract terms are commercial/i.test(CONTRACT_EN.noPermission ?? "")) &&
+    /Gesch[äa]ftsf[üu]hrung und Abteilungsleitung/i.test(CONTRACT_DE.noPermission ?? ""),
   "an empty panel would read as 'no contract', which is a different statement from 'you may not edit this'",
 );
 check(

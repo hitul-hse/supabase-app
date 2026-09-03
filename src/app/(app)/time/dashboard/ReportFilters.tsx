@@ -14,9 +14,33 @@
  */
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { PRESETS, type PresetKey } from "@/lib/queries/trackingtime-report";
+import { fmtInt } from "@/lib/locale-format";
 
 type Option = { id: number; name: string; hint?: string | null };
+
+/**
+ * The dimensions this bar filters on.
+ *
+ * The KEY is the URL parameter and the catalogue key; it never changes with the
+ * locale. Only the words the reader sees come from `timeDashboard.dimensions.*`,
+ * so a German bar reads MITARBEITER / PROJEKT / KUNDE / SERVICE over exactly the
+ * same query string an English one produces.
+ */
+const DIMENSIONS = ["member", "project", "customer", "service"] as const;
+type Dimension = (typeof DIMENSIONS)[number];
+
+/** The URL parameter each dimension writes. */
+const PARAM: Record<Dimension, string> = {
+  member: "members",
+  project: "projects",
+  customer: "customers",
+  service: "services",
+};
+
+const GROUP_OPTIONS = ["member", "project", "customer", "service", "task"] as const;
+const BUCKET_OPTIONS = ["day", "week", "month"] as const;
 
 /* ----------------------------------------------------------------- toggle */
 
@@ -82,16 +106,24 @@ function Toggle({
  * keyboard.
  */
 function MultiSelect({
-  label,
+  dimension,
   options,
   selected,
   onChange,
 }: {
-  label: string;
+  /** Catalogue + DOM key. Locale-independent, so the popover's ids are stable. */
+  dimension: Dimension;
   options: Option[];
   selected: number[];
   onChange: (next: number[]) => void;
 }) {
+  const t = useTranslations("timeDashboard");
+  const locale = useLocale();
+  // The reader-facing name of the dimension, and the form the surrounding
+  // sentences want. German capitalises nouns mid-sentence, so `lower` is not a
+  // toLowerCase() of `label` -- it is its own catalogue entry.
+  const label = t(`dimensions.${dimension}.label`);
+  const lower = t(`dimensions.${dimension}.lower`);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -165,10 +197,13 @@ function MultiSelect({
 
   const summary =
     selected.length === 0
-      ? `All ${options.length ? `(${options.length})` : ""}`.trim()
+      ? options.length
+        ? t("select.allWithCount", { count: options.length })
+        : t("select.all")
       : selected.length === 1
-        ? (options.find((o) => o.id === selected[0])?.name ?? "1 selected")
-        : `${selected.length} selected`;
+        ? (options.find((o) => o.id === selected[0])?.name ??
+          t("select.nSelected", { count: 1 }))
+        : t("select.nSelected", { count: selected.length });
 
   return (
     <div ref={ref} className="relative">
@@ -212,9 +247,9 @@ function MultiSelect({
               onKeyDown={onKeyDown}
               role="combobox"
               aria-expanded
-              aria-controls={`${label}-options`}
+              aria-controls={`${dimension}-options`}
               aria-autocomplete="list"
-              placeholder={`Search ${label.toLowerCase()}…`}
+              placeholder={t("select.search", { label: lower })}
               className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
             {/* The count is the fix for the old silent 200-option cap: however
@@ -222,20 +257,23 @@ function MultiSelect({
                 scrolls past the fold never looks complete when it is not. */}
             <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
               <span>
-                {filtered.length.toLocaleString("en-GB")}
                 {filtered.length !== options.length
-                  ? ` of ${options.length.toLocaleString("en-GB")}`
-                  : ""}{" "}
-                {options.length === 1 ? "option" : "options"}
-                {selected.length > 0 ? ` · ${selected.length} selected` : ""}
+                  ? t("select.optionsShown", {
+                      shown: fmtInt(filtered.length, locale),
+                      total: options.length,
+                    })
+                  : t("select.optionsAll", { total: options.length })}
+                {selected.length > 0
+                  ? ` · ${t("select.nSelected", { count: selected.length })}`
+                  : ""}
               </span>
-              <span aria-hidden>↑↓ move · ⏎ pick · esc close</span>
+              <span aria-hidden>{t("select.keys")}</span>
             </p>
           </div>
 
           <div
             ref={listRef}
-            id={`${label}-options`}
+            id={`${dimension}-options`}
             role="listbox"
             aria-label={label}
             aria-multiselectable
@@ -243,7 +281,7 @@ function MultiSelect({
           >
             {filtered.length === 0 ? (
               <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
-                No {label.toLowerCase()} matches “{query.trim()}”
+                {t("select.noMatch", { label: lower, query: query.trim() })}
               </p>
             ) : (
               filtered.map((o, i) => {
@@ -302,12 +340,12 @@ function MultiSelect({
               }
               title={
                 q
-                  ? `Add all ${filtered.length} matches to the selection`
-                  : "Search first — selecting every option is the same as selecting none"
+                  ? t("select.selectTheseTitle", { count: filtered.length })
+                  : t("select.selectTheseHint")
               }
               className="text-[11px] text-[var(--text-secondary)] transition-colors hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[var(--text-secondary)]"
             >
-              Select these {q ? filtered.length : ""}
+              {q ? t("select.selectTheseN", { count: filtered.length }) : t("select.selectThese")}
             </button>
             <button
               type="button"
@@ -315,7 +353,9 @@ function MultiSelect({
               onClick={() => onChange([])}
               className="text-[11px] text-[var(--text-secondary)] transition-colors hover:text-[var(--critical)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[var(--text-secondary)]"
             >
-              Clear {selected.length > 0 ? selected.length : ""}
+              {selected.length > 0
+                ? t("select.clearN", { count: selected.length })
+                : t("select.clear")}
             </button>
           </div>
         </div>
@@ -361,6 +401,7 @@ export function ReportFilters({
 }) {
   const router = useRouter();
   const params = useSearchParams();
+  const t = useTranslations("timeDashboard");
   const [pending, startTransition] = useTransition();
 
   /**
@@ -436,7 +477,7 @@ export function ReportFilters({
           pending ? "opacity-100" : "opacity-0"
         }`}
       >
-        UPDATING…
+        {t("filters.updating")}
       </p>
 
       {/* Row 1 — period */}
@@ -448,7 +489,10 @@ export function ReportFilters({
               on={preset === p.key}
               onClick={() => push({ preset: p.key, from: null, to: null })}
             >
-              {p.label}
+              {/* PRESETS lives in the query module and carries the English label
+                  the URL is keyed on; the word the reader sees comes from the
+                  catalogue, keyed by the same preset key. */}
+              {t(`filters.period.${p.key}`)}
             </Toggle>
           ))}
         </div>
@@ -464,7 +508,7 @@ export function ReportFilters({
             value={from}
             max={to}
             onChange={(e) => push({ preset: "custom", from: e.target.value, to })}
-            aria-label="From date"
+            aria-label={t("filters.fromDate")}
             /* text-[16px] BELOW sm, not text-[11px]. iOS Safari force-zooms the
                whole page whenever a focused input has a font-size under 16px,
                and a <input type="date"> is focused by tapping it. The page then
@@ -481,7 +525,7 @@ export function ReportFilters({
             value={to}
             min={from}
             onChange={(e) => push({ preset: "custom", from, to: e.target.value })}
-            aria-label="To date"
+            aria-label={t("filters.toDate")}
             className={`rounded-full border bg-[var(--surface-2)] px-3 py-1.5 font-mono text-[16px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] sm:text-[11px] ${
               preset === "custom" ? "border-[var(--accent)]" : "border-[var(--border)]"
             }`}
@@ -491,29 +535,37 @@ export function ReportFilters({
 
       {/* Row 2 — dimensions */}
       <div className="flex flex-wrap items-center gap-2">
-        <MultiSelect label="Member" options={members} selected={memberIds} onChange={ids("members")} />
-        <MultiSelect label="Project" options={projects} selected={projectIds} onChange={ids("projects")} />
-        <MultiSelect label="Customer" options={customers} selected={customerIds} onChange={ids("customers")} />
-        <MultiSelect label="Service" options={services} selected={serviceIds} onChange={ids("services")} />
+        {DIMENSIONS.map((dim) => (
+          <MultiSelect
+            key={dim}
+            dimension={dim}
+            options={{ member: members, project: projects, customer: customers, service: services }[dim]}
+            selected={{ member: memberIds, project: projectIds, customer: customerIds, service: serviceIds }[dim]}
+            onChange={ids(PARAM[dim])}
+          />
+        ))}
 
         <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
           <Toggle on={billable === null} onClick={() => push({ billable: null })}>
-            All
+            {t("filters.billable.all")}
           </Toggle>
           <Toggle on={billable === true} onClick={() => push({ billable: "yes" })}>
-            Billable
+            {t("filters.billable.yes")}
           </Toggle>
           <Toggle on={billable === false} onClick={() => push({ billable: "no" })}>
-            Non-bill.
+            {t("filters.billable.no")}
           </Toggle>
         </div>
 
         <Toggle
           on={includeCalendar}
           onClick={() => push({ calendar: includeCalendar ? null : "1" })}
-          title="Calendar placeholders are 46% of imported events and 40% of logged hours. Off by default so largely-undeliberate time cannot distort a billable ratio — but 37% of those hours ARE billable, so the total they hide is shown above."
+          title={t("filters.calendar.title")}
         >
-          <span>{includeCalendar ? "✓ " : ""}Calendar time</span>
+          <span>
+            {includeCalendar ? "✓ " : ""}
+            {t("filters.calendar.label")}
+          </span>
         </Toggle>
 
         {anyFilter && (
@@ -531,7 +583,7 @@ export function ReportFilters({
             }
             className="px-2.5 py-1.5 text-[12px] text-[var(--accent)] transition-opacity hover:opacity-75"
           >
-            Reset filters
+            {t("filters.reset")}
           </button>
         )}
       </div>
@@ -539,7 +591,7 @@ export function ReportFilters({
       {/* Row 3 — presentation */}
       <div className="flex flex-wrap items-center gap-3 border-t border-[var(--divider)] pt-3">
         <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
-          GROUP BY
+          {t("filters.groupBy")}
         </span>
         {/* flex-wrap, and this trough is WHY the bug was reported. Five pills
             (Member/Project/Customer/Service/Task) need ~350px; a 360px phone
@@ -549,30 +601,20 @@ export function ReportFilters({
             ran off the right edge with no scrollbar and no fade. The options
             were not hidden behind a scroll: they were simply unreachable. */}
         <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
-          {[
-            ["member", "Member"],
-            ["project", "Project"],
-            ["customer", "Customer"],
-            ["service", "Service"],
-            ["task", "Task"],
-          ].map(([k, l]) => (
+          {GROUP_OPTIONS.map((k) => (
             <Toggle key={k} on={groupBy === k} onClick={() => push({ group: k })}>
-              {l}
+              {t(`dimensions.${k}.label`)}
             </Toggle>
           ))}
         </div>
 
         <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
-          TREND
+          {t("filters.trendLabel")}
         </span>
         <div className="flex flex-wrap items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
-          {[
-            ["day", "Daily"],
-            ["week", "Weekly"],
-            ["month", "Monthly"],
-          ].map(([k, l]) => (
+          {BUCKET_OPTIONS.map((k) => (
             <Toggle key={k} on={bucket === k} onClick={() => push({ bucket: k })}>
-              {l}
+              {t(`filters.bucket.${k}`)}
             </Toggle>
           ))}
         </div>

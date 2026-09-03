@@ -18,6 +18,7 @@
  */
 
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 import { TaskRow } from "./TaskRow";
 import { Pager, usePager } from "@/components/Pager";
 import type { TaskComment, TaskWithSubtasks, BoardParent } from "@/lib/queries/types";
@@ -27,12 +28,16 @@ export function TaskListView({
   tasks,
   commentsByTask,
   currentUserId,
+  locale,
 }: {
   parent: BoardParent;
   tasks: TaskWithSubtasks[];
   commentsByTask: Record<number, TaskComment[]>;
   currentUserId: string | null;
+  /** The request locale, handed down by the page. Absent means en-GB. */
+  locale?: string;
 }) {
+  const t = useTranslations("projects.tasks");
   const listRef = useRef<HTMLDivElement>(null);
   // The reset key is the task count: when tasks are added or removed the list shifts, and
   // sitting on a page that no longer exists would render nothing.
@@ -45,10 +50,10 @@ export function TaskListView({
         ref={listRef}
         className="grid min-w-[420px] grid-cols-12 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]"
       >
-        <span className="col-span-4">TASK</span>
-        <span className="col-span-2 text-right">EST</span>
-        <span className="col-span-2 text-right">LOGGED</span>
-        <span className="col-span-3 text-right">STATUS / OWNER</span>
+        <span className="col-span-4">{t("columns.task")}</span>
+        <span className="col-span-2 text-right">{t("columns.estimate")}</span>
+        <span className="col-span-2 text-right">{t("columns.logged")}</span>
+        <span className="col-span-3 text-right">{t("columns.statusOwner")}</span>
         <span className="col-span-1" />
       </div>
 
@@ -60,13 +65,14 @@ export function TaskListView({
           subtasks={task.subtasks}
           comments={commentsByTask[task.id] ?? []}
           currentUserId={currentUserId}
+          locale={locale}
         />
       ))}
 
       {/* Only appears once there is more than one page's worth, so a project with six
           tasks carries no pager furniture at all. */}
       {tasks.length > 25 && (
-        <Pager state={pager} total={tasks.length} noun="tasks" anchorRef={listRef} />
+        <Pager state={pager} total={tasks.length} noun={t("pagerNoun")} anchorRef={listRef} />
       )}
     </div>
   );

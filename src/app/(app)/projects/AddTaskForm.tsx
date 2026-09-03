@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { createTask } from "./actions";
 import type { BoardParent } from "@/lib/queries/types";
 
 export function AddTaskForm({ parent }: { parent: BoardParent }) {
+  const t = useTranslations("projects.tasks");
   const [state, formAction, isPending] = useActionState(createTask, { status: "idle" });
 
   return (
@@ -16,7 +18,7 @@ export function AddTaskForm({ parent }: { parent: BoardParent }) {
           type="text"
           required
           disabled={isPending}
-          placeholder="New task name"
+          placeholder={t("addName")}
           className="min-w-[160px] flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
         <input
@@ -24,7 +26,7 @@ export function AddTaskForm({ parent }: { parent: BoardParent }) {
           type="text"
           required
           disabled={isPending}
-          placeholder="Owner"
+          placeholder={t("addOwner")}
           className="w-28 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
         <input
@@ -33,7 +35,7 @@ export function AddTaskForm({ parent }: { parent: BoardParent }) {
           min="0"
           step="0.5"
           disabled={isPending}
-          placeholder="Est. h"
+          placeholder={t("addEstimate")}
           className="w-20 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
         <button
@@ -41,7 +43,7 @@ export function AddTaskForm({ parent }: { parent: BoardParent }) {
           disabled={isPending}
           className="bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] disabled:opacity-50"
         >
-          {isPending ? "Adding…" : "Add task"}
+          {isPending ? t("adding") : t("add")}
         </button>
       </div>
       {state.status === "error" && (

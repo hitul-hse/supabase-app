@@ -25,6 +25,7 @@
  * never as zero. Sorting must therefore decide where nulls go explicitly rather
  * than letting them coerce to 0 and pretend to be the smallest value.
  */
+import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 
 export type Align = "left" | "right";
@@ -140,9 +141,9 @@ export function DataTable<T>({
   initialSort,
   initialDesc = true,
   exportName,
-  searchPlaceholder = "Search rows…",
+  searchPlaceholder,
   footnote,
-  emptyText = "Nothing to show.",
+  emptyText,
   defaultPageSize = 25,
   collapsible = false,
   defaultOpen = true,
@@ -237,12 +238,16 @@ export function DataTable<T>({
     URL.revokeObjectURL(url);
   };
 
+  // Every table on /time/dashboard inherits this chrome, so an English literal
+  // here is English on the German page however well the page itself is
+  // translated. Counts follow the request locale for the same reason.
+  const t = useTranslations("dataTable");
   const showing =
     total === 0
-      ? "no rows"
+      ? t("noRows")
       : pageSize === "all"
-        ? `all ${total.toLocaleString("en-GB")} rows`
-        : `${(start + 1).toLocaleString("en-GB")}–${Math.min(start + size, total).toLocaleString("en-GB")} of ${total.toLocaleString("en-GB")}`;
+        ? t("allRows", { count: total })
+        : t("range", { from: start + 1, to: Math.min(start + size, total), count: total });
 
   // Only tall pages get an internal scroller. Applying max-height unconditionally
   // would put a scrollbar inside a five-row table, which looks broken.
@@ -300,7 +305,7 @@ export function DataTable<T>({
                     panel must never look like an absent one. */}
                 {open ? showing : (summary ?? showing)}
                 {open && query.trim() && rows.length !== total
-                  ? ` · filtered from ${rows.length.toLocaleString("en-GB")}`
+                  ? ` · ${t("filteredFrom", { count: rows.length })}`
                   : ""}
                 {/* The hint is appended only while OPEN. A collapsed `summary`
                     is written to stand alone and usually restates the same
@@ -340,7 +345,7 @@ export function DataTable<T>({
                   setQuery(e.target.value);
                   setPage(0);
                 }}
-                placeholder={searchPlaceholder}
+                placeholder={searchPlaceholder ?? t("searchPlaceholder")}
                 className="w-[9.5rem] border border-[var(--border)] bg-[var(--page)] py-1 pl-2 pr-6 text-[11px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-faint)] focus:border-[var(--accent)] sm:w-[12rem]"
               />
               {query && (
@@ -350,7 +355,7 @@ export function DataTable<T>({
                     setQuery("");
                     setPage(0);
                   }}
-                  aria-label="Clear search"
+                  aria-label={t("clearSearch")}
                   className="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-[11px] text-[var(--text-faint)] hover:text-[var(--critical)]"
                 >
                   ×
@@ -369,14 +374,14 @@ export function DataTable<T>({
                   setPage(0);
                 }}
                 aria-pressed={pageSize === s}
-                title={s === "all" ? "Show every row" : `${s} rows per page`}
+                title={s === "all" ? t("showEveryRow") : t("rowsPerPage", { count: s })}
                 className={`px-1.5 py-1 font-mono text-[10px] transition-colors ${
                   pageSize === s
                     ? "bg-[var(--surface-hover)] text-[var(--text-primary)]"
                     : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                {s === "all" ? "ALL" : s}
+                {s === "all" ? t("all") : s}
               </button>
             ))}
           </div>
@@ -385,7 +390,7 @@ export function DataTable<T>({
             <button
               type="button"
               onClick={download}
-              title="Download these rows as CSV, with the current filter and sort applied"
+              title={t("csvTitle")}
               className="border border-[var(--border)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
             >
               CSV
@@ -395,7 +400,7 @@ export function DataTable<T>({
       </header>
 
       {!open ? null : rows.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">{emptyText}</p>
+        <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">{emptyText ?? t("empty")}</p>
       ) : total === 0 ? (
         <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">
           No row matches “{query.trim()}”.{" "}

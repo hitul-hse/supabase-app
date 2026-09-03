@@ -37,7 +37,9 @@
       "running": "SYNC RUNNING",
       "failedSince": "{count} FAILED SINCE",
       "rows": "{count} ROWS"
-    }
+    },
+    "show": "SHOW",
+    "hide": "HIDE"
   },
   "overview": {
     "title": "Overview",
@@ -714,7 +716,13 @@
     },
     "sourceLabel": "SOURCE: TRACKINGTIME + HUB",
     "filters": {
-      "hubOnly": "HUB-ONLY"
+      "hubOnly": "HUB-ONLY",
+      "team": "Filter by team",
+      "allTeams": "All teams ({count})",
+      "noTeam": "No team recorded",
+      "clear": "CLEAR {count, plural, one {# FILTER} other {# FILTERS}}",
+      "noMatchQuery": "No one matches “{query}”.",
+      "noMatchFilters": "No one matches these filters."
     },
     "row": {
       "hubMarker": "HUB",
@@ -725,9 +733,147 @@
       "hubOnlyTitle": "This person is recorded in the Hub (from Factorial) but has no TrackingTime member, so nothing time-based can be measured.",
       "noTrackingTime": "NO TRACKINGTIME ACCOUNT",
       "noTrackingTimeAccount": "No TrackingTime account, so there is no project time to show.",
-      "noEmail": "no email on record"
+      "noEmail": "no email on record",
+      "nominal": "NOMINAL {hours} H/WEEK",
+      "nominalTitle": "TrackingTime account default, not a contracted figure",
+      "noRole": "NO ROLE",
+      "noTeam": "NO TEAM RECORDED",
+      "archived": "ARCHIVED IN TRACKINGTIME",
+      "viewInDashboard": "View in dashboard",
+      "manageUsers": "Manage users"
     },
-    "unlinkedNote": "{unlinked} of the {tracked} people on TrackingTime have no Hub sign-in yet, so they cannot see their own hours."
+    "unlinkedNote": "{unlinked} of the {tracked} people on TrackingTime have no Hub sign-in yet, so they cannot see their own hours.",
+    "title": "People & Profiles",
+    "category": "HSE HUB / RECORDS",
+    "tabs": {
+      "label": "People view",
+      "directory": "Directory",
+      "orgChart": "Org chart"
+    },
+    "empty": {
+      "meta": "NO RECORDS VISIBLE",
+      "title": "No people are visible to you",
+      "description": "Either the TrackingTime import has not run yet, or your role only permits access to your own record. Ask an administrator, or run the TrackingTime sync."
+    },
+    "roster": {
+      "heading": "People",
+      "count": "{shown} OF {matching}",
+      "totalSuffix": "({total} TOTAL)",
+      "pagerNoun": "people"
+    },
+    "search": {
+      "label": "Search people by name, email or role",
+      "placeholder": "Search name, email, role…"
+    },
+    "chips": {
+      "hasLoggedTime": "HAS LOGGED TIME",
+      "noHubAccount": "NO HUB ACCOUNT",
+      "includeArchived": "INCLUDE ARCHIVED",
+      "overCapacity": "OVER CAPACITY",
+      "lowUtilisation": "LOW UTILISATION",
+      "onTrack": "ON TRACK",
+      "noUtilisationData": "NO UTILISATION DATA"
+    },
+    "columns": {
+      "name": "NAME",
+      "hours": "HOURS",
+      "billable": "BILLABLE"
+    },
+    "tiles": {
+      "hoursLogged": "HOURS LOGGED",
+      "entries": "{count, plural, one {# ENTRY} other {# ENTRIES}}",
+      "billableShare": "BILLABLE SHARE",
+      "billableHours": "{hours} H BILLABLE",
+      "utilisation": "UTILISATION",
+      "utilisationHint": "OF NOMINAL 40 H, WEEKS ACTIVE",
+      "weeksActive": "WEEKS ACTIVE",
+      "lastActivity": "LAST {date}",
+      "noActivity": "NO ACTIVITY"
+    },
+    "projects": {
+      "heading": "Projects",
+      "meta": "TOP {count} BY HOURS · TRACKINGTIME",
+      "none": "No time logged against any project.",
+      "project": "PROJECT",
+      "logged": "LOGGED",
+      "share": "SHARE",
+      "hours": "{hours} h"
+    },
+    "orgChart": {
+      "empty": {
+        "title": "No active people",
+        "body": "Nobody in the TrackingTime roster is currently active."
+      },
+      "heading": "Reporting structure",
+      "source": "RECORDED IN THE HUB · TRACKINGTIME HOLDS NO HIERARCHY",
+      "placed": "{placed} OF {total} PLACED",
+      "teams": "{count, plural, one {# TEAM} other {# TEAMS}}",
+      "degraded": {
+        "title": "Showing a partial chart",
+        "body": "The company-wide org chart view is unavailable, so this falls back to the people you are permitted to see. It is not the whole organisation. An administrator needs to apply the pending database migration."
+      },
+      "cycles": {
+        "title": "{count, plural, one {# reporting loop recorded} other {# reporting loops recorded}}",
+        "body": "Some people report to each other in a circle, so they cannot be placed in a tree. The members involved are listed below as unplaced — clear one of their reporting lines to resolve it."
+      },
+      "noLines": {
+        "title": "No reporting lines recorded yet",
+        "body": "TrackingTime does not hold who reports to whom, so nothing can be imported.",
+        "canEdit": "Use EDIT beside anyone below to record their manager, and the chart will build itself.",
+        "readOnly": "Somebody with permission to edit people can record it."
+      },
+      "reportsToHeader": "REPORTS TO",
+      "reports": "{count, plural, one {# REPORT} other {# REPORTS}}",
+      "noAccount": "NO ACCOUNT",
+      "noAccountTitle": "No Hub sign-in yet",
+      "edit": "EDIT",
+      "close": "CLOSE",
+      "unplaced": {
+        "heading": "Not yet placed",
+        "count": "{count} OF {total}"
+      },
+      "reportsTo": "Reports to",
+      "nobody": "Nobody (top of the chart)",
+      "saveManager": "Save manager",
+      "saving": "Saving…",
+      "team": "TEAM",
+      "teamNone": "— None —",
+      "jobTitle": "JOB TITLE",
+      "jobTitlePlaceholder": "e.g. Safety consultant",
+      "saveDetails": "Save details",
+      "jobTitleNote": "JOB TITLE IS NOT THE SAME AS {role} — THAT IS THIS PERSON'S TRACKINGTIME ACCESS LEVEL, NOT THEIR ROLE HERE"
+    },
+    "rates": {
+      "label": "BILLABLE RATE",
+      "valueLabel": "BILLABLE VALUE (APPROVED)",
+      "amount": "€{amount}",
+      "perHour": "/ H",
+      "perHours": "/ {hours} H",
+      "ratePlaceholder": "€/h",
+      "edit": "edit",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "error": "Could not update the rate."
+    },
+    "actions": {
+      "rate": {
+        "invalid": "Enter a valid, non-negative rate.",
+        "noPermission": "You don't have permission to set billable rates."
+      },
+      "org": {
+        "notSignedIn": "You are not signed in.",
+        "noPermission": "You do not have permission to edit people.",
+        "missingMember": "Which person? The member id was missing.",
+        "badSupervisor": "That manager could not be identified.",
+        "adminUnavailable": "Admin client unavailable.",
+        "selfReport": "Somebody cannot report to themselves.",
+        "loop": "That would create a reporting loop — the person you picked already reports to this one, directly or through someone else.",
+        "lineCleared": "Reporting line cleared.",
+        "lineSaved": "Reporting line saved.",
+        "detailsSaved": "Saved."
+      }
+    }
   },
   "timeDashboard": {
     "strip": {
@@ -764,6 +910,284 @@
         "note": "<mono>{hours}</mono> of calendar time is excluded from these figures.",
         "include": "<link>Include it</link> to match TrackingTime’s own report."
       }
+    },
+    "page": {
+      "category": "TRACKINGTIME / DASHBOARD",
+      "title": "TrackingTime API Dashboard",
+      "meta": "{period} · {entries} ENTRIES · {hours}H",
+      "filteredTo": "Filtered to",
+      "removeFilter": "Remove this filter",
+      "clearAll": "Clear all",
+      "truncated": "This selection exceeds the reporting ceiling, so the figures below cover only the most recent entries in range. Narrow the period or add a filter for an exact total.",
+      "emptyTitle": "No time logged in this selection",
+      "emptyBody": "No entries match the current filters. Widen the date range or clear a filter. An empty result can also mean your role isn't permitted to see other people's time, which is the access model working rather than a fault — and note that calendar placeholders are excluded unless you switch them on.",
+      "entryCap": "The entry table lists the {limit} most recent of {total} entries in range. Every total above covers all {total}; narrow the period to list the rest."
+    },
+    "filters": {
+      "updating": "UPDATING…",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "reset": "Reset filters",
+      "groupBy": "GROUP BY",
+      "trendLabel": "TREND",
+      "period": {
+        "today": "Today",
+        "this_week": "This week",
+        "last_week": "Last week",
+        "this_month": "This month",
+        "last_month": "Last month",
+        "this_year": "This year",
+        "all": "All time"
+      },
+      "billable": {
+        "all": "All",
+        "yes": "Billable",
+        "no": "Non-bill."
+      },
+      "calendar": {
+        "label": "Calendar time",
+        "title": "Calendar placeholders are 46% of imported events and 40% of logged hours. Off by default so largely-undeliberate time cannot distort a billable ratio — but 37% of those hours ARE billable, so the total they hide is shown above."
+      },
+      "bucket": {
+        "day": "Daily",
+        "week": "Weekly",
+        "month": "Monthly"
+      }
+    },
+    "dimensions": {
+      "member": {
+        "label": "Member",
+        "lower": "member",
+        "count": "{count, plural, one {# member} other {# members}}"
+      },
+      "project": {
+        "label": "Project",
+        "lower": "project",
+        "count": "{count, plural, one {# project} other {# projects}}"
+      },
+      "customer": {
+        "label": "Customer",
+        "lower": "customer",
+        "count": "{count, plural, one {# customer} other {# customers}}"
+      },
+      "service": {
+        "label": "Service",
+        "lower": "service",
+        "count": "{count, plural, one {# service} other {# services}}"
+      },
+      "task": {
+        "label": "Task",
+        "lower": "task",
+        "count": "{count, plural, one {# task} other {# tasks}}"
+      }
+    },
+    "select": {
+      "all": "All",
+      "allWithCount": "All ({count})",
+      "nSelected": "{count} selected",
+      "search": "Search {label}…",
+      "optionsAll": "{total, plural, one {# option} other {# options}}",
+      "optionsShown": "{shown} of {total, plural, one {# option} other {# options}}",
+      "keys": "↑↓ move · ⏎ pick · esc close",
+      "noMatch": "No {label} matches “{query}”",
+      "selectThese": "Select these",
+      "selectTheseN": "Select these {count}",
+      "selectTheseTitle": "Add all {count} matches to the selection",
+      "selectTheseHint": "Search first — selecting every option is the same as selecting none",
+      "clear": "Clear",
+      "clearN": "Clear {count}"
+    },
+    "trend": {
+      "title": {
+        "day": "DAILY TREND",
+        "week": "WEEKLY TREND",
+        "month": "MONTHLY TREND"
+      },
+      "aria": {
+        "day": "daily trend, {count} buckets: billable and total hours over time",
+        "week": "weekly trend, {count} buckets: billable and total hours over time",
+        "month": "monthly trend, {count} buckets: billable and total hours over time"
+      },
+      "cw": "CW {week}",
+      "weekFrom": "{week} · from {day}",
+      "readout": "{label} · <bill>{billable} billable</bill> + <non>{nonBillable} non-billable</non> = {total} · {entries}",
+      "buckets": "{count, plural, one {# bucket} other {# buckets}}",
+      "lastOf": "last {shown} of {total} buckets",
+      "legend": "· <bill>billable</bill> + <non>non-billable</non> stacked to total · hover",
+      "clickToFilter": "· click to filter",
+      "peak": "peak {label} · {hours}",
+      "barAria": "{label}: {total} total, {billable} billable, {entries}"
+    },
+    "donut": {
+      "title": "BILLABLE SPLIT",
+      "hint": "click a share to filter",
+      "billable": "Billable",
+      "nonBillable": "Non-billable",
+      "centreLabel": "billable",
+      "aria": "Billable split: {percent} of {hours} billable",
+      "legendBillable": "{hours} BILLABLE",
+      "legendNonBillable": "{hours} NON-BILLABLE",
+      "note": "Tracked time split by the billable flag on each TrackingTime entry. Percentages are of hours in the current selection, so changing the date range or filters changes this figure."
+    },
+    "capacity": {
+      "title": "Capacity to take on work",
+      "qualifierEmpty": "LOGGED LOAD vs NOMINAL",
+      "qualifier": "LOGGED LOAD vs NOMINAL 40H/WEEK · {weeks, plural, one {# WEEK} other {# WEEKS}} IN RANGE",
+      "empty": "No tracked time in this selection, so there is no load to judge capacity against.",
+      "band": {
+        "over": "OVER CAPACITY",
+        "full": "AT CAPACITY",
+        "steady": "STEADY",
+        "light": "ROOM TO TAKE ON MORE",
+        "open": "WIDE OPEN"
+      },
+      "legend": {
+        "room": "ROOM",
+        "steady": "STEADY",
+        "atCap": "AT CAP.",
+        "over": "OVER"
+      },
+      "availableLabel": "AVAILABLE TO TAKE ON WORK · {count, plural, one {# PERSON} other {# PEOPLE}}",
+      "availableTitle": "{name}: {percent} logged load, about {spare} of nominal capacity spare across {weeks, plural, one {# week} other {# weeks}}",
+      "spareFree": "~{hours} free",
+      "noneAvailable": "Nobody is sitting light in this selection — everyone with logged time is at better than half their nominal load. To free someone up, look at the busiest rows below and what they are spending time on.",
+      "rowTitle": "{name}: {tracked} logged of ~{nominal} nominal",
+      "drillKicker": "{percent} LOGGED LOAD · {band}",
+      "drillSubPlain": "of ~{nominal} nominal",
+      "drillSub": "{share} · of ~{nominal} nominal",
+      "note": "“Load” is tracked hours over a nominal 40h/week — a planning signal, not a verdict: consultancy weeks also hold unlogged office work, so a light bar means room on tracked project work, not an empty desk. Filter by service or customer above to ask who has room on a specific kind of work."
+    },
+    "insights": {
+      "shareKicker": "{percent} OF {hours}",
+      "concentration": {
+        "title": "Customer concentration",
+        "qualifier": "1 SQUARE = 1% OF {hours}",
+        "summaryEmpty": "No customers in this selection",
+        "summary": "top {count} hold {percent} of {hours}",
+        "summaryBiggest": "· biggest {name} {percent}",
+        "empty": "No customers in this selection.",
+        "aria": "Customer concentration: {list}, everything else {hours}",
+        "listItem": "{name} {percent}",
+        "everythingElse": "everything else",
+        "legendValue": "{percent} · {hours}",
+        "dependency": "{name} alone is {percent} of this selection’s hours — a concentration worth knowing when planning capacity or pricing."
+      },
+      "pattern": {
+        "title": "When the work happens",
+        "qualifier": "TRACKED HOURS BY WEEKDAY × START HOUR · EUROPE/BERLIN",
+        "empty": "No tracked time in this selection.",
+        "aria": "Tracked hours by weekday and start hour",
+        "cellNone": "{day} {hour}:00: nothing tracked",
+        "cell": "{day} {hour}:00–{hour}:59: {hours} tracked",
+        "note": "Colour is square-root scaled: the on-the-hour morning spike (site visits) would otherwise flatten the rest of the week. Weekend rows appear only when weekend work exists."
+      },
+      "serviceMix": {
+        "title": "Service mix by month",
+        "qualifier": "SHARE OF EACH MONTH'S HOURS",
+        "aria": "Service mix per month, as a share of that month's hours",
+        "readout": "{label}: {hours} — {segments}",
+        "segment": "{name} {percent}",
+        "note": "Share, not volume, on purpose: the trend chart above already shows how much was worked; this shows what KIND of work it was and how that mix shifts month to month."
+      }
+    },
+    "tables": {
+      "relative": {
+        "today": "today",
+        "yesterday": "yesterday",
+        "days": "{count}d ago",
+        "months": "{count}mo ago",
+        "years": "{count}y ago"
+      },
+      "breakdown": {
+        "title": "BY {dimension}",
+        "hint": "select a name to narrow the report",
+        "narrowTo": "Narrow the report to {name}",
+        "search": "Find {dimension}…",
+        "empty": "No {dimension} has logged time in this selection.",
+        "summary": "{items} with logged time",
+        "hours": "Hours",
+        "billable": "Billable",
+        "billPct": "Bill %",
+        "billPctTitle": "Billable share of this row's logged time. Rows with no logged time show —.",
+        "entries": "Entries",
+        "last": "Last",
+        "lastTitle": "Most recent entry in the selected period",
+        "share": "Share",
+        "shareTitle": "Share of the selection's total hours. The figure is the true share; the bar is scaled to the largest row so the column compares rows against each other."
+      },
+      "budget": {
+        "title": "BUDGET BURN",
+        "hint": "{count} over budget",
+        "project": "Project",
+        "budget": "Budget",
+        "actual": "Actual",
+        "actualTitle": "Hours logged within the selected period only",
+        "remaining": "Remaining",
+        "remainingTitle": "Negative is the overrun. Sorted ascending, the worst overruns lead.",
+        "burn": "Burn",
+        "search": "Find project…",
+        "footnote": "Projects without an estimate are omitted, not shown at 0% — no estimate means nobody set a budget.",
+        "empty": "No project in this selection has an hours estimate set.",
+        "summary": "{projects} with an estimate · {over} over budget"
+      },
+      "economics": {
+        "revenue": "REVENUE",
+        "cost": "COST",
+        "margin": "MARGIN",
+        "marginValue": "{margin} · {percent}",
+        "title": "PROJECT ECONOMICS",
+        "hint": "rates are effective-dated to each entry · exec only",
+        "colProject": "Project",
+        "colHours": "Hours",
+        "colRevenue": "Revenue",
+        "colCost": "Cost",
+        "colMargin": "Margin",
+        "colMarginPct": "%",
+        "marginPctTitle": "Margin as a share of revenue. A project with no revenue shows — rather than 0%.",
+        "search": "Find project…",
+        "empty": "No project in this period has both logged time and a rate on file.",
+        "footnoteFiltered": "Scoped to the projects in this selection, but each row is the project's full revenue for the period: rates resolve inside a security-definer function that takes only a date range, so the member and billable filters cannot reach it.",
+        "footnote": "Scoped to the projects and period in this selection. Rates are resolved inside a security-definer function, so no total here is ever partial.",
+        "summary": "{projects} · revenue, cost and margin per project"
+      },
+      "entries": {
+        "title": "TIME ENTRIES",
+        "hint": "the rows every figure above is derived from",
+        "date": "Date",
+        "member": "Member",
+        "projectTask": "Project / task",
+        "customer": "Customer",
+        "duration": "Duration",
+        "type": "Type",
+        "billable": "BILLABLE",
+        "calendar": "CALENDAR",
+        "search": "Find entry…",
+        "empty": "No entry in this selection.",
+        "summary": "{entries} · the rows every figure above is derived from"
+      }
+    },
+    "freshness": {
+      "imported": "Imported from the TrackingTime API {age} ({stamp})",
+      "syncingNote": "· a sync is running now",
+      "ageUnderHour": "less than an hour ago",
+      "ageHours": "{count, plural, one {# hour ago} other {# hours ago}}",
+      "ageDays": "{count, plural, one {# day ago} other {# days ago}}",
+      "neverRefreshed": "This data has never been refreshed automatically",
+      "isOld": "This data is {age} old",
+      "lastRefreshed": "This data was last refreshed {age}",
+      "withStamp": "{headline} ({stamp})",
+      "failedSince": "{count, plural, one {# sync attempt has} other {# sync attempts have}} failed since then, so the figures below are correct but no longer updating.",
+      "manualOnly": "Every figure below comes from a one-off manual import, so it reflects whenever that was run rather than today.",
+      "snapshot": "Every figure below is a snapshot from that import, not a live reading.",
+      "runningNow": "A sync is running right now — reload shortly.",
+      "runCommand": "Run `npm run sync:trackingtime` to refresh."
+    },
+    "window": {
+      "w4": "4 weeks",
+      "w12": "12 weeks",
+      "w26": "6 months",
+      "w52": "12 months",
+      "weekView": "Week view →"
     }
   },
   "systemHealth": {
@@ -996,5 +1420,520 @@
         "budgetUse": "Database size vs budget"
       }
     }
+  },
+  "time": {
+    "page": {
+      "categoryTrack": "TIME TRACKING / TRACK",
+      "categoryRecords": "TIME TRACKING / RECORDS",
+      "title": "Time",
+      "meta": "TRACKINGTIME-EQUIVALENT · SECONDS · {state}",
+      "timerRunning": "TIMER RUNNING",
+      "timerIdle": "NO TIMER RUNNING",
+      "scopeMine": "MY TIME",
+      "scopeTeam": "TEAM",
+      "unlinkedTitle": "No time-tracking record linked to your account",
+      "unlinkedBody": "Your account isn't linked to a Time Tracking member yet, so there is no personal time to show. That is expected before the first TrackingTime import runs, or if your email doesn't match a tracked user. Switch to Team to see what you're permitted to view, or ask an administrator to link it.",
+      "emptyTitle": "Nothing tracked this week",
+      "emptyBody": "Entries appear here once time is tracked or imported from TrackingTime. An empty list can also mean you don't have access to anybody else's time, which is the access model working rather than a fault."
+    },
+    "tabs": {
+      "track": "Track",
+      "records": "Records",
+      "mine": "My time",
+      "team": "Team",
+      "prevWeek": "Previous week",
+      "nextWeek": "Next week",
+      "thisWeek": "This week",
+      "range": "{from} – {to}"
+    },
+    "totals": {
+      "logged": "LOGGED",
+      "billable": "BILLABLE",
+      "billableHint": "{percent} of logged",
+      "calendar": "CALENDAR",
+      "calendarHint": "placeholders, excluded from work",
+      "decimal": "DECIMAL",
+      "decimalHint": "hours, for invoicing"
+    },
+    "entries": {
+      "untitled": "Untitled entry",
+      "noCustomer": "No customer",
+      "noProject": "No project",
+      "running": "running",
+      "billable": "billable",
+      "invoiced": "invoiced",
+      "calendar": "calendar"
+    },
+    "weekSummary": {
+      "title": "Week summary",
+      "meta": "WEEK OF {week} · {count, plural, one {# MEMBER} other {# MEMBERS}}",
+      "member": "Member",
+      "logged": "Logged",
+      "billable": "Billable",
+      "calendar": "Calendar",
+      "contracted": "Contracted",
+      "utilisation": "Utilisation",
+      "note": "Calendar time is shown separately because it is mostly synced placeholders rather than deliberate work, and folding it into the total would inflate every utilisation figure here."
+    },
+    "tracker": {
+      "readOnly": "Your role permits viewing time but not logging it, so these controls are disabled. That is the access model working rather than a fault.",
+      "project": "Project",
+      "task": "Task",
+      "service": "Service",
+      "noProject": "No project",
+      "noTask": "No task",
+      "noService": "No service",
+      "taskFallback": "Task {id}",
+      "unpaid": "(unpaid)",
+      "timerRunning": "Timer running",
+      "stop": "Stop",
+      "stopping": "Stopping…",
+      "discard": "Discard",
+      "startPanel": "Start a timer",
+      "startButton": "Start timer",
+      "starting": "Starting…",
+      "notes": "Notes",
+      "notesTimerPlaceholder": "What are you working on?",
+      "notesManualPlaceholder": "What did you work on?",
+      "billable": "Billable",
+      "manualPanel": "Log time manually",
+      "date": "Date",
+      "from": "From",
+      "to": "To",
+      "save": "Add entry",
+      "saving": "Saving…",
+      "utcNote": "Times are read in UTC, matching how entries are stored and shown.",
+      "today": "Today",
+      "todayEmpty": "Nothing tracked today yet.",
+      "invoiced": "invoiced",
+      "delete": "Delete",
+      "deleteAria": "Delete entry: {name}",
+      "untitled": "untitled",
+      "runningLine": "{customer} / {project}",
+      "runningLineService": "{customer} / {project} / {service}",
+      "untitledEntry": "Untitled entry",
+      "noCustomer": "No customer"
+    },
+    "actions": {
+      "notSignedIn": "You are not signed in.",
+      "notPermitted": "Your role does not permit logging time.",
+      "noMemberRow": "Your account isn't linked to a Time Tracking member yet, so there is nothing to log time against. An administrator can link it.",
+      "pickProjectOrTaskTimer": "Pick a project or a task before starting the timer.",
+      "timerAlreadyRunning": "A timer is already running. Stop it before starting another.",
+      "noTimerRunning": "No timer is running.",
+      "clampedAtDay": "Timer ran longer than 24 hours and was capped at 24:00. Edit the entry if that isn't right.",
+      "invalidDateTime": "Enter a valid date with a start and end time.",
+      "endBeforeStartSplit": "The end time must be after the start time. Split a shift that crosses midnight into two entries.",
+      "endBeforeStart": "The end time must be after the start time.",
+      "tooLong": "A single entry cannot be longer than 24 hours.",
+      "future": "You cannot log time in the future.",
+      "tooFarBack": "You cannot log time more than {days} days in the past. Ask an administrator to add it.",
+      "pickProjectOrTaskEntry": "Pick a project or a task for this entry.",
+      "noEntrySpecified": "No entry was specified.",
+      "entryGoneEdit": "That entry no longer exists, or you may not edit it.",
+      "onlyOwnEdit": "You can only edit your own time.",
+      "invoicedNoEdit": "This entry has been invoiced and can no longer be changed. Ask an administrator.",
+      "entryGoneDelete": "That entry no longer exists, or you may not delete it.",
+      "onlyOwnDelete": "You can only delete your own time.",
+      "invoicedNoDelete": "This entry has been invoiced and cannot be deleted."
+    }
+  },
+  "projects": {
+    "title": "Projects",
+    "header": {
+      "meta": "{projects} PROJECTS · {hours}H TRACKED"
+    },
+    "truncated": "This portfolio exceeds the reporting ceiling, so the hours below cover only the most recent entries. Totals per project may be understated.",
+    "empty": {
+      "title": "No projects yet",
+      "description": "Nothing has been imported from TrackingTime yet. The nightly sync populates this list; you can also run it manually with `npm run sync:trackingtime`."
+    },
+    "noAccess": {
+      "title": "You don't have access to the project portfolio",
+      "description": "Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is visible under Time. An administrator can grant wider access under Role Permissions.",
+      "action": "Go to Time →"
+    },
+    "filters": {
+      "searchLabel": "Search projects by name, customer or code",
+      "searchPlaceholder": "Search projects…",
+      "all": "All",
+      "billable": "Billable",
+      "nonBillable": "Non-bill.",
+      "clear": "Clear",
+      "countAll": "{count} PROJECTS",
+      "countOf": "{shown} OF {total}",
+      "facets": {
+        "over": "OVER BUDGET",
+        "risk": "AT RISK",
+        "healthy": "HEALTHY",
+        "nobudget": "NO BUDGET",
+        "idle": "NO ACTIVITY"
+      }
+    },
+    "customer": {
+      "label": "CUSTOMER",
+      "allNone": "All",
+      "all": "All ({count})",
+      "selected": "{count} selected",
+      "searchPlaceholder": "Search customers…",
+      "countOf": "{shown} of {total}",
+      "noun": "{count, plural, one {customer} other {customers}}",
+      "selectedSuffix": " · {count} selected",
+      "noMatch": "No customer matches “{query}”",
+      "clear": "Clear {count}",
+      "listLabel": "Customer"
+    },
+    "tiles": {
+      "projects": {
+        "label": "PROJECTS",
+        "hint": "in this view"
+      },
+      "hours": {
+        "label": "TRACKED HOURS",
+        "hint": "logged to date"
+      },
+      "billable": {
+        "label": "BILLABLE",
+        "hint": "{hours} h billable"
+      },
+      "over": {
+        "label": "OVER BUDGET",
+        "needsAttention": "needs attention",
+        "allWithin": "all within budget"
+      },
+      "noBudget": {
+        "label": "NO BUDGET SET",
+        "hint": "burn unknowable"
+      }
+    },
+    "drills": {
+      "customerCount": "{count, plural, one {# customer} other {# customers}}",
+      "overBy": "{hours} over"
+    },
+    "disclosure": {
+      "charts": {
+        "title": "Portfolio charts",
+        "empty": "No projects match the current filter",
+        "summary": "{over} over budget · {noBudget} without a budget · {projects} projects"
+      },
+      "customers": {
+        "title": "Customers",
+        "empty": "No customer hours logged yet",
+        "summary": "{count} customers · top 5 hold {share}",
+        "biggest": " · biggest {name}"
+      }
+    },
+    "ledger": {
+      "title": "PROJECT LEDGER",
+      "count": "{count} PROJECTS",
+      "empty": {
+        "title": "No projects match",
+        "description": "No project matches the current filters. Clearing them above brings the full portfolio back."
+      },
+      "noCustomer": "No customer",
+      "loggedH": "{hours} H LOGGED",
+      "budgetH": "{hours} H BUDGET",
+      "noBudget": "NO BUDGET",
+      "never": "never",
+      "pagerNoun": "projects",
+      "showFewer": "SHOW FEWER · {shown} OF {total} PROJECTS",
+      "showMore": "SHOW {count} MORE ON THIS PAGE · {shown} OF {total} PROJECTS",
+      "columns": {
+        "project": "PROJECT",
+        "customer": "CUSTOMER",
+        "budget": "BUDGET",
+        "logged": "LOGGED",
+        "consumed": "CONSUMED",
+        "people": "PEOPLE",
+        "last": "LAST"
+      }
+    },
+    "health": {
+      "title": "Portfolio health",
+      "qualifier": "{count} PROJECTS",
+      "centreLabel": "budgeted",
+      "chartLabel": "Portfolio health across {total} projects: {over} over budget, {risk} at risk, {healthy} healthy, {noBudget} without a budget",
+      "slices": {
+        "over": "Over budget",
+        "risk": "At risk",
+        "healthy": "Healthy",
+        "noBudget": "No budget"
+      },
+      "note": "Projects by budget burn — logged hours as a share of the budget. Over budget is above 100%, at risk is 85–100%. Projects with no budget set are counted separately, never assumed healthy."
+    },
+    "topProjects": {
+      "title": "Where the hours go",
+      "qualifier": "TOP 10 BY LOGGED HOURS",
+      "note": "The ten projects with the most hours logged. Length is effort spent, not fee or budget — a long bar can be a large engagement or a small one running over."
+    },
+    "burnDonuts": {
+      "title": "Budget burn",
+      "qualifier": "TOP 5 BUDGETED PROJECTS BY BURN · ESTIMATES UNDER 10H EXCLUDED AS PLACEHOLDERS",
+      "empty": "No projects carry a real budget yet — every estimate on file is below the 10h placeholder floor, so there is no burn to show.",
+      "slices": {
+        "over": "Over budget",
+        "used": "Hours used",
+        "remaining": "Hours remaining"
+      },
+      "left": "{hours} left",
+      "over": "{hours} over",
+      "chartLabel": "{name}: {logged} of {estimate} estimated hours used ({percent} burned), {centre}",
+      "note": "Hours logged against the estimate. The ring fills to 100% and no further, so overruns are told by the centre figure, not the arc — two full red rings are not necessarily equally over."
+    },
+    "customerCharts": {
+      "title": "Customers",
+      "qualifier": "BY DELIVERED HOURS",
+      "empty": "No customer hours logged yet.",
+      "biggest": {
+        "title": "Biggest customers",
+        "qualifier": "TOP 5 = {share} OF {hours}H",
+        "chartLabel": "Delivered-hours share by customer: {list}"
+      },
+      "more": "{count} more",
+      "concentration": "{name} alone is {share} of delivered hours and the top five are {top5} — a concentration worth weighing when planning capacity or pricing.",
+      "note": "Each customer’s share of delivered hours. This measures effort, not fee — rates differ by customer, so the largest slice is not necessarily the largest account.",
+      "capacity": {
+        "title": "Capacity against commitment",
+        "qualifier": "DELIVERED vs BUDGETED HOURS · WORST HEADROOM FIRST",
+        "delivered": "DELIVERED",
+        "overBudget": "OVER BUDGET",
+        "empty": "No customer has a budgeted project to judge capacity against.",
+        "over": "{hours} over",
+        "left": "{hours} left",
+        "link": "See every project by burn →"
+      }
+    },
+    "detail": {
+      "title": "Project",
+      "noAccess": {
+        "title": "You don't have access to this project",
+        "description": "Viewing a project record needs the 'View All Projects' permission, which your role doesn't hold. An administrator can grant it under Role Permissions."
+      },
+      "meta": "{customer}{code} · {entries} ENTRIES",
+      "noCustomer": "NO CUSTOMER",
+      "allProjects": "← All projects",
+      "pills": {
+        "archived": "ARCHIVED",
+        "billable": "BILLABLE",
+        "nonBillable": "NON-BILLABLE"
+      },
+      "truncated": "This project has more entries than the reporting ceiling, so the figures above cover only the most recent ones.",
+      "stats": {
+        "budget": {
+          "label": "BUDGET",
+          "agreed": "agreed",
+          "notSet": "not set"
+        },
+        "logged": {
+          "label": "LOGGED",
+          "hint": "to date"
+        },
+        "remaining": {
+          "label": "REMAINING",
+          "over": "over budget",
+          "left": "left",
+          "noBudget": "no budget set"
+        },
+        "consumed": {
+          "label": "CONSUMED",
+          "unknown": "burn unknowable",
+          "ofBudget": "of budget"
+        },
+        "billable": {
+          "label": "BILLABLE",
+          "hint": "of logged hours"
+        }
+      },
+      "footnote": "Figures cover all recorded time on this project, including calendar entries. <link>Open in the TrackingTime API Dashboard</link> to filter by period, person or billability."
+    },
+    "burnChart": {
+      "title": "Hours over time",
+      "empty": "No time has been logged against this project yet.",
+      "qualifier": "CUMULATIVE · MONTHLY · OBSERVED",
+      "logged": "LOGGED",
+      "budget": "BUDGET"
+    },
+    "contributors": {
+      "title": "Who worked on this",
+      "empty": "Nobody has logged time yet.",
+      "billableUnit": "b",
+      "hoursUnit": "h"
+    },
+    "taskTable": {
+      "title": "Time by task",
+      "topOf": "TOP {shown} OF {total}",
+      "empty": "No tasks recorded."
+    },
+    "contract": {
+      "title": "Contract",
+      "intro": "The hours sales agreed, and the dates they cover. Renewing keeps every previous period on record.",
+      "renew": "Renew contract",
+      "none": "No contract terms recorded for this project.",
+      "fallback": " The budget guard is falling back to the <strong>{hours}</strong> estimate synced from TrackingTime, which the vendor overwrites on every sync. Record the agreed terms to make the budget stick.",
+      "noBudgetToEnforce": " There is no budget to enforce, so bookings on it are never refused.",
+      "notInstalled": {
+        "title": "Contract terms are not switched on in the database yet, so nobody can record them -- including executives. This is not a permission problem.",
+        "apply": "Apply <first></first> and then <second></second>, and this panel becomes editable."
+      },
+      "record": "Record contract terms",
+      "recording": "Recording...",
+      "noPermission": "Contract terms are commercial, so only executives and department heads can record them.",
+      "gap": "No contract covers today. Period {period} ended on {endsOn}. Hours logged since then sit outside any contract period: they are still recorded, but they cannot be checked against a budget until the renewal is confirmed.",
+      "period": "Period {period}{reference}",
+      "dates": "{startsOn} to {endsOn}{remaining}",
+      "daysLeft": " · {days} days left",
+      "ended": " · ended",
+      "hoursOf": "{logged} / {budget} h",
+      "remaining": "{hours}h remaining",
+      "overBudget": "{hours}h over the agreed budget",
+      "warnNote": "Bookings warn from {percent}% and are refused past 100%. Only hours dated inside this period count towards it.",
+      "correct": "Correct these terms",
+      "renewIntro": "Record the renewed terms once sales confirm them. This adds a new period; period {period} keeps its own budget and the hours already booked against it. The new period must not overlap the old one, so it usually starts the day after it ended.",
+      "confirmRenewal": "Confirm renewal",
+      "renewing": "Renewing...",
+      "cancel": "Cancel",
+      "correctIntro": "Correcting a period changes its terms without touching the hours booked against it. Use this for a transcription error, not for a renewal.",
+      "saveCorrection": "Save correction",
+      "saving": "Saving...",
+      "history": {
+        "title": "Contract history",
+        "intro": "Every previous term keeps its own budget and its own booked hours. Nothing is overwritten by a renewal.",
+        "columns": {
+          "period": "Period",
+          "dates": "Dates",
+          "budget": "Budget",
+          "booked": "Booked",
+          "burn": "Burn",
+          "reference": "Reference"
+        },
+        "dates": "{startsOn} to {endsOn}",
+        "hours": "{hours} h"
+      },
+      "fields": {
+        "budgetHours": "Agreed hours",
+        "budgetHoursPlaceholder": "e.g. 8",
+        "startsOn": "Contract starts",
+        "endsOn": "Contract ends",
+        "reference": "Contract reference",
+        "optional": "optional",
+        "warnAt": "Warn at %",
+        "warnAtHint": "Bookings warn from here on. A small retainer and a large programme rarely want the same point.",
+        "notes": "Notes"
+      },
+      "barNoBudget": "No budget set",
+      "barUsed": "{percent} percent of budget used"
+    },
+    "tasks": {
+      "title": "Tasks & hours",
+      "openOf": "{open} OPEN OF {total}",
+      "viewList": "List",
+      "viewBoard": "Board",
+      "addName": "New task name",
+      "addOwner": "Owner",
+      "addEstimate": "Est. h",
+      "adding": "Adding…",
+      "add": "Add task",
+      "columns": {
+        "task": "TASK",
+        "estimate": "EST",
+        "logged": "LOGGED",
+        "statusOwner": "STATUS / OWNER"
+      },
+      "pagerNoun": "tasks",
+      "status": {
+        "notStarted": "NOT STARTED",
+        "inProgress": "IN PROGRESS",
+        "over33": "OVER 33%",
+        "done": "DONE"
+      },
+      "subtaskCount": "{done} of {total} subtasks on {name}",
+      "commentCount": "{count} comments on {name}",
+      "deleteTask": "Delete {name}",
+      "deleteComment": "Delete comment",
+      "noSubtasks": "No subtasks yet.",
+      "addSubtask": "Add a subtask…",
+      "addSubtaskButton": "Add",
+      "noComments": "No comments yet.",
+      "addComment": "Add a comment…",
+      "postComment": "Post",
+      "unassigned": "Unassigned",
+      "overdue": "OVERDUE ",
+      "due": "DUE ",
+      "moveTo": "Move to: {name}",
+      "moveToUnfiled": "Move to: Unfiled",
+      "moveLabel": "Move {name} to another column",
+      "unfiled": "UNFILED",
+      "noTasks": "No tasks",
+      "wipTitle": "{count} of a {limit} work-in-progress limit",
+      "newColumn": "New column…",
+      "noColumns": {
+        "title": "No columns yet",
+        "description": "Add a column to start shaping this project's workflow — intake, site visit, report drafted, whatever fits. Columns here are the same groups the list view uses."
+      }
+    },
+    "actions": {
+      "denied": "You do not have permission to change this project.",
+      "noParent": "That task is not attached to a project.",
+      "nameRequired": "Task name is required.",
+      "added": "Added “{name}”.",
+      "sectionNoParent": "That column is not attached to a project.",
+      "sectionNameRequired": "Name the column first."
+    },
+    "contractActions": {
+      "notSignedIn": "You are not signed in.",
+      "denied": "Your role does not permit changing contract terms. Contract budgets are commercial terms, so they are limited to executives and department heads.",
+      "overlap": "{hint} Each date can belong to only one contract period, otherwise the budget guard cannot tell which budget applies.",
+      "overlapHint": "That date range overlaps a contract period that already exists on this project.",
+      "invalid": "Those values are not a valid contract: check that the budget is above zero and the end date is not before the start date.",
+      "duplicate": "A contract period with that number already exists on this project. Reload the page and try again.",
+      "missingProject": "Missing project.",
+      "missingPeriod": "Missing contract period.",
+      "budgetRequired": "Enter the agreed budget in hours, above zero.",
+      "renewalBudgetRequired": "Enter the renewed budget in hours, above zero.",
+      "datesRequired": "Enter both contract dates as yyyy-mm-dd.",
+      "endBeforeStart": "The contract cannot end before it starts.",
+      "recorded": "Contract period {period} recorded: {hours}h from {startsOn} to {endsOn}.",
+      "renewed": "Renewed as contract period {period}: {hours}h from {startsOn} to {endsOn}. The previous period keeps its own budget and the hours booked against it.",
+      "nextPeriod": "next",
+      "corrected": "Contract period updated."
+    },
+    "budgetPanel": {
+      "title": "Budget & margin",
+      "qualifier": "APPROVED HOURS ONLY",
+      "overBudget": "Over budget",
+      "pastAlert": "Past {percent}% alert",
+      "noBudget": "No hours budget set for this project, so there is nothing to burn down against. An exec can set one to enable overrun warnings.",
+      "ofHours": "{logged} of {budget} h",
+      "barLabel": "Hours budget consumed",
+      "billableHours": "BILLABLE HOURS",
+      "hours": "{hours} h",
+      "revenue": "REVENUE",
+      "cost": "COST",
+      "costHint": "all hours, billable or not",
+      "margin": "MARGIN"
+    }
+  },
+  "pager": {
+    "allCount": "ALL {count, number} {noun}",
+    "range": "{from, number}–{to, number} OF {count, number} {noun}",
+    "perPage": "PER PAGE",
+    "all": "ALL",
+    "prev": "← PREV",
+    "next": "NEXT →",
+    "srAll": "Showing all {count, number} {noun}",
+    "srRange": "Showing {from, number} to {to, number} of {count, number} {noun}, page {page, number} of {pages, number}"
+  },
+  "dataTable": {
+    "noRows": "no rows",
+    "allRows": "all {count, number} rows",
+    "range": "{from, number}–{to, number} of {count, number}",
+    "filteredFrom": "filtered from {count, number}",
+    "searchPlaceholder": "Search rows…",
+    "clearSearch": "Clear search",
+    "showEveryRow": "Show every row",
+    "rowsPerPage": "{count, number} rows per page",
+    "all": "ALL",
+    "csvTitle": "Download these rows as CSV, with the current filter and sort applied",
+    "empty": "Nothing to show."
   }
 }

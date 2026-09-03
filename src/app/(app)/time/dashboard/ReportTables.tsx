@@ -23,32 +23,56 @@
  * than letting them pose as the smallest value.
  */
 import Link from "next/link";
-import type { BudgetRow, GroupRow } from "@/lib/queries/trackingtime-report";
+import { useLocale, useTranslations } from "next-intl";
+import type { BudgetRow, GroupBy, GroupRow } from "@/lib/queries/trackingtime-report";
 import type { ProjectEconomicsRow } from "@/lib/queries/time-dashboard";
+import { fmtDate, fmtHours, fmtInt, fmtPct, tagFor } from "@/lib/locale-format";
 import { cmpNum, cmpText, DataTable, type Column } from "@/components/data-table/DataTable";
 
 /* ------------------------------------------------------------------ shared */
 
-function hrs(h: number): string {
-  return `${h.toLocaleString("en-GB", { maximumFractionDigits: 1 })}h`;
+/** What a table needs from the catalogue, without importing next-intl's types. */
+type Tr = (key: string, values?: Record<string, string | number>) => string;
+
+/**
+ * A share to EXACTLY one decimal: "3.0%" in en, "3,0 %" in de.
+ *
+ * fmtPct() is not enough here because it trims a trailing zero, and this column
+ * is read as a ranking -- "3%" beside "3.3%" reads as two different precisions
+ * rather than two comparable shares. The German percent spacing is fmtPct's own
+ * rule, repeated here rather than reimplemented differently.
+ */
+function sharePct(n: number, locale: string): string {
+  const v = n.toLocaleString(tagFor(locale), {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  return locale === "de" ? `${v} %` : `${v}%`;
 }
 
-function shortDate(isoDay: string): string {
+function shortDate(isoDay: string, locale: string): string {
   const d = new Date(`${isoDay}T00:00:00.000Z`);
   if (Number.isNaN(d.getTime())) return isoDay;
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  return fmtDate(d, locale, { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
-function relativeDays(isoTs: string | null): string {
+/**
+ * "3mo ago" / "—", in the reader's language.
+ *
+ * The DASH IS KEPT for a missing timestamp rather than turned into a date or a
+ * zero: "never logged anything" and "logged something on the epoch" are
+ * different statements, and this column has always said so.
+ */
+function relativeDays(isoTs: string | null, t: Tr): string {
   if (!isoTs) return "—";
   const then = new Date(isoTs).getTime();
   if (Number.isNaN(then)) return "—";
   const days = Math.floor((Date.now() - then) / 86_400_000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days}d ago`;
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
-  return `${Math.floor(days / 365)}y ago`;
+  if (days <= 0) return t("relative.today");
+  if (days === 1) return t("relative.yesterday");
+  if (days < 30) return t("relative.days", { count: days });
+  if (days < 365) return t("relative.months", { count: Math.floor(days / 30) });
+  return t("relative.years", { count: Math.floor(days / 365) });
 }
 
 /**
@@ -95,11 +119,19 @@ export function BreakdownTable({
   period,
 }: {
   rows: GroupRow[];
-  dimension: string;
+  /**
+   * The grouping key, NOT a display label. It selects the catalogue entry and
+   * the export filename, both of which must stay stable across languages.
+   */
+  dimension: GroupBy;
   /** Serialisable drill-down targets, keyed by row. Precomputed on the server. */
   hrefFor?: Record<string, string>;
   period: string;
 }) {
+  const t = useTranslations("timeDashboard.tables");
+  const dim = useTranslations("timeDashboard.dimensions");
+  const locale = useLocale();
+  const hrs = (h: number) => fmtHours(h, locale);
   const linked = hrefFor ?? {};
   const anyLinked = rows.some((r) => linked[r.key]);
 
@@ -121,7 +153,7 @@ export function BreakdownTable({
   const columns: Column<GroupRow>[] = [
     {
       key: "label",
-      header: dimension,
+      header: dim(`${dimension}.lower`),
       className: "max-w-[26rem]",
       compare: (a, b) => cmpText(a.label, b.label),
       descFirst: false,
@@ -146,7 +178,7 @@ export function BreakdownTable({
           <Link
             href={href}
             scroll={false}
-            title={`Narrow the report to ${r.label}`}
+            title={t("breakdown.narrowTo", { name: r.label })}
             className="block hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
             {body}
@@ -158,7 +190,7 @@ export function BreakdownTable({
     },
     {
       key: "hours",
-      header: "Hours",
+      header: t("breakdown.hours"),
       align: "right",
       compare: (a, b) => a.totalSeconds - b.totalSeconds,
       csv: (r) => r.totalHours,
@@ -166,7 +198,7 @@ export function BreakdownTable({
     },
     {
       key: "billable",
-      header: "Billable",
+      header: t("breakdown.billable"),
       align: "right",
       compare: (a, b) => a.billableSeconds - b.billableSeconds,
       csv: (r) => r.billableHours,
@@ -174,10 +206,10 @@ export function BreakdownTable({
     },
     {
       key: "billpct",
-      header: "Bill %",
+      header: t("breakdown.billPct"),
       align: "right",
       compare: (a, b) => cmpNum(a.billablePercent, b.billablePercent),
-      title: "Billable share of this row's logged time. Rows with no logged time show —.",
+      title: t("breakdown.billPctTitle"),
       csv: (r) => (r.billablePercent === null ? "" : r.billablePercent),
       cell: (r) => (
         <span
@@ -185,21 +217,25 @@ export function BreakdownTable({
             r.billablePercent === null ? "text-[var(--text-faint)]" : "text-[var(--text-secondary)]"
           }`}
         >
-          {r.billablePercent === null ? "—" : `${r.billablePercent}%`}
+          {r.billablePercent === null ? "—" : fmtPct(r.billablePercent, locale)}
         </span>
       ),
     },
     {
       key: "entries",
-      header: "Entries",
+      header: t("breakdown.entries"),
       align: "right",
       compare: (a, b) => a.entryCount - b.entryCount,
       csv: (r) => r.entryCount,
-      cell: (r) => <span className="font-mono tabular-nums text-[var(--text-faint)]">{r.entryCount}</span>,
+      cell: (r) => (
+        <span className="font-mono tabular-nums text-[var(--text-faint)]">
+          {fmtInt(r.entryCount, locale)}
+        </span>
+      ),
     },
     {
       key: "last",
-      header: "Last",
+      header: t("breakdown.last"),
       align: "right",
       // Sorted on the raw timestamp, not the rendered "3mo ago" string, which
       // would order lexically and put "9d" after "3mo".
@@ -208,25 +244,24 @@ export function BreakdownTable({
           a.lastActivityAt ? Date.parse(a.lastActivityAt) : null,
           b.lastActivityAt ? Date.parse(b.lastActivityAt) : null,
         ),
-      title: "Most recent entry in the selected period",
+      title: t("breakdown.lastTitle"),
       csv: (r) => r.lastActivityAt ?? "",
       cell: (r) => (
         <span
           className="text-[var(--text-faint)]"
-          title={r.lastActivityAt ? shortDate(r.lastActivityAt.slice(0, 10)) : undefined}
+          title={r.lastActivityAt ? shortDate(r.lastActivityAt.slice(0, 10), locale) : undefined}
         >
-          {relativeDays(r.lastActivityAt)}
+          {relativeDays(r.lastActivityAt, t)}
         </span>
       ),
     },
     {
       key: "share",
-      header: "Share",
+      header: t("breakdown.share"),
       align: "right",
       className: "w-[9rem]",
       compare: (a, b) => a.sharePercent - b.sharePercent,
-      title:
-        "Share of the selection's total hours. The figure is the true share; the bar is scaled to the largest row so the column compares rows against each other.",
+      title: t("breakdown.shareTitle"),
       csv: (r) => Math.round(r.sharePercent * 10) / 10,
       cell: (r) => (
         <span className="flex items-center gap-2">
@@ -234,7 +269,7 @@ export function BreakdownTable({
             <Bar percent={maxShare > 0 ? (r.sharePercent / maxShare) * 100 : 0} />
           </span>
           <span className="w-[3.2rem] text-right font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
-            {r.sharePercent.toFixed(1)}%
+            {sharePct(r.sharePercent, locale)}
           </span>
         </span>
       ),
@@ -243,20 +278,25 @@ export function BreakdownTable({
 
   return (
     <DataTable
-      title={`BY ${dimension.toUpperCase()}`}
-      hint={anyLinked ? "select a name to narrow the report" : undefined}
+      title={t("breakdown.title", { dimension: dim(`${dimension}.label`).toUpperCase() })}
+      hint={anyLinked ? t("breakdown.hint") : undefined}
       rows={rows}
       columns={columns}
       rowKey={(r) => r.key}
       initialSort="hours"
+      // The export FILENAME keeps the grouping key, not the translated word: a
+      // German reader's CSV must still land beside an English one in the same
+      // folder and sort next to it.
       exportName={`trackingtime-by-${dimension}-${period}`}
-      searchPlaceholder={`Find ${dimension}…`}
-      emptyText={`No ${dimension} has logged time in this selection.`}
+      searchPlaceholder={t("breakdown.search", { dimension: dim(`${dimension}.lower`) })}
+      emptyText={t("breakdown.empty", { dimension: dim(`${dimension}.lower`) })}
       // Collapsible for consistency with the panels below, but OPEN: this is
       // the answer to the question the group-by control just asked, so hiding
       // it would leave the page with no visible result at all.
       collapsible
-      summary={`${rows.length} ${rows.length === 1 ? dimension : `${dimension}s`} with logged time`}
+      summary={t("breakdown.summary", {
+        items: dim(`${dimension}.count`, { count: rows.length }),
+      })}
     />
   );
 }
@@ -264,12 +304,16 @@ export function BreakdownTable({
 /* ---------------------------------------------------------------- budgets */
 
 export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: string }) {
+  const t = useTranslations("timeDashboard.tables");
+  const d = useTranslations("drill");
+  const locale = useLocale();
+  const hrs = (h: number) => fmtHours(h, locale);
   const over = rows.filter((r) => r.isOver).length;
 
   const columns: Column<BudgetRow>[] = [
     {
       key: "project",
-      header: "Project",
+      header: t("budget.project"),
       className: "max-w-[24rem]",
       compare: (a, b) => cmpText(a.projectName, b.projectName),
       descFirst: false,
@@ -297,7 +341,7 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
     },
     {
       key: "budget",
-      header: "Budget",
+      header: t("budget.budget"),
       align: "right",
       compare: (a, b) => a.estimatedHours - b.estimatedHours,
       csv: (r) => r.estimatedHours,
@@ -305,20 +349,20 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
     },
     {
       key: "actual",
-      header: "Actual",
+      header: t("budget.actual"),
       align: "right",
       compare: (a, b) => a.actualHours - b.actualHours,
-      title: "Hours logged within the selected period only",
+      title: t("budget.actualTitle"),
       csv: (r) => r.actualHours,
       cell: (r) => <span className={mono}>{hrs(r.actualHours)}</span>,
     },
     {
       key: "remaining",
-      header: "Remaining",
+      header: t("budget.remaining"),
       align: "right",
       compare: (a, b) => a.remainingHours - b.remainingHours,
       descFirst: false,
-      title: "Negative is the overrun. Sorted ascending, the worst overruns lead.",
+      title: t("budget.remainingTitle"),
       csv: (r) => r.remainingHours,
       cell: (r) => (
         <span
@@ -332,7 +376,7 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
     },
     {
       key: "burn",
-      header: "Burn",
+      header: t("budget.burn"),
       align: "right",
       className: "w-[11rem]",
       compare: (a, b) => a.burnPercent - b.burnPercent,
@@ -347,7 +391,7 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
               r.isOver ? "text-[var(--critical)]" : "text-[var(--text-faint)]"
             }`}
           >
-            {r.burnPercent.toFixed(0)}%
+            {fmtPct(Math.round(r.burnPercent), locale)}
           </span>
         </span>
       ),
@@ -356,16 +400,16 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
 
   return (
     <DataTable
-      title="BUDGET BURN"
-      hint={`${over} over budget`}
+      title={t("budget.title")}
+      hint={t("budget.hint", { count: over })}
       rows={rows}
       columns={columns}
       rowKey={(r) => r.projectId}
       initialSort="burn"
       exportName={`trackingtime-budget-${period}`}
-      searchPlaceholder="Find project…"
-      footnote="Projects without an estimate are omitted, not shown at 0% — no estimate means nobody set a budget."
-      emptyText="No project in this selection has an hours estimate set."
+      searchPlaceholder={t("budget.search")}
+      footnote={t("budget.footnote")}
+      emptyText={t("budget.empty")}
       // Collapsed by default. Four full tables stacked made the page ~6,500px
       // tall, which is its own kind of unusable: the breakdown you came for
       // scrolls away and nothing below it is ever seen. The breakdown stays
@@ -375,16 +419,18 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
       // hunt.
       collapsible
       defaultOpen={false}
-      summary={`${rows.length} ${rows.length === 1 ? "project" : "projects"} with an estimate · ${over} over budget`}
+      summary={t("budget.summary", {
+        projects: d("projectCount", { count: rows.length }),
+        over,
+      })}
     />
   );
 }
 
 /* ------------------------------------------------------------- economics */
 
-function eur(v: number): string {
-  return `€${Math.round(v).toLocaleString("en-GB")}`;
-}
+/** Euro, no decimals — cents are noise at organisation scale. */
+const euroIn = (locale: string) => (v: number) => `€${fmtInt(v, locale)}`;
 
 /**
  * Revenue, cost and margin per project.
@@ -416,6 +462,11 @@ export function EconomicsTable({
    */
   perMemberFilterActive?: boolean;
 }) {
+  const t = useTranslations("timeDashboard.tables");
+  const d = useTranslations("drill");
+  const locale = useLocale();
+  const hrs = (h: number) => fmtHours(h, locale);
+  const eur = euroIn(locale);
   const revenue = rows.reduce((a, r) => a + r.revenue, 0);
   const cost = rows.reduce((a, r) => a + r.cost, 0);
   const margin = revenue - cost;
@@ -424,7 +475,7 @@ export function EconomicsTable({
   const columns: Column<ProjectEconomicsRow>[] = [
     {
       key: "project",
-      header: "Project",
+      header: t("economics.colProject"),
       className: "max-w-[22rem]",
       compare: (a, b) => cmpText(a.projectName, b.projectName),
       descFirst: false,
@@ -457,7 +508,7 @@ export function EconomicsTable({
     },
     {
       key: "hours",
-      header: "Hours",
+      header: t("economics.colHours"),
       align: "right",
       compare: (a, b) => a.totalSeconds - b.totalSeconds,
       csv: (r) => Math.round((r.totalSeconds / 3600) * 100) / 100,
@@ -467,7 +518,7 @@ export function EconomicsTable({
     },
     {
       key: "revenue",
-      header: "Revenue",
+      header: t("economics.colRevenue"),
       align: "right",
       compare: (a, b) => a.revenue - b.revenue,
       csv: (r) => r.revenue,
@@ -477,7 +528,7 @@ export function EconomicsTable({
     },
     {
       key: "cost",
-      header: "Cost",
+      header: t("economics.colCost"),
       align: "right",
       compare: (a, b) => a.cost - b.cost,
       csv: (r) => r.cost,
@@ -485,7 +536,7 @@ export function EconomicsTable({
     },
     {
       key: "margin",
-      header: "Margin",
+      header: t("economics.colMargin"),
       align: "right",
       compare: (a, b) => a.margin - b.margin,
       csv: (r) => r.margin,
@@ -501,10 +552,10 @@ export function EconomicsTable({
     },
     {
       key: "marginpct",
-      header: "%",
+      header: t("economics.colMarginPct"),
       align: "right",
       compare: (a, b) => cmpNum(a.marginPercent, b.marginPercent),
-      title: "Margin as a share of revenue. A project with no revenue shows — rather than 0%.",
+      title: t("economics.marginPctTitle"),
       csv: (r) => (r.marginPercent === null ? "" : r.marginPercent),
       cell: (r) => (
         <span
@@ -512,7 +563,7 @@ export function EconomicsTable({
             r.marginPercent === null ? "text-[var(--text-faint)]" : "text-[var(--text-secondary)]"
           }`}
         >
-          {r.marginPercent === null ? "—" : `${r.marginPercent}%`}
+          {r.marginPercent === null ? "—" : fmtPct(r.marginPercent, locale, 1)}
         </span>
       ),
     },
@@ -526,50 +577,55 @@ export function EconomicsTable({
     <div className="flex flex-col gap-[var(--card-gap)]">
       <div className="grid grid-cols-3 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
         {[
-          { label: "REVENUE", value: eur(revenue), accent: false },
-          { label: "COST", value: eur(cost), accent: false },
+          { key: "revenue", label: t("economics.revenue"), value: eur(revenue), accent: false },
+          { key: "cost", label: t("economics.cost"), value: eur(cost), accent: false },
           {
-            label: "MARGIN",
-            value: marginPct === null ? eur(margin) : `${eur(margin)} · ${marginPct}%`,
+            key: "margin",
+            label: t("economics.margin"),
+            value:
+              marginPct === null
+                ? eur(margin)
+                : t("economics.marginValue", {
+                    margin: eur(margin),
+                    percent: fmtPct(marginPct, locale, 1),
+                  }),
             accent: true,
           },
-        ].map((t) => (
-          <div key={t.label} className="border-r border-[var(--border)] px-4 py-3 last:border-r-0">
+        ].map((tile) => (
+          <div key={tile.key} className="border-r border-[var(--border)] px-4 py-3 last:border-r-0">
             <div className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-              {t.label}
+              {tile.label}
             </div>
             <div
               className={`font-mono text-[17px] font-semibold tabular-nums ${
-                t.accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
+                tile.accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
               }`}
             >
-              {t.value}
+              {tile.value}
             </div>
           </div>
         ))}
       </div>
 
       <DataTable
-        title="PROJECT ECONOMICS"
-        hint="rates are effective-dated to each entry · exec only"
+        title={t("economics.title")}
+        hint={t("economics.hint")}
         rows={rows}
         columns={columns}
         rowKey={(r) => r.projectId ?? "unattributed"}
         initialSort="revenue"
         exportName={`trackingtime-economics-${period}`}
-        searchPlaceholder="Find project…"
-        emptyText="No project in this period has both logged time and a rate on file."
+        searchPlaceholder={t("economics.search")}
+        emptyText={t("economics.empty")}
         footnote={
-          perMemberFilterActive
-            ? "Scoped to the projects in this selection, but each row is the project's full revenue for the period: rates resolve inside a security-definer function that takes only a date range, so the member and billable filters cannot reach it."
-            : "Scoped to the projects and period in this selection. Rates are resolved inside a security-definer function, so no total here is ever partial."
+          perMemberFilterActive ? t("economics.footnoteFiltered") : t("economics.footnote")
         }
         // The three money tiles above stay visible while this is shut, so the
         // figure an executive opens the page for is never behind a click; the
         // per-project detail is.
         collapsible
         defaultOpen={false}
-        summary={`${rows.length} ${rows.length === 1 ? "project" : "projects"} · revenue, cost and margin per project`}
+        summary={t("economics.summary", { projects: d("projectCount", { count: rows.length }) })}
       />
     </div>
   );
@@ -602,15 +658,19 @@ export type EntryRow = {
  * disagreement between a total and reality is actually diagnosable.
  */
 export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: string }) {
+  const t = useTranslations("timeDashboard.tables");
+  const d = useTranslations("drill");
+  const locale = useLocale();
+  const hrs = (h: number) => fmtHours(h, locale);
   const columns: Column<EntryRow>[] = [
     {
       key: "date",
-      header: "Date",
+      header: t("entries.date"),
       compare: (a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt),
       csv: (r) => r.startedAt,
       cell: (r) => (
         <span className="whitespace-nowrap font-mono text-[11px] text-[var(--text-faint)]">
-          {shortDate(r.startedAt.slice(0, 10))}
+          {shortDate(r.startedAt.slice(0, 10), locale)}
           {/* The clock time matters for an entry-level check: two 2h entries on
               one day are ambiguous without it. */}
           <span className="ml-1.5 opacity-70">{r.startedAt.slice(11, 16)}</span>
@@ -619,7 +679,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
     },
     {
       key: "member",
-      header: "Member",
+      header: t("entries.member"),
       compare: (a, b) => cmpText(a.memberName, b.memberName),
       descFirst: false,
       search: (r) => r.memberName,
@@ -628,7 +688,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
     },
     {
       key: "project",
-      header: "Project / task",
+      header: t("entries.projectTask"),
       className: "max-w-[24rem]",
       compare: (a, b) => cmpText(a.projectName, b.projectName),
       descFirst: false,
@@ -650,7 +710,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
     },
     {
       key: "customer",
-      header: "Customer",
+      header: t("entries.customer"),
       className: "max-w-[12rem]",
       compare: (a, b) => cmpText(a.customerName, b.customerName),
       descFirst: false,
@@ -664,7 +724,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
     },
     {
       key: "duration",
-      header: "Duration",
+      header: t("entries.duration"),
       align: "right",
       compare: (a, b) => a.durationSeconds - b.durationSeconds,
       csv: (r) => Math.round((r.durationSeconds / 3600) * 100) / 100,
@@ -674,7 +734,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
     },
     {
       key: "flags",
-      header: "Type",
+      header: t("entries.type"),
       align: "right",
       // Billable sorts above non-billable, and calendar placeholders below both.
       compare: (a, b) =>
@@ -683,9 +743,9 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
       cell: (r) => (
         <span className="whitespace-nowrap font-mono text-[10px]">
           {r.isBillable ? (
-            <span className="text-[var(--accent)]">BILLABLE</span>
+            <span className="text-[var(--accent)]">{t("entries.billable")}</span>
           ) : r.isCalendar ? (
-            <span className="text-[var(--text-faint)]">CALENDAR</span>
+            <span className="text-[var(--text-faint)]">{t("entries.calendar")}</span>
           ) : (
             <span className="text-[var(--text-faint)]">—</span>
           )}
@@ -696,21 +756,21 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
 
   return (
     <DataTable
-      title="TIME ENTRIES"
-      hint="the rows every figure above is derived from"
+      title={t("entries.title")}
+      hint={t("entries.hint")}
       rows={rows}
       columns={columns}
       rowKey={(r) => r.id}
       initialSort="date"
       exportName={`trackingtime-entries-${period}`}
-      searchPlaceholder="Find entry…"
-      emptyText="No entry in this selection."
+      searchPlaceholder={t("entries.search")}
+      emptyText={t("entries.empty")}
       // The raw rows are for checking a total that looks wrong, which is a
       // deliberate act. Open by default they were simply a very long tail on
       // every page view.
       collapsible
       defaultOpen={false}
-      summary={`${rows.length.toLocaleString("en-GB")} ${rows.length === 1 ? "entry" : "entries"} · the rows every figure above is derived from`}
+      summary={t("entries.summary", { entries: d("entries", { count: rows.length }) })}
     />
   );
 }

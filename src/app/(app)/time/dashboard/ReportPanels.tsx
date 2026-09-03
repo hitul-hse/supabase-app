@@ -13,16 +13,20 @@
  * different statements, and rendering the first as the second is a quiet lie.
  */
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { Totals } from "@/lib/queries/trackingtime-report";
 import type { SyncFreshness } from "@/lib/queries/time-dashboard";
 import { secondsToHours } from "@/lib/time-transform";
+import { fmtDate, fmtDateTime, fmtHours, fmtNum } from "@/lib/locale-format";
 import { DrillTrigger, type Drill, type DrillRow } from "@/components/DrillDialog";
 import type { DrillDatum, TimeTileDrillData } from "./drill-data";
 
-function hrs(h: number): string {
-  return `${h.toLocaleString("en-GB", { maximumFractionDigits: 1 })}h`;
-}
+/**
+ * Hours in the reader's language: "5,638.4h" in en, "5.638,4 Std" in de. The
+ * en-GB rendering is unchanged, which is the whole contract of this refactor --
+ * extraction is not a redesign, so nothing on the English page may move.
+ */
+const hoursIn = (locale: string) => (h: number) => fmtHours(h, locale);
 
 /* --------------------------------------------------------------- KPI strip */
 
@@ -112,6 +116,7 @@ function hoursRow(
   d: DrillDatum,
   fallbackName: string,
   billableLabel: (percent: number) => string,
+  hrs: (h: number) => string,
 ): DrillRow {
   const share = d.seconds > 0 ? Math.round((d.billableSeconds / d.seconds) * 100) : 0;
   return {
@@ -125,10 +130,17 @@ function hoursRow(
   };
 }
 
-function dayLabel(isoDay: string): string {
+/** "Mon, 17 Aug 2026" (de: "Mo., 17. Aug. 2026"), read in UTC as the day is stored. */
+function dayLabel(isoDay: string, locale: string): string {
   const d = new Date(`${isoDay}T00:00:00.000Z`);
   if (Number.isNaN(d.getTime())) return isoDay;
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  return fmtDate(d, locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 /**
@@ -173,6 +185,8 @@ export async function TotalsStrip({
   // The strip's own words -- labels, sublines, tooltips -- live under
   // timeDashboard.strip; the popups they open keep reading `drill`.
   const s = await getTranslations("timeDashboard.strip");
+  const locale = await getLocale();
+  const hrs = hoursIn(locale);
   // Average over ACTIVE days, not calendar days in the range. Dividing by the
   // full span would report a part-time consultant who works Tuesdays as though
   // they were idle four days a week, which is a different claim entirely.
@@ -204,7 +218,7 @@ export async function TotalsStrip({
     headlineValue: totals.totalHours,
     check: "sum",
     subline: `${t("projectCount", { count: totals.projectCount })} · ${t("entries", { count: totals.entryCount })}`,
-    rows: drills.byProject.map((d) => hoursRow(d, noProject, billableLabel)),
+    rows: drills.byProject.map((d) => hoursRow(d, noProject, billableLabel, hrs)),
     footer: t("time.totalHours.footer"),
   };
   const peopleDrill: Drill | undefined = drills && {
@@ -214,7 +228,7 @@ export async function TotalsStrip({
     headlineValue: totals.memberCount,
     check: "count",
     subline: `${hrs(totals.totalHours)} · ${t("entries", { count: totals.entryCount })}`,
-    rows: drills.byMember.map((d) => hoursRow(d, t("unknownPerson"), billableLabel)),
+    rows: drills.byMember.map((d) => hoursRow(d, t("unknownPerson"), billableLabel, hrs)),
     footer: t("time.people.footer"),
   };
   const projectsDrill: Drill | undefined = drills && {
@@ -226,7 +240,7 @@ export async function TotalsStrip({
     subline: s("projects.sub", { count: totals.customerCount }),
     rows: drills.byProject
       .filter((d) => d.id !== null)
-      .map((d) => hoursRow(d, noProject, billableLabel)),
+      .map((d) => hoursRow(d, noProject, billableLabel, hrs)),
     footer: t("time.projects.footer"),
   };
   const avgDayDrill: Drill | undefined =
@@ -238,11 +252,11 @@ export async function TotalsStrip({
           headlineValue: perDay,
           check: "mean",
           subline: t("time.avgDay.subline", {
-            hours: totals.totalHours.toLocaleString("en-GB", { maximumFractionDigits: 1 }),
+            hours: fmtNum(totals.totalHours, locale, 1),
             days: totals.activeDays,
           }),
           rows: drills.byDay.map((d) => ({
-            name: dayLabel(d.day),
+            name: dayLabel(d.day, locale),
             value: `${hrs(secondsToHours(d.seconds))} · ${t("entries", { count: d.entries })}`,
             magnitude: d.seconds / 3600,
           })),
@@ -338,25 +352,6 @@ export async function TotalsStrip({
 
 /* --------------------------------------------------------------- freshness */
 
-/** "17 Aug, 14:30" — precise enough to correlate with a sync log. */
-function stamp(isoTs: string): string {
-  const d = new Date(isoTs);
-  if (Number.isNaN(d.getTime())) return isoTs;
-  return d.toLocaleString("en-GB", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function age(hours: number): string {
-  if (hours < 1) return "less than an hour ago";
-  if (hours === 1) return "1 hour ago";
-  if (hours < 48) return `${hours} hours ago`;
-  return `${Math.floor(hours / 24)} days ago`;
-}
-
 /**
  * States how old this data is, on the page itself.
  *
@@ -373,16 +368,35 @@ function age(hours: number): string {
  * `failedSince > 0` is called out separately from age because it is a different
  * problem: the numbers are still correct, but they have stopped moving, and the
  * person reading needs to know the pipeline is broken rather than merely quiet.
+ *
+ * Async because the wording and the timestamp both follow the request locale:
+ * "3 hours ago (17 Aug, 14:30)" and "vor 3 Stunden (17. Aug., 16:30)" are the
+ * same sentence for two readers, and the age is an ICU plural rather than three
+ * hand-built English branches.
  */
-export function FreshnessBanner({ freshness }: { freshness: SyncFreshness }) {
+export async function FreshnessBanner({ freshness }: { freshness: SyncFreshness }) {
   const { status, lastSuccessAt, hoursSince, recordCount, failedSince, inProgress } = freshness;
+  const t = await getTranslations("timeDashboard.freshness");
+  const d = await getTranslations("drill");
+  const locale = await getLocale();
+
+  /** "17 Aug, 14:30" — precise enough to correlate with a sync log. */
+  const stamp = (isoTs: string) => fmtDateTime(isoTs, locale);
+
+  const age = (hours: number): string => {
+    if (hours < 1) return t("ageUnderHour");
+    if (hours < 48) return t("ageHours", { count: hours });
+    return t("ageDays", { count: Math.floor(hours / 24) });
+  };
 
   if (status === "ok" && lastSuccessAt && hoursSince !== null) {
     return (
       <p className="text-[10px] text-[var(--text-faint)]">
-        Imported from the TrackingTime API {age(hoursSince)} ({stamp(lastSuccessAt)})
-        {recordCount !== null ? ` · ${recordCount.toLocaleString("en-GB")} entries` : ""}
-        {inProgress ? " · a sync is running now" : ""}
+        {t("imported", { age: age(hoursSince), stamp: stamp(lastSuccessAt) })}
+        {/* The entry count reuses drill.entries, whose ICU plural formats 1,234
+            exactly as the old en-GB call did. */}
+        {recordCount !== null ? ` · ${d("entries", { count: recordCount })}` : ""}
+        {inProgress ? ` ${t("syncingNote")}` : ""}
       </p>
     );
   }
@@ -394,10 +408,10 @@ export function FreshnessBanner({ freshness }: { freshness: SyncFreshness }) {
   const wash = critical ? "var(--critical-wash)" : "var(--warning-wash)";
 
   const headline = !lastSuccessAt
-    ? "This data has never been refreshed automatically"
+    ? t("neverRefreshed")
     : critical
-      ? `This data is ${age(hoursSince ?? 0)} old`
-      : `This data was last refreshed ${age(hoursSince ?? 0)}`;
+      ? t("isOld", { age: age(hoursSince ?? 0) })
+      : t("lastRefreshed", { age: age(hoursSince ?? 0) });
 
   return (
     <div
@@ -406,26 +420,15 @@ export function FreshnessBanner({ freshness }: { freshness: SyncFreshness }) {
       style={{ borderColor: colour, background: wash }}
     >
       <p className="text-[12px] font-medium" style={{ color: colour }}>
-        {headline}
-        {lastSuccessAt ? ` (${stamp(lastSuccessAt)})` : ""}
+        {lastSuccessAt ? t("withStamp", { headline, stamp: stamp(lastSuccessAt) }) : headline}
       </p>
       <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-secondary)]">
-        {failedSince > 0 ? (
-          <>
-            {failedSince} sync {failedSince === 1 ? "attempt has" : "attempts have"} failed since
-            then, so the figures below are correct but no longer updating.{" "}
-          </>
-        ) : !lastSuccessAt ? (
-          <>
-            Every figure below comes from a one-off manual import, so it reflects whenever that was
-            run rather than today.{" "}
-          </>
-        ) : (
-          <>Every figure below is a snapshot from that import, not a live reading. </>
-        )}
-        {inProgress
-          ? "A sync is running right now — reload shortly."
-          : "Run `npm run sync:trackingtime` to refresh."}
+        {failedSince > 0
+          ? t("failedSince", { count: failedSince })
+          : !lastSuccessAt
+            ? t("manualOnly")
+            : t("snapshot")}{" "}
+        {inProgress ? t("runningNow") : t("runCommand")}
       </p>
     </div>
   );

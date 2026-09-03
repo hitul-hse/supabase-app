@@ -15,6 +15,7 @@
 //      ask for them -- the whole point of both being opt-in.
 //
 // Run: node scripts/check-data-table-primitive.mjs
+import { createTranslator } from "next-intl";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve as resolvePath } from "node:path";
@@ -55,6 +56,19 @@ function load(file) {
   cache.set(abs, module_.exports);
   const localRequire = (spec) => {
     if (spec === "react") return React;
+    // DataTable reads its own chrome (search box, row counts, page sizes, the
+    // CSV button) from the catalogue, so it calls useTranslations. The hook
+    // needs a provider that only exists inside a Next request; here it gets a
+    // translator over the real English messages, so the assertions below read
+    // the same words the page renders.
+    if (spec === "next-intl") {
+      const messages = JSON.parse(readFileSync(resolvePath("messages/en.json"), "utf8"));
+      return {
+        __esModule: true,
+        useTranslations: (namespace) => createTranslator({ locale: "en", messages, namespace }),
+        useLocale: () => "en",
+      };
+    }
     if (spec.startsWith("@/")) return loadAny(resolvePath("src", spec.slice(2)));
     if (spec.startsWith(".")) return loadAny(resolvePath(dirname(abs), spec));
     return require_(spec);

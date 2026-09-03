@@ -9,6 +9,7 @@ import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { Pager, usePager } from "@/components/Pager";
 import { DrillDialog, type Drill, type DrillRow } from "@/components/DrillDialog";
 import { secondsToHours } from "@/lib/time-transform";
+import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
 // and the detail page end up disagreeing about whether a project is "at risk".
 import { burnColor } from "./ProjectPanels";
@@ -61,8 +62,6 @@ import {
  * server round-trip through the URL. The `?sort=` param is still honoured as
  * the initial state so existing links keep working.
  */
-
-const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
 export type LedgerSort = "burn" | "hours" | "recent" | "name" | "budget" | "people";
 
@@ -174,9 +173,16 @@ export function matchesFacet(p: ProjectListRow, facet: Facet): boolean {
 export function ProjectsLedger({
   rows,
   initialSort = "burn",
+  locale,
 }: {
   rows: ProjectListRow[];
   initialSort?: LedgerSort;
+  /**
+   * The request locale, handed down by the explorer rather than read with
+   * `useLocale()`: the projects gate renders this component bare, outside a
+   * request, and absent it every figure formats en-GB exactly as before.
+   */
+  locale?: string;
 }) {
   const [sortKey, setSortKey] = useState<LedgerSort>(initialSort);
   const [sortDir, setSortDir] = useState<SortDirection>(initialSort === "name" ? "asc" : "desc");
@@ -193,14 +199,18 @@ export function ProjectsLedger({
    * rather than hidden.
    */
   const t = useTranslations("drill");
+  const tp = useTranslations("projects");
+  const tc = useTranslations("common");
   const [drill, setDrill] = useState<Drill | null>(null);
+  /** Hours with their unit, in the reader's language: "1,234.5h" / "1.234,5 Std". */
+  const h = (n: number) => fmtHours(n, locale, 1);
   const [, startTransition] = useTransition();
 
   const openHours = (p: ProjectListRow) => {
     const base = {
       kicker: t("projects.ledger.kicker"),
       title: p.name,
-      headline: `${h(p.actualHours)}h`,
+      headline: h(p.actualHours),
       headlineValue: p.actualHours,
       check: "sum" as const,
       footer: t("projects.ledger.footer"),
@@ -222,7 +232,7 @@ export function ProjectsLedger({
       ): DrillRow[] => {
         const out: DrillRow[] = rows.map((r) => ({
           name: r.name ?? fallback,
-          value: `${h(secondsToHours(r.seconds))}h · ${t("billableShare", {
+          value: `${h(secondsToHours(r.seconds))} · ${t("billableShare", {
             percent: r.seconds > 0 ? Math.round((r.billableSeconds / r.seconds) * 100) : 0,
           })}`,
           magnitude: r.seconds / 3600,
@@ -231,7 +241,7 @@ export function ProjectsLedger({
         if (rest.count > 0) {
           out.push({
             name: t(moreKey, { count: rest.count }),
-            value: `${h(secondsToHours(rest.seconds))}h`,
+            value: h(secondsToHours(rest.seconds)),
             magnitude: rest.seconds / 3600,
             tone: "muted",
           });
@@ -239,7 +249,7 @@ export function ProjectsLedger({
         if (gap !== 0) {
           out.push({
             name: t("projects.ledger.gap"),
-            value: `${gap > 0 ? "+" : "−"}${h(Math.abs(gap))}h`,
+            value: `${gap > 0 ? "+" : "−"}${h(Math.abs(gap))}`,
             magnitude: gap,
             tone: "critical",
           });
@@ -249,7 +259,7 @@ export function ProjectsLedger({
       setDrill({
         ...base,
         subline: t("projects.ledger.subline", {
-          billable: h(secondsToHours(d.totals.billableSeconds)),
+          billable: fmtNum(secondsToHours(d.totals.billableSeconds), locale, 1),
           people: d.totals.people,
           entries: d.totals.entries,
         }),
@@ -283,10 +293,7 @@ export function ProjectsLedger({
 
   if (rows.length === 0) {
     return (
-      <EmptyState
-        title="No projects match"
-        description="No project matches the current filters. Clearing them above brings the full portfolio back."
-      />
+      <EmptyState title={tp("ledger.empty.title")} description={tp("ledger.empty.description")} />
     );
   }
 
@@ -294,10 +301,10 @@ export function ProjectsLedger({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="font-mono text-[10px] tracking-[0.14em] text-[var(--text-muted)]">
-          PROJECT LEDGER
+          {tp("ledger.title")}
         </h2>
         <span className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-faint)]">
-          {rows.length.toLocaleString("en-GB")} PROJECTS
+          {tp("ledger.count", { count: fmtInt(rows.length, locale) })}
         </span>
       </div>
 
@@ -317,11 +324,13 @@ export function ProjectsLedger({
                   className="shrink-0 font-mono text-[11px] font-semibold"
                   style={{ color: burnColor(p.burnPercent) }}
                 >
-                  {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
+                  {p.burnPercent === null
+                    ? tc("notAvailable")
+                    : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>
               <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                {p.customerName ?? "No customer"}
+                {p.customerName ?? tp("ledger.noCustomer")}
               </span>
               <div className="h-1 w-full bg-[var(--border)]">
                 <div
@@ -333,11 +342,11 @@ export function ProjectsLedger({
                 />
               </div>
               <div className="flex gap-3 font-mono text-[10px] text-[var(--text-secondary)]">
-                <span>{h(p.actualHours)} H LOGGED</span>
+                <span>{tp("ledger.loggedH", { hours: fmtNum(p.actualHours, locale, 1) })}</span>
                 <span>
                   {p.estimatedHours && p.estimatedHours > 0
-                    ? `${h(p.estimatedHours)} H BUDGET`
-                    : "NO BUDGET"}
+                    ? tp("ledger.budgetH", { hours: fmtNum(p.estimatedHours, locale, 1) })
+                    : tp("ledger.noBudget")}
                 </span>
               </div>
             </Link>
@@ -357,8 +366,15 @@ export function ProjectsLedger({
               className="px-3 py-2.5 text-left font-mono text-[10px] tracking-[0.08em] text-[var(--accent)]"
             >
               {mobileExpanded
-                ? `SHOW FEWER · ${mobileVisible.length} OF ${sorted.length.toLocaleString("en-GB")} PROJECTS`
-                : `SHOW ${mobileHidden} MORE ON THIS PAGE · ${mobileVisible.length} OF ${sorted.length.toLocaleString("en-GB")} PROJECTS`}
+                ? tp("ledger.showFewer", {
+                    shown: fmtInt(mobileVisible.length, locale),
+                    total: fmtInt(sorted.length, locale),
+                  })
+                : tp("ledger.showMore", {
+                    count: fmtInt(mobileHidden, locale),
+                    shown: fmtInt(mobileVisible.length, locale),
+                    total: fmtInt(sorted.length, locale),
+                  })}
             </button>
           )}
         </div>
@@ -366,7 +382,7 @@ export function ProjectsLedger({
         <div ref={tableRef} className="hidden sm:block">
           <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5">
             <SortHeader
-              label="PROJECT"
+              label={tp("ledger.columns.project")}
               columnKey="name"
               activeKey={sortKey}
               direction={sortDir}
@@ -374,10 +390,10 @@ export function ProjectsLedger({
               className="col-span-4"
             />
             <span className="col-span-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
-              CUSTOMER
+              {tp("ledger.columns.customer")}
             </span>
             <SortHeader
-              label="BUDGET"
+              label={tp("ledger.columns.budget")}
               columnKey="budget"
               activeKey={sortKey}
               direction={sortDir}
@@ -386,7 +402,7 @@ export function ProjectsLedger({
               className="col-span-1 justify-end"
             />
             <SortHeader
-              label="LOGGED"
+              label={tp("ledger.columns.logged")}
               columnKey="hours"
               activeKey={sortKey}
               direction={sortDir}
@@ -395,7 +411,7 @@ export function ProjectsLedger({
               className="col-span-1 justify-end"
             />
             <SortHeader
-              label="CONSUMED"
+              label={tp("ledger.columns.consumed")}
               columnKey="burn"
               activeKey={sortKey}
               direction={sortDir}
@@ -403,7 +419,7 @@ export function ProjectsLedger({
               className="col-span-2"
             />
             <SortHeader
-              label="PEOPLE"
+              label={tp("ledger.columns.people")}
               columnKey="people"
               activeKey={sortKey}
               direction={sortDir}
@@ -412,7 +428,7 @@ export function ProjectsLedger({
               className="col-span-1 justify-end"
             />
             <SortHeader
-              label="LAST"
+              label={tp("ledger.columns.last")}
               columnKey="recent"
               activeKey={sortKey}
               direction={sortDir}
@@ -439,7 +455,9 @@ export function ProjectsLedger({
                 {p.customerName ?? "—"}
               </span>
               <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
-                {p.estimatedHours && p.estimatedHours > 0 ? h(p.estimatedHours) : "—"}
+                {p.estimatedHours && p.estimatedHours > 0
+                  ? fmtNum(p.estimatedHours, locale, 1)
+                  : "—"}
               </span>
               {/* Tappable only when there is something behind it: a zero
                   stays plain text, because an empty popup is a promise the
@@ -453,11 +471,11 @@ export function ProjectsLedger({
                   data-drill-trigger={`ledger-hours-${p.id}`}
                   className="col-span-1 cursor-pointer text-right font-mono text-[11px] text-[var(--text-primary)] underline-offset-4 hover:text-[var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 >
-                  {h(p.actualHours)}
+                  {fmtNum(p.actualHours, locale, 1)}
                 </button>
               ) : (
                 <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-primary)]">
-                  {h(p.actualHours)}
+                  {fmtNum(p.actualHours, locale, 1)}
                 </span>
               )}
               <div className="col-span-2 flex items-center gap-2">
@@ -474,20 +492,25 @@ export function ProjectsLedger({
                   className="w-11 text-right font-mono text-[11px] font-medium"
                   style={{ color: burnColor(p.burnPercent) }}
                 >
-                  {p.burnPercent === null ? "n/a" : `${p.burnPercent}%`}
+                  {p.burnPercent === null ? tc("notAvailable") : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>
               <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
                 {p.memberCount || "—"}
               </span>
               <span className="col-span-1 text-right font-mono text-[10px] text-[var(--text-faint)]">
-                {p.lastActivity ?? "never"}
+                {p.lastActivity ?? tp("ledger.never")}
               </span>
             </div>
           ))}
         </div>
 
-        <Pager state={pager} total={sorted.length} noun="projects" anchorRef={tableRef} />
+        <Pager
+          state={pager}
+          total={sorted.length}
+          noun={tp("ledger.pagerNoun")}
+          anchorRef={tableRef}
+        />
       </Card>
 
       {drill && <DrillDialog drill={drill} onClose={() => setDrill(null)} />}

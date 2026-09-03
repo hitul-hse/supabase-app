@@ -70,6 +70,10 @@ async function compile(srcPath, outName, rewrites = {}) {
 
 try {
   const transformFile = await compile("src/lib/time-transform.ts", "time-transform.cjs");
+  // The ledger, the tiles and the explorer now format their figures in the
+  // request locale through this helper. It is a real module, not a stub: the
+  // numbers it produces are what several assertions below read back.
+  const formatFile = await compile("src/lib/locale-format.ts", "locale-format.cjs");
 
   // The report layer is imported by projects-live for fetchAllEntries. Only the
   // TYPES are used by the pure functions under test, and a type import vanishes
@@ -90,6 +94,7 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
 
   const live = require(
     await compile("src/lib/queries/projects-live.ts", "projects-live.cjs", {
+      "@/lib/locale-format": posix(formatFile),
       "@/lib/time-transform": posix(transformFile),
       "./trackingtime-report": posix(stub),
     }),
@@ -99,25 +104,36 @@ module.exports = { __esModule: true, default: ({ href, children, ...rest }) => c
    * The real Card module, not a stub: the tile checks below assert on rendered
    * card markup, and a stub would let them pass while nothing rendered.
    */
-  const cardFile = await compile("src/components/ui/Card.tsx", "Card.cjs", {});
+  const cardFile = await compile("src/components/ui/Card.tsx", "Card.cjs", {
+      "@/lib/locale-format": posix(formatFile),
+    });
 
   /*
    * The drill-down dialog the totals strip and the ledger open. Compiled for
    * real (it is what turns a tile into a button, and the checks below assert on
-   * that button), with next-intl replaced by an identity translator: the hook
-   * needs a provider that only exists inside a Next request, and the CHROME
-   * strings it resolves are not what this gate is about. The stub returns the
-   * key, so a wrong key would surface as "drill.open" in the markup rather than
-   * pass silently.
+   * that button), with next-intl replaced by a translator that reads the actual
+   * English catalogue.
+   *
+   * It used to be an identity translator returning the key, on the grounds that
+   * the chrome strings were not what this gate is about. That stopped being
+   * true when the ledger's own labels moved into the catalogue: the assertions
+   * below look for "AT RISK", "HEALTHY", "NO ACTIVITY" and the "n/a" a
+   * budgetless project renders, and against an identity stub those arrive as
+   * "filters.facets.risk" and "values.notAvailable" — five gates failing while
+   * the page is correct. Reading messages/en.json keeps the assertions honest
+   * AND still surfaces a wrong key, which now renders as the key itself because
+   * createTranslator echoes an unresolved path.
    */
   const intlStub = join(dir, "intl-stub.cjs");
   writeFileSync(
     intlStub,
-    `const t = (key) => key;
-t.rich = t; t.raw = t; t.has = () => true;
-module.exports = { __esModule: true, useTranslations: () => t };`,
+    `const { readFileSync } = require("node:fs");
+const { createTranslator } = require("next-intl");
+const messages = JSON.parse(readFileSync(${JSON.stringify(resolve("messages/en.json"))}, "utf8"));
+module.exports = { __esModule: true, useTranslations: (namespace) => createTranslator({ locale: "en", messages, namespace }) };`,
   );
   const drillFile = await compile("src/components/DrillDialog.tsx", "DrillDialog.cjs", {
+      "@/lib/locale-format": posix(formatFile),
     "next-intl": posix(intlStub),
     "next/link": posix(linkStub),
   });
@@ -130,6 +146,7 @@ module.exports = { __esModule: true, useTranslations: () => t };`,
   );
 
   const panelsFile = await compile("src/app/(app)/projects/ProjectPanels.tsx", "ProjectPanels.cjs", {
+      "@/lib/locale-format": posix(formatFile),
     "@/lib/queries/projects-live": posix(stub),
     "next/link": posix(linkStub),
     "@/components/ui/Card": posix(cardFile),
@@ -153,21 +170,29 @@ module.exports = {
 };`,
   );
 
-  const emptyStateFile = await compile("src/components/EmptyState.tsx", "EmptyState.cjs", { "next/link": posix(linkStub) });
-  const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", { "next/link": posix(linkStub) });
-  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", { "next/link": posix(linkStub) });
+  const emptyStateFile = await compile("src/components/EmptyState.tsx", "EmptyState.cjs", {
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+  const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", {
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
   // Added when the mobile work wrapped the explorer's panels in a disclosure.
   // Compiled rather than stubbed: it is small and dependency-free, and a stub
   // would keep this gate green if the real component started throwing.
-  const mobileDisclosureFile = await compile("src/components/MobileDisclosure.tsx", "MobileDisclosure.cjs", {});
+  const mobileDisclosureFile = await compile("src/components/MobileDisclosure.tsx", "MobileDisclosure.cjs", {
+      "@/lib/locale-format": posix(formatFile),
+      "next-intl": posix(intlStub),
+    });
 
   const insightsFile = await compile("src/app/(app)/projects/project-insights.ts", "project-insights.cjs", {
+      "@/lib/locale-format": posix(formatFile),
     "@/lib/queries/projects-live": posix(stub),
   });
   const insights = require(insightsFile);
 
   const ledger = require(
     await compile("src/app/(app)/projects/ProjectsLedger.tsx", "ProjectsLedger.cjs", {
+      "@/lib/locale-format": posix(formatFile),
       "@/lib/queries/projects-live": posix(stub),
       "next/link": posix(linkStub),
       "./ProjectPanels": posix(panelsFile),
@@ -190,9 +215,13 @@ module.exports = {
   // and the live browser check own.
   const noopChild = join(dir, "noop-child.cjs");
   writeFileSync(noopChild, `module.exports = new Proxy({}, { get: () => () => null });`);
-  const customerSelectFile = await compile("src/app/(app)/projects/CustomerMultiSelect.tsx", "CustomerMultiSelect.cjs", {});
+  const customerSelectFile = await compile("src/app/(app)/projects/CustomerMultiSelect.tsx", "CustomerMultiSelect.cjs", {
+      "@/lib/locale-format": posix(formatFile),
+    "@/lib/locale-format": posix(formatFile),
+  });
   const explorer = require(
     await compile("src/app/(app)/projects/ProjectsExplorer.tsx", "ProjectsExplorer.cjs", {
+      "@/lib/locale-format": posix(formatFile),
       "@/lib/queries/projects-live": posix(stub),
       "./project-insights": posix(insightsFile),
       "./ProjectPanels": posix(panelsFile),
@@ -626,12 +655,43 @@ module.exports = {
     })(),
   );
 
+  /*
+   * ProjectTotalsStrip and BurnChart take their wording as REQUIRED props now:
+   * the English fallbacks they used to carry were deleted, because an optional
+   * wording prop with an English default is how English creeps back onto the
+   * German page. So the gate supplies the same English the page does, read from
+   * messages/en.json — which also means a renamed catalogue key fails here
+   * rather than silently rendering "undefined".
+   */
+  const cat = JSON.parse(readFileSync(resolve("messages/en.json"), "utf8")).projects;
+  const totalsWording = (billableHours, overBudget) => ({
+    projects: { label: cat.tiles.projects.label, hint: cat.tiles.projects.hint },
+    hours: { label: cat.tiles.hours.label, hint: cat.tiles.hours.hint },
+    billable: {
+      label: cat.tiles.billable.label,
+      hint: cat.tiles.billable.hint.replace("{hours}", String(billableHours)),
+    },
+    over: {
+      label: cat.tiles.over.label,
+      hint: overBudget > 0 ? cat.tiles.over.needsAttention : cat.tiles.over.allWithin,
+    },
+    noBudget: { label: cat.tiles.noBudget.label, hint: cat.tiles.noBudget.hint },
+  });
+  const burnWording = {
+    title: cat.burnChart.title,
+    empty: cat.burnChart.empty,
+    qualifier: cat.burnChart.qualifier,
+    logged: cat.burnChart.logged,
+    budget: cat.burnChart.budget,
+  };
+
   const stripHtml = render(panels.ProjectTotalsStrip, {
     projectCount: 5,
     totalHours: 0,
     billableHours: 0,
     overBudget: 0,
     noBudget: 2,
+    wording: totalsWording(0, 0),
   });
   check(
     "a zero-hour selection shows '—' for billable share, never 'NaN%'",
@@ -699,6 +759,7 @@ module.exports = {
     billableHours: 60,
     overBudget: 3,
     noBudget: 2,
+    wording: totalsWording(60, 3),
   });
   check(
     "a non-zero over-budget count IS painted red",
@@ -715,6 +776,7 @@ module.exports = {
   const chartHtml = render(panels.BurnChart, {
     points: live.burndown([E(1, 30, 1, "2026-01-15T09:00:00Z")]),
     estimatedHours: 10,
+    wording: burnWording,
   });
   check("the burn chart draws the logged curve", chartHtml.includes("polyline"));
   check("the budget reference line is present", chartHtml.includes("BUDGET"));
@@ -729,7 +791,7 @@ module.exports = {
     "y within 0..170",
   );
 
-  const emptyChart = render(panels.BurnChart, { points: [], estimatedHours: 10 });
+  const emptyChart = render(panels.BurnChart, { points: [], estimatedHours: 10, wording: burnWording });
   check(
     "a project with no time says so rather than drawing an empty axis",
     emptyChart.includes("No time has been logged"),
@@ -738,6 +800,7 @@ module.exports = {
   const noBudgetChart = render(panels.BurnChart, {
     points: live.burndown([E(1, 5, 1, "2026-01-15T09:00:00Z")]),
     estimatedHours: 0,
+    wording: burnWording,
   });
   check(
     "no budget means no budget line is drawn at all",

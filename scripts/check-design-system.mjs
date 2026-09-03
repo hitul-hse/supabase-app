@@ -79,15 +79,15 @@ const KNOWN_FOCUS_DEBT = [];
  * now (the project task board, the timesheet grid, the dashboard filters), plus
  * one dead file. Editing those would clobber in-flight work.
  *
- * `DashboardPanels.tsx` is DEAD CODE — 584 lines, zero importers, superseded by
- * ReportPanels.tsx. It is pinned rather than fixed because polishing an
- * unreachable file is wasted work, and rather than deleted because it sits in a
- * directory another agent is actively refactoring.
+ * `DashboardPanels.tsx` was DEAD CODE — 584 lines, zero importers, superseded
+ * by ReportPanels.tsx — pinned here rather than fixed because polishing an
+ * unreachable file is wasted work, and rather than deleted because the
+ * directory had an in-flight refactor. That refactor was the i18n migration of
+ * /time/dashboard, and it deleted the file, so the pin is gone with it.
  */
 const KNOWN_EMOJI_DEBT = [
   "src/app/(app)/projects/TaskBoardView.tsx",
   "src/app/(app)/projects/TaskRow.tsx",
-  "src/app/(app)/time/dashboard/DashboardPanels.tsx",
   "src/app/(app)/time/dashboard/ReportFilters.tsx",
   "src/app/(app)/timesheets/TimesheetGrid.tsx",
 ];

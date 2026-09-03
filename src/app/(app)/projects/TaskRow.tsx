@@ -1,12 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { updateTaskStatus, deleteTask, addComment, deleteComment, addSubtask } from "./actions";
 import type { TaskComment, ProjectTaskRow, BoardParent } from "@/lib/queries/types";
+import { fmtNum } from "@/lib/locale-format";
 
+/**
+ * The stored status values. These are what `project_tasks.status` holds and
+ * what `updateTaskStatus` validates against, so they stay English in every
+ * locale and only the option TEXT is translated -- the same split as the
+ * `data-tile` handles on the totals strip.
+ */
 const TASK_STATUSES = ["NOT STARTED", "IN PROGRESS", "OVER 33%", "DONE"] as const;
 
-const STATUS_CLASS: Record<(typeof TASK_STATUSES)[number], string> = {
+type TaskStatus = (typeof TASK_STATUSES)[number];
+
+const STATUS_KEY: Record<TaskStatus, string> = {
+  "NOT STARTED": "status.notStarted",
+  "IN PROGRESS": "status.inProgress",
+  "OVER 33%": "status.over33",
+  DONE: "status.done",
+};
+
+const STATUS_CLASS: Record<TaskStatus, string> = {
   DONE: "text-[var(--accent)]",
   "OVER 33%": "text-[var(--critical)]",
   "IN PROGRESS": "text-[var(--warning)]",
@@ -14,6 +31,7 @@ const STATUS_CLASS: Record<(typeof TASK_STATUSES)[number], string> = {
 };
 
 function SubtaskRow({ task }: { task: ProjectTaskRow }) {
+  const t = useTranslations("projects.tasks");
   return (
     <div className="flex items-center justify-between gap-2 py-1 text-[11.5px]">
       <span className="text-[var(--text-secondary)]">{task.name}</span>
@@ -30,7 +48,7 @@ function SubtaskRow({ task }: { task: ProjectTaskRow }) {
           >
             {TASK_STATUSES.map((s) => (
               <option key={s} value={s} className="bg-[var(--surface)] text-[var(--text-primary)]">
-                {s}
+                {t(STATUS_KEY[s])}
               </option>
             ))}
           </select>
@@ -39,7 +57,7 @@ function SubtaskRow({ task }: { task: ProjectTaskRow }) {
           <input type="hidden" name="task_id" value={task.id} />
           <button
             type="submit"
-            aria-label={`Delete ${task.name}`}
+            aria-label={t("deleteTask", { name: task.name })}
             className="text-[var(--text-faint)] hover:text-[var(--critical)]"
           >
             ✕
@@ -56,13 +74,17 @@ export function TaskRow({
   subtasks,
   comments,
   currentUserId,
+  locale,
 }: {
   task: { id: number; name: string; estimate_hours: number; logged_hours: number; status: string; owner: string };
   parent: BoardParent;
   subtasks: ProjectTaskRow[];
   comments: TaskComment[];
   currentUserId: string | null;
+  /** The request locale, handed down by the page. Absent means en-GB. */
+  locale?: string;
 }) {
+  const t = useTranslations("projects.tasks");
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [subtasksExpanded, setSubtasksExpanded] = useState(false);
   const doneSubtasks = subtasks.filter((t) => t.status === "DONE").length;
@@ -72,10 +94,10 @@ export function TaskRow({
       <div className="grid min-w-[420px] grid-cols-12 items-center px-4 py-2.5 text-[12.5px] hover:bg-[var(--surface-hover)]">
         <span className="col-span-4 font-medium text-[var(--text-primary)]">{task.name}</span>
         <span className="col-span-2 text-right font-mono text-[var(--text-muted)]">
-          {task.estimate_hours}
+          {fmtNum(task.estimate_hours, locale, 1)}
         </span>
         <span className="col-span-2 text-right font-mono text-[var(--text-primary)]">
-          {task.logged_hours}
+          {fmtNum(task.logged_hours, locale, 1)}
         </span>
 
         <form action={updateTaskStatus} className="col-span-3 flex flex-col items-end gap-0.5">
@@ -90,7 +112,7 @@ export function TaskRow({
           >
             {TASK_STATUSES.map((s) => (
               <option key={s} value={s} className="bg-[var(--surface)] text-[var(--text-primary)]">
-                {s}
+                {t(STATUS_KEY[s])}
               </option>
             ))}
           </select>
@@ -100,7 +122,11 @@ export function TaskRow({
         <div className="col-span-1 flex items-center justify-end gap-2">
           <button
             onClick={() => setSubtasksExpanded((v) => !v)}
-            aria-label={`${subtasks.length} subtasks on ${task.name}`}
+            aria-label={t("subtaskCount", {
+              done: doneSubtasks,
+              total: subtasks.length,
+              name: task.name,
+            })}
             className={`font-mono text-[10.5px] ${
               subtasksExpanded ? "text-[var(--accent)]" : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
             }`}
@@ -109,7 +135,7 @@ export function TaskRow({
           </button>
           <button
             onClick={() => setCommentsExpanded((v) => !v)}
-            aria-label={`${comments.length} comments on ${task.name}`}
+            aria-label={t("commentCount", { count: comments.length, name: task.name })}
             className={`font-mono text-[10.5px] ${
               commentsExpanded ? "text-[var(--accent)]" : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
             }`}
@@ -120,7 +146,7 @@ export function TaskRow({
             <input type="hidden" name="task_id" value={task.id} />
             <button
               type="submit"
-              aria-label={`Delete ${task.name}`}
+              aria-label={t("deleteTask", { name: task.name })}
               className="text-[var(--text-faint)] hover:text-[var(--critical)]"
             >
               ✕
@@ -132,7 +158,7 @@ export function TaskRow({
       {subtasksExpanded && (
         <div className="flex flex-col gap-1 bg-[var(--surface-2)] px-4 py-3 pl-8">
           {subtasks.length === 0 && (
-            <p className="text-[11.5px] text-[var(--text-faint)]">No subtasks yet.</p>
+            <p className="text-[11.5px] text-[var(--text-faint)]">{t("noSubtasks")}</p>
           )}
           {subtasks.map((s) => (
             <SubtaskRow key={s.id} task={s} />
@@ -144,14 +170,14 @@ export function TaskRow({
               name="name"
               type="text"
               required
-              placeholder="Add a subtask…"
+              placeholder={t("addSubtask")}
               className="flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[11.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]"
             />
             <button
               type="submit"
               className="bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
             >
-              Add
+              {t("addSubtaskButton")}
             </button>
           </form>
         </div>
@@ -160,7 +186,7 @@ export function TaskRow({
       {commentsExpanded && (
         <div className="flex flex-col gap-2 bg-[var(--surface-2)] px-4 py-3">
           {comments.length === 0 && (
-            <p className="text-[11.5px] text-[var(--text-faint)]">No comments yet.</p>
+            <p className="text-[11.5px] text-[var(--text-faint)]">{t("noComments")}</p>
           )}
           {comments.map((c) => (
             <div key={c.id} className="flex items-start justify-between gap-2 text-[11.5px]">
@@ -173,7 +199,7 @@ export function TaskRow({
                   <input type="hidden" name="comment_id" value={c.id} />
                   <button
                     type="submit"
-                    aria-label="Delete comment"
+                    aria-label={t("deleteComment")}
                     className="shrink-0 text-[var(--text-faint)] hover:text-[var(--critical)]"
                   >
                     ✕
@@ -188,14 +214,14 @@ export function TaskRow({
               name="body"
               type="text"
               required
-              placeholder="Add a comment…"
+              placeholder={t("addComment")}
               className="flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[11.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]"
             />
             <button
               type="submit"
               className="bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
             >
-              Post
+              {t("postComment")}
             </button>
           </form>
         </div>

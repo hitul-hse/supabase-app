@@ -5,6 +5,30 @@
  * no fetching, so the page owns all I/O and these stay trivially testable and
  * cheap to render.
  *
+ * WORDS ARE DATA HERE TOO, AND THAT IS DELIBERATE
+ * ----------------------------------------------
+ * These panels take their wording as props rather than calling
+ * `useTranslations`/`getTranslations` themselves. Two reasons, and the second
+ * is the load-bearing one:
+ *
+ *  1. It is the same contract the file already had for figures: the caller
+ *     computes, the panel draws.
+ *  2. `scripts/check-projects-module.mjs` compiles this module with Next's own
+ *     SWC and renders `ProjectTotalsStrip` and `BurnChart` with
+ *     `renderToStaticMarkup`, OUTSIDE a request. A next-intl hook throws there
+ *     — there is no provider — and would take the whole gate down rather than
+ *     fail one check. The gate renders those two with data props only, so both
+ *     took an English default for their wording. That default is gone: an
+ *     optional wording prop with an English fallback is precisely how English
+ *     creeps back onto the German page when a new caller forgets to pass it.
+ *     Every panel here now takes its wording as a REQUIRED prop and holds no
+ *     wording of its own; check-projects-module.mjs builds the English it
+ *     renders with from messages/en.json, so the gate reads the same words the
+ *     page does.
+ *
+ * `locale` is likewise a prop, not `useLocale()`: same reason, and it lets the
+ * bare gate render keep en-GB digits exactly as before (`tagFor(undefined)`).
+ *
  * The colour rule is shared across all of them and stated once here: a project
  * WITHOUT a budget is grey and reads "no budget", never green and never 0%.
  * 83 of 334 live projects have `estimated_hours = 0`, and painting them as
@@ -13,8 +37,7 @@
 import type { BurnPoint, ProjectContributor, ProjectTaskRow } from "@/lib/queries/projects-live";
 import { Card, StatTile } from "@/components/ui/Card";
 import { DrillTrigger, type Drill } from "@/components/DrillDialog";
-
-const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+import { fmtInt, fmtNum } from "@/lib/locale-format";
 
 /** The five tiles of the totals strip, as the keys a caller supplies drills under. */
 export type ProjectTotalsTile = "projects" | "hours" | "billable" | "over" | "noBudget";
@@ -49,6 +72,25 @@ export function burnTone(percent: number | null): "neutral" | "good" | "warning"
 
 /* ------------------------------------------------------------------ list */
 
+/** One tile's words: what the reader sees, and the footnote under it. */
+type TileWords = { label: string; hint: string };
+
+/** Every word the totals strip draws, resolved by the caller in its locale. */
+export type ProjectTotalsWording = Record<ProjectTotalsTile, TileWords>;
+
+/**
+ * The tile's handle for gates and scripts (`data-tile`), always the English
+ * label whatever the locale, so a check that waits for OVER BUDGET finds it on
+ * the German page too. The visible label comes from `wording`.
+ */
+const TILE_HANDLE: Record<ProjectTotalsTile, string> = {
+  projects: "PROJECTS",
+  hours: "TRACKED HOURS",
+  billable: "BILLABLE",
+  over: "OVER BUDGET",
+  noBudget: "NO BUDGET SET",
+};
+
 export function ProjectTotalsStrip({
   projectCount,
   totalHours,
@@ -56,6 +98,8 @@ export function ProjectTotalsStrip({
   overBudget,
   noBudget,
   drills,
+  locale,
+  wording,
 }: {
   projectCount: number;
   totalHours: number;
@@ -70,11 +114,16 @@ export function ProjectTotalsStrip({
    * has nothing to open.
    */
   drills?: Partial<Record<ProjectTotalsTile, Drill>>;
+  /** The request locale; absent means en-GB, which is what the gate renders. */
+  locale?: string;
+  /** The five tiles' words, already resolved. Falls back to English. */
+  wording: ProjectTotalsWording;
 }) {
   // Billable share of tracked time. Guarded against a zero denominator, which
   // is not hypothetical: a filtered view can legitimately contain no hours, and
   // 0/0 renders as "NaN%" — a number-shaped thing that looks like a bug.
   const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : null;
+  const words = wording;
 
   const cells: {
     key: ProjectTotalsTile;
@@ -84,30 +133,41 @@ export function ProjectTotalsStrip({
     hint: string;
     tone?: "critical";
   }[] = [
-    { key: "projects", label: "PROJECTS", value: projectCount.toLocaleString("en-GB"), hint: "in this view" },
-    { key: "hours", label: "TRACKED HOURS", value: h(totalHours), unit: "h", hint: "logged to date" },
+    {
+      key: "projects",
+      label: words.projects.label,
+      value: fmtInt(projectCount, locale),
+      hint: words.projects.hint,
+    },
+    {
+      key: "hours",
+      label: words.hours.label,
+      value: fmtNum(totalHours, locale, 1),
+      unit: "h",
+      hint: words.hours.hint,
+    },
     {
       key: "billable",
-      label: "BILLABLE",
+      label: words.billable.label,
       value: billablePercent === null ? "—" : String(billablePercent),
       unit: billablePercent === null ? undefined : "%",
-      hint: `${h(billableHours)} h billable`,
+      hint: words.billable.hint,
     },
     {
       key: "over",
-      label: "OVER BUDGET",
-      value: overBudget.toLocaleString("en-GB"),
+      label: words.over.label,
+      value: fmtInt(overBudget, locale),
       // Only paint it red when there is something to act on. A permanent red
       // "0" trains the reader to stop seeing the colour, which costs us the
       // one moment it needs to work.
       tone: overBudget > 0 ? ("critical" as const) : undefined,
-      hint: overBudget > 0 ? "needs attention" : "all within budget",
+      hint: words.over.hint,
     },
     {
       key: "noBudget",
-      label: "NO BUDGET SET",
-      value: noBudget.toLocaleString("en-GB"),
-      hint: "burn unknowable",
+      label: words.noBudget.label,
+      value: fmtInt(noBudget, locale),
+      hint: words.noBudget.hint,
     },
   ];
 
@@ -129,7 +189,7 @@ export function ProjectTotalsStrip({
       {cells.map((c) => {
         const tile = (
           <StatTile
-            data-tile={c.label}
+            data-tile={TILE_HANDLE[c.key]}
             label={c.label}
             value={c.value}
             unit={c.unit}
@@ -143,7 +203,7 @@ export function ProjectTotalsStrip({
         const drill = drills?.[c.key];
         return drill ? (
           <DrillTrigger
-            key={c.label}
+            key={c.key}
             drill={drill}
             id={`projects-${c.key}`}
             className="card-elev block w-full rounded-[var(--radius-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
@@ -151,7 +211,7 @@ export function ProjectTotalsStrip({
             {tile}
           </DrillTrigger>
         ) : (
-          <div key={c.label}>{tile}</div>
+          <div key={c.key}>{tile}</div>
         );
       })}
     </div>
@@ -169,6 +229,15 @@ export function ProjectTotalsStrip({
 
 /* ---------------------------------------------------------------- detail */
 
+/** Every word the burn chart draws. Mirrors `projects.burnChart.*`. */
+export type BurnChartWording = {
+  title: string;
+  empty: string;
+  qualifier: string;
+  logged: string;
+  budget: string;
+};
+
 /**
  * Observed cumulative hours, with the budget as a horizontal reference line.
  *
@@ -180,17 +249,17 @@ export function ProjectTotalsStrip({
 export function BurnChart({
   points,
   estimatedHours,
+  wording,
 }: {
   points: BurnPoint[];
   estimatedHours: number | null;
+  wording: BurnChartWording;
 }) {
   if (points.length === 0) {
     return (
       <Card className="p-5">
-        <span className="text-[13px] font-semibold text-[var(--text-primary)]">Hours over time</span>
-        <p className="mt-3 font-mono text-[11px] text-[var(--text-faint)]">
-          No time has been logged against this project yet.
-        </p>
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
+        <p className="mt-3 font-mono text-[11px] text-[var(--text-faint)]">{wording.empty}</p>
       </Card>
     );
   }
@@ -213,17 +282,15 @@ export function BurnChart({
   return (
     <Card tone="hero" className="flex flex-col gap-3 p-5">
       <div className="flex flex-wrap items-baseline gap-3">
-        <span className="text-[13px] font-semibold text-[var(--text-primary)]">Hours over time</span>
-        <span className="font-mono text-[10px] text-[var(--text-muted)]">
-          CUMULATIVE · MONTHLY · OBSERVED
-        </span>
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
+        <span className="font-mono text-[10px] text-[var(--text-muted)]">{wording.qualifier}</span>
         <div className="ml-auto flex items-center gap-4 font-mono text-[10px] text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5">
-            <span className="h-0.5 w-3 bg-[var(--accent)]" /> LOGGED
+            <span className="h-0.5 w-3 bg-[var(--accent)]" /> {wording.logged}
           </span>
           {budget !== null && (
             <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-3 bg-[var(--warning)]" /> BUDGET
+              <span className="h-0.5 w-3 bg-[var(--warning)]" /> {wording.budget}
             </span>
           )}
         </div>
@@ -262,17 +329,24 @@ export function BurnChart({
   );
 }
 
-export function ContributorTable({ rows }: { rows: ProjectContributor[] }) {
+export function ContributorTable({
+  rows,
+  locale,
+  wording,
+}: {
+  rows: ProjectContributor[];
+  locale?: string;
+  /** Mirrors `projects.contributors.*`; required, this panel holds no words. */
+  wording: { title: string; empty: string; billableUnit: string; hoursUnit: string };
+}) {
   return (
     <Card className="flex flex-col">
       <div className="border-b border-[var(--divider)] px-4 py-3">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">
-          Who worked on this
-        </span>
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
       </div>
       {rows.length === 0 ? (
         <p className="px-4 py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
-          Nobody has logged time yet.
+          {wording.empty}
         </p>
       ) : (
         rows.map((r) => (
@@ -283,8 +357,12 @@ export function ContributorTable({ rows }: { rows: ProjectContributor[] }) {
             <span className="truncate text-[var(--text-primary)]">{r.memberName}</span>
             <span className="flex shrink-0 gap-4 font-mono text-[11px]">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
-              <span className="w-16 text-right text-[var(--accent)]">{h(r.billableHours)} b</span>
-              <span className="w-16 text-right text-[var(--text-primary)]">{h(r.hours)} h</span>
+              <span className="w-16 text-right text-[var(--accent)]">
+                {fmtNum(r.billableHours, locale, 1)} {wording.billableUnit}
+              </span>
+              <span className="w-16 text-right text-[var(--text-primary)]">
+                {fmtNum(r.hours, locale, 1)} {wording.hoursUnit}
+              </span>
             </span>
           </div>
         ))
@@ -293,21 +371,30 @@ export function ContributorTable({ rows }: { rows: ProjectContributor[] }) {
   );
 }
 
-export function TaskTable({ rows }: { rows: ProjectTaskRow[] }) {
+export function TaskTable({
+  rows,
+  locale,
+  wording,
+}: {
+  rows: ProjectTaskRow[];
+  locale?: string;
+  /** Mirrors `projects.taskTable.*`; required, this panel holds no words. */
+  wording: { title: string; empty: string; hoursUnit: string; topOf: (shown: number, total: number) => string };
+}) {
   const shown = rows.slice(0, 20);
   return (
     <Card className="flex flex-col">
       <div className="flex items-baseline justify-between border-b border-[var(--divider)] px-4 py-3">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">Time by task</span>
+        <span className="text-[12px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
         {rows.length > shown.length && (
           <span className="font-mono text-[10px] text-[var(--text-faint)]">
-            TOP {shown.length} OF {rows.length}
+            {wording.topOf(shown.length, rows.length)}
           </span>
         )}
       </div>
       {rows.length === 0 ? (
         <p className="px-4 py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
-          No tasks recorded.
+          {wording.empty}
         </p>
       ) : (
         shown.map((r) => (
@@ -318,7 +405,9 @@ export function TaskTable({ rows }: { rows: ProjectTaskRow[] }) {
             <span className="truncate text-[var(--text-secondary)]">{r.taskName}</span>
             <span className="flex shrink-0 gap-4 font-mono text-[11px]">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
-              <span className="w-16 text-right text-[var(--text-primary)]">{h(r.hours)} h</span>
+              <span className="w-16 text-right text-[var(--text-primary)]">
+                {fmtNum(r.hours, locale, 1)} {wording.hoursUnit}
+              </span>
             </span>
           </div>
         ))

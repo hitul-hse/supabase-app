@@ -26,6 +26,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { userHasPermission } from "@/utils/supabase/require-profile";
@@ -52,11 +53,14 @@ const timeSchema = (client: any) => client.schema("time");
  * code -- which is a bug this codebase has had before.
  */
 async function assertCanEditPeople(): Promise<{ ok: true } | { error: string }> {
+  // Every refusal below reaches the reader verbatim in the status line, so it
+  // is resolved in the request locale rather than written in English here.
+  const t = await getTranslations("people.actions.org");
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "You are not signed in." };
+  if (!user) return { error: t("notSignedIn") };
   const allowed = await userHasPermission(PERMISSIONS.PEOPLE_WRITE);
-  if (!allowed) return { error: "You do not have permission to edit people." };
+  if (!allowed) return { error: t("noPermission") };
   return { ok: true };
 }
 
@@ -99,33 +103,31 @@ export async function setSupervisor(
   const guard = await assertCanEditPeople();
   if ("error" in guard) return { status: "error", message: guard.error };
 
+  const t = await getTranslations("people.actions.org");
   const memberId = Number(formData.get("member_id"));
   const raw = String(formData.get("supervisor_member_id") ?? "").trim();
   const supervisorId = raw === "" ? null : Number(raw);
 
   if (!Number.isFinite(memberId)) {
-    return { status: "error", message: "Which person? The member id was missing." };
+    return { status: "error", message: t("missingMember") };
   }
   if (supervisorId !== null && !Number.isFinite(supervisorId)) {
-    return { status: "error", message: "That manager could not be identified." };
+    return { status: "error", message: t("badSupervisor") };
   }
 
   let admin;
   try {
     admin = createAdminClient();
   } catch (err) {
-    return { status: "error", message: err instanceof Error ? err.message : "Admin client unavailable." };
+    return { status: "error", message: err instanceof Error ? err.message : t("adminUnavailable") };
   }
 
   if (supervisorId !== null) {
     if (memberId === supervisorId) {
-      return { status: "error", message: "Somebody cannot report to themselves." };
+      return { status: "error", message: t("selfReport") };
     }
     if (await wouldCreateCycle(admin, memberId, supervisorId)) {
-      return {
-        status: "error",
-        message: "That would create a reporting loop — the person you picked already reports to this one, directly or through someone else.",
-      };
+      return { status: "error", message: t("loop") };
     }
   }
 
@@ -145,7 +147,7 @@ export async function setSupervisor(
   revalidatePath("/people");
   return {
     status: "success",
-    message: supervisorId === null ? "Reporting line cleared." : "Reporting line saved.",
+    message: supervisorId === null ? t("lineCleared") : t("lineSaved"),
   };
 }
 
@@ -157,9 +159,10 @@ export async function setMemberDetails(
   const guard = await assertCanEditPeople();
   if ("error" in guard) return { status: "error", message: guard.error };
 
+  const t = await getTranslations("people.actions.org");
   const memberId = Number(formData.get("member_id"));
   if (!Number.isFinite(memberId)) {
-    return { status: "error", message: "Which person? The member id was missing." };
+    return { status: "error", message: t("missingMember") };
   }
 
   // Empty means "not recorded", stored as null rather than "". An empty string
@@ -171,7 +174,7 @@ export async function setMemberDetails(
   try {
     admin = createAdminClient();
   } catch (err) {
-    return { status: "error", message: err instanceof Error ? err.message : "Admin client unavailable." };
+    return { status: "error", message: err instanceof Error ? err.message : t("adminUnavailable") };
   }
 
   const { error } = await timeSchema(admin)
@@ -182,5 +185,5 @@ export async function setMemberDetails(
   if (error) return { status: "error", message: error.message };
 
   revalidatePath("/people");
-  return { status: "success", message: "Saved." };
+  return { status: "success", message: t("detailsSaved") };
 }

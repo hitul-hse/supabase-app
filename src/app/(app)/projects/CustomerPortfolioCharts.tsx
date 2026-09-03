@@ -18,14 +18,14 @@
  */
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Card, CardHeader, ChartNote } from "@/components/ui/Card";
 import { Donut, LegendDot } from "@/components/ui/Charts";
 // Fed a re-derived view: the Projects explorer recomputes this on every filter
 // change from rows already in the browser (project-insights.ts), so the charts
 // react to the shared filter bar rather than showing a fixed server snapshot.
-import type { CustomerPortfolioView } from "./project-insights";
-
-const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+import { NO_CUSTOMER, type CustomerPortfolioView } from "./project-insights";
+import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 
 /** Distinct hues for the donut's top slices; the tail folds into one grey. */
 const SLICE_COLORS = [
@@ -41,22 +41,34 @@ export function CustomerPortfolioCharts({
   data,
   onCustomer,
   activeCustomers,
+  locale,
 }: {
   data: CustomerPortfolioView;
   /** When given, the donut cross-filters: clicking a slice or legend row toggles
    * that customer in the page filter, the way a mark click filters in Tableau. */
   onCustomer?: (name: string) => void;
   activeCustomers?: Set<string>;
+  /** The request locale, handed down by the explorer. Absent means en-GB. */
+  locale?: string;
 }) {
+  const t = useTranslations("projects");
+  const tDrill = useTranslations("drill");
   const { rows, totalHours, customerCount, top5SharePercent } = data;
   const active = activeCustomers ?? new Set<string>();
+  /*
+   * The customer name is the FILTER KEY (project-insights.NO_CUSTOMER), so the
+   * "no customer" bucket keeps its English key and only its rendering follows
+   * the locale -- exactly as the explorer's filter does.
+   */
+  const noCustomerLabel = tDrill("noCustomer");
+  const display = (name: string) => (name === NO_CUSTOMER ? noCustomerLabel : name);
 
   if (rows.length === 0) {
     return (
       <Card className="flex flex-col">
-        <CardHeader title="Customers" qualifier="BY DELIVERED HOURS" />
+        <CardHeader title={t("customerCharts.title")} qualifier={t("customerCharts.qualifier")} />
         <p className="px-4 pb-5 text-[12px] text-[var(--text-faint)]">
-          No customer hours logged yet.
+          {t("customerCharts.empty")}
         </p>
       </Card>
     );
@@ -67,12 +79,13 @@ export function CustomerPortfolioCharts({
   const tailHours = rows.slice(TOP).reduce((s, r) => s + r.hours, 0);
 
   const slices = top.map((r, i) => ({
-    label: r.name,
+    label: display(r.name),
     value: r.hours,
     color: SLICE_COLORS[i % SLICE_COLORS.length],
   }));
+  const moreLabel = t("customerCharts.more", { count: fmtInt(customerCount - TOP, locale) });
   if (tailHours > 0) {
-    slices.push({ label: `${customerCount - TOP} more`, value: tailHours, color: "var(--border-strong)" });
+    slices.push({ label: moreLabel, value: tailHours, color: "var(--border-strong)" });
   }
 
   // The capacity view lists customers that HAVE a budget to judge against,
@@ -94,17 +107,22 @@ export function CustomerPortfolioCharts({
       {/* ---------------------------------------- biggest customers (share) */}
       <Card className="flex flex-col lg:col-span-5">
         <CardHeader
-          title="Biggest customers"
-          qualifier={`TOP 5 = ${top5SharePercent}% OF ${h(totalHours)}H`}
+          title={t("customerCharts.biggest.title")}
+          qualifier={t("customerCharts.biggest.qualifier", {
+            share: fmtPct(top5SharePercent, locale),
+            hours: fmtNum(totalHours, locale, 1),
+          })}
         />
         <div className="flex flex-1 flex-col items-center gap-4 px-4 pb-5 sm:flex-row sm:items-center">
           <Donut
             slices={slices}
-            centre={`${top[0].sharePercent}%`}
-            centreLabel={top[0].name.split(" ")[0]}
-            label={`Delivered-hours share by customer: ${top
-              .map((r) => `${r.name} ${r.sharePercent}%`)
-              .join(", ")}`}
+            centre={fmtPct(top[0].sharePercent, locale, 1)}
+            centreLabel={display(top[0].name).split(" ")[0]}
+            label={t("customerCharts.biggest.chartLabel", {
+              list: top
+                .map((r) => `${display(r.name)} ${fmtPct(r.sharePercent, locale, 1)}`)
+                .join(", "),
+            })}
             size={168}
             thickness={16}
             onSelect={onCustomer ? (name) => onCustomer(name) : undefined}
@@ -116,10 +134,10 @@ export function CustomerPortfolioCharts({
               const row = (
                 <>
                   <LegendDot color={SLICE_COLORS[i % SLICE_COLORS.length]}>
-                    <span className="max-w-[12rem] truncate">{r.name}</span>
+                    <span className="max-w-[12rem] truncate">{display(r.name)}</span>
                   </LegendDot>
                   <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
-                    {r.sharePercent}% · {h(r.hours)}h
+                    {fmtPct(r.sharePercent, locale, 1)} · {fmtHours(r.hours, locale, 1)}
                   </span>
                 </>
               );
@@ -143,9 +161,9 @@ export function CustomerPortfolioCharts({
             })}
             {tailHours > 0 && (
               <div className="flex items-baseline justify-between gap-2">
-                <LegendDot color="var(--border-strong)">{customerCount - TOP} more</LegendDot>
+                <LegendDot color="var(--border-strong)">{moreLabel}</LegendDot>
                 <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
-                  {h(tailHours)}h
+                  {fmtHours(tailHours, locale, 1)}
                 </span>
               </div>
             )}
@@ -153,9 +171,11 @@ export function CustomerPortfolioCharts({
         </div>
         {top[0].sharePercent >= 25 && (
           <p className="border-t border-[var(--border)] px-4 py-2.5 text-[10px] leading-relaxed text-[var(--text-faint)]">
-            {top[0].name} alone is {top[0].sharePercent}% of delivered hours and the top
-            five are {top5SharePercent}% — a concentration worth weighing when planning
-            capacity or pricing.
+            {t("customerCharts.concentration", {
+              name: display(top[0].name),
+              share: fmtPct(top[0].sharePercent, locale, 1),
+              top5: fmtPct(top5SharePercent, locale),
+            })}
           </p>
         )}
         {/*
@@ -163,29 +183,27 @@ export function CustomerPortfolioCharts({
           a low rate can dominate this ring while contributing far less. Saying
           so prevents the most natural misreading of a customer donut.
         */}
-        <ChartNote>
-          Each customer&apos;s share of delivered hours. This measures effort, not fee
-          — rates differ by customer, so the largest slice is not necessarily the
-          largest account.
-        </ChartNote>
+        <ChartNote>{t("customerCharts.note")}</ChartNote>
       </Card>
 
       {/* --------------------------------------------- capacity vs commitment */}
       <Card className="flex flex-col lg:col-span-7">
         <CardHeader
-          title="Capacity against commitment"
-          qualifier="DELIVERED vs BUDGETED HOURS · WORST HEADROOM FIRST"
+          title={t("customerCharts.capacity.title")}
+          qualifier={t("customerCharts.capacity.qualifier")}
           actions={
             <div className="flex items-center gap-3">
-              <LegendDot color="var(--accent)">DELIVERED</LegendDot>
-              <LegendDot color="var(--critical)">OVER BUDGET</LegendDot>
+              <LegendDot color="var(--accent)">{t("customerCharts.capacity.delivered")}</LegendDot>
+              <LegendDot color="var(--critical)">
+                {t("customerCharts.capacity.overBudget")}
+              </LegendDot>
             </div>
           }
         />
         <div className="flex flex-col gap-2.5 px-4 pb-4">
           {budgeted.length === 0 ? (
             <p className="py-4 font-mono text-[11px] text-[var(--text-faint)]">
-              No customer has a budgeted project to judge capacity against.
+              {t("customerCharts.capacity.empty")}
             </p>
           ) : (
             budgeted.map((r) => {
@@ -197,17 +215,21 @@ export function CustomerPortfolioCharts({
                 <div key={r.name} className="flex flex-col gap-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="max-w-[60%] truncate text-[12px] text-[var(--text-primary)]">
-                      {r.name}
+                      {display(r.name)}
                     </span>
                     <span
                       className={`font-mono text-[10px] tabular-nums ${
                         over ? "text-[var(--critical)]" : "text-[var(--text-muted)]"
                       }`}
                     >
-                      {h(r.hours)}h / {h(committed)}h ·{" "}
+                      {fmtHours(r.hours, locale, 1)} / {fmtHours(committed, locale, 1)} ·{" "}
                       {over
-                        ? `${h(Math.abs(r.headroomHours ?? 0))}h over`
-                        : `${h(r.headroomHours ?? 0)}h left`}
+                        ? t("customerCharts.capacity.over", {
+                            hours: fmtHours(Math.abs(r.headroomHours ?? 0), locale, 1),
+                          })
+                        : t("customerCharts.capacity.left", {
+                            hours: fmtHours(r.headroomHours ?? 0, locale, 1),
+                          })}
                     </span>
                   </div>
                   {/* The track is the committed budget; the fill is delivered.
@@ -237,7 +259,7 @@ export function CustomerPortfolioCharts({
             scroll={false}
             className="mt-1 self-start text-[11px] text-[var(--accent)] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
-            See every project by burn →
+            {t("customerCharts.capacity.link")}
           </Link>
         </div>
       </Card>

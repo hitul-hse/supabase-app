@@ -1,5 +1,7 @@
+import { getLocale, getTranslations } from "next-intl/server";
 import type { WeekSummaryRow } from "@/lib/queries/time";
 import { formatSeconds } from "@/lib/time-transform";
+import { fmtPct } from "@/lib/locale-format";
 import { Card } from "@/components/ui/Card";
 
 /**
@@ -13,7 +15,7 @@ import { Card } from "@/components/ui/Card";
  */
 
 /** Contracted hours are the honest denominator, not a 40-hour assumption. */
-function Utilisation({ percent }: { percent: number | null }) {
+function Utilisation({ percent, locale }: { percent: number | null; locale: string }) {
   if (percent === null) {
     // No contracted hours on record. A dash is honest; "0%" would read as
     // "logged nothing against a full week".
@@ -39,26 +41,35 @@ function Utilisation({ percent }: { percent: number | null }) {
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>
-      <span className={`font-mono text-[11px] tabular-nums ${tone}`}>{percent}%</span>
+      <span className={`font-mono text-[11px] tabular-nums ${tone}`}>
+        {fmtPct(percent, locale)}
+      </span>
     </div>
   );
 }
 
-export function WeekSummaryTable({
+export async function WeekSummaryTable({
   rows,
   weekStart,
 }: {
   rows: WeekSummaryRow[];
   weekStart: string;
 }) {
+  const t = await getTranslations("time.weekSummary");
+  const locale = await getLocale();
+  // The column order is the reading order and does not change with the
+  // language; only the words do. `contracted` and `utilisation` deliberately
+  // resolve to Management's canonical German (VERTRAGSSTUNDEN, AUSLASTUNG).
+  const COLUMNS = ["member", "logged", "billable", "calendar", "contracted", "utilisation"];
   return (
     <Card as="section" className="overflow-hidden">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--divider)] px-4 py-2.5">
-        <h2 className="text-[12px] font-medium text-[var(--text-primary)]">
-          Week summary
-        </h2>
+        <h2 className="text-[12px] font-medium text-[var(--text-primary)]">{t("title")}</h2>
         <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-          WEEK OF {weekStart} · {rows.length} {rows.length === 1 ? "MEMBER" : "MEMBERS"}
+          {/* The week is its ISO Monday, which is an identifier rather than a
+              date a reader parses -- it is what the ?week= parameter carries,
+              so it stays ISO in both languages. */}
+          {t("meta", { week: weekStart, count: rows.length })}
         </span>
       </header>
 
@@ -66,19 +77,17 @@ export function WeekSummaryTable({
         <table className="w-full min-w-[640px] border-collapse">
           <thead>
             <tr className="border-b border-[var(--divider)] text-left">
-              {["Member", "Logged", "Billable", "Calendar", "Contracted", "Utilisation"].map(
-                (h, i) => (
-                  <th
-                    key={h}
-                    scope="col"
-                    className={`px-4 py-2 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)] ${
-                      i === 0 ? "" : "text-right"
-                    }`}
-                  >
-                    {h.toUpperCase()}
-                  </th>
-                ),
-              )}
+              {COLUMNS.map((key, i) => (
+                <th
+                  key={key}
+                  scope="col"
+                  className={`px-4 py-2 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)] ${
+                    i === 0 ? "" : "text-right"
+                  }`}
+                >
+                  {t(key).toUpperCase()}
+                </th>
+              ))}
             </tr>
           </thead>
 
@@ -104,7 +113,7 @@ export function WeekSummaryTable({
                   {formatSeconds(r.contractedSeconds)}
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <Utilisation percent={r.utilisationPercent} />
+                  <Utilisation percent={r.utilisationPercent} locale={locale} />
                 </td>
               </tr>
             ))}
@@ -113,9 +122,7 @@ export function WeekSummaryTable({
       </div>
 
       <p className="border-t border-[var(--divider)] px-4 py-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
-        Calendar time is shown separately because it is mostly synced placeholders
-        rather than deliberate work, and folding it into the total would inflate
-        every utilisation figure here.
+        {t("note")}
       </p>
     </Card>
   );

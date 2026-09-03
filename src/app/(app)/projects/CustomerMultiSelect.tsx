@@ -7,22 +7,54 @@
  * pill trigger that opens a searchable popover, selected options hoisted to the
  * top, keyboard-navigable, Escape/outside-click to close. Customers key by NAME
  * here rather than id because the project ledger row carries the customer name,
- * not its id, and "(no customer)" is a real, selectable bucket.
+ * not its id, and NO_CUSTOMER is a real, selectable bucket.
+ *
+ * WORDS AND THE LOCALE ARRIVE AS PROPS, never from a next-intl hook. This
+ * component is rendered inside ProjectsExplorer by
+ * `scripts/check-projects-module.mjs` with `renderToStaticMarkup`, outside any
+ * request: a hook would throw there and take the whole gate down rather than
+ * fail one check. The explorer already holds a translator, so it resolves
+ * these and hands them over -- the same contract ProjectPanels.tsx uses.
+ * `displayName` exists because the customer NAME is the filter key: it stays
+ * English for NO_CUSTOMER and only its rendering is translated.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { fmtNum } from "@/lib/locale-format";
 
-const h = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 0 });
+/** Every word this control draws, resolved by the caller in the request locale. */
+export type CustomerSelectLabels = {
+  /** The field name above the summary. */
+  field: string;
+  /** Nothing picked: "All (105)", or "All" when there is nothing to count. */
+  summaryAll: (total: number) => string;
+  /** Several picked: "3 selected". */
+  summarySelected: (count: number) => string;
+  searchPlaceholder: string;
+  /** "12 of 105 customers · 3 selected". */
+  counts: (shown: number, total: number, selected: number) => string;
+  noMatch: (query: string) => string;
+  clear: (count: number) => string;
+  /** The listbox's accessible name. */
+  listLabel: string;
+  /** How a customer name is drawn -- NO_CUSTOMER becomes "(no customer)". */
+  displayName: (name: string) => string;
+};
 
 export function CustomerMultiSelect({
   options,
   selected,
   onChange,
+  labels,
+  locale,
 }: {
   /** Customer names with their delivered hours, biggest-first. */
   options: { name: string; hours: number }[];
   selected: Set<string>;
   onChange: (next: Set<string>) => void;
+  labels: CustomerSelectLabels;
+  /** The request locale; absent means en-GB. */
+  locale?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -82,10 +114,10 @@ export function CustomerMultiSelect({
 
   const summary =
     selected.size === 0
-      ? `All${options.length ? ` (${options.length})` : ""}`
+      ? labels.summaryAll(options.length)
       : selected.size === 1
-        ? [...selected][0]
-        : `${selected.size} selected`;
+        ? labels.displayName([...selected][0])
+        : labels.summarySelected(selected.size);
 
   return (
     <div ref={ref} className="relative">
@@ -102,7 +134,7 @@ export function CustomerMultiSelect({
       >
         <span className="flex flex-col leading-tight">
           <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
-            CUSTOMER
+            {labels.field}
           </span>
           <span className="truncate">{summary}</span>
         </span>
@@ -126,16 +158,11 @@ export function CustomerMultiSelect({
               aria-expanded
               aria-controls="customer-options"
               aria-autocomplete="list"
-              placeholder="Search customers…"
+              placeholder={labels.searchPlaceholder}
               className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
             <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
-              <span>
-                {filtered.length.toLocaleString("en-GB")}
-                {filtered.length !== options.length ? ` of ${options.length}` : ""}{" "}
-                {options.length === 1 ? "customer" : "customers"}
-                {selected.size > 0 ? ` · ${selected.size} selected` : ""}
-              </span>
+              <span>{labels.counts(filtered.length, options.length, selected.size)}</span>
               <span aria-hidden>↑↓ ⏎ esc</span>
             </p>
           </div>
@@ -144,13 +171,13 @@ export function CustomerMultiSelect({
             ref={listRef}
             id="customer-options"
             role="listbox"
-            aria-label="Customer"
+            aria-label={labels.listLabel}
             aria-multiselectable
             className="flex-1 overflow-y-auto"
           >
             {filtered.length === 0 ? (
               <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
-                No customer matches “{query.trim()}”
+                {labels.noMatch(query.trim())}
               </p>
             ) : (
               filtered.map((o, i) => {
@@ -184,10 +211,10 @@ export function CustomerMultiSelect({
                           </svg>
                         )}
                       </span>
-                      <span className="truncate">{o.name}</span>
+                      <span className="truncate">{labels.displayName(o.name)}</span>
                     </span>
                     <span className="flex-none font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
-                      {h(o.hours)}h
+                      {fmtNum(o.hours, locale, 0)}h
                     </span>
                   </button>
                 );
@@ -202,7 +229,7 @@ export function CustomerMultiSelect({
                 onClick={() => onChange(new Set())}
                 className="text-[11px] text-[var(--text-secondary)] transition-colors hover:text-[var(--critical)]"
               >
-                Clear {selected.size}
+                {labels.clear(selected.size)}
               </button>
             </div>
           )}

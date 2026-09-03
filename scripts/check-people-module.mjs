@@ -419,12 +419,23 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
   // The shared pager, compiled for real: it imports nothing but React, and the
   // slice bounds it returns are what decides which rows the assertions below
   // can see at all.
-  const pagerFile = await compile("src/components/Pager.tsx", "pager.cjs");
+  // Pager reads the catalogue for its own chrome (PER PAGE, PREV, the count
+  // line), so it needs the same next-intl stub the view gets. Compiled without
+  // it, the real package's useTranslations throws outside a provider and takes
+  // the gate down inside React's renderer, where the stack says nothing useful.
+  const pagerFile = await compile("src/components/Pager.tsx", "pager.cjs", {
+    "next-intl": posix(intlStub),
+  });
 
   // The card vocabulary, compiled for real: the directory's KPI tiles are
   // StatTiles now, and the n/a-never-0 assertions below run against StatTile's
   // rendered markup. A stub would let them pass while rendering nothing.
   const cardFile = await compile("src/components/ui/Card.tsx", "card.cjs");
+  // The directory's figures now follow the request locale through this helper,
+  // so it has to be compiled like the other real modules: an unresolved alias
+  // here fails the require() with MODULE_NOT_FOUND and takes the whole gate
+  // down before a single assertion runs.
+  const formatFile = await compile("src/lib/locale-format.ts", "locale-format.cjs");
 
   const view = require(
     await compile(VIEW, "people-view.cjs", {
@@ -437,6 +448,7 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
       "@/components/EmptyState": posix(emptyStub),
       "@/lib/queries/people-live": posix(join(dir, "people-live.cjs")),
       "@/components/ui/Card": posix(cardFile),
+      "@/lib/locale-format": posix(formatFile),
       "next/link": posix(linkStub),
       "next-intl": posix(intlStub),
     }),

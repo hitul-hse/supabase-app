@@ -22,15 +22,25 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/utils/supabase/server";
 
 export type ContractActionResult = { ok: boolean; message?: string };
 
 const WRITE_KEY = "projects:contracts:write";
 
-const DENIED =
-  "Your role does not permit changing contract terms. Contract budgets are commercial " +
-  "terms, so they are limited to executives and department heads.";
+/**
+ * Every sentence below is resolved in the CALLER'S locale -- the same cookie
+ * the page reads -- following project-drilldown.ts: ContractPanel renders the
+ * message it is handed, so a German reader must be handed German. A raw
+ * Postgres `error.message` is left as it comes: that is operator text and
+ * translating it would invent wording the database did not say.
+ */
+type Words = Awaited<ReturnType<typeof getTranslations<"projects.contractActions">>>;
+
+async function words(): Promise<Words> {
+  return getTranslations("projects.contractActions");
+}
 
 type Authorised = {
   ok: true;
@@ -41,14 +51,15 @@ type Authorised = {
 type Refused = { ok: false; result: ContractActionResult };
 
 async function authorise(): Promise<Authorised | Refused> {
+  const t = await words();
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, result: { ok: false, message: "You are not signed in." } };
+  if (!user) return { ok: false, result: { ok: false, message: t("notSignedIn") } };
 
   const { data: allowed } = await supabase.rpc("app_user_has_permission", { p_key: WRITE_KEY });
-  if (allowed !== true) return { ok: false, result: { ok: false, message: DENIED } };
+  if (allowed !== true) return { ok: false, result: { ok: false, message: t("denied") } };
 
   return { ok: true, supabase, callerId: user.id };
 }
@@ -102,23 +113,25 @@ function percent(raw: FormDataEntryValue | null): number | null {
  * explaining what to do, so that hint is preferred over inventing wording here
  * -- the database is the thing that knows which period collided.
  */
-function explain(error: { code?: string; message: string; hint?: string | null }): string {
+function explain(
+  error: { code?: string; message: string; hint?: string | null },
+  t: Words,
+): string {
   if (error.code === "23P01") {
-    return (
-      (error.hint ??
-        "That date range overlaps a contract period that already exists on this project.") +
-      " Each date can belong to only one contract period, otherwise the budget guard cannot " +
-      "tell which budget applies."
-    );
+    // The trigger's own HINT names the period that collided, so it is preferred
+    // over anything invented here -- and it arrives in whatever language the
+    // database wrote it, which is why only the sentence around it is
+    // translated.
+    return t("overlap", { hint: error.hint ?? t("overlapHint") });
   }
   if (error.code === "23514") {
-    return "Those values are not a valid contract: check that the budget is above zero and the end date is not before the start date.";
+    return t("invalid");
   }
   if (error.code === "42501") {
-    return DENIED;
+    return t("denied");
   }
   if (error.code === "23505") {
-    return "A contract period with that number already exists on this project. Reload the page and try again.";
+    return t("duplicate");
   }
   return error.message;
 }
@@ -141,6 +154,7 @@ function revalidateContracts(projectId: number): void {
  * can always assume a previous period exists.
  */
 export async function setContractTerms(formData: FormData): Promise<ContractActionResult> {
+  const t = await words();
   const auth = await authorise();
   if (!auth.ok) return auth.result;
 
@@ -149,16 +163,12 @@ export async function setContractTerms(formData: FormData): Promise<ContractActi
   const startsOn = isoDate(formData.get("starts_on"));
   const endsOn = isoDate(formData.get("ends_on"));
 
-  if (projectId === null) return { ok: false, message: "Missing project." };
-  if (budgetHours === null) {
-    return { ok: false, message: "Enter the agreed budget in hours, above zero." };
-  }
+  if (projectId === null) return { ok: false, message: t("missingProject") };
+  if (budgetHours === null) return { ok: false, message: t("budgetRequired") };
   if (startsOn === null || endsOn === null) {
-    return { ok: false, message: "Enter both contract dates as yyyy-mm-dd." };
+    return { ok: false, message: t("datesRequired") };
   }
-  if (endsOn < startsOn) {
-    return { ok: false, message: "The contract cannot end before it starts." };
-  }
+  if (endsOn < startsOn) return { ok: false, message: t("endBeforeStart") };
 
   const { supabase, callerId } = auth;
 
@@ -199,12 +209,17 @@ export async function setContractTerms(formData: FormData): Promise<ContractActi
       created_by: callerId,
     });
 
-  if (error) return { ok: false, message: explain(error) };
+  if (error) return { ok: false, message: explain(error, t) };
 
   revalidateContracts(projectId);
   return {
     ok: true,
-    message: `Contract period ${nextNo} recorded: ${budgetHours}h from ${startsOn} to ${endsOn}.`,
+    message: t("recorded", {
+      period: nextNo,
+      hours: budgetHours,
+      startsOn,
+      endsOn,
+    }),
   };
 }
 
@@ -220,6 +235,7 @@ export async function setContractTerms(formData: FormData): Promise<ContractActi
  * period 3.
  */
 export async function renewContract(formData: FormData): Promise<ContractActionResult> {
+  const t = await words();
   const auth = await authorise();
   if (!auth.ok) return auth.result;
 
@@ -228,16 +244,12 @@ export async function renewContract(formData: FormData): Promise<ContractActionR
   const startsOn = isoDate(formData.get("starts_on"));
   const endsOn = isoDate(formData.get("ends_on"));
 
-  if (projectId === null) return { ok: false, message: "Missing project." };
-  if (budgetHours === null) {
-    return { ok: false, message: "Enter the renewed budget in hours, above zero." };
-  }
+  if (projectId === null) return { ok: false, message: t("missingProject") };
+  if (budgetHours === null) return { ok: false, message: t("renewalBudgetRequired") };
   if (startsOn === null || endsOn === null) {
-    return { ok: false, message: "Enter both contract dates as yyyy-mm-dd." };
+    return { ok: false, message: t("datesRequired") };
   }
-  if (endsOn < startsOn) {
-    return { ok: false, message: "The contract cannot end before it starts." };
-  }
+  if (endsOn < startsOn) return { ok: false, message: t("endBeforeStart") };
 
   const { supabase } = auth;
   const { data, error } = await supabase.schema("time").rpc("renew_contract_period", {
@@ -250,15 +262,18 @@ export async function renewContract(formData: FormData): Promise<ContractActionR
     p_notes: text(formData.get("notes")),
   });
 
-  if (error) return { ok: false, message: explain(error) };
+  if (error) return { ok: false, message: explain(error, t) };
 
   const periodNo = Array.isArray(data) ? data[0]?.period_no : data?.period_no;
   revalidateContracts(projectId);
   return {
     ok: true,
-    message:
-      `Renewed as contract period ${periodNo ?? "next"}: ${budgetHours}h from ${startsOn} to ${endsOn}. ` +
-      "The previous period keeps its own budget and the hours booked against it.",
+    message: t("renewed", {
+      period: periodNo ?? t("nextPeriod"),
+      hours: budgetHours,
+      startsOn,
+      endsOn,
+    }),
   };
 }
 
@@ -274,6 +289,7 @@ export async function renewContract(formData: FormData): Promise<ContractActionR
  * report it as already over, which is the truth rather than a hidden overrun.
  */
 export async function correctContractPeriod(formData: FormData): Promise<ContractActionResult> {
+  const t = await words();
   const auth = await authorise();
   if (!auth.ok) return auth.result;
 
@@ -284,17 +300,13 @@ export async function correctContractPeriod(formData: FormData): Promise<Contrac
   const endsOn = isoDate(formData.get("ends_on"));
 
   if (periodId === null || projectId === null) {
-    return { ok: false, message: "Missing contract period." };
+    return { ok: false, message: t("missingPeriod") };
   }
-  if (budgetHours === null) {
-    return { ok: false, message: "Enter the agreed budget in hours, above zero." };
-  }
+  if (budgetHours === null) return { ok: false, message: t("budgetRequired") };
   if (startsOn === null || endsOn === null) {
-    return { ok: false, message: "Enter both contract dates as yyyy-mm-dd." };
+    return { ok: false, message: t("datesRequired") };
   }
-  if (endsOn < startsOn) {
-    return { ok: false, message: "The contract cannot end before it starts." };
-  }
+  if (endsOn < startsOn) return { ok: false, message: t("endBeforeStart") };
 
   const { supabase } = auth;
   const patch: Record<string, unknown> = {
@@ -316,8 +328,8 @@ export async function correctContractPeriod(formData: FormData): Promise<Contrac
     .eq("id", periodId)
     .eq("project_id", projectId);
 
-  if (error) return { ok: false, message: explain(error) };
+  if (error) return { ok: false, message: explain(error, t) };
 
   revalidateContracts(projectId);
-  return { ok: true, message: "Contract period updated." };
+  return { ok: true, message: t("corrected") };
 }

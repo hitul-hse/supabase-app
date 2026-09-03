@@ -1,14 +1,29 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/utils/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
 
 export type CreateTaskState = { status: "idle" | "success" | "error"; message?: string };
 
+/**
+ * The stored status values, English in every locale: this is what
+ * `project_tasks.status` holds and what the <select> posts back. TaskRow.tsx
+ * translates the option text against exactly this list.
+ */
 const TASK_STATUSES = ["NOT STARTED", "IN PROGRESS", "OVER 33%", "DONE"] as const;
 
-const DENIED = "You do not have permission to change this project.";
+/**
+ * Refusals are resolved in the CALLER'S locale, the way
+ * project-drilldown.ts and management/actions.ts do it: the form renders the
+ * sentence it is handed, so a German reader must be handed German. Postgres
+ * error messages (`error.message`) stay as they come -- they are operator
+ * text, not a sentence for the reader.
+ */
+async function words() {
+  return getTranslations("projects.actions");
+}
 
 /**
  * The single authorisation point for every mutation in this file.
@@ -80,9 +95,10 @@ function readParent(formData: FormData): TaskParent | null {
 async function insertTask(
   formData: FormData,
 ): Promise<{ error?: string; name?: string }> {
+  const t = await words();
   const auth = await requireProjectWriter();
   if (!auth) {
-    return { error: DENIED };
+    return { error: t("denied") };
   }
   const { supabase, user } = auth;
 
@@ -94,10 +110,10 @@ async function insertTask(
   const parentTaskId = parentTaskIdRaw ? Number(parentTaskIdRaw) : null;
 
   if (!parent) {
-    return { error: "That task is not attached to a project." };
+    return { error: t("noParent") };
   }
   if (!name) {
-    return { error: "Task name is required." };
+    return { error: t("nameRequired") };
   }
 
   const { data: sortRow } = await supabase
@@ -138,7 +154,8 @@ export async function createTask(
   if (result.error) {
     return { status: "error", message: result.error };
   }
-  return { status: "success", message: `Added "${result.name}".` };
+  const t = await words();
+  return { status: "success", message: t("added", { name: result.name ?? "" }) };
 }
 
 export async function addSubtask(formData: FormData): Promise<void> {
@@ -234,14 +251,15 @@ export async function createSection(
   _prev: SectionState,
   formData: FormData,
 ): Promise<SectionState> {
+  const t = await words();
   const auth = await requireProjectWriter();
-  if (!auth) return { status: "error", message: DENIED };
+  if (!auth) return { status: "error", message: t("denied") };
   const { supabase } = auth;
 
   const parent = readParent(formData);
   const name = String(formData.get("name") || "").trim();
-  if (!parent) return { status: "error", message: "That column is not attached to a project." };
-  if (!name) return { status: "error", message: "Name the column first." };
+  if (!parent) return { status: "error", message: t("sectionNoParent") };
+  if (!name) return { status: "error", message: t("sectionNameRequired") };
 
   const { data: last } = await supabase
     .from("project_sections")

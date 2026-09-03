@@ -22,6 +22,7 @@
  */
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { OrgChartData, OrgNode, OrgMember } from "@/lib/queries/org-chart-live";
 import { setSupervisor, setMemberDetails } from "./org-actions";
 import { teamLabel, teamOptionsFor } from "@/lib/teams";
@@ -45,6 +46,7 @@ function NodeRow({
   onEdit: (m: OrgMember) => void;
   canEdit: boolean;
 }) {
+  const t = useTranslations("people.orgChart");
   return (
     <>
       <div
@@ -75,15 +77,15 @@ function NodeRow({
         )}
         {node.totalReports > 0 && (
           <span className="font-mono text-[10px] text-[var(--text-faint)]">
-            {node.totalReports} REPORT{node.totalReports === 1 ? "" : "S"}
+            {t("reports", { count: node.totalReports })}
           </span>
         )}
         {!node.hasAccount && (
           <span
             className="font-mono text-[9px] tracking-[0.06em] text-[var(--text-faint)]"
-            title="No Hub sign-in yet"
+            title={t("noAccountTitle")}
           >
-            NO ACCOUNT
+            {t("noAccount")}
           </span>
         )}
         {canEdit && (
@@ -92,7 +94,7 @@ function NodeRow({
             onClick={() => onEdit(node)}
             className="ml-auto border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
           >
-            EDIT
+            {t("edit")}
           </button>
         )}
       </div>
@@ -121,13 +123,14 @@ function ManagerPicker({
   everyone: OrgMember[];
   disabled: boolean;
 }) {
+  const t = useTranslations("people.orgChart");
   const [supervisorId, setSupervisorId] = useState(
     editing.supervisorMemberId === null ? "" : String(editing.supervisorMemberId),
   );
   return (
     <SearchableSelect
       className="min-w-[240px]"
-      label="Reports to"
+      label={t("reportsTo")}
       name="supervisor_member_id"
       options={everyone
         // Never offer somebody as their own manager. Longer loops are
@@ -140,7 +143,7 @@ function ManagerPicker({
         }))}
       value={supervisorId}
       onChange={setSupervisorId}
-      allowEmpty={{ value: "", name: "Nobody (top of the chart)" }}
+      allowEmpty={{ value: "", name: t("nobody") }}
       disabled={disabled}
     />
   );
@@ -153,6 +156,7 @@ export function OrgChartView({
   chart: OrgChartData;
   canEdit: boolean;
 }) {
+  const t = useTranslations("people.orgChart");
   const [editing, setEditing] = useState<OrgMember | null>(null);
   const [supState, supAction, supPending] = useActionState(setSupervisor, { status: "idle" as const });
   const [detState, detAction, detPending] = useActionState(setMemberDetails, { status: "idle" as const });
@@ -171,9 +175,11 @@ export function OrgChartView({
     return (
       <div className="page-shell">
         <Card className="p-8 text-center">
-          <p className="text-[13px] font-semibold text-[var(--text-primary)]">No active people</p>
+          <p className="text-[13px] font-semibold text-[var(--text-primary)]">
+            {t("empty.title")}
+          </p>
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
-            Nobody in the TrackingTime roster is currently active.
+            {t("empty.body")}
           </p>
         </Card>
       </div>
@@ -187,15 +193,18 @@ export function OrgChartView({
       <Card className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-            Reporting structure
+            {t("heading")}
           </span>
           <span className="font-mono text-[10px] text-[var(--text-muted)]">
-            RECORDED IN THE HUB · TRACKINGTIME HOLDS NO HIERARCHY
+            {t("source")}
           </span>
         </div>
-        <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-          {placedCount} OF {totalPeople} PLACED
-          {teams.length > 0 && ` · ${teams.length} TEAM${teams.length === 1 ? "" : "S"}`}
+        {/* data-coverage is the English handle for scripts and gates, identical
+            in both languages, so a check that wants the placed-of-total figure
+            still finds it on the German page. The words are the catalogue's. */}
+        <span data-coverage="PLACED" className="font-mono text-[11px] text-[var(--text-secondary)]">
+          {t("placed", { placed: placedCount, total: totalPeople })}
+          {teams.length > 0 && ` · ${t("teams", { count: teams.length })}`}
         </span>
       </Card>
 
@@ -214,12 +223,10 @@ export function OrgChartView({
           style={{ background: "var(--warning-wash)" }}
         >
           <p className="text-[12px] font-semibold text-[var(--text-primary)]">
-            Showing a partial chart
+            {t("degraded.title")}
           </p>
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
-            The company-wide org chart view is unavailable, so this falls back to the
-            people you are permitted to see. It is not the whole organisation. An
-            administrator needs to apply the pending database migration.
+            {t("degraded.body")}
           </p>
         </div>
       )}
@@ -247,12 +254,10 @@ export function OrgChartView({
           style={{ background: "var(--warning-wash)" }}
         >
           <p className="text-[12px] font-semibold text-[var(--text-primary)]">
-            {cycles.length} reporting loop{cycles.length === 1 ? "" : "s"} recorded
+            {t("cycles.title", { count: cycles.length })}
           </p>
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
-            Some people report to each other in a circle, so they cannot be placed
-            in a tree. The members involved are listed below as unplaced — clear one
-            of their reporting lines to resolve it.
+            {t("cycles.body")}
           </p>
         </div>
       )}
@@ -261,13 +266,11 @@ export function OrgChartView({
       {roots.length === 0 ? (
         <Card className="p-8 text-center">
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">
-            No reporting lines recorded yet
+            {t("noLines.title")}
           </p>
           <p className="mx-auto mt-1 max-w-[46ch] text-[12px] text-[var(--text-secondary)]">
-            TrackingTime does not hold who reports to whom, so nothing can be
-            imported. {canEdit
-              ? "Use EDIT beside anyone below to record their manager, and the chart will build itself."
-              : "Somebody with permission to edit people can record it."}
+            {t("noLines.body")}{" "}
+            {canEdit ? t("noLines.canEdit") : t("noLines.readOnly")}
           </p>
         </Card>
       ) : (
@@ -275,7 +278,7 @@ export function OrgChartView({
            is a glyph in a diagram -- elevation per node turns it into a heap. */
         <Card className="overflow-hidden">
           <div className="border-b border-[var(--divider)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-            REPORTS TO
+            {t("reportsToHeader")}
           </div>
           {roots.map((root) => (
             <NodeRow key={root.memberId} node={root} onEdit={setEditing} canEdit={canEdit} />
@@ -288,10 +291,10 @@ export function OrgChartView({
         <Card className="overflow-hidden">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--divider)] px-4 py-2">
             <span className="text-[12px] font-semibold text-[var(--text-primary)]">
-              Not yet placed
+              {t("unplaced.heading")}
             </span>
             <span className="font-mono text-[10px] text-[var(--text-muted)]">
-              {unplaced.length} OF {totalPeople}
+              {t("unplaced.count", { count: unplaced.length, total: totalPeople })}
             </span>
           </div>
           <div className="flex flex-col">
@@ -324,7 +327,7 @@ export function OrgChartView({
                     onClick={() => setEditing(m)}
                     className="ml-auto border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
                   >
-                    EDIT
+                    {t("edit")}
                   </button>
                 )}
               </div>
@@ -346,7 +349,7 @@ export function OrgChartView({
               onClick={() => setEditing(null)}
               className="font-mono text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             >
-              CLOSE
+              {t("close")}
             </button>
           </div>
 
@@ -363,7 +366,7 @@ export function OrgChartView({
               disabled={supPending}
               className="border border-[var(--border-strong)] px-3 py-1.5 text-[12px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
             >
-              {supPending ? "Saving…" : "Save manager"}
+              {supPending ? t("saving") : t("saveManager")}
             </button>
           </form>
 
@@ -371,7 +374,7 @@ export function OrgChartView({
             <input type="hidden" name="member_id" value={editing.memberId} />
             <label className="flex flex-col gap-1">
               <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-muted)]">
-                TEAM
+                {t("team")}
               </span>
               {/* A select, not a text input with suggestions. The business has
                   named its four teams, so "Ops" or "operations" typed by hand
@@ -384,20 +387,20 @@ export function OrgChartView({
                 disabled={detPending}
                 className="min-w-[160px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12px] text-[var(--text-primary)] disabled:opacity-50"
               >
-                <option value="">— None —</option>
-                {teamOptionsFor(editing.team).map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                <option value="">{t("teamNone")}</option>
+                {teamOptionsFor(editing.team).map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-muted)]">
-                JOB TITLE
+                {t("jobTitle")}
               </span>
               <input
                 name="job_title"
                 defaultValue={editing.jobTitle ?? ""}
-                placeholder="e.g. Safety consultant"
+                placeholder={t("jobTitlePlaceholder")}
                 disabled={detPending}
                 className="min-w-[200px] border border-[var(--border)] bg-[var(--page)] px-2 py-1.5 text-[12px] text-[var(--text-primary)] disabled:opacity-50"
               />
@@ -407,13 +410,14 @@ export function OrgChartView({
               disabled={detPending}
               className="border border-[var(--border-strong)] px-3 py-1.5 text-[12px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
             >
-              {detPending ? "Saving…" : "Save details"}
+              {detPending ? t("saving") : t("saveDetails")}
             </button>
           </form>
 
           <p className="pt-3 font-mono text-[10px] text-[var(--text-faint)]">
-            JOB TITLE IS NOT THE SAME AS {editing.accountRole} — THAT IS THIS
-            PERSON&apos;S TRACKINGTIME ACCESS LEVEL, NOT THEIR ROLE HERE
+            {/* An unrecorded access level renders as nothing, exactly as the
+                bare {editing.accountRole} did before. */}
+            {t("jobTitleNote", { role: editing.accountRole ?? "" })}
           </p>
         </div>
       )}

@@ -26,6 +26,7 @@
  * org-wide rollup is the right page to show.
  */
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
@@ -37,6 +38,7 @@ import { getSyncFreshness } from "@/lib/queries/time-dashboard";
 import { FreshnessBanner } from "../time/dashboard/ReportPanels";
 import { type LedgerSort } from "./ProjectsLedger";
 import { ProjectsExplorer } from "./ProjectsExplorer";
+import { fmtInt, fmtNum } from "@/lib/locale-format";
 
 /** `?sort=` values the ledger accepts as its initial state. */
 const SORT_KEYS: LedgerSort[] = ["burn", "hours", "recent", "name", "budget", "people"];
@@ -51,6 +53,9 @@ export default async function ProjectsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireProfile("/projects");
+
+  const t = await getTranslations("projects");
+  const locale = await getLocale();
 
   const canReadAll = await userHasPermission(PERMISSIONS.PROJECTS_READ_ALL);
   const params = await searchParams;
@@ -69,17 +74,17 @@ export default async function ProjectsPage({
     return (
       <PageTransition>
         <div className="flex flex-col">
-          <PageHeader category="PROJECTS" title="Projects" />
+          <PageHeader title={t("title")} />
           <div className="p-6">
             <EmptyState
-              title="You don't have access to the project portfolio"
-              description="Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is visible under Time. An administrator can grant wider access under Role Permissions."
+              title={t("noAccess.title")}
+              description={t("noAccess.description")}
               action={
                 <Link
                   href="/time"
                   className="text-[12px] font-medium text-[var(--accent)] hover:underline"
                 >
-                  Go to Time →
+                  {t("noAccess.action")}
                 </Link>
               }
             />
@@ -108,9 +113,11 @@ export default async function ProjectsPage({
     <PageTransition>
       <div className="flex flex-col">
         <PageHeader
-          category="PROJECTS / PORTFOLIO"
-          title="Projects"
-          meta={`${rows.length.toLocaleString("en-GB")} PROJECTS · ${totalHours.toLocaleString("en-GB", { maximumFractionDigits: 0 })}H TRACKED`}
+          title={t("title")}
+          meta={t("header.meta", {
+            projects: fmtInt(rows.length, locale),
+            hours: fmtNum(totalHours, locale, 0),
+          })}
         />
 
         <div className="flex flex-col gap-5 page-shell">
@@ -129,23 +136,19 @@ export default async function ProjectsPage({
 
           {truncated && (
             <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
-              This portfolio exceeds the reporting ceiling, so the hours below cover only the most
-              recent entries. Totals per project may be understated.
+              {t("truncated")}
             </p>
           )}
 
           {rows.length === 0 ? (
-            <EmptyState
-              title="No projects yet"
-              description="Nothing has been imported from TrackingTime yet. The nightly sync populates this list; you can also run it manually with `npm run sync:trackingtime`."
-            />
+            <EmptyState title={t("empty.title")} description={t("empty.description")} />
           ) : (
             <>
               {/* ONE filter bar drives the totals strip, both chart blocks and
                   the ledger together: pick a customer or a status here and every
                   figure on the page re-derives to match, instead of the charts
                   showing the whole portfolio while only the table filters. */}
-              <ProjectsExplorer rows={rows} initialSort={initialSort} />
+              <ProjectsExplorer rows={rows} initialSort={initialSort} locale={locale} />
             </>
           )}
         </div>

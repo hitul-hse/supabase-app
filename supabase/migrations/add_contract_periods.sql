@@ -251,7 +251,13 @@ comment on function time.contract_period_logged_hours(bigint) is
   'it between periods automatically.';
 
 -- A convenience view for the UI and reports: every period with its burn.
-create or replace view time.contract_period_status as
+-- security_invoker: the caller's own projects:contracts:read policy on
+-- time.project_contract_period decides which periods come back. The clause has to be
+-- INLINE here, not only in the later alter -- `create or replace view` with no WITH
+-- resets reloptions to null, so replaying this file without it silently un-fixes the
+-- view (20260903090000_contract_status_view_must_not_bypass_rls.sql).
+create or replace view time.contract_period_status
+with (security_invoker = true) as
 select
   cp.id,
   cp.project_id,

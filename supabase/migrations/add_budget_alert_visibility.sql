@@ -201,7 +201,12 @@ grant select, update on public.overbooking_alert to authenticated;
  * Getting this wrong is how "it said it sent" happens. The whole reason this
  * migration exists is that silence looked like success.
  */
-create or replace view public.budget_alert_feed as
+-- security_invoker added 2026-09-03. 20260825141000_views_must_not_bypass_rls.sql
+-- altered this view onto invoker rights after it served customer names, staff names
+-- and notification addresses anonymously. Re-running this file without the clause
+-- would reset reloptions to null and put it straight back, with no error.
+create or replace view public.budget_alert_feed
+with (security_invoker = true) as
 select
   a.id,
   a.created_at,

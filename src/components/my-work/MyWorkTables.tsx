@@ -46,6 +46,7 @@ import { useMemo, useState } from "react";
 import { DataTable, cmpNum, cmpText, type Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
+  LINK_DESTINATION,
   LINK_LABEL,
   ROLE_LABEL,
   ROLE_ORDER,
@@ -53,6 +54,7 @@ import {
   type MyProject,
   type MyRole,
 } from "@/lib/queries/my-work";
+import { LINK_ICON } from "./link-icons";
 import { RoleBadge } from "./RoleBadge";
 
 /** `n/a` rather than 0: an unrecorded figure and a real zero are different facts. */
@@ -219,13 +221,41 @@ export function MyWorkTables({
       {
         key: "links",
         header: "LINKS",
-        className: "w-[9rem]",
+        /*
+         * 10rem rather than 9rem, and the reason is measured rather than
+         * guessed. Rendered in Chromium against the real compiled stylesheet,
+         * inside the real frame (220px sidebar + .page-shell), with a hostile
+         * row set -- 38-character customer names and three projects carrying
+         * four or five links:
+         *
+         *   1440x900  no horizontal scroll; the table is at its min-content
+         *             limit (1168 of the 1170px it is given), so the PREFERRED
+         *             width is ignored and PROJECT actually GAINS 6px
+         *             (167 -> 173) because LINKS no longer has to fit the
+         *             widest text pill.
+         *   1600      LINKS 150px, PROJECT 232 vs 236 -- 4px, and the five-link
+         *             row drops from three lines to two.
+         *   1920      LINKS 197px, PROJECT 296 vs 314 -- 18px of a column that
+         *             has plenty, and five links now fit on one line.
+         *
+         * 11rem was tried and rejected: from 1600px up it squeezes PROJECT hard
+         * enough that the project name wraps and EVERY row grows 53px -> 70px.
+         * So this is the last size that pays for itself.
+         */
+        className: "w-[10rem]",
         // Sorted by how many links a project has, so the rows with somewhere to
         // go surface first. Ties keep table order.
         compare: (a, b) => a.links.length - b.links.length,
         title:
-          "Working links recorded in the masterdata workbook. Most projects have none -- an empty cell means nobody recorded one.",
-        search: (r) => r.links.map((l) => LINK_LABEL[l.kind]).join(" "),
+          "Working links recorded in the masterdata workbook. Most projects have none -- an empty cell means nobody recorded one. Type a destination in the search box (asana, teams, drive) to see only the projects that have one.",
+        /*
+         * Both the short code and the full name, so the search box answers
+         * "which of my projects has an Asana board" -- the question the icons
+         * make scannable and the search makes exact. "TT" still matches, and so
+         * now does "trackingtime".
+         */
+        search: (r) =>
+          r.links.map((l) => `${LINK_LABEL[l.kind]} ${LINK_DESTINATION[l.kind]}`).join(" "),
         csv: (r) => r.links.map((l) => `${LINK_LABEL[l.kind]}=${l.url}`).join(" "),
         cell: (r) =>
           // NOTHING when there are no links, deliberately -- not "n/a". An
@@ -233,19 +263,47 @@ export function MyWorkTables({
           // simply a link nobody recorded, and a cell full of "n/a" across the
           // ~80% of projects without one would be noise pretending to be data.
           r.links.length === 0 ? null : (
-            <span className="flex flex-wrap items-center gap-1">
-              {r.links.map((l) => (
-                <a
-                  key={`${l.kind}-${l.url}`}
-                  href={l.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={l.label ? `${LINK_LABEL[l.kind]} — ${l.label}` : LINK_LABEL[l.kind]}
-                  className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] tracking-[0.04em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                >
-                  {LINK_LABEL[l.kind]}
-                </a>
-              ))}
+            /*
+             * Icons, not words. Five destinations that differed only in two to
+             * five mono characters had to be READ; a silhouette is recognised
+             * without reading. The win is measurable and it is mostly in the
+             * COMMON case, not the rare one: at 1440 a two-link row went from
+             * two wrapped lines to one, three and four links from three and
+             * four lines to two, five from five lines (138px) to three (93px).
+             *
+             * No colour per kind. DESIGN.md bans a rainbow and reserves colour
+             * for meaning, so every glyph rests on the same --text-muted and
+             * only the one under the pointer takes the accent. Shape carries
+             * identity; colour carries state.
+             *
+             * 24px targets on a 2px gap: the WCAG 2.5.8 minimum, kept even
+             * though the glyph inside is 16px, and bumped again on a coarse
+             * pointer. They wrap rather than overflow, so a five-link project
+             * on a narrow screen grows one row instead of pushing the whole
+             * table into horizontal scroll.
+             */
+            <span className="flex flex-wrap items-center gap-0.5">
+              {r.links.map((l) => {
+                const Icon = LINK_ICON[l.kind];
+                const destination = LINK_DESTINATION[l.kind];
+                return (
+                  <a
+                    key={`${l.kind}-${l.url}`}
+                    href={l.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={l.label ? `${destination} — ${l.label}` : destination}
+                    // The row's project is named too: a screen reader running
+                    // the page's link list would otherwise meet the same
+                    // "TrackingTime project" 35 times with nothing to tell them
+                    // apart.
+                    aria-label={`${destination} for ${r.name}`}
+                    className="flex h-6 w-6 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] transition-colors duration-150 hover:bg-[var(--accent-wash)] hover:text-[var(--accent)] focus-visible:bg-[var(--accent-wash)] focus-visible:text-[var(--accent)] pointer-coarse:h-8 pointer-coarse:w-8"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                );
+              })}
             </span>
           ),
       },

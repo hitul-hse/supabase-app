@@ -262,10 +262,19 @@ async function checkBudget(
   // problem (40% of live entries carry no project) and not this guard's job.
   if (projectId === null) return proceed;
 
+  // project_summary, NOT time.project. Migration
+  // 20260903230000_budgets_are_not_readable_by_default revoked the column grant
+  // on estimated_hours from `authenticated`, which is EVERY signed-in user, so
+  // selecting it off the base table now fails for everybody. Combined with the
+  // fail-open below -- correct on its own terms, so a read outage cannot stop
+  // someone logging real work -- that silently turned this entire guard into a
+  // no-op. The view serves the same figure through the permission-checking
+  // definer, so the guard works again and still shows nothing to a caller who
+  // may not see budgets.
   const { data: project, error: projectError } = await timeSchema(supabase)
-    .from("project")
-    .select("id, name, estimated_hours")
-    .eq("id", projectId)
+    .from("project_summary")
+    .select("project_id, project_name, estimated_hours")
+    .eq("project_id", projectId)
     .maybeSingle();
 
   // A read failure must not block a booking: failing closed here would stop
@@ -385,7 +394,8 @@ async function checkBudget(
   // Nothing to say: the overwhelmingly common path, and it costs nothing.
   if (decision.allowed && !decision.warn) return proceed;
 
-  const projectName = project.name ?? `Project ${projectId}`;
+  // project_name, not name: this row now comes from time.project_summary.
+  const projectName = project.project_name ?? `Project ${projectId}`;
 
   // Record + notify. Deliberately awaited: a fire-and-forget promise in a Server
   // Action can be cut off when the response is sent, which would lose exactly

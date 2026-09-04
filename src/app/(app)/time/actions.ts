@@ -399,6 +399,16 @@ async function checkBudget(
     .eq("id", memberId)
     .maybeSingle();
 
+  /*
+   * Resolved HERE, before the alert is written, not at the refusal message
+   * below. The row is stamped with this user's auth uid and the read policy on
+   * public.overbooking_alert admits them on that alone, so the permission
+   * decides what gets PERSISTED, not merely what gets displayed. Resolving it
+   * after the insert -- which is what happened until 2026-09-03 -- is how the
+   * redacted message ended up sitting next to an un-redacted copy of itself.
+   */
+  const actorCanSeeBudgets = await canReadBudgets(supabase);
+
   await notifyOverbooking({
     actorUserId: user?.id ?? null,
     actorMemberId: memberId,
@@ -407,6 +417,7 @@ async function checkBudget(
     projectName,
     decision,
     source,
+    actorCanSeeBudgets,
   });
 
   /*

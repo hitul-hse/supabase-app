@@ -75,12 +75,29 @@ export function UserRow({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleted, setDeleted] = useState(false);
 
+  /**
+   * Two outcomes that are NOT the same, and used to be indistinguishable here.
+   *
+   * `error`   -- nothing was written. Put the toggle back, or the row would claim
+   *              a change that did not happen.
+   * `warning` -- the profile write landed but the sign-in ban did not, so the
+   *              account IS deactivated and the toggle must KEEP its new position.
+   *              Reverting it here would be the more dangerous lie of the two: it
+   *              would read as "nothing changed" while the person's permissions
+   *              really are gone, and it would hide the half that did not happen.
+   *              Shown through the `error` slot on purpose -- role="alert" in the
+   *              critical colour -- because "their session is still live" is not a
+   *              friendly notice.
+   */
   function handleToggleActive() {
     const next = !localActive;
     setLocalActive(next);
+    setError(null);
+    setNotice(null);
     startTransition(async () => {
       const res = await setUserActive(userId, next);
       if (res.error) { setLocalActive(!next); setError(res.error); }
+      else if (res.warning) setError(res.warning);
     });
   }
 

@@ -194,6 +194,25 @@ export const LINK_LABEL: Record<MyLink["kind"], string> = {
   trackingtime: "TT",
 };
 
+/**
+ * The destination said in full, for the accessible name and the tooltip.
+ *
+ * The column renders icons, so "ASANA" is no longer a visible label -- it is
+ * only ever spoken or hovered, and in that setting a four-letter code is worse
+ * than the thing it stands for. "TT" in particular is unreadable aloud.
+ *
+ * It lives here rather than in the component for the same reason LINK_LABEL
+ * does: one map, so the table, the CSV and the screen reader cannot disagree
+ * about what a `kind` is called.
+ */
+export const LINK_DESTINATION: Record<MyLink["kind"], string> = {
+  asana: "Asana board",
+  google_chat: "Google Chat room",
+  google_drive: "Google Drive folder",
+  microsoft_teams: "Microsoft Teams link",
+  trackingtime: "TrackingTime project",
+};
+
 /** Stable display order, so a row's chips do not reshuffle between requests. */
 export const LINK_ORDER: MyLink["kind"][] = [
   "google_chat",

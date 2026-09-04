@@ -27,7 +27,7 @@
  * and fall back to the two addresses named for testing.
  */
 import { createClient } from "@supabase/supabase-js";
-import type { BudgetDecision } from "./budget-guard";
+import { redactedReason, type BudgetDecision } from "./budget-guard";
 
 /**
  * Who hears about a refused booking.
@@ -53,6 +53,21 @@ export type AlertContext = {
   projectName: string;
   decision: BudgetDecision;
   source: "create_entry" | "update_entry" | "start_timer" | "stop_timer";
+  /**
+   * Whether the ACTOR holds projects:contracts:read.
+   *
+   * The row is written with the service role and stamped with the actor's own
+   * auth uid, and public.overbooking_alert's read policy admits the actor
+   * unconditionally (`... or actor_user_id = auth.uid()`). So whatever goes in
+   * here, that person can read back — measured 2026-09-03, and the reason the
+   * 2026-09-03 message redaction did not actually close the hole: it fixed the
+   * sentence shown on screen and left the identical sentence persisted on the
+   * row.
+   *
+   * When this is false, `reason` is stored redacted. It is not a display
+   * concern; it decides what the database keeps.
+   */
+  actorCanSeeBudgets: boolean;
 };
 
 /**
@@ -96,7 +111,14 @@ export async function notifyOverbooking(ctx: AlertContext): Promise<void> {
         // not express (approaching, outside_contract). Kept as a boolean here
         // too so existing rows and readers of this column stay meaningful.
         already_over: d.level === "already_over",
-        reason: d.reason,
+        /*
+         * Redacted for an actor who may not see budgets, because they CAN read
+         * this row back: the read policy admits them on actor_user_id alone.
+         * The recipients named in notify_recipients are emailed the full
+         * decision separately, so the alert loses nothing for its real
+         * audience.
+         */
+        reason: ctx.actorCanSeeBudgets ? d.reason : redactedReason(d),
         source: ctx.source,
         notify_recipients: recipients,
 

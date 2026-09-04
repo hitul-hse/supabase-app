@@ -782,10 +782,29 @@ export async function getFilterOptions(supabase: SupabaseTyped): Promise<FilterO
      * renders for a project with no estimate.
      */
     const canSeeBudgets = await canReadBudgets(supabase);
-    const projectColumns = budgetAwareColumns("id,name,estimated_hours", canSeeBudgets);
+    /*
+     * READ THE VIEW, NOT time.project.
+     *
+     * Migration 20260903230000 removed estimated_hours from the `authenticated`
+     * column grant on time.project, so selecting it off the base table now
+     * fails for EVERYONE -- exec included, because every signed-in Supabase
+     * user is the same `authenticated` Postgres role and the app-level role
+     * lives in app_user_profile. time.project_summary serves the column back
+     * through a security definer that checks projects:contracts:read itself,
+     * which is the only path that still returns a number to a permitted caller.
+     *
+     * budgetAwareColumns() is still applied on top: the view already redacts to
+     * NULL, and omitting the column as well keeps the figure out of the payload
+     * entirely rather than shipping a null that a reader could mistake for
+     * "no budget set".
+     */
+    const projectColumns = budgetAwareColumns(
+      "project_id,project_name,customer_name,estimated_hours",
+      canSeeBudgets,
+    );
     const [m, p, c, s] = await Promise.all([
       t.from("member").select("id,display_name").eq("is_archived", false).order("display_name"),
-      t.from("project").select(`${projectColumns},customer:customer_id(name)`).order("name").limit(PAGE),
+      t.from("project_summary").select(projectColumns).order("project_name").limit(PAGE),
       t.from("customer").select("id,name").order("name").limit(PAGE),
       t.from("service").select("id,name").order("sort_order"),
     ]);
@@ -798,9 +817,9 @@ export async function getFilterOptions(supabase: SupabaseTyped): Promise<FilterO
       })),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       projects: ((p.data ?? []) as any[]).map((r) => ({
-        id: num(r.id),
-        name: r.name ?? "Untitled",
-        customerName: r.customer?.name ?? null,
+        id: num(r.project_id),
+        name: r.project_name ?? "Untitled",
+        customerName: r.customer_name ?? null,
         estimatedHours: numOrNull(r.estimated_hours),
       })),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

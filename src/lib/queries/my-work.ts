@@ -61,6 +61,9 @@ import { fetchAllPaged, PAGE } from "./paged";
 import { canReadBudgets } from "@/lib/budget-visibility";
 import { getSignedInUser } from "./request-cache";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const timeSchema = (s: SupabaseTyped) => (s as any).schema("time");
+
 /* --------------------------------------------------------------- shapes */
 
 /**
@@ -152,7 +155,53 @@ export type MyProject = {
   /** Logged over contracted, or null with no budget to burn against. */
   consumedPercent: number | null;
   dueDate: string | null;
+  /**
+   * Service tags from TrackingTime (`time.project.service_id`), NOT a
+   * contractual "agreed services" list -- `crm.framework_agreement`, the table
+   * shaped for that, is empty. Deduped: 4 of Mathias's 54 projects carry two
+   * `time.project` rows, so this is a set, never a 1:1 value. Empty when the
+   * project has no `time.project` row at all (9 of his 54) -- render "n/a",
+   * never blank and never a guess.
+   */
+  services: string[];
+  /**
+   * Working links for this project -- the chat room, board or folder the team
+   * actually opens. Imported from the masterdata workbook into
+   * `public.project_link`, which is visible exactly when the project is.
+   *
+   * Usually EMPTY, and that is not a gap: measured on the 2026 workbook, only
+   * 178 order numbers carry any link at all, and most carry one or two. An
+   * absent link means nobody recorded one, which the UI shows by rendering
+   * nothing -- unlike an unmeasured HOUR, there is no figure being withheld, so
+   * "n/a" would overstate the case.
+   */
+  links: MyLink[];
 };
+
+/** One outbound working link on a project. */
+export type MyLink = {
+  kind: "asana" | "google_chat" | "google_drive" | "microsoft_teams" | "trackingtime";
+  url: string;
+  label: string | null;
+};
+
+/** Short chip labels, kept beside the type so the UI cannot invent its own. */
+export const LINK_LABEL: Record<MyLink["kind"], string> = {
+  asana: "ASANA",
+  google_chat: "CHAT",
+  google_drive: "DRIVE",
+  microsoft_teams: "TEAMS",
+  trackingtime: "TT",
+};
+
+/** Stable display order, so a row's chips do not reshuffle between requests. */
+export const LINK_ORDER: MyLink["kind"][] = [
+  "google_chat",
+  "microsoft_teams",
+  "asana",
+  "trackingtime",
+  "google_drive",
+];
 
 export type MyCustomer = {
   /** Canonical entity id, or null when only the text name is known. */
@@ -193,6 +242,8 @@ export type MyCustomer = {
   measuredProjectCount: number;
   /** Sum of the hours YOUR assignment rows carry for this customer. */
   myLoggedHours: number;
+  /** Distinct union of `services` across this customer's projects. */
+  services: string[];
   projects: MyProject[];
 };
 
@@ -230,6 +281,13 @@ export type MyWork = {
     myLoggedHours: number;
     /** How many of `projects` have measured hours. See MyCustomer above. */
     measuredProjectCount: number;
+    /**
+     * How many of `projects` resolve at least one TrackingTime service tag.
+     * Stated the same way as `measuredProjectCount`: a coverage number beside
+     * the service chips, so partial coverage reads as "known for 45 of 54"
+     * rather than letting the 9 uncovered projects pass as "no services".
+     */
+    serviceCoverage: { known: number; total: number };
   };
   /**
    * Set when the signed-in account has no `person_id` on its profile. 11 of the
@@ -328,6 +386,28 @@ type ResponsibilityRowLite = {
   person_id: string;
   role: string | null;
   order_no: string | null;
+};
+
+/**
+ * One row of time.project, read only for its service tag.
+ *
+ * `hub_project_id` is the FK back to `public.projects.id` (text), NOT
+ * `time.project.id` (bigint) -- the join key this module already uses
+ * everywhere else. `service` embeds as null when `service_id` is unset (159 of
+ * 340 live `time.project` rows), which is why the fold below treats a missing
+ * service as absence, never as an empty string.
+ */
+type ServiceRowLite = {
+  hub_project_id: string | null;
+  service: { name: string | null } | null;
+};
+
+/** One row of public.project_link. */
+type LinkRowLite = {
+  project_id: string | null;
+  kind: string | null;
+  url: string | null;
+  label: string | null;
 };
 
 /*
@@ -455,6 +535,95 @@ async function fetchMyProjects(
 }
 
 /**
+ * Service tags from TrackingTime for this person's projects.
+ *
+ * `time.project` and `time.service` both carry an `authenticated can read`
+ * policy with no permission gate, so this needs no budget check and no new
+ * RLS -- verified live against management-multi-service-matrix.ts:110-112,
+ * the proven form this copies. Not "agreed services": that would be
+ * `crm.framework_agreement`, which is empty. This is the TrackingTime tag,
+ * and the UI must label it that way.
+ *
+ * Chunked the same way as `fetchMyProjects`, for the same reason: a long
+ * `.in()` list risks a 414 that would read as "no services" rather than a
+ * short list.
+ */
+async function fetchMyServices(
+  supabase: SupabaseTyped,
+  projectIds: string[],
+): Promise<{ rows: ServiceRowLite[]; truncated: boolean }> {
+  if (projectIds.length === 0) return { rows: [], truncated: false };
+
+  const rows: ServiceRowLite[] = [];
+  let truncated = false;
+  const CHUNK = 200;
+  for (let i = 0; i < projectIds.length; i += CHUNK) {
+    const slice = projectIds.slice(i, i + CHUNK);
+    if (slice.length === 0) continue;
+    const page = await fetchAllPaged<ServiceRowLite>(
+      (from, to) =>
+        timeSchema(supabase)
+          .from("project")
+          .select("hub_project_id, service:service_id(name)")
+          .in("hub_project_id", slice)
+          .order("hub_project_id")
+          .range(from, to),
+      { maxPages: Math.max(1, Math.ceil(slice.length / PAGE) + 1) },
+    );
+    truncated = truncated || page.truncated;
+    rows.push(...page.rows);
+  }
+  return { rows, truncated };
+}
+
+/**
+ * Working links for this person's projects.
+ *
+ * `public.project_link` carries a single SELECT policy,
+ * `can_view_project(project_id)` -- the same predicate that scopes the projects
+ * themselves. So this read cannot widen what the page shows, and needs no
+ * permission key of its own: a link is visible exactly when its project is.
+ *
+ * Wrapped in try/catch and degrading to NO links, because losing this table
+ * costs the page a convenience and nothing else -- every project, hour and role
+ * still renders. Contrast `fetchMyProjects`, whose failure is deliberately NOT
+ * caught: losing that one costs the page everything.
+ */
+async function fetchMyLinks(
+  supabase: SupabaseTyped,
+  projectIds: string[],
+): Promise<{ rows: LinkRowLite[]; truncated: boolean }> {
+  if (projectIds.length === 0) return { rows: [], truncated: false };
+
+  try {
+    const rows: LinkRowLite[] = [];
+    let truncated = false;
+    const CHUNK = 200;
+    for (let i = 0; i < projectIds.length; i += CHUNK) {
+      const slice = projectIds.slice(i, i + CHUNK);
+      if (slice.length === 0) continue;
+      const page = await fetchAllPaged<LinkRowLite>(
+        (from, to) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .from("project_link")
+            .select("project_id, kind, url, label")
+            .in("project_id", slice)
+            .order("project_id")
+            .order("kind")
+            .range(from, to),
+        { maxPages: Math.max(1, Math.ceil(slice.length / PAGE) + 1) },
+      );
+      truncated = truncated || page.truncated;
+      rows.push(...page.rows);
+    }
+    return { rows, truncated };
+  } catch {
+    return { rows: [], truncated: false };
+  }
+}
+
+/**
  * Every masterdata responsibility row naming this person.
  *
  * READ-ONLY, and gated by the table's own `can_view_project(project_id)`
@@ -512,6 +681,8 @@ export function assembleMyWork(
   projects: ProjectRowLite[],
   assignments: AssignmentRowLite[],
   responsibilities: ResponsibilityRowLite[] = [],
+  services: ServiceRowLite[] = [],
+  links: LinkRowLite[] = [],
   truncated = false,
   /*
    * Defaults to TRUE so that this stays a pure function with its existing
@@ -543,6 +714,33 @@ export function assembleMyWork(
     if (r.person_id !== personId || !r.project_id) continue;
     if (r.role === "responsible") responsibleOn.set(r.project_id, r);
     else if (r.role === "replacement") replacementOn.set(r.project_id, r);
+  }
+
+  // A project can carry more than one time.project row (4 of Mathias's 54 do),
+  // so this folds to a SET per project, not a 1:1 value.
+  const servicesByProject = new Map<string, Set<string>>();
+  for (const s of services) {
+    if (!s.hub_project_id || !s.service?.name) continue;
+    const set = servicesByProject.get(s.hub_project_id) ?? new Set<string>();
+    set.add(s.service.name);
+    servicesByProject.set(s.hub_project_id, set);
+  }
+
+  // Links per project, in the declared display order so a row's chips do not
+  // reshuffle between requests. An unknown kind from the database is DROPPED
+  // rather than rendered: the check constraint should make it impossible, and a
+  // chip with no label is worse than no chip.
+  const linksByProject = new Map<string, MyLink[]>();
+  for (const l of links) {
+    if (!l.project_id || !l.url || !l.kind) continue;
+    if (!(l.kind in LINK_LABEL)) continue;
+    const kind = l.kind as MyLink["kind"];
+    const list = linksByProject.get(l.project_id) ?? [];
+    list.push({ kind, url: l.url, label: l.label });
+    linksByProject.set(l.project_id, list);
+  }
+  for (const list of linksByProject.values()) {
+    list.sort((a, b) => LINK_ORDER.indexOf(a.kind) - LINK_ORDER.indexOf(b.kind));
   }
 
   const rows: MyProject[] = [];
@@ -580,6 +778,8 @@ export function assembleMyWork(
     const entity = p.customer_legal_entity ?? null;
     const entityId = entity?.id ?? p.customer_legal_entity_id ?? null;
     const canonicalName = entity?.legal_name ?? null;
+    const projectServices = [...(servicesByProject.get(p.id) ?? [])].sort();
+    const projectLinks = linksByProject.get(p.id) ?? [];
 
     rows.push({
       id: p.id,
@@ -604,6 +804,8 @@ export function assembleMyWork(
           ? round1((loggedHours / contractHours) * 100)
           : null,
       dueDate: dueOrNull(p.due),
+      services: projectServices,
+      links: projectLinks,
     });
   }
 
@@ -634,7 +836,7 @@ export function assembleMyWork(
    * customer each and were counted as six. Grouping on the free-text string
    * would show Mathias 43 customers when he has 40.
    */
-  const byCustomer = new Map<string, MyCustomer & { aliasSet: Set<string> }>();
+  const byCustomer = new Map<string, MyCustomer & { aliasSet: Set<string>; serviceSet: Set<string> }>();
   for (const r of rows) {
     const key = r.customerEntityId ?? `text:${r.customer}`;
     let c = byCustomer.get(key);
@@ -658,6 +860,8 @@ export function assembleMyWork(
         loggedHours: 0,
         myLoggedHours: 0,
         measuredProjectCount: 0,
+        services: [],
+        serviceSet: new Set<string>(),
         projects: [],
       };
       byCustomer.set(key, c);
@@ -674,13 +878,15 @@ export function assembleMyWork(
     // was worked, which is exactly what the sum above is claiming.
     if (r.loggedHours !== null) c.measuredProjectCount += 1;
     c.myLoggedHours += r.myLoggedHours ?? 0;
+    for (const s of r.services) c.serviceSet.add(s);
     c.projects.push(r);
   }
 
-  const customers: MyCustomer[] = [...byCustomer.values()].map(({ aliasSet, ...c }) => {
+  const customers: MyCustomer[] = [...byCustomer.values()].map(({ aliasSet, serviceSet, ...c }) => {
     const aliases = [...aliasSet].sort();
     return {
       ...c,
+      services: [...serviceSet].sort(),
       /*
        * Display name.
        *
@@ -741,6 +947,10 @@ export function assembleMyWork(
       loggedHours: round1(rows.reduce((s, r) => s + (r.loggedHours ?? 0), 0)),
       myLoggedHours: round1(rows.reduce((s, r) => s + (r.myLoggedHours ?? 0), 0)),
       measuredProjectCount: rows.filter((r) => r.loggedHours !== null).length,
+      serviceCoverage: {
+        known: rows.filter((r) => r.services.length > 0).length,
+        total: rows.length,
+      },
     },
     unlinked: false,
     // One hour spread across 54 projects is not a workload, it is an unfilled
@@ -779,6 +989,7 @@ function emptyWork(
       myLoggedHours: 0,
       // Zero projects means zero measured projects; no rows are being omitted.
       measuredProjectCount: 0,
+      serviceCoverage: { known: 0, total: 0 },
     },
     unlinked,
     myHoursUnpopulated: false,
@@ -844,7 +1055,13 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
         ...responsibilities.rows.map((r) => r.project_id),
       ].filter((id): id is string => !!id)),
     ];
-    const projects = await fetchMyProjects(supabase, personId, projectIds);
+    // Neither depends on the other -- same round-trip reasoning as the
+    // assignments/responsibilities pair above.
+    const [projects, services, links] = await Promise.all([
+      fetchMyProjects(supabase, personId, projectIds),
+      fetchMyServices(supabase, projectIds),
+      fetchMyLinks(supabase, projectIds),
+    ]);
 
     return assembleMyWork(
       personId,
@@ -852,7 +1069,9 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
       projects.rows,
       assignments.rows,
       responsibilities.rows,
-      assignments.truncated || projects.truncated || responsibilities.truncated,
+      services.rows,
+      links.rows,
+      assignments.truncated || projects.truncated || responsibilities.truncated || services.truncated,
       canSeeBudgets,
     );
   } catch {

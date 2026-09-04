@@ -46,6 +46,7 @@ import { useMemo, useState } from "react";
 import { DataTable, cmpNum, cmpText, type Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
+  LINK_LABEL,
   ROLE_LABEL,
   ROLE_ORDER,
   type MyCustomer,
@@ -198,6 +199,57 @@ export function MyWorkTables({
         cell: (r) => <StatusBadge status={r.status} tone={statusTone(r.status)} />,
       },
       {
+        key: "service",
+        header: "SERVICE",
+        className: "w-[10rem]",
+        compare: (a, b) => cmpText(a.services.join(", "), b.services.join(", ")),
+        descFirst: false,
+        title:
+          "TrackingTime service tag, not a contractual agreement -- the framework-agreement table is not populated yet.",
+        search: (r) => r.services.join(" "),
+        csv: (r) => r.services.join(" / "),
+        cell: (r) => (
+          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+            {/* No time.project row at all for this project (9 of 54 on live
+                data) -- honest n/a, never a blank cell or a guessed service. */}
+            {r.services.length > 0 ? r.services.join(" · ") : "n/a"}
+          </span>
+        ),
+      },
+      {
+        key: "links",
+        header: "LINKS",
+        className: "w-[9rem]",
+        // Sorted by how many links a project has, so the rows with somewhere to
+        // go surface first. Ties keep table order.
+        compare: (a, b) => a.links.length - b.links.length,
+        title:
+          "Working links recorded in the masterdata workbook. Most projects have none -- an empty cell means nobody recorded one.",
+        search: (r) => r.links.map((l) => LINK_LABEL[l.kind]).join(" "),
+        csv: (r) => r.links.map((l) => `${LINK_LABEL[l.kind]}=${l.url}`).join(" "),
+        cell: (r) =>
+          // NOTHING when there are no links, deliberately -- not "n/a". An
+          // absent link is not an unmeasured figure being withheld, it is
+          // simply a link nobody recorded, and a cell full of "n/a" across the
+          // ~80% of projects without one would be noise pretending to be data.
+          r.links.length === 0 ? null : (
+            <span className="flex flex-wrap items-center gap-1">
+              {r.links.map((l) => (
+                <a
+                  key={`${l.kind}-${l.url}`}
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={l.label ? `${LINK_LABEL[l.kind]} — ${l.label}` : LINK_LABEL[l.kind]}
+                  className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] tracking-[0.04em] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                >
+                  {LINK_LABEL[l.kind]}
+                </a>
+              ))}
+            </span>
+          ),
+      },
+      {
         key: "logged",
         header: "LOGGED",
         align: "right",
@@ -263,7 +315,10 @@ export function MyWorkTables({
     // hours. On live data they do not, and a column reading 0 beside a real team
     // figure is a plausible wrong number — the page states the gap instead.
     if (showMyHours) {
-      cols.splice(6, 0, {
+      // Inserted right after BUDGET so it lands between BUDGET and BURN, as it
+      // always has. The index has moved twice: SERVICE pushed it 6 -> 7, and
+      // LINKS pushed it 7 -> 8.
+      cols.splice(8, 0, {
         key: "mine",
         header: "MINE",
         align: "right",
@@ -356,6 +411,33 @@ export function MyWorkTables({
                 <RoleBadge role={x} />
               </span>
             ))}
+          </div>
+        ),
+      },
+      {
+        key: "services",
+        header: "SERVICES",
+        className: "w-[12rem]",
+        compare: (a, b) => cmpText(a.services.join(", "), b.services.join(", ")),
+        descFirst: false,
+        title:
+          "TrackingTime service tags across this customer's projects, not a contractual agreement.",
+        search: (r) => r.services.join(" "),
+        csv: (r) => r.services.join(" / "),
+        cell: (r) => (
+          <div className="flex flex-wrap items-center gap-1">
+            {r.services.length > 0 ? (
+              r.services.map((s) => (
+                <span
+                  key={s}
+                  className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
+                >
+                  {s}
+                </span>
+              ))
+            ) : (
+              <span className="font-mono text-[11px] text-[var(--text-faint)]">n/a</span>
+            )}
           </div>
         ),
       },

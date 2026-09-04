@@ -87,10 +87,50 @@ export type ProjectRecord = {
  * its own requirement rather than relying on a caller three files away.
  */
 const projectSelect = (canSeeBudgets: boolean) => `
-  ${budgetAwareColumns("id, name, code, customer_id, estimated_hours, is_billable, is_archived", canSeeBudgets)},
+  ${budgetAwareColumns("id, name, code, customer_id, is_billable, is_archived", canSeeBudgets)},
   customer:customer_id ( name ),
   service:service_id ( name )
 `;
+
+/**
+ * Budgets by project id, or an empty map when the caller may not see them.
+ *
+ * NOT read from `time.project` any more. Migration
+ * 20260903230000_budgets_are_not_readable_by_default revoked the column grant
+ * on `estimated_hours` from `authenticated` -- and because every signed-in
+ * Supabase user IS `authenticated`, that applies to exec too. Selecting the
+ * column off the base table now fails with `permission denied for table
+ * project` for EVERY caller, which silently emptied this whole ledger: the
+ * paged loop below treats an error as "no more rows" and breaks.
+ *
+ * `time.project_summary` serves the same figure through
+ * `time.project_estimated_hours()`, a SECURITY DEFINER function that checks
+ * `projects:contracts:read` itself -- so this returns real numbers for exec and
+ * NULLs for everyone else, without the base-table grant.
+ */
+async function fetchBudgets(
+  supabase: SupabaseTyped,
+  canSeeBudgets: boolean,
+): Promise<Map<number, number | null>> {
+  const byId = new Map<number, number | null>();
+  if (!canSeeBudgets) return byId;
+  try {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const { data, error } = await timeSchema(supabase)
+        .from("project_summary")
+        .select("project_id, estimated_hours")
+        .order("project_id")
+        .range(page * PAGE, page * PAGE + PAGE - 1);
+      if (error || !data) break;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const r of data as any[]) byId.set(num(r.project_id), numOrNull(r.estimated_hours));
+      if (data.length < PAGE) break;
+    }
+  } catch {
+    return byId;
+  }
+  return byId;
+}
 
 /**
  * Every project the caller may see, paged past the 1000-row cap.
@@ -104,6 +144,7 @@ export async function fetchAllProjects(supabase: SupabaseTyped): Promise<Project
   const out: ProjectRecord[] = [];
   try {
     const canSeeBudgets = await canReadBudgets(supabase);
+    const budgets = await fetchBudgets(supabase, canSeeBudgets);
     for (let page = 0; page < MAX_PAGES; page++) {
       const { data, error } = await timeSchema(supabase)
         .from("project")
@@ -122,7 +163,7 @@ export async function fetchAllProjects(supabase: SupabaseTyped): Promise<Project
           customerId: numOrNull(r.customer_id),
           customerName: r.customer?.name ?? null,
           serviceName: r.service?.name ?? null,
-          estimatedHours: numOrNull(r.estimated_hours),
+          estimatedHours: budgets.get(num(r.id)) ?? null,
           isBillable: Boolean(r.is_billable),
           isArchived: Boolean(r.is_archived),
         });
@@ -143,6 +184,7 @@ export async function fetchProject(
 ): Promise<ProjectRecord | null> {
   try {
     const canSeeBudgets = await canReadBudgets(supabase);
+    const budgets = await fetchBudgets(supabase, canSeeBudgets);
     const { data } = await timeSchema(supabase)
       .from("project")
       .select(projectSelect(canSeeBudgets))
@@ -159,7 +201,7 @@ export async function fetchProject(
       customerId: numOrNull(r.customer_id),
       customerName: r.customer?.name ?? null,
       serviceName: r.service?.name ?? null,
-      estimatedHours: numOrNull(r.estimated_hours),
+      estimatedHours: budgets.get(num(r.id)) ?? null,
       isBillable: Boolean(r.is_billable),
       isArchived: Boolean(r.is_archived),
     };

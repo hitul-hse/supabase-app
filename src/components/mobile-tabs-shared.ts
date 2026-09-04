@@ -42,10 +42,14 @@ export interface MobileTab {
  *
  * `allowedHrefs` is the set the sidebar would render for this role — passed in
  * rather than imported, because NAV_GROUPS lives in a "use client" module and
- * the caller already has it. When it is omitted every tab href is allowed,
- * which is correct for the four defaults: none of them carries a `roles` gate
- * in NAV_GROUPS (Overview, My Work, Projects and People are deliberately
- * ungated — everyone has a book of work).
+ * the caller already has it.
+ *
+ * MobileTabBar now always passes it. It used not to, on the reasoning that all
+ * four defaults are ungated in NAV_GROUPS so there was nothing to filter — true
+ * of `roles` arrays, and false as soon as a role is restricted to a fixed route
+ * list (see nav-access.ts), which is precisely a case where an ungated item must
+ * still be withheld. The parameter stays optional so the fallback is stated
+ * rather than implied, but omitting it is now a caller bug, not a shortcut.
  */
 export function mobileTabsFor(_roleKey: string | null, allowedHrefs?: Set<string>): MobileTab[] {
   return MOBILE_TAB_HREFS.filter((h) => !allowedHrefs || allowedHrefs.has(h)).map((href) => ({

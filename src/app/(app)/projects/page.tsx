@@ -31,7 +31,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
 import { createClient } from "@/utils/supabase/server";
-import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
+import {
+  enforceRoleRouteAccess,
+  requireProfile,
+  userHasPermission,
+} from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getProjectList, type ProjectSort } from "@/lib/queries/projects-live";
 import { getSyncFreshness } from "@/lib/queries/time-dashboard";
@@ -53,6 +57,15 @@ export default async function ProjectsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireProfile("/projects");
+  /*
+    Without this, `operations` gets the "you don't have access" EmptyState below
+    rather than a refusal -- the page shell, the header and a paragraph naming a
+    permission, on a route that is supposed not to exist for this role. A
+    soft-landing is right for a role that MIGHT be granted projects:read_all;
+    it is the wrong answer for one whose whole definition is that it has one
+    page. Redirect first, EmptyState for everyone else.
+  */
+  await enforceRoleRouteAccess("/projects");
 
   const t = await getTranslations("projects");
   const locale = await getLocale();

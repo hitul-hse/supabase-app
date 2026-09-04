@@ -7,7 +7,7 @@ import { getTimesheetWeek, currentWeekStart } from "@/lib/queries/timesheets";
 import { TimesheetGrid } from "./TimesheetGrid";
 import PageTransition from "@/components/animations/PageTransition";
 import { RecordsTabs } from "../RecordsTabs";
-import { userHasPermission } from "@/utils/supabase/require-profile";
+import { enforceRoleRouteAccess, userHasPermission } from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 
 /** Only ever trust a well-formed YYYY-MM-DD from the URL; anything else falls back to the current week. */
@@ -30,6 +30,13 @@ export default async function TimesheetsPage({
   searchParams: Promise<{ week?: string }>;
 }) {
   await requireUser("/timesheets");
+  /*
+    This grid has no permission gate of its own -- an authenticated session and
+    a linked person row is all it has ever asked for, deliberately, because
+    logging your own hours is not a privilege. A role restricted to a fixed
+    route list therefore reaches it unless the allow-list is consulted here.
+  */
+  await enforceRoleRouteAccess("/timesheets");
   // Whether to offer the dashboard tab. Asked as a permission rather than a role so
   // the toggle in /admin/roles actually decides it.
   const canReadAll = await userHasPermission(PERMISSIONS.TIMESHEETS_READ_ALL);

@@ -20,6 +20,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { IconDot, NAV_ICONS } from "./nav-icons";
+import { isNavItemVisible } from "./nav-access";
 
 interface NavGroup {
   title: string;
@@ -33,7 +34,17 @@ interface NavGroup {
   }[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+/**
+ * Exported so MobileTabBar can apply the SAME filter to the SAME data.
+ *
+ * It could not, before: `mobileTabsFor(roleKey)` was called with no allow-list,
+ * so the bar rendered its four hrefs for everybody and its own doc comment
+ * ("a tab can never appear for a role the sidebar hides it from") was simply
+ * not true. That was harmless only while all four of those items were ungated;
+ * a role restricted to one page would have got a phone nav to four pages it
+ * cannot open. See MobileTabBar.tsx.
+ */
+export const NAV_GROUPS: NavGroup[] = [
   {
     title: "ANALYSE",
     items: [
@@ -111,11 +122,17 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
   const navTitle = (title: string) =>
     NAV_TITLE_KEYS[title] ? t(NAV_TITLE_KEYS[title]) : title;
 
+  /*
+    Two rules, one function -- see nav-access.ts. `roles` is deny-by-omission
+    (no key means everybody), which is right for the ordinary case and exactly
+    wrong for a role that should see one page: it would inherit every ungated
+    item. isNavItemVisible() applies the route allow-list FIRST, so a restricted
+    role gets what its list names and nothing else, and every unrestricted role
+    keeps the behaviour this filter always had.
+  */
   const groups = NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter(
-      (item) => !item.roles || (roleKey && item.roles.includes(roleKey))
-    ),
+    items: group.items.filter((item) => isNavItemVisible(roleKey, item)),
   })).filter((group) => group.items.length > 0);
 
   return (

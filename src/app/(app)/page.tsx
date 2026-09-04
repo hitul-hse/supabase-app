@@ -20,6 +20,7 @@ import {
 import { OverviewFilters } from "./OverviewFilters";
 import { OverviewHero } from "./OverviewHero";
 import { requireUser } from "@/utils/supabase/require-user";
+import { enforceRoleRouteAccess } from "@/utils/supabase/require-profile";
 
 /**
  * The Hub landing page.
@@ -45,6 +46,21 @@ export default async function OverviewPage({
   searchParams: Promise<{ range?: string; from?: string; to?: string; team?: string }>;
 }) {
   await requireUser("/");
+  /*
+    THE LINCHPIN OF THE ROUTE ALLOW-LIST, not just one more guarded page.
+
+    Every refusal in this app -- requirePermission(), requireProfile(roles) --
+    redirects to "/". So a role that must not see the Overview but is only
+    refused by those gates lands on the Overview every time it is refused: the
+    restriction would fail open on exactly the path a restricted user takes most
+    often. And "/" is where sign-in lands by default (safeRedirect's fallback in
+    auth/login), so it is also the first page they would ever see.
+
+    This must therefore run BEFORE getLiveOverview() -- redirecting after the
+    query would still have executed a full portfolio read for someone not
+    allowed to see one.
+  */
+  await enforceRoleRouteAccess("/");
   const supabase = await createClient();
   const t = await getTranslations("overview");
   const tc = await getTranslations("common");

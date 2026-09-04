@@ -1,7 +1,11 @@
 import { PageHeader } from "@/components/PageHeader";
 import PageTransition from "@/components/animations/PageTransition";
 import { createClient } from "@/utils/supabase/server";
-import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
+import {
+  enforceRoleRouteAccess,
+  requireProfile,
+  userHasPermission,
+} from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getBudgetAlerts, permissionKeyExists } from "@/lib/queries/budget-alerts";
 import { getContractsNeedingAttention } from "@/lib/queries/contract-periods";
@@ -30,6 +34,11 @@ export default async function AlertsPage({
   // The path is what an unauthenticated visitor is redirected back to after
   // signing in, so it has to be this page rather than a default.
   await requireProfile("/admin/alerts");
+  // This page answers a refusal with a rendered "ACCESS RESTRICTED" panel rather
+  // than a redirect, which is the right answer for a role that could plausibly
+  // be granted projects:alerts:read and needs to know why it is not seeing the
+  // list. A route-restricted role is not in that conversation.
+  await enforceRoleRouteAccess("/admin/alerts");
   const params = await searchParams;
 
   // Open by default: the list is for acting on, and a log of everything ever

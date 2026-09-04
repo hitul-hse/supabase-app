@@ -24,7 +24,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
 import { createClient } from "@/utils/supabase/server";
-import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
+import {
+  enforceRoleRouteAccess,
+  requireProfile,
+  userHasPermission,
+} from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getProjectOverview } from "@/lib/queries/projects-live";
 import { BurnChart, ContributorTable, TaskTable, burnTone } from "../ProjectPanels";
@@ -43,6 +47,10 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const profile = await requireProfile("/projects");
+  // Same route root as the ledger, same reason -- see ../page.tsx. A detail page
+  // is not less reachable than its list: /projects/41 is a URL somebody can be
+  // sent in a message.
+  await enforceRoleRouteAccess("/projects");
 
   const t = await getTranslations("projects");
   const locale = await getLocale();

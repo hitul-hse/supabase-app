@@ -47,7 +47,11 @@ import { MobileDisclosure } from "@/components/MobileDisclosure";
 import { Card, CardHeader, CardDivider, StatTile } from "@/components/ui/Card";
 import { Pill } from "@/components/ui/Segmented";
 import { createClient } from "@/utils/supabase/server";
-import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
+import {
+  enforceRoleRouteAccess,
+  requireProfile,
+  userHasPermission,
+} from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getOrderDetail, type OrderRole } from "@/lib/queries/order-detail";
 
@@ -110,6 +114,10 @@ export default async function OrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   await requireProfile("/dashboard/management");
+  // Guarded on its OWN route root, not on the management path it borrows for
+  // the post-login return. /orders/<id> is a real, linkable URL and has to be
+  // refused as one.
+  await enforceRoleRouteAccess("/orders");
 
   const { id: rawId } = await params;
   // Shape, not type: see the header note on why there is no /^\d+$/ here.

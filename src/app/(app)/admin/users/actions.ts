@@ -158,7 +158,25 @@ export async function inviteUser(
   return { status: "success", message: `Invited ${email}.${linkNote}` };
 }
 
-/** Activate or deactivate a user account. */
+/**
+ * Ban length used for a deactivated account: 100 years, which is Supabase's own
+ * documented idiom for "indefinitely" (there is no unbounded value; `ban_duration`
+ * is a Go duration string). Lifted with the literal "none".
+ */
+const INDEFINITE_BAN = "876000h";
+
+export type SetActiveResult = {
+  /** Nothing changed. The caller should put the toggle back where it was. */
+  error?: string;
+  /**
+   * The profile write LANDED but the auth half did not. Distinct from `error`
+   * because the two need opposite handling in the UI: on `error` the toggle must
+   * revert, on `warning` it must NOT -- the account really is deactivated, it is
+   * just not as deactivated as the operator was entitled to assume.
+   */
+  warning?: string;
+};
+
 /**
  * Activate or deactivate an account.
  *
@@ -168,17 +186,62 @@ export async function inviteUser(
  * ever consulted -- which is why this toggle silently reverted for every exec. The
  * boundary is assertCanManageUsers() above, the same gate that lets inviteUser
  * create accounts outright.
+ *
+ * WHY IT ALSO BANS, AND WHAT THE BAN ACTUALLY BUYS
+ * ------------------------------------------------
+ * Until this existed the toggle wrote `app_user_profile.is_active` and nothing
+ * else. That is most of the boundary and it was easy to mistake for all of it:
+ * app_user_role(), app_user_department() and app_user_person_id() all filter on
+ * is_active, so every role-scoped policy in schema.sql starts denying at once.
+ *
+ * Two things survive it, both measured against this project rather than assumed:
+ *
+ *   1. The SESSION. Nothing in a profile UPDATE reaches GoTrue, so an access
+ *      token already in a browser keeps working, and the refresh token keeps
+ *      minting new ones indefinitely. "Deactivated" therefore meant "loses
+ *      permissions the next time a policy asks", with no bound on how long the
+ *      account could keep asking.
+ *
+ *   2. Policies that key on something OTHER than the profile. time.current_member_id()
+ *      resolves `m.user_id = auth.uid()` first and never consults
+ *      app_user_profile, and "own entry update" / "own entry delete" on time.entry
+ *      call no permission function at all -- so a deactivated colleague holding a
+ *      session can still rewrite or delete their own unbilled hours. That one is
+ *      fixed at the data layer for the departed colleague in
+ *      supabase/migrations/20260904090000_offboard_departed_user.sql; the general
+ *      case is fixed here, by there no longer being a session.
+ *
+ * BE PRECISE ABOUT WHAT A BAN DOES. It sets auth.users.banned_until, so GoTrue
+ * refuses sign-in and refuses the refresh-token grant. It does NOT retroactively
+ * invalidate an access token that has already been issued: PostgREST and Postgres
+ * verify that token locally by signature and `exp`, without asking GoTrue. So the
+ * honest claim is that access ends within one access-token lifetime (Supabase
+ * default: 1 hour) instead of never. supabase-js has no admin call that kills a
+ * live session by user id -- auth.admin.signOut() needs the user's own JWT, which
+ * this console does not have -- so that is the ceiling, not a shortcut taken here.
+ *
+ * ORDER: profile first, ban second. Deliberate. If the ban fails, what remains is
+ * the fail-CLOSED half: permissions are gone and only the session lingers. Banning
+ * first and then failing the profile write would leave the opposite -- an account
+ * that keeps its role while the UI shows it reverted to ACTIVE.
+ *
+ * A FAILED BAN IS REPORTED, NEVER SWALLOWED. Returning {} here would tell the
+ * operator that access ended when it had not, which is precisely the
+ * silence-as-success failure this codebase keeps paying for. It comes back as
+ * `warning` rather than `error` so the toggle keeps its new (true) position while
+ * the message says exactly what did not happen and what to do about it.
  */
 export async function setUserActive(
   userId: string,
   isActive: boolean,
-): Promise<{ error?: string }> {
+): Promise<SetActiveResult> {
   const guard = await assertCanManageUsers();
   if ("error" in guard) return { error: guard.error };
 
   // Deactivating yourself removes your own access to this page. Previously the
   // write failed for everyone so it could not happen; through the service role it
-  // would succeed, and with no other active exec there is no way back in.
+  // would succeed, and with no other active exec there is no way back in. Now it
+  // would also ban your own sign-in, so the guard matters more than it did.
   if (guard.userId === userId && !isActive) {
     return { error: "You cannot deactivate your own account. Ask another administrator." };
   }
@@ -195,7 +258,34 @@ export async function setUserActive(
     .eq("user_id", userId);
 
   if (error) return { error: error.message };
+
+  // The session half. Wrapped: updateUserById normally returns its error rather
+  // than throwing, but a transport failure does throw, and an unhandled rejection
+  // here would surface as a generic action failure with the profile already
+  // written -- the exact ambiguity this whole path exists to remove.
+  let banError: string | null = null;
+  try {
+    const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+      ban_duration: isActive ? "none" : INDEFINITE_BAN,
+    });
+    if (authError) banError = authError.message;
+  } catch (err) {
+    banError = err instanceof Error ? err.message : "unknown error";
+  }
+
   revalidatePath("/admin/users");
+
+  if (banError) {
+    return {
+      warning: isActive
+        // Reactivation: the profile is live again but the sign-in is still barred,
+        // so the person would be turned away at the login screen with no clue why.
+        ? `Their Hub access was restored, but the sign-in suspension could NOT be lifted (${banError}). They still cannot sign in. Retry the toggle, or clear "Ban duration" for this user in Supabase → Authentication → Users.`
+        // Deactivation: the dangerous direction. Say plainly that this is not done.
+        : `Deactivated in the Hub, but their SIGN-IN WAS NOT REVOKED (${banError}). Their existing session keeps working until it expires and they can still sign in again. Retry the toggle, or ban the account in Supabase → Authentication → Users before treating this as complete.`,
+    };
+  }
+
   return {};
 }
 

@@ -1,7 +1,11 @@
 import { PageHeader } from "@/components/PageHeader";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
-import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
+import {
+  enforceRoleRouteAccess,
+  requireProfile,
+  userHasPermission,
+} from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getLeaveBalance, getLeaveRequests, getPendingLeaveApprovals } from "@/lib/queries/hse";
 import { MyLeavePanel } from "./MyLeavePanel";
@@ -11,6 +15,18 @@ import PageTransition from "@/components/animations/PageTransition";
 
 export default async function LeavePage() {
   const profile = await requireProfile("/leave");
+  /*
+    Booking your own time off needs no permission -- requireProfile() is the
+    whole gate, by design -- so this page is reachable by URL for any role that
+    is not explicitly refused. hitul's decision takes Leave away from
+    `operations` for the trial; the allow-list is where that is recorded.
+
+    NOTE, and it is not the same statement: public.leave_requests' INSERT policy
+    checks `person_id = app_user_person_id()` and no permission key, so this
+    guard closes the PAGE, not the database. See the RESIDUAL block in
+    supabase/migrations/20260904120000_operations_role.sql.
+  */
+  await enforceRoleRouteAccess("/leave");
   const supabase = await createClient();
   // The approvals panel is gated on the permission that names it, not on being
   // one of two roles. Everyone reaches /leave to book their own time off; only

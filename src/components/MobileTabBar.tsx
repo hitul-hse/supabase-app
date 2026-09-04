@@ -29,6 +29,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconDot, NAV_ICONS } from "./nav-icons";
 import { MOBILE_TAB_HREFS, mobileTabsFor } from "./mobile-tabs-shared";
+import { NAV_GROUPS } from "./SidebarNav";
+import { isNavItemVisible } from "./nav-access";
 
 /** The "More" glyph — three dots, matching the 16×16 / 1.5-stroke house rule
  *  the rest of nav-icons.tsx follows. Not an ellipsis character: a text glyph
@@ -54,7 +56,29 @@ export function MobileTabBar({
   moreOpen: boolean;
 }) {
   const pathname = usePathname();
-  const tabs = mobileTabsFor(roleKey);
+
+  /*
+    THE ALLOW-LIST ARGUMENT WAS NEVER PASSED, and that was a live bug waiting
+    for its first restricted role.
+
+    `mobileTabsFor(roleKey)` with no second argument means "every tab href is
+    allowed" — its own doc says so, on the reasoning that the four defaults
+    carry no `roles` gate in NAV_GROUPS. True then, and it made the module's
+    other claim ("a tab can never appear for a role the sidebar hides it from")
+    false: the bar was not applying the sidebar's filter, it was relying on
+    there being nothing to filter. The moment a role is restricted to one page,
+    a phone shows it four tabs to pages that redirect on tap.
+
+    So the set is now computed from the REAL nav data through the REAL
+    predicate, which is what the module always claimed. For every unrestricted
+    role this produces exactly the four hrefs it produced before.
+  */
+  const allowedHrefs = new Set(
+    NAV_GROUPS.flatMap((g) => g.items)
+      .filter((item) => isNavItemVisible(roleKey, item))
+      .map((item) => item.href),
+  );
+  const tabs = mobileTabsFor(roleKey, allowedHrefs);
 
   /* A route NOT in the tab bar (say /admin/roles) must still show as active
      somewhere, or the bar claims you are nowhere. It lights "More" instead —

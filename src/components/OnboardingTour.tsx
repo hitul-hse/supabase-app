@@ -85,6 +85,23 @@ export default function OnboardingTour() {
   const [step,    setStep]    = useState(0);
   const [rect,    setRect]    = useState<Rect | null>(null);
   const [visible, setVisible] = useState(false);
+  /*
+    THE STEPS THIS PARTICULAR USER CAN ACTUALLY BE SHOWN.
+
+    STEPS is written for a reader who has every nav item. Nobody does: the
+    Team Lead step spotlights `tour-teamlead`, which NAV_GROUPS gates to exec
+    and dept_head, so an employee's first login has always narrated a feature
+    beside an empty patch of sidebar -- getTargetRect() returns null, the
+    spotlight is skipped, and the card explains a page that is not there. A
+    role restricted to a single route (nav-access.ts) turns that from one odd
+    step into five.
+
+    Filtered by whether the target is IN THE DOM rather than by role: the
+    sidebar has already decided who sees what, and asking the rendered result
+    means this component never has to hold a second, drifting copy of that
+    rule.
+  */
+  const [steps,   setSteps]   = useState<(typeof STEPS)[number][]>([...STEPS]);
   const { setForcedOpen } = useSidebarCollapse();
 
   /*
@@ -116,7 +133,16 @@ export default function OnboardingTour() {
     const done = localStorage.getItem("hse_tour_done");
     if (!done) {
       // Small delay so the page renders first
-      const t = setTimeout(() => setVisible(true), 800);
+      const t = setTimeout(() => {
+        // Resolved HERE, at the moment the tour opens, because that is the
+        // first instant the sidebar is guaranteed mounted. The two targetless
+        // steps (welcome, done) always survive, so the tour can never filter
+        // itself down to nothing.
+        setSteps(
+          STEPS.filter((s) => !s.target || document.querySelector(`[data-tour="${s.target}"]`)),
+        );
+        setVisible(true);
+      }, 800);
       return () => clearTimeout(t);
     }
   }, []);
@@ -126,7 +152,7 @@ export default function OnboardingTour() {
   // or the spotlight visibly jumps from the previous step's position.
   useLayoutEffect(() => {
     if (!visible) return;
-    const current = STEPS[step];
+    const current = steps[step];
     // No target for this step: leave `rect` as-is rather than clearing it
     // here (that would be a direct setState call in the effect body).
     // Render already gates the spotlight/card on `current.target`, so a
@@ -150,16 +176,16 @@ export default function OnboardingTour() {
       clearTimeout(settle);
       window.removeEventListener("resize", update);
     };
-  }, [step, visible]);
+  }, [step, visible, steps]);
 
   const next = useCallback(() => {
-    if (step < STEPS.length - 1) {
+    if (step < steps.length - 1) {
       setStep(s => s + 1);
     } else {
       localStorage.setItem("hse_tour_done", "1");
       setVisible(false);
     }
-  }, [step]);
+  }, [step, steps.length]);
 
   const skip = useCallback(() => {
     localStorage.setItem("hse_tour_done", "1");
@@ -168,9 +194,9 @@ export default function OnboardingTour() {
 
   if (!visible) return null;
 
-  const current = STEPS[step];
+  const current = steps[step];
   const isFirst = step === 0;
-  const isLast  = step === STEPS.length - 1;
+  const isLast  = step === steps.length - 1;
 
   return (
     <AnimatePresence>
@@ -279,7 +305,7 @@ export default function OnboardingTour() {
             >
               {/* Progress dots */}
               <div className="flex gap-1.5 mb-4">
-                {STEPS.map((_, i) => (
+                {steps.map((_, i) => (
                   <motion.div
                     key={i}
                     animate={{

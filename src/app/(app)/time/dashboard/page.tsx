@@ -6,7 +6,11 @@ import { EmptyState } from "@/components/EmptyState";
 import PageTransition from "@/components/animations/PageTransition";
 import { RecordsTabs } from "../../RecordsTabs";
 import { createClient } from "@/utils/supabase/server";
-import { requireProfile, userHasPermission } from "@/utils/supabase/require-profile";
+import {
+  enforceRoleRouteAccess,
+  requireProfile,
+  userHasPermission,
+} from "@/utils/supabase/require-profile";
 import { PERMISSIONS } from "@/lib/permissions";
 import {
   budgets,
@@ -142,6 +146,15 @@ export default async function TrackingTimeDashboardPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireProfile("/time/dashboard");
+  /*
+    Before the permission check, not after. A role without timesheets:read_all
+    is sent to /time, which sends a role without timesheets:read_own to "/",
+    which sends a route-restricted role to its home: the right destination via
+    three redirects, each of which is a full server render. Asking the
+    allow-list first makes it one hop, and makes the refusal legible here rather
+    than emergent from a chain of three files.
+  */
+  await enforceRoleRouteAccess("/time/dashboard");
 
   if (!(await userHasPermission(PERMISSIONS.TIMESHEETS_READ_ALL))) {
     redirect("/time");

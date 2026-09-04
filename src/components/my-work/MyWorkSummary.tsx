@@ -28,12 +28,15 @@ export function MyWorkSummary({
   projects,
   roleCounts,
   loggedHours,
+  serviceCoverage,
 }: {
   customers: number;
   customersLed: number;
   projects: number;
   roleCounts: Record<MyRole, number>;
   loggedHours: number;
+  /** How many of `projects` resolve a TrackingTime service tag. */
+  serviceCoverage: { known: number; total: number };
 }) {
   const cells: { label: string; value: string; hint?: string; accent?: boolean }[] = [
     {
@@ -73,6 +76,16 @@ export function MyWorkSummary({
       label: "HOURS · TEAM",
       value: loggedHours.toLocaleString("en-GB", { maximumFractionDigits: 0 }),
       hint: "all people",
+    },
+    {
+      // TrackingTime tag, not a contractual "agreed services" figure --
+      // crm.framework_agreement, the table shaped for that, is empty.
+      label: "SERVICES KNOWN",
+      value: serviceCoverage.known.toLocaleString("en-GB"),
+      hint:
+        serviceCoverage.known === serviceCoverage.total
+          ? "of your projects (TrackingTime)"
+          : `of ${serviceCoverage.total.toLocaleString("en-GB")} projects (TrackingTime)`,
     },
   ];
 

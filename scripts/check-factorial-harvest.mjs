@@ -27,6 +27,9 @@ import {
   EMPLOYEE_ALLOWED_FIELDS,
   EMPLOYEE_FORBIDDEN_FIELDS,
   projectEmployee,
+  CONTRACT_ALLOWED_FIELDS,
+  CONTRACT_FORBIDDEN_FIELDS,
+  projectContract,
 } from "./lib/factorial.mjs";
 
 /*
@@ -130,7 +133,84 @@ check(sparse.login_email === undefined && sparse.active === undefined,
   "a missing allow-listed field stays undefined rather than becoming ''",
   "absence preserved");
 
-// 6. Live spec drift -- only when a credential exists.
+/*
+ * 6. The SAME harvest discipline for contracts/reference_contracts.
+ *
+ * This endpoint is documented (docs/factorial-api-integration.md §7.5) to
+ * also carry salary_amount and salary_frequency -- the `contracts` scope
+ * that is unavoidable for real working hours is ALSO the scope that unlocks
+ * salary. There is no pinned OpenAPI field list committed for this schema
+ * the way there is for employees_employee (SPEC_FIELDS above), so this
+ * section proves the projection offline against a synthetic row carrying
+ * every field this integration knows this endpoint can return, rather than
+ * diffing against a live spec fetch.
+ */
+console.log("\ncontracts/reference_contracts\n");
+console.log(`  allow-list   : ${CONTRACT_ALLOWED_FIELDS.join(", ")}`);
+console.log(`  forbidden    : ${CONTRACT_FORBIDDEN_FIELDS.join(", ")}\n`);
+
+const contractContradiction = CONTRACT_ALLOWED_FIELDS.filter((f) => CONTRACT_FORBIDDEN_FIELDS.includes(f));
+check(contractContradiction.length === 0, "no contract field is both allowed and forbidden",
+  contractContradiction.length ? contractContradiction.join(", ") : "the two lists are disjoint");
+
+// Every documented field on this endpoint (docs §5 row 2, §5.2, §7.5), plus
+// two Factorial has not been observed to send yet -- proving an unknown
+// field is dropped by default, the same discipline as the employee test #4.
+const CONTRACT_SYNTHETIC_ROW = {
+  employee_id: "SENTINEL_employee_id",
+  working_hours: "SENTINEL_working_hours",
+  working_hours_frequency: "SENTINEL_working_hours_frequency",
+  working_week_days: "SENTINEL_working_week_days",
+  working_time_percentage_in_cents: "SENTINEL_working_time_percentage_in_cents",
+  maximum_weekly_hours: "SENTINEL_maximum_weekly_hours",
+  max_legal_yearly_hours: "SENTINEL_max_legal_yearly_hours",
+  starts_on: "SENTINEL_starts_on",
+  ends_on: "SENTINEL_ends_on",
+  effective_on: "SENTINEL_effective_on",
+  job_title: "SENTINEL_job_title",
+  country: "SENTINEL_country",
+  bank_holiday_treatment: "SENTINEL_bank_holiday_treatment",
+  salary_amount: "SENTINEL_salary_amount",
+  salary_frequency: "SENTINEL_salary_frequency",
+};
+
+const projectedContract = projectContract(CONTRACT_SYNTHETIC_ROW);
+const contractKept = Object.keys(projectedContract);
+
+check(contractKept.length === CONTRACT_ALLOWED_FIELDS.length,
+  "contract projection keeps exactly the allow-listed field count",
+  `kept ${contractKept.length}, allow-list has ${CONTRACT_ALLOWED_FIELDS.length}`);
+
+const contractLeaked = contractKept.filter((k) => !CONTRACT_ALLOWED_FIELDS.includes(k));
+check(contractLeaked.length === 0, "contract projection keeps nothing outside the allow-list",
+  contractLeaked.length ? `leaked: ${contractLeaked.join(", ")}`
+    : `dropped ${Object.keys(CONTRACT_SYNTHETIC_ROW).length - contractKept.length} of ${Object.keys(CONTRACT_SYNTHETIC_ROW).length}`);
+
+const contractSurvivors = CONTRACT_FORBIDDEN_FIELDS.filter((f) => projectedContract[f] !== undefined);
+check(contractSurvivors.length === 0,
+  `all ${CONTRACT_FORBIDDEN_FIELDS.length} named sensitive contract field(s) are dropped`,
+  contractSurvivors.length ? `SURVIVED: ${contractSurvivors.join(", ")}` : "none survived projection");
+
+for (const f of ["salary_amount", "salary_frequency"]) {
+  check(projectedContract[f] === undefined, `${f} is not kept`,
+    projectedContract[f] === undefined ? "" : `value survived: ${projectedContract[f]}`);
+}
+
+// A field Factorial has not invented yet is dropped by default -- same as
+// the employee test #4, and the whole reason this is an allow-list.
+const futureContract = projectContract({ ...CONTRACT_SYNTHETIC_ROW, signing_bonus_cents: 500000, iban: "DE99" });
+check(futureContract.signing_bonus_cents === undefined && futureContract.iban === undefined,
+  "a future contract field is dropped without a code change",
+  "unknown fields do not survive");
+
+// Absence stays absence -- a missing employee_id must not become "" and
+// silently join to nothing that looks like a real match failure.
+const sparseContract = projectContract({ working_hours: 4000 });
+check(sparseContract.employee_id === undefined && sparseContract.working_hours === 4000,
+  "a missing allow-listed contract field stays undefined rather than becoming ''",
+  "absence preserved");
+
+// 7. Live spec drift -- only when a credential exists.
 // Via the shared loader: process.env first (so CI secrets win), then a
 // .env.local found by walking up from this file. The hardcoded C:/Supabase
 // path this replaces could only ever resolve on one Windows machine, so the

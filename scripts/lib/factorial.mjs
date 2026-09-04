@@ -369,7 +369,7 @@ export const EMPLOYEE_ALLOWED_FIELDS = Object.freeze([
   "login_email",
   "full_name",
   "active",
-  // Employment truth, per the harvest plan (doc �7 row 1): 'active' is an
+  // Employment truth, per the harvest plan (doc �7 row 1): 'active' is an
   // app-access flag, not employment status -- the owner confirmed live
   // colleagues carrying active=false. terminated_on is the honest signal:
   // null means employed.
@@ -413,3 +413,173 @@ export const EMPLOYEE_FORBIDDEN_FIELDS = Object.freeze([
   "contact_name", "contact_number",
   "termination_reason", "termination_observations",
 ]);
+
+/*
+ * CONTRACT HOURS -- the fix for the fake uniform 40h week.
+ *
+ * `contracts/reference_contracts` returns the contract Factorial says is in
+ * force TODAY for an employee (docs/factorial-api-integration.md §5 row 2;
+ * §5.2 explains the "today-shaped" semantics -- it is not history, and a
+ * terminated employee still returns their last contract, so "employed" must
+ * never be inferred from a contract merely existing).
+ *
+ * Its `working_hours` field is undocumented as to unit. The vault's Factorial
+ * data plan measured it against the live API as HUNDREDTHS OF AN HOUR (4000 =
+ * 40,00 h/week), cross-checked against the independently-documented
+ * `working_time_percentage_in_cents`. Nothing in this repo recorded that unit
+ * before now, and the vendor's own field name gives no hint of it -- so it is
+ * baked into every name this integration uses for the value (`*_centihours`),
+ * not left in a comment for the next reader to miss.
+ *
+ * The same `contracts` scope that unlocks working hours also unlocks
+ * `salary_amount` / `salary_frequency` on this exact endpoint (docs §7.5) --
+ * there is no way to read contract hours without the API key being
+ * technically able to read salary too. Those two fields are named
+ * individually in CONTRACT_FORBIDDEN_FIELDS for the same reason
+ * EMPLOYEE_FORBIDDEN_FIELDS exists: the allow-list already drops them by
+ * construction, and this is the tripwire that catches a typo in it.
+ */
+
+/**
+ * Fetch every reference contract (the contract in force today, one per
+ * employee) for the given Factorial employee ids. A thin wrapper over
+ * fetchAllPages so the paging/cursor/truncation contract is enforced exactly
+ * once, in one place, for every Factorial resource this integration reads.
+ *
+ * `employeeIds` is required and non-empty on purpose: fetching contracts for
+ * employees this hub has not even mapped to a person would read personal
+ * data with nowhere honest to attribute it, the opposite of minimisation.
+ */
+export async function fetchReferenceContracts({
+  token,
+  employeeIds,
+  auth,
+  base,
+  version,
+  transport,
+  onPage,
+}) {
+  if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+    throw new Error("fetchReferenceContracts: employeeIds must be a non-empty array");
+  }
+  return fetchAllPages({
+    resource: "contracts/reference_contracts",
+    params: { employee_ids: employeeIds.map(String) },
+    token,
+    auth,
+    base,
+    version,
+    transport,
+    onPage,
+  });
+}
+
+/**
+ * Fields kept from one `contracts/reference_contracts` row. Same allow-not-
+ * deny discipline as EMPLOYEE_ALLOWED_FIELDS: everything not named here is
+ * dropped, including salary and anything Factorial adds later.
+ *
+ * Named per docs/factorial-api-integration.md §5 row 2. `employee_id` is the
+ * join key back to crm.factorial_person_reference.external_id; the rest are
+ * exactly what contractWeeklyHours() and crm.factorial_contract_version need.
+ */
+export const CONTRACT_ALLOWED_FIELDS = Object.freeze([
+  "employee_id",
+  "working_hours",
+  "working_hours_frequency",
+  "working_week_days",
+  "working_time_percentage_in_cents",
+  "maximum_weekly_hours",
+  "starts_on",
+  "ends_on",
+  "effective_on",
+  "job_title",
+  "country",
+]);
+
+/**
+ * Keep only the allow-listed fields of a Factorial reference contract.
+ * Builds a NEW object by picking, not by deleting from the original -- see
+ * projectEmployee() for why that direction is the one that stays safe when
+ * someone forgets to update it.
+ */
+export function projectContract(raw) {
+  const out = {};
+  for (const k of CONTRACT_ALLOWED_FIELDS) out[k] = raw?.[k];
+  return out;
+}
+
+/**
+ * Named individually so the gate can assert each one rather than trusting the
+ * allow-list to be complete by construction -- the same tripwire discipline as
+ * EMPLOYEE_FORBIDDEN_FIELDS. salary_amount / salary_frequency are documented
+ * on THIS exact endpoint (docs §7.5): the `contracts` scope is unavoidable for
+ * working hours, which makes this the load-bearing control, not a formality.
+ */
+export const CONTRACT_FORBIDDEN_FIELDS = Object.freeze([
+  "salary_amount",
+  "salary_frequency",
+]);
+
+/**
+ * Convert a Factorial reference contract's raw hundredths-of-an-hour figure
+ * into decimal hours per week, or `null` when the input cannot be trusted.
+ *
+ * Divides by 100 exactly ONCE, here, and nowhere else in this repo. Every
+ * caller must go through this function -- an inlined `/100` at a call site
+ * would be a second implementation of the same rule, and this repo's own
+ * house pattern (the "classifier is imported, not re-implemented" comment on
+ * check-factorial-identity-baseline.mjs) is that two rules which can silently
+ * disagree are worse than one.
+ *
+ * `working_hours_frequency` is an UNDOCUMENTED enum (docs §5.2): Factorial's
+ * spec gives it as a bare string with no enumerated values. Never assume
+ * "week" for an unrecognised value -- defaulting like that is exactly how the
+ * fake uniform 40h got created in the first place. Any frequency outside the
+ * three values this integration has actually observed and handles returns
+ * `null`, counted as unknown, never silently treated as weekly or as zero.
+ *
+ * @param {object} input
+ * @param {number|string|null|undefined} input.working_hours_centihours - the
+ *   raw `working_hours` value from Factorial, in hundredths of an hour (4000
+ *   = 40,00 h/week). Named at the call site as a reminder of what it is.
+ * @param {string|null|undefined} input.working_hours_frequency - one of
+ *   "week", "day", "month" (case-insensitive); anything else yields `null`.
+ * @param {string[]|string|null|undefined} input.working_week_days - Factorial
+ *   is expected to return an array of working days for a `day` frequency; a
+ *   comma/whitespace-separated string is also accepted. Always parsed as a
+ *   SET (deduplicated), never string-compared or assumed to be 5 or 7.
+ * @returns {number|null} decimal hours per week, or `null` if unconvertible.
+ */
+export function contractWeeklyHours({
+  working_hours_centihours,
+  working_hours_frequency,
+  working_week_days,
+}) {
+  // Explicit null/undefined check BEFORE the Number() coercion: Number(null)
+  // is 0 (a finite, wrong answer), while Number(undefined) is NaN. Relying on
+  // Number.isFinite() alone would have silently converted a missing contract
+  // value into a 0-hour week -- one JS coercion quirk away from the exact
+  // "plausible wrong number" class of bug this function exists to prevent.
+  if (working_hours_centihours === null || working_hours_centihours === undefined) return null;
+  const centihours = Number(working_hours_centihours);
+  if (!Number.isFinite(centihours)) return null;
+
+  const hoursPerUnit = centihours / 100;
+  const frequency = String(working_hours_frequency ?? "").trim().toLowerCase();
+
+  if (frequency === "week") return hoursPerUnit;
+
+  if (frequency === "day") {
+    const days = Array.isArray(working_week_days)
+      ? new Set(working_week_days.map(String))
+      : new Set(String(working_week_days ?? "").split(/[,\s]+/).filter(Boolean));
+    if (days.size === 0) return null;
+    return hoursPerUnit * days.size;
+  }
+
+  if (frequency === "month") return (hoursPerUnit * 12) / 52;
+
+  // Unrecognised or missing frequency: refuse to guess.
+  return null;
+}

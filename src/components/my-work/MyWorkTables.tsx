@@ -41,6 +41,25 @@
  * them, already aggregated). Only this presentation shell is client-side, which
  * is the same split DataTable was built for: no round trip to re-sort a column
  * or flip a filter.
+ *
+ * WHAT THE PROJECTS TABLE NO LONGER CARRIES
+ * -----------------------------------------
+ * LOGGED, BUDGET and BURN are gone from this view, on the owner's instruction
+ * and for a reason the live page made obvious: /my-work is an employee's
+ * surface, employees do not hold `projects:contracts:read`, and BUDGET and BURN
+ * therefore printed the literal word "withheld" on all 54 rows. Two columns of
+ * a constant are not a measurement, they are furniture that reports the
+ * reader's permissions once per row. LOGGED went with them because the summary
+ * strip above already states the team hours total and nothing on this page acts
+ * on the per-project figure.
+ *
+ * They are removed HERE ONLY. /projects still carries all three in full for
+ * whoever may see them, and the customers view below still carries BUDGET,
+ * where it is one row per customer rather than 54 rows of "withheld" and is the
+ * only per-customer roll-up on the page.
+ *
+ * The width those three freed is what pays for five link columns instead of
+ * one -- see the block that builds them.
  */
 import { useMemo, useState } from "react";
 import { DataTable, cmpNum, cmpText, type Column } from "@/components/data-table";
@@ -48,6 +67,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import {
   LINK_DESTINATION,
   LINK_LABEL,
+  LINK_ORDER,
   ROLE_LABEL,
   ROLE_ORDER,
   type MyCustomer,
@@ -61,14 +81,6 @@ import { RoleBadge } from "./RoleBadge";
 function hours(n: number | null): string {
   if (n === null) return "n/a";
   return n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
-}
-
-/** Burn colour, or muted when there is no budget to burn against. */
-function burnClass(percent: number | null): string {
-  if (percent === null) return "text-[var(--text-faint)]";
-  if (percent >= 100) return "text-[var(--critical)]";
-  if (percent >= 80) return "text-[var(--warning)]";
-  return "text-[var(--text-secondary)]";
 }
 
 function statusTone(status: string): "critical" | "warning" | "neutral" {
@@ -96,9 +108,9 @@ export function MyWorkTables({
    *
    * Changes what a null budget MEANS, so it changes what the cell says: "no
    * budget" is a fact about the project, "withheld" is a fact about the reader.
-   * It also drops the two budget columns from the CSV entirely rather than
-   * exporting empty cells -- a blank in a spreadsheet column headed BUDGET is
-   * read as zero by the next person to open it.
+   *
+   * Now consumed by the CUSTOMERS view only. The projects table no longer has a
+   * budget column to qualify -- see the note at the top of this file.
    */
   budgetsWithheld: boolean;
   /** False when person_assignments.logged_hours is unpopulated for this user. */
@@ -133,12 +145,39 @@ export function MyWorkTables({
     [customers, role],
   );
 
+  /**
+   * How many of the rows on screen carry each kind of link.
+   *
+   * This exists to answer one specific question the five columns raise and
+   * cannot answer themselves: Mathias has 32 TrackingTime links and ZERO Asana
+   * boards, so his ASANA column is empty top to bottom. Empty is the correct
+   * rendering, but an empty column is also what a broken column looks like, and
+   * the reader has no way to tell those apart by looking. Stating the count
+   * settles it -- "ASANA none" is a measurement, not a missing one.
+   *
+   * Counted in LINK_ORDER, i.e. left-to-right column order, so the line reads
+   * as a legend for the block above it rather than as a separate statistic.
+   */
+  const linkInventory = useMemo(
+    () =>
+      LINK_ORDER.map((kind) => ({
+        kind,
+        count: filteredProjects.filter((p) => p.links.some((l) => l.kind === kind)).length,
+      })),
+    [filteredProjects],
+  );
+
   const projectColumns: Column<MyProject>[] = useMemo(() => {
     const cols: Column<MyProject>[] = [
       {
         key: "customer",
         header: "CUSTOMER",
-        className: "w-[15rem]",
+        // 12rem, matching the cap on the button below. The two must agree: a
+        // wider cell than the button can fill would truncate a name early and
+        // leave the gap beside it. 12 rather than 13 buys the PROJECT column
+        // 16px at 1280, which is the difference between "Brandschutzkonzept"
+        // fitting on one line and breaking mid-word.
+        className: "w-[12rem]",
         compare: (a, b) => cmpText(a.customer, b.customer),
         descFirst: false,
         title: "The canonical legal entity this project is booked under",
@@ -152,7 +191,32 @@ export function MyWorkTables({
               setView("projects");
             }}
             title={`Show only ${r.customer}`}
-            className="max-w-full truncate text-left text-[12px] text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
+            /*
+             * max-w-[12rem], NOT max-w-full, and this single class is worth 94px
+             * of table width.
+             *
+             * `truncate` sets white-space: nowrap, and in an auto-layout table a
+             * nowrap cell contributes its FULL string to the column's
+             * min-content width. max-w-full then resolves against a cell whose
+             * width is itself being computed from that contribution, so it
+             * constrains nothing and the ellipsis never fires: a 38-character
+             * customer name claimed 318px of column and the browser had no way
+             * to refuse. A real length caps the contribution.
+             *
+             * Measured in Chromium against the compiled stylesheet, with this
+             * class removed and restored, everything else held constant:
+             *   with    min-content 975px, CUSTOMER 224px, fits 1280
+             *   without min-content 1069px, CUSTOMER 318px, scrolls at 1280
+             * `block` beside it is idiom, not mechanism -- removing it moves
+             * neither number. Do not "simplify" by keeping block and dropping
+             * the cap.
+             *
+             * The cap relaxes to 18rem at 2xl, where there is width to spare, so
+             * a big monitor shows more of the name instead of an ellipsis beside
+             * empty space. It stays a cap: at 1920 min-content is 1069 against
+             * 1550 available. The full name is in the tooltip either way.
+             */
+            className="block max-w-[12rem] truncate text-left text-[12px] text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline 2xl:max-w-[18rem]"
           >
             {r.customer}
           </button>
@@ -161,13 +225,38 @@ export function MyWorkTables({
       {
         key: "project",
         header: "PROJECT",
+        /*
+         * A PREFERENCE, not a floor: an auto-layout table treats a specified
+         * width as where the column would like to land, and min-content still
+         * wins when space is short -- verified, the table's min-content is 975px
+         * with this class and 975px without it.
+         *
+         * It is here because the name is the row's subject and should get the
+         * slack before anything else does. Without it the leftover width fell to
+         * whichever column had no width of its own, which at 1920 meant a 449px
+         * DUE column holding ten characters. DUE now carries a width for the
+         * same reason.
+         */
+        className: "w-[15rem]",
         compare: (a, b) => cmpText(a.name, b.name),
         descFirst: false,
         search: (r) => `${r.name} ${r.code} ${r.orderNo ?? ""}`,
         csv: (r) => `${r.name} (${r.code})`,
         cell: (r) => (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[12px] text-[var(--text-primary)]">{r.name}</span>
+            {/*
+              overflow-wrap: anywhere, not break-word -- only `anywhere` lowers
+              the element's min-content contribution, and that contribution is
+              the whole problem here. A 23-character German compound
+              ("Gefaehrdungsbeurteilung") is one unbreakable word to the layout
+              engine, so it set a 191px floor under this column and the table
+              could not fit 1280 however much else was cut. Allowing it to break
+              costs a mid-word split on a narrow screen and buys 45px; the
+              alternative was scrolling the whole table sideways.
+            */}
+            <span className="[overflow-wrap:anywhere] text-[12px] text-[var(--text-primary)]">
+              {r.name}
+            </span>
             <span className="font-mono text-[10px] text-[var(--text-faint)]">
               {r.code}
               {/* The masterdata order number ONLY when it differs from the code:
@@ -181,6 +270,7 @@ export function MyWorkTables({
       {
         key: "role",
         header: "MY ROLE",
+        compact: true,
         className: "w-[8.5rem]",
         // Strongest claim first, so the default sort puts the four projects he
         // answers for at the top rather than in alphabetical order.
@@ -193,6 +283,7 @@ export function MyWorkTables({
       {
         key: "status",
         header: "STATUS",
+        compact: true,
         className: "w-[6.5rem]",
         compare: (a, b) => cmpText(a.status, b.status),
         descFirst: false,
@@ -203,6 +294,7 @@ export function MyWorkTables({
       {
         key: "service",
         header: "SERVICE",
+        compact: true,
         className: "w-[10rem]",
         compare: (a, b) => cmpText(a.services.join(", "), b.services.join(", ")),
         descFirst: false,
@@ -219,150 +311,24 @@ export function MyWorkTables({
         ),
       },
       {
-        key: "links",
-        header: "LINKS",
-        /*
-         * 10rem rather than 9rem, and the reason is measured rather than
-         * guessed. Rendered in Chromium against the real compiled stylesheet,
-         * inside the real frame (220px sidebar + .page-shell), with a hostile
-         * row set -- 38-character customer names and three projects carrying
-         * four or five links:
-         *
-         *   1440x900  no horizontal scroll; the table is at its min-content
-         *             limit (1168 of the 1170px it is given), so the PREFERRED
-         *             width is ignored and PROJECT actually GAINS 6px
-         *             (167 -> 173) because LINKS no longer has to fit the
-         *             widest text pill.
-         *   1600      LINKS 150px, PROJECT 232 vs 236 -- 4px, and the five-link
-         *             row drops from three lines to two.
-         *   1920      LINKS 197px, PROJECT 296 vs 314 -- 18px of a column that
-         *             has plenty, and five links now fit on one line.
-         *
-         * 11rem was tried and rejected: from 1600px up it squeezes PROJECT hard
-         * enough that the project name wraps and EVERY row grows 53px -> 70px.
-         * So this is the last size that pays for itself.
-         */
-        className: "w-[10rem]",
-        // Sorted by how many links a project has, so the rows with somewhere to
-        // go surface first. Ties keep table order.
-        compare: (a, b) => a.links.length - b.links.length,
-        title:
-          "Working links recorded in the masterdata workbook. Most projects have none -- an empty cell means nobody recorded one. Type a destination in the search box (asana, teams, drive) to see only the projects that have one.",
-        /*
-         * Both the short code and the full name, so the search box answers
-         * "which of my projects has an Asana board" -- the question the icons
-         * make scannable and the search makes exact. "TT" still matches, and so
-         * now does "trackingtime".
-         */
-        search: (r) =>
-          r.links.map((l) => `${LINK_LABEL[l.kind]} ${LINK_DESTINATION[l.kind]}`).join(" "),
-        csv: (r) => r.links.map((l) => `${LINK_LABEL[l.kind]}=${l.url}`).join(" "),
-        cell: (r) =>
-          // NOTHING when there are no links, deliberately -- not "n/a". An
-          // absent link is not an unmeasured figure being withheld, it is
-          // simply a link nobody recorded, and a cell full of "n/a" across the
-          // ~80% of projects without one would be noise pretending to be data.
-          r.links.length === 0 ? null : (
-            /*
-             * Icons, not words. Five destinations that differed only in two to
-             * five mono characters had to be READ; a silhouette is recognised
-             * without reading. The win is measurable and it is mostly in the
-             * COMMON case, not the rare one: at 1440 a two-link row went from
-             * two wrapped lines to one, three and four links from three and
-             * four lines to two, five from five lines (138px) to three (93px).
-             *
-             * No colour per kind. DESIGN.md bans a rainbow and reserves colour
-             * for meaning, so every glyph rests on the same --text-muted and
-             * only the one under the pointer takes the accent. Shape carries
-             * identity; colour carries state.
-             *
-             * 24px targets on a 2px gap: the WCAG 2.5.8 minimum, kept even
-             * though the glyph inside is 16px, and bumped again on a coarse
-             * pointer. They wrap rather than overflow, so a five-link project
-             * on a narrow screen grows one row instead of pushing the whole
-             * table into horizontal scroll.
-             */
-            <span className="flex flex-wrap items-center gap-0.5">
-              {r.links.map((l) => {
-                const Icon = LINK_ICON[l.kind];
-                const destination = LINK_DESTINATION[l.kind];
-                return (
-                  <a
-                    key={`${l.kind}-${l.url}`}
-                    href={l.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={l.label ? `${destination} — ${l.label}` : destination}
-                    // The row's project is named too: a screen reader running
-                    // the page's link list would otherwise meet the same
-                    // "TrackingTime project" 35 times with nothing to tell them
-                    // apart.
-                    aria-label={`${destination} for ${r.name}`}
-                    className="flex h-6 w-6 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] transition-colors duration-150 hover:bg-[var(--accent-wash)] hover:text-[var(--accent)] focus-visible:bg-[var(--accent-wash)] focus-visible:text-[var(--accent)] pointer-coarse:h-8 pointer-coarse:w-8"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </a>
-                );
-              })}
-            </span>
-          ),
-      },
-      {
-        key: "logged",
-        header: "LOGGED",
-        align: "right",
-        compare: (a, b) => cmpNum(a.loggedHours, b.loggedHours),
-        title: "Hours logged against this project by the WHOLE team",
-        csv: (r) => r.loggedHours ?? "",
-        cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-            {hours(r.loggedHours)}
-          </span>
-        ),
-      },
-      {
-        key: "budget",
-        header: "BUDGET",
-        align: "right",
-        compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
-        title: budgetsWithheld
-          ? "Project budgets are not visible to your role."
-          : "Contracted hours. 'no budget' means nobody set one, which is not a budget of zero.",
-        csv: (r) => r.contractHours ?? "",
-        cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-muted)]">
-            {budgetsWithheld
-              ? "withheld"
-              : r.contractHours === null
-                ? "no budget"
-                : hours(r.contractHours)}
-          </span>
-        ),
-      },
-      {
-        key: "burn",
-        header: "BURN",
-        align: "right",
-        compare: (a, b) => cmpNum(a.consumedPercent, b.consumedPercent),
-        title: budgetsWithheld
-          ? "Burn is the budget expressed as a ratio, so it is withheld too."
-          : "Logged over contracted. n/a when there is no budget to burn against.",
-        csv: (r) => r.consumedPercent ?? "",
-        cell: (r) => (
-          <span className={`font-mono text-[11px] ${burnClass(r.consumedPercent)}`}>
-            {budgetsWithheld ? "withheld" : r.consumedPercent === null ? "n/a" : `${r.consumedPercent}%`}
-          </span>
-        ),
-      },
-      {
         key: "due",
         header: "DUE",
+        compact: true,
+        // Stated so this column stops being the sink for whatever width the
+        // others do not claim -- unwidthed, it took 449px at 1920 to hold a
+        // ten-character date.
+        className: "w-[7rem]",
         align: "right",
         compare: (a, b) => cmpText(a.dueDate, b.dueDate),
         descFirst: false,
         csv: (r) => r.dueDate ?? "",
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-muted)]">
+          // whitespace-nowrap because an ISO date offers the layout engine two
+          // break opportunities at its hyphens, and it takes them: at 1280 this
+          // column was rendering "2026-04-" over "19", which reads as two
+          // fields. Its min-content rises from 52px to 82px, which the width
+          // budget can afford; a date split across two lines it cannot.
+          <span className="whitespace-nowrap font-mono text-[11px] text-[var(--text-muted)]">
             {r.dueDate ?? "n/a"}
           </span>
         ),
@@ -373,10 +339,10 @@ export function MyWorkTables({
     // hours. On live data they do not, and a column reading 0 beside a real team
     // figure is a plausible wrong number — the page states the gap instead.
     if (showMyHours) {
-      // Inserted right after BUDGET so it lands between BUDGET and BURN, as it
-      // always has. The index has moved twice: SERVICE pushed it 6 -> 7, and
-      // LINKS pushed it 7 -> 8.
-      cols.splice(8, 0, {
+      // Before DUE, so the one remaining measure sits with the attributes
+      // rather than inside the destination block that follows. BUDGET and BURN,
+      // which it used to sit between, are gone.
+      cols.splice(5, 0, {
         key: "mine",
         header: "MINE",
         align: "right",
@@ -391,8 +357,122 @@ export function MyWorkTables({
       });
     }
 
+    /*
+     * ONE COLUMN PER DESTINATION, and they go LAST.
+     *
+     * The single mixed LINKS column could be read across a row ("what does this
+     * project have?") but never down ("which of my projects has an Asana
+     * board?") -- answering that meant reading 54 cells and decoding the glyph
+     * in each. A column per kind turns it into a glance: the marks in the ASANA
+     * column ARE the answer, and their absence is equally readable.
+     *
+     * Rightmost because they are the row's exits rather than its facts.
+     * Everything left of the fence describes the project; everything right of
+     * it takes you somewhere else.
+     *
+     * The header does the naming, so the glyph in the cell is not a label -- it
+     * is the affordance and the 24px target. It is kept anyway because the
+     * row-wise read must survive the change: a person looking at ONE project
+     * still sees which destinations exist without mapping cell positions back
+     * to a sticky header. It costs nothing in width either way, since the
+     * header string is wider than the target beneath it.
+     */
+    for (const [i, kind] of LINK_ORDER.entries()) {
+      const Icon = LINK_ICON[kind];
+      const destination = LINK_DESTINATION[kind];
+      const of = (r: MyProject) => r.links.filter((l) => l.kind === kind);
+      cols.push({
+        key: `link:${kind}`,
+        header: LINK_LABEL[kind],
+        // Narrow gutters: 32px of padding around a 24px target, five times
+        // over, is 80px of table width spent on air.
+        compact: true,
+        /*
+         * `w-px` is not one pixel -- a table cell can never render narrower
+         * than its content, so it means "take min-content and give the slack to
+         * the columns that can use it". Here min-content is the header string,
+         * because the cell under it is one 24px mark.
+         *
+         * The fence on the first of them is the only thing that says these five
+         * are one group. Without it a row whose five cells are all empty -- 216
+         * of Mathias's 270 link cells are -- reads as the table having run out
+         * rather than as five honest noes.
+         */
+        className: i === 0 ? "w-px border-l border-[var(--divider)]" : "w-px",
+        /*
+         * DELIBERATELY UNSORTABLE, and it is the search box that replaces it.
+         *
+         * A presence column can only sort one way -- "the ones that have it
+         * first" -- and that is the question this design already answers by
+         * looking. What it cost was real: DataTable draws a sort caret in every
+         * sortable header, and a caret plus its gap is ~8px on a column whose
+         * entire content is a 24px mark. Five of them came to 40px, which was
+         * the difference between clearing 1280 by 6px and clearing it by 46.
+         *
+         * Nothing is lost, because filtering beats sorting for this question:
+         * typing "asana" in the search box shows ONLY the projects with a
+         * board, where sorting merely floated them. The tooltip says so, since
+         * a reader cannot guess it.
+         */
+        title: `${destination}, when one was recorded in the masterdata workbook. An empty cell means nobody recorded one -- there is no figure being withheld. Type "${LINK_LABEL[kind].toLowerCase()}" in the search box to see only the projects that have one.`,
+        // Both the short code and the full name, so that search is exact.
+        search: (r) => (of(r).length > 0 ? `${LINK_LABEL[kind]} ${destination}` : ""),
+        /*
+         * One CSV column per kind too, holding the URL. A spreadsheet built
+         * from this file can then be sorted and filtered on a destination the
+         * same way the table can, which a single "CHAT=... TT=..." cell made
+         * impossible. Empty means no link, consistent with the screen.
+         */
+        csv: (r) =>
+          of(r)
+            .map((l) => l.url)
+            .join(" "),
+        cell: (r) => {
+          const mine = of(r);
+          // NOTHING when there is no link of this kind, deliberately -- not
+          // "n/a". An absent link is not an unmeasured figure being withheld,
+          // it is a link nobody recorded, and 216 of the 270 cells in this
+          // block are empty: a placeholder repeated that often is noise
+          // pretending to be data. The row borders and the group fence keep an
+          // all-empty row readable without one.
+          if (mine.length === 0) return null;
+          return (
+            <span className="flex flex-wrap items-center gap-0.5">
+              {/*
+                Usually exactly one. `project_link` is unique on
+                (project_id, kind, url), NOT on (project_id, kind), so a project
+                may legitimately carry two Asana boards -- rendering only the
+                first would silently drop a working link.
+              */}
+              {mine.map((l) => (
+                <a
+                  key={l.url}
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={l.label ? `${destination} — ${l.label}` : destination}
+                  // The row's project is named too: a screen reader running the
+                  // page's link list would otherwise meet the same
+                  // "TrackingTime project" 32 times with nothing to tell them
+                  // apart.
+                  aria-label={
+                    l.label
+                      ? `${destination} for ${r.name} — ${l.label}`
+                      : `${destination} for ${r.name}`
+                  }
+                  className="flex h-6 w-6 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] transition-colors duration-150 hover:bg-[var(--accent-wash)] hover:text-[var(--accent)] focus-visible:bg-[var(--accent-wash)] focus-visible:text-[var(--accent)] pointer-coarse:h-8 pointer-coarse:w-8"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
+            </span>
+          );
+        },
+      });
+    }
+
     return cols;
-  }, [showMyHours, budgetsWithheld]);
+  }, [showMyHours]);
 
   const customerColumns: Column<MyCustomer>[] = useMemo(() => {
     const cols: Column<MyCustomer>[] = [
@@ -405,7 +485,15 @@ export function MyWorkTables({
         search: (r) => `${r.customer} ${r.aliases.join(" ")}`,
         csv: (r) => r.customer,
         cell: (r) => (
-          <div className="flex min-w-0 flex-col gap-0.5">
+          // The cap sits on the wrapper, not the button: the alias line under it
+          // is `truncate` too, and would otherwise hold the column open on its
+          // own for exactly the reason described on the projects table above --
+          // and an alias line ("booked as X - Y") is the longer of the two.
+          //
+          // 18rem to MATCH this column's own w-[18rem]. A cap narrower than the
+          // cell it sits in buys nothing and truncates a name while the space
+          // to show it sits empty alongside.
+          <div className="flex min-w-0 max-w-[18rem] flex-col gap-0.5">
             <button
               type="button"
               onClick={() => {
@@ -413,7 +501,7 @@ export function MyWorkTables({
                 setView("projects");
               }}
               title={`Show this customer's ${r.projectCount} project${r.projectCount === 1 ? "" : "s"}`}
-              className="max-w-full truncate text-left text-[12px] text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
+              className="block truncate text-left text-[12px] text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
             >
               {r.customer}
             </button>
@@ -677,7 +765,23 @@ export function MyWorkTables({
           // and the footnote below stay reachable, and the page does not grow.
           maxBodyHeight
           freezeFirstColumn
-          footnote={footnote}
+          footnote={
+            <>
+              {footnote ? <>{footnote} </> : null}
+              Recorded links across these {filteredProjects.length} projects —{" "}
+              {linkInventory.map((x, i) => (
+                <span key={x.kind}>
+                  {i > 0 ? " · " : ""}
+                  {LINK_LABEL[x.kind]}{" "}
+                  {/* "none", not "0": a column that is empty end to end should
+                      say so in words, because a bare zero under an empty column
+                      is exactly what a broken column would also print. */}
+                  {x.count === 0 ? "none" : x.count}
+                </span>
+              ))}
+              . An empty cell means nobody recorded that link, not a withheld figure.
+            </>
+          }
         />
       ) : (
         <DataTable<MyCustomer>

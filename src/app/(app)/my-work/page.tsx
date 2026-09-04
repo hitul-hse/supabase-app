@@ -142,7 +142,6 @@ export default async function MyWorkPage() {
                 customers={work.totals.customers}
                 customersLed={work.totals.customersLed}
                 projects={work.totals.projects}
-                roleCounts={work.totals.roleCounts}
                 loggedHours={work.totals.loggedHours}
                 serviceCoverage={work.totals.serviceCoverage}
               />

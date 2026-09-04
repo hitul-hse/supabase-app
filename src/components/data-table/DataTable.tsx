@@ -37,6 +37,25 @@ export type Column<T> = {
   align?: Align;
   /** Tailwind width class, e.g. "w-[11rem]". */
   className?: string;
+  /**
+   * Narrow gutters (px-2 instead of px-4) for a column that carries a token
+   * rather than prose -- an icon link, a badge, a status pill, a short code, a
+   * date. Leave it off for anything a reader parses as a sentence.
+   *
+   * The default 32px gutter is sized for text that needs breathing room beside
+   * its neighbour. Around an 11-character badge or a 24px icon target it is
+   * wider than the content it separates, and on /my-work -- eleven columns, of
+   * which eight are tokens -- it came to 128px of the table's min-content width
+   * spent on air, which was most of the reason that table could not fit a
+   * 1280px screen without scrolling sideways.
+   *
+   * It is a property of the COLUMN rather than a class the caller passes,
+   * because `className` lands in the same slot as the built-in `px-4`, and
+   * which of two padding utilities wins is decided by Tailwind's stylesheet
+   * order rather than by the order they appear in the string -- i.e. passing
+   * `px-2` there would silently not work.
+   */
+  compact?: boolean;
   /** Omit to make the column unsortable (a bar-only column, say). */
   compare?: (a: T, b: T) => number;
   /** Sorting this column first goes descending — true for every measure. */
@@ -437,7 +456,7 @@ export function DataTable<T>({
                         key={c.key}
                         scope="col"
                         aria-sort={active ? (desc ? "descending" : "ascending") : "none"}
-                        className={`whitespace-nowrap px-4 py-2 font-mono text-[10px] font-medium tracking-[0.1em] ${
+                        className={`whitespace-nowrap ${c.compact ? "px-2" : "px-4"} py-2 font-mono text-[10px] font-medium tracking-[0.1em] ${
                           c.align === "right" ? "text-right" : "text-left"
                         } ${active ? "text-[var(--accent)]" : "text-[var(--text-faint)]"} ${frozenCell(i, true)} ${c.className ?? ""}`}
                       >
@@ -475,7 +494,7 @@ export function DataTable<T>({
                     {columns.map((c, i) => (
                       <td
                         key={c.key}
-                        className={`px-4 py-2 text-[12px] ${
+                        className={`${c.compact ? "px-2" : "px-4"} py-2 text-[12px] ${
                           c.align === "right" ? "text-right" : "text-left"
                         } ${frozenCell(i, false)} ${c.className ?? ""}`}
                       >

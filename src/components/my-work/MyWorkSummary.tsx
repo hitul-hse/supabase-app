@@ -1,14 +1,24 @@
 /**
  * MyWorkSummary — the totals strip at the top of My Work.
  *
- * THE ROLE LADDER IS THE HEADLINE. The four role cells are adjacent and
- * deliberately different numbers: for Mathias, 4 responsible / 2 owner /
- * 36 replacement / 12 assigned. Collapsing them into one "my projects: 54"
- * would describe a person accountable for four customers as one juggling 43.
+ * FIVE CELLS, NOT NINE — and the four that went are the point of this comment,
+ * because an earlier version of this file argued hard for keeping them.
  *
- * They PARTITION the project count — every project sits on exactly one rung —
- * so the four cells sum to MY PROJECTS and the strip cannot quietly double
- * count.
+ * It used to carry RESPONSIBLE / OWNER / REPLACEMENT / ASSIGNED beside these,
+ * on the argument that the role ladder is the headline: 4 / 2 / 36 / 12 is a
+ * different page from an undifferentiated 54, and that is still true. What
+ * changed is that the ladder acquired two better homes underneath. The MY ROLE
+ * filter chips carry the same four counts AND select on them, and the
+ * disclosure above the table states them in a sentence. Three copies of one
+ * fact, of which the tiles were the only copy you could not act on and the
+ * furthest from the rows they describe.
+ *
+ * Nine cells in an eight-wide grid also left SERVICES KNOWN alone on a second
+ * row, so the strip looked broken as well as repetitive.
+ *
+ * So the strip keeps only what appears nowhere else on the page, and the ladder
+ * is read one row lower where it is also a control. Nothing is lost: every
+ * number that left is still on screen, twice.
  *
  * "Customers I lead" leads because it is the number an operations person means
  * when they say "my customers"; the raw total sits beside it rather than
@@ -18,22 +28,19 @@
  * booked. The per-person figure is omitted here: `person_assignments`
  * .logged_hours is unpopulated on live data, and a "mine" cell reading 1
  * beside a team figure of 827 is a plausible wrong number. The page states the
- * gap in words instead.
+ * gap in words instead. This strip is also now the ONLY place the hours total
+ * appears, since the per-project LOGGED column has gone from the table.
  */
-import type { MyRole } from "@/lib/queries/my-work";
-
 export function MyWorkSummary({
   customers,
   customersLed,
   projects,
-  roleCounts,
   loggedHours,
   serviceCoverage,
 }: {
   customers: number;
   customersLed: number;
   projects: number;
-  roleCounts: Record<MyRole, number>;
   loggedHours: number;
   /** How many of `projects` resolve a TrackingTime service tag. */
   serviceCoverage: { known: number; total: number };
@@ -50,28 +57,7 @@ export function MyWorkSummary({
       value: customers.toLocaleString("en-GB"),
       hint: "canonical entities",
     },
-    { label: "MY PROJECTS", value: projects.toLocaleString("en-GB") },
-    {
-      label: "RESPONSIBLE",
-      value: roleCounts.responsible.toLocaleString("en-GB"),
-      hint: "named lead",
-      accent: true,
-    },
-    {
-      label: "OWNER",
-      value: roleCounts.owner.toLocaleString("en-GB"),
-      hint: "owner only",
-    },
-    {
-      label: "REPLACEMENT",
-      value: roleCounts.replacement.toLocaleString("en-GB"),
-      hint: "named cover",
-    },
-    {
-      label: "ASSIGNED",
-      value: roleCounts.assigned.toLocaleString("en-GB"),
-      hint: "list only",
-    },
+    { label: "MY PROJECTS", value: projects.toLocaleString("en-GB"), hint: "on any rung" },
     {
       label: "HOURS · TEAM",
       value: loggedHours.toLocaleString("en-GB", { maximumFractionDigits: 0 }),
@@ -90,7 +76,10 @@ export function MyWorkSummary({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-px border border-[var(--border)] bg-[var(--border)] sm:grid-cols-4 lg:grid-cols-8">
+    // Five across on a wide screen, so the strip fills exactly one row. The
+    // 3-then-2 break at sm is deliberate: five cells cannot divide evenly, and a
+    // trailing pair reads better than a single orphan.
+    <div className="grid grid-cols-2 gap-px border border-[var(--border)] bg-[var(--border)] sm:grid-cols-3 lg:grid-cols-5">
       {cells.map((c) => (
         <div key={c.label} className="flex flex-col gap-1 bg-[var(--surface)] px-4 py-3">
           <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">

@@ -50,12 +50,39 @@ check("the per-project burn is only computed when BOTH figures are known",
 
 /* -------------------------- the UI must render unknown as n/a, never 0 ------ */
 
+/*
+ * Assertions about what a file RENDERS run against the code with comments
+ * removed. Without this the gate fails on its own subject matter: the comment
+ * recording why the burn column was removed necessarily contains the word
+ * BURN, and a raw substring search cannot tell the explanation from the thing
+ * being explained.
+ */
+const stripComments = (src) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
 for (const f of ["src/components/my-work/CustomerGroup.tsx", "src/components/my-work/MyWorkTables.tsx"]) {
-  const s = readFileSync(join(REPO, f), "utf8");
+  const s = stripComments(readFileSync(join(REPO, f), "utf8"));
   check(`${f} renders a null figure as n/a`,
     /if \(n === null\) return "n\/a"/.test(s));
-  check(`${f} renders a null burn as n/a rather than 0%`,
-    /consumedPercent === null \? "n\/a"/.test(s));
+  /*
+   * Conditional on the file actually SHOWING a burn, which MyWorkTables.tsx
+   * stopped doing on 2026-09-04 when the owner cut LOGGED / BUDGET / BURN from
+   * the projects table.
+   *
+   * The rule is unchanged and is not being softened to fit: a rendered burn
+   * must still say n/a when it is unknown. What the `else` branch adds is the
+   * check that the column is genuinely GONE rather than quietly rendered some
+   * other way -- so a future edit cannot dodge the n/a rule simply by not
+   * matching the first regex.
+   */
+  if (/consumedPercent/.test(s)) {
+    check(`${f} renders a null burn as n/a rather than 0%`,
+      /consumedPercent === null \? "n\/a"/.test(s));
+  } else {
+    check(`${f} shows no burn at all, so there is no null burn to mis-render`,
+      !/consumedPercent|BURN/.test(s),
+      "the burn column was removed here; if it comes back it must come back with its n/a branch");
+  }
 }
 
 /* ------------------------------------------- the aggregate honesty question */

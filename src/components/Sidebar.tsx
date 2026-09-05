@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { getProfileView } from "@/lib/queries/profile";
-import { Avatar } from "./Avatar";
 import { BrandMark } from "./BrandMark";
 import { SidebarNav } from "./SidebarNav";
 import { LogoutButton } from "./LogoutButton";
@@ -102,18 +101,11 @@ async function getUserInfo() {
 export async function Sidebar({
   showCollapseControl = false,
 }: { showCollapseControl?: boolean } = {}) {
-  const { status, email, roleKey, roleDisplayName, displayName, signedAvatarUrl } =
-    await getUserInfo();
+  const { status, email, roleKey } = await getUserInfo();
   const dotColor =
     status === "connected" ? "var(--good)" : status === "error" ? "var(--critical)" : "var(--warning)";
   const statusLabel =
     status === "connected" ? "Supabase Live" : status === "error" ? "Supabase Error" : "Not Configured";
-
-  // What the chip/tooltip label with. Avatar derives initials/colour from
-  // this name, not from the raw email, so a real display name (or the HR
-  // fallback -- effectiveName already resolves that) always wins when there
-  // is one; email is the last resort for an account with no profile row yet.
-  const identityLabel = displayName ?? email ?? "—";
 
   return (
     <aside
@@ -121,9 +113,11 @@ export async function Sidebar({
       data-testid="sidebar-panel"
     >
       {/*
-        Brand header. In the rail it centres to just the mark: "HSE HUB" plus
-        the company line cannot fit in 64px, and a truncated wordmark reads as
-        a bug rather than as a brand.
+        Brand header: the mark and the wordmark, nothing under them. The 8px
+        "HEALTH & SAFETY EXPERTS" tagline went -- the only text in the app
+        under 10px, truncated to "HEALTH & SAFETY E…" at 220px, i.e. a line
+        that never once rendered in full. In the rail it centres to just the
+        mark: a truncated wordmark reads as a bug rather than as a brand.
       */}
       <div className="flex items-center gap-2 px-4 group-data-[collapsed=true]/sidebar:flex-col group-data-[collapsed=true]/sidebar:gap-3 group-data-[collapsed=true]/sidebar:px-0">
         <Link
@@ -137,14 +131,9 @@ export async function Sidebar({
             would be a stutter in the middle of someone's work, not a delight.
           */}
           <BrandMark size={26} className="flex-none" />
-          <div className="flex min-w-0 flex-col leading-[1.15] transition-opacity duration-150 group-data-[collapsed=true]/sidebar:hidden">
-            <span className="font-sans text-[12px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
-              HSE HUB
-            </span>
-            <span className="truncate font-mono text-[8px] tracking-[0.14em] text-[var(--text-faint)]">
-              HEALTH &amp; SAFETY EXPERTS
-            </span>
-          </div>
+          <span className="min-w-0 truncate font-sans text-[12px] font-bold tracking-[0.02em] text-[var(--text-primary)] transition-opacity duration-150 group-data-[collapsed=true]/sidebar:hidden">
+            HSE HUB
+          </span>
         </Link>
         {/*
           ONE instance, always. Beside the brand when expanded; stacked beneath
@@ -180,66 +169,19 @@ export async function Sidebar({
         <SidebarNav roleKey={roleKey} />
       </div>
 
-      {/* User profile & Supabase status footer */}
-      <div className="mt-auto flex flex-col gap-2.5 border-t border-[var(--border)] px-4 pt-3 group-data-[collapsed=true]/sidebar:items-center group-data-[collapsed=true]/sidebar:px-2">
-        <div className="group/who relative flex w-full items-center gap-2.5 group-data-[collapsed=true]/sidebar:w-auto group-data-[collapsed=true]/sidebar:justify-center">
-          {email ? (
-            /*
-              The chip IS the /profile navigation entry (see task-8-brief's
-              merge note -- SidebarNav/nav-icons stay untouched, this is the
-              entry point instead). Avatar renders the real photo when
-              signedAvatarUrl resolved, else the monogram fallback -- both
-              paths share the same component Task 3/8 use everywhere else.
-            */
-            <Link
-              href="/profile"
-              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-sm)] py-0.5 pr-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] group-data-[collapsed=true]/sidebar:flex-none"
-            >
-              <Avatar name={identityLabel} src={signedAvatarUrl} size={28} />
-              <div className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
-                <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
-                  {identityLabel}
-                </span>
-                <span className="font-mono text-[10px] text-[var(--text-faint)]">
-                  {roleDisplayName ? roleDisplayName.toUpperCase() : "PENDING ACCESS"}
-                </span>
-              </div>
-            </Link>
-          ) : (
-            <>
-              <span
-                aria-hidden
-                className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[var(--accent-wash)] font-mono text-[10px] font-semibold tracking-[0.02em] text-[var(--accent)] ring-1 ring-inset ring-[var(--border-strong)]"
-              >
-                —
-              </span>
-              <div className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
-                <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
-                  Not signed in
-                </span>
-              </div>
-            </>
-          )}
+      {/*
+        Footer: two rows in nav-row geometry, then the connection status.
 
-          {/*
-            In the rail the avatar is the only identity cue, and a monogram
-            alone is ambiguous across a 49-person company -- so the tooltip
-            carries the full name and role. Matches how LogoutButton solves
-            the same rail-tooltip problem below.
-          */}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute bottom-0 left-[calc(100%+8px)] z-50 hidden whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/who:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
-          >
-            {email ? identityLabel : "Not signed in"}
-            {roleDisplayName ? (
-              <span className="ml-1.5 font-mono text-[10px] text-[var(--text-faint)]">
-                {roleDisplayName.toUpperCase()}
-              </span>
-            ) : null}
-          </span>
-        </div>
-
+        The identity chip that used to lead this footer is gone. It was the
+        THIRD copy of "who am I" on one screen -- the top bar's user chip is
+        the one /profile entry at every width (PageHeader mounts TopBarChrome
+        on mobile too), and the tour's welcome names the reader again. A chip
+        at the bottom of a 220px panel is also the least-looked-at pixel on
+        screen, which is why the entry moved to the top bar in the first
+        place. What is left is what only the sidebar does: sign out, replay
+        the tour, and say whether the database is live.
+      */}
+      <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] px-1 pt-3 group-data-[collapsed=true]/sidebar:items-center group-data-[collapsed=true]/sidebar:px-2">
         {email && <LogoutButton />}
         {email && <TourReplayButton />}
 
@@ -248,7 +190,7 @@ export async function Sidebar({
           words in a title -- the dot is the signal, the text is the detail.
         */}
         <div
-          className="flex items-center gap-2 pt-1 group-data-[collapsed=true]/sidebar:pt-0"
+          className="flex items-center gap-2 px-3 pt-2 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:pt-1"
           title={statusLabel}
         >
           <span

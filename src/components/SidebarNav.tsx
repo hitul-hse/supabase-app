@@ -50,8 +50,12 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/",          label: "Overview",       tourId: "tour-overview"  },
       { href: "/dashboard/management", label: "Management", roles: ["exec"] },
+      // No badge. It carried a hardcoded "7" in --critical -- a permanent red
+      // count of nothing, the same class of defect as the bell TopBarChrome
+      // refuses to draw. The badge code path below stays for a count that is
+      // actually read from somewhere.
       { href: "/team-lead", label: "Team Lead View", tourId: "tour-teamlead",
-        badge: "7", badgeColor: "var(--critical)", roles: ["exec", "dept_head"] },
+        roles: ["exec", "dept_head"] },
     ],
   },
   {
@@ -137,12 +141,20 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
 
   return (
     <nav aria-label="Main" className="flex flex-col gap-4">
+      {/*
+        ONE fade per group, and nothing per row. The rows used to slide in from
+        x:-8 one after another on top of the group's own delay, so the last
+        link was opaque 0.72s after a hard load (measured) -- for navigation,
+        which is the thing a reader reaches for first. A group-level opacity
+        cross-fade lands the whole nav by ~0.3s and is exactly what reduced
+        motion keeps.
+      */}
       {groups.map((group, gi) => (
         <motion.div
           key={group.title}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: gi * 0.06 + 0.1, duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: gi * 0.04, duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
           className="flex flex-col gap-0.5"
         >
           {/*
@@ -167,12 +179,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
             const Icon = NAV_ICONS[link.href] ?? IconDot;
 
             return (
-              <motion.div
-                key={link.href}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: gi * 0.06 + li * 0.04 + 0.15, duration: 0.25 }}
-              >
+              <div key={link.href}>
                 <Link
                   href={link.href}
                   data-tour={link.tourId}
@@ -213,7 +220,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       A filled pill states the same thing once, at both widths,
                       with nothing to special-case.
                     */
-                    className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 text-[12px] transition-colors duration-150 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5 ${
+                    className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 text-[12px] transition-[color,background-color,transform] duration-150 active:translate-y-px group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5 ${
                       active
                         ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -236,7 +243,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                     */}
                     <span
                       data-testid="nav-label"
-                      className="min-w-0 flex-1 truncate transition-[opacity] duration-150 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0"
+                      className="min-w-0 flex-1 truncate transition-[opacity] duration-200 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0"
                     >
                       {navLabel(link.label)}
                     </span>
@@ -295,7 +302,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                     ) : null}
                   </span>
                 </Link>
-              </motion.div>
+              </div>
             );
           })}
         </motion.div>

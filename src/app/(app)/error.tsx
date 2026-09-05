@@ -7,10 +7,18 @@
  * framework's default error screen, which shows a stack trace in dev and a
  * blank page in production. A data-tool that silently blanks a page is worse
  * than one that says what happened and offers a way forward.
+ *
+ * The two actions are the house Button and ButtonLink -- the same primary /
+ * secondary pair every form uses -- and the words come from the catalogue, so
+ * a German reader's error page is German. It renders inside the layout's
+ * NextIntlClientProvider, which is what makes the hook available here. No
+ * "HSE HUB" eyebrow above the title: the craft floor bans the kicker, and the
+ * sidebar beside this already says whose product it is.
  */
 
 import { useEffect } from "react";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Button, ButtonLink } from "@/components/ui/Button";
 
 export default function AppError({
   error,
@@ -19,6 +27,8 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("common.error");
+
   useEffect(() => {
     console.error("App route error:", error);
   }, [error]);
@@ -26,35 +36,27 @@ export default function AppError({
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
       <div className="flex flex-col gap-1.5">
-        <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-          HSE HUB
-        </span>
-        <h1 className="text-[17px] font-semibold text-[var(--text-primary)]">
-          This page couldn&apos;t load
+        <h1 className="text-[19px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
+          {t("title")}
         </h1>
         <p className="max-w-[52ch] text-[12px] leading-relaxed text-[var(--text-muted)]">
-          The data behind this screen failed to load. This is usually temporary — trying again
-          often resolves it. If it keeps happening, the reference below helps trace the cause.
+          {t("description")}
         </p>
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          onClick={reset}
-          className="bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-medium text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)]"
-        >
-          Try again
-        </button>
-        <Link
-          href="/"
-          className="border border-[var(--border-strong)] px-3.5 py-1.5 text-[12px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]"
-        >
-          Back to Overview
-        </Link>
+        <Button variant="primary" onClick={reset}>
+          {t("tryAgain")}
+        </Button>
+        <ButtonLink href="/" variant="secondary">
+          {t("backToOverview")}
+        </ButtonLink>
       </div>
 
       {error.digest && (
-        <span className="font-mono text-[10px] text-[var(--text-faint)]">REF {error.digest}</span>
+        <span className="font-mono text-[10px] text-[var(--text-faint)]">
+          {t("ref", { digest: error.digest })}
+        </span>
       )}
     </div>
   );

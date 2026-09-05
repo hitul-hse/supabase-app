@@ -29,6 +29,7 @@
  */
 
 import { motion, useReducedMotion } from "framer-motion";
+import { SPRING_MOVE } from "./animations/springs";
 import { useSidebarCollapse } from "./SidebarCollapseContext";
 import { SIDEBAR_RAIL_WIDTH, SIDEBAR_WIDTH } from "./sidebar-collapse-shared";
 
@@ -59,9 +60,11 @@ export function DesktopSidebarShell({ children }: { children: React.ReactNode })
       transition={
         reduceMotion
           ? { duration: 0 }
-          : // Exponential ease-out: quick to commit, slow to settle. Matches the
-            // curve DESIGN.md pins for the rest of the app.
-            { duration: 0.26, ease: [0.23, 1, 0.32, 1] }
+          : // A spring, not a tween: Ctrl+B pressed mid-flight re-targets from
+            // the width the panel is actually at, carrying its velocity, instead
+            // of restarting a 0.26s curve from wherever it was. Apple's
+            // "move / reposition" values (damping 1.0, response 0.4).
+            SPRING_MOVE
       }
     >
       {/*

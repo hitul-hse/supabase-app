@@ -43,7 +43,7 @@ export function SidebarToggle() {
       aria-keyshortcuts="Control+B"
       title={`${label}  (Ctrl+B)`}
       data-testid="sidebar-toggle"
-      className="group/toggle relative hidden h-7 w-7 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-faint)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:flex"
+      className="group/toggle relative hidden h-7 w-7 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-faint)] transition-[color,background-color,transform] duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:flex"
     >
       {collapsed ? <IconPanelExpand /> : <IconPanelCollapse />}
 

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { useSidebarCollapse } from "./SidebarCollapseContext";
 import { Button } from "./ui/Button";
+import { SPRING_UI } from "./animations/springs";
 
 /* ─────────────────────────── tour steps ────────────────────────────── */
 const STEPS = [
@@ -86,6 +87,12 @@ export default function OnboardingTour() {
   const [rect,    setRect]    = useState<Rect | null>(null);
   const [visible, setVisible] = useState(false);
   /*
+    Which way the text slides: +1 going forward, -1 on Back. The exit mirrors
+    the enter along the same axis, so Back does not play the same left-bound
+    slide as Next and read as a step forward.
+  */
+  const [direction, setDirection] = useState<1 | -1>(1);
+  /*
     THE STEPS THIS PARTICULAR USER CAN ACTUALLY BE SHOWN.
 
     STEPS is written for a reader who has every nav item. Nobody does: the
@@ -131,20 +138,39 @@ export default function OnboardingTour() {
   // Show tour only on first login
   useEffect(() => {
     const done = localStorage.getItem("hse_tour_done");
-    if (!done) {
-      // Small delay so the page renders first
-      const t = setTimeout(() => {
-        // Resolved HERE, at the moment the tour opens, because that is the
-        // first instant the sidebar is guaranteed mounted. The two targetless
-        // steps (welcome, done) always survive, so the tour can never filter
-        // itself down to nothing.
-        setSteps(
-          STEPS.filter((s) => !s.target || document.querySelector(`[data-tour="${s.target}"]`)),
-        );
-        setVisible(true);
-      }, 800);
-      return () => clearTimeout(t);
-    }
+    if (done) return;
+    /*
+      Not an 800ms timer. The tour waits for what it actually needs -- a painted
+      sidebar with its [data-tour] targets in the DOM -- and asks for it frame
+      by frame: two animation frames after mount is the first instant the
+      server-rendered nav has been laid out, and if the targets are still
+      absent it keeps asking, capped at a second so an account with no
+      spotlit links still gets the welcome step. A fixed delay was the
+      artificial latency Apple's response rule tells you to hunt down: 800ms
+      of dead time before the first thing a new colleague sees.
+    */
+    let raf = 0;
+    let frames = 0;
+    const open = () => {
+      // Resolved HERE, at the moment the tour opens, because that is the
+      // first instant the sidebar is guaranteed mounted. The two targetless
+      // steps (welcome, done) always survive, so the tour can never filter
+      // itself down to nothing.
+      setSteps(
+        STEPS.filter((s) => !s.target || document.querySelector(`[data-tour="${s.target}"]`)),
+      );
+      setVisible(true);
+    };
+    const tick = () => {
+      frames += 1;
+      if ((frames >= 2 && document.querySelector("[data-tour]")) || frames >= 60) {
+        open();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   // Update spotlight rect when step changes. useLayoutEffect (not useEffect):
@@ -166,11 +192,13 @@ export default function OnboardingTour() {
 
     update();
     /*
-      Re-measure after the sidebar's 220ms open animation as well as on resize.
-      The first measurement can land while the panel is still sliding out, which
-      would pin the spotlight to a half-open position and leave it there.
+      Re-measure after the sidebar's open animation as well as on resize. The
+      first measurement can land while the panel is still springing out, which
+      would pin the spotlight to a half-open position and leave it there. 320ms
+      covers SPRING_MOVE's 0.4s visual duration to within a pixel; this is a
+      re-measure, never an input lock.
     */
-    const settle = setTimeout(update, 260);
+    const settle = setTimeout(update, 320);
     window.addEventListener("resize", update);
     return () => {
       clearTimeout(settle);
@@ -180,6 +208,7 @@ export default function OnboardingTour() {
 
   const next = useCallback(() => {
     if (step < steps.length - 1) {
+      setDirection(1);
       setStep(s => s + 1);
     } else {
       localStorage.setItem("hse_tour_done", "1");
@@ -290,10 +319,13 @@ export default function OnboardingTour() {
           >
             <motion.div
               key={current.id}
-              initial={{ opacity: 0, scale: 0.92, y: 12 }}
+              // Enter and exit along the SAME path (Apple's spatial consistency):
+              // a card that arrives from below and left the top read as two
+              // different objects. Critically damped -- no bounce on chrome.
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
               animate={{ opacity: 1, scale: 1,    y: 0 }}
-              exit={{    opacity: 0, scale: 0.95,  y: -8 }}
-              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              exit={{    opacity: 0, scale: 0.96, y: 8 }}
+              transition={SPRING_UI}
               className="pointer-events-auto w-[340px] max-w-[90vw] rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface)] p-6"
               /*
                * A real offset + blur, not a zero-offset halo: craft-floor is
@@ -319,13 +351,19 @@ export default function OnboardingTour() {
               </div>
 
               {/* Content */}
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" custom={direction}>
                 <motion.div
                   key={current.id + "-text"}
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{    opacity: 0, x: -12 }}
-                  transition={{ duration: 0.22 }}
+                  custom={direction}
+                  variants={{
+                    enter: (d: number) => ({ opacity: 0, x: 12 * d }),
+                    centre: { opacity: 1, x: 0 },
+                    exit: (d: number) => ({ opacity: 0, x: -12 * d }),
+                  }}
+                  initial="enter"
+                  animate="centre"
+                  exit="exit"
+                  transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
                 >
                   <h3 className="mb-2 text-[17px] font-semibold leading-snug text-[var(--text-primary)]">
                     {current.title}
@@ -344,7 +382,14 @@ export default function OnboardingTour() {
 
                 <div className="flex gap-2">
                   {step > 0 && !isFirst && (
-                    <Button variant="secondary" size="md" onClick={() => setStep((s) => s - 1)}>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => {
+                        setDirection(-1);
+                        setStep((s) => s - 1);
+                      }}
+                    >
                       Back
                     </Button>
                   )}

@@ -21,7 +21,7 @@ export function LocaleSwitcher() {
       disabled={pending}
       onClick={() => startTransition(() => setLocale(next))}
       aria-label={t("switchLanguage")}
-      className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 font-mono text-[10px] tracking-[0.08em] text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-60"
+      className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 font-mono text-[10px] tracking-[0.08em] text-[var(--text-muted)] transition-[color,border-color,transform] duration-150 hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] active:translate-y-px disabled:opacity-60"
     >
       {locale === "de" ? "EN" : "DE"}
     </button>

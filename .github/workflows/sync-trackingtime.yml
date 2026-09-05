@@ -62,6 +62,7 @@ jobs:
         run: npm ci
 
       - name: Sync
+        id: sync
         env:
           TRACKINGTIME_AUTH: ${{ secrets.TRACKINGTIME_AUTH }}
           TRACKINGTIME_ACCOUNT_ID: ${{ secrets.TRACKINGTIME_ACCOUNT_ID }}
@@ -128,7 +129,19 @@ jobs:
         # (one at 104% of contract showing 89%) after a week of clean syncs.
         # Recomputed from source every night, so a stale figure now means a
         # failed run, which is visible, rather than a forgotten step, which is not.
-        if: success()
+        #
+        # Gated on the IMPORT, not on parity. This was `if: success()`, which
+        # also required the parity step above to pass -- and parity has been red
+        # since 2026-09-01 (runs 33590885045, 33719528216, 33855363772,
+        # 33955014142 all show this step "skipped"), so the refresh never ran once
+        # and public.projects.logged_hours stayed frozen at a 2026-09-02 hand-run
+        # while the pages kept rendering it. A parity failure means our copy of
+        # time.entry disagrees with the vendor's; that is a reason to look at the
+        # import, not to leave the orders describing Wednesday, because every
+        # other page already shows the same copy bounded at now() and the 2026-09-02
+        # decision is that this column agrees with those pages. A failed import
+        # still blocks it: partial data must not be folded into the orders.
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

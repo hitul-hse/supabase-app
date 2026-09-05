@@ -149,10 +149,19 @@ const { createTranslator } = require("next-intl");
 const messages = JSON.parse(readFileSync(${JSON.stringify(resolve("messages/en.json"))}, "utf8"));
 module.exports = { __esModule: true, useTranslations: (namespace) => createTranslator({ locale: "en", messages, namespace }) };`,
   );
+  // The dialog's chrome is the house Button and its motion the shared spring
+  // constants; both are compiled for real. framer-motion itself resolves from
+  // node_modules (the temp dir sits inside it) and renders its initial pose
+  // through renderToStaticMarkup like any other component.
+  const springsFile = await compile("src/components/animations/springs.ts", "springs.cjs");
+  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
   const drillFile = await compile("src/components/DrillDialog.tsx", "DrillDialog.cjs", {
       "@/lib/locale-format": posix(formatFile),
     "next-intl": posix(intlStub),
     "next/link": posix(linkStub),
+    "@/components/ui/Button": posix(buttonFile),
+    "@/components/animations/springs": posix(springsFile),
   });
   // The ledger's LOGGED popup asks the server; outside a request the action is
   // never called (the dialog opens on click), so an unresolvable stub is enough.
@@ -189,16 +198,31 @@ module.exports = {
 
   const emptyStateFile = await compile("src/components/EmptyState.tsx", "EmptyState.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+  // The shared icon set. Field's select caret and the key caps draw from it, as
+  // do the ledger's and the explorer's carets -- compiled once and mapped
+  // wherever a relative or aliased import names it, because an unmapped import
+  // kills the whole gate rather than one check.
+  const iconsFile = await compile("src/components/nav-icons.tsx", "nav-icons.cjs");
   const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", {
-      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
-  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
-      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub),
+      "../nav-icons": posix(iconsFile) });
+  // The segmented skin the billable trough wears. Its Link is never rendered
+  // here (only the class exports are used), but the module still imports it.
+  const segmentedFile = await compile("src/components/ui/Segmented.tsx", "Segmented.cjs", {
+      "next/link": posix(linkStub) });
+  // The URL mirror the explorer's filters and the ledger's sort and page go
+  // through (2026-09-05, APPLE_REF §8 #16). Compiled for real: outside a
+  // request `useSearchParams()` returns null and the hook is plain component
+  // state, which is exactly the first paint this gate asserts on. Its
+  // `next/navigation` import resolves from node_modules like framer-motion.
+  const urlStateFile = await compile("src/components/url-state.ts", "url-state.cjs");
   // Added when the mobile work wrapped the explorer's panels in a disclosure.
   // Compiled rather than stubbed: it is small and dependency-free, and a stub
   // would keep this gate green if the real component started throwing.
   const mobileDisclosureFile = await compile("src/components/MobileDisclosure.tsx", "MobileDisclosure.cjs", {
       "@/lib/locale-format": posix(formatFile),
       "next-intl": posix(intlStub),
+      "./nav-icons": posix(iconsFile),
     });
 
   const insightsFile = await compile("src/app/(app)/projects/project-insights.ts", "project-insights.cjs", {
@@ -216,6 +240,10 @@ module.exports = {
       "@/components/EmptyState": posix(emptyStateFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/Pager": posix(pagerStub),
+      "@/components/url-state": posix(urlStateFile),
+      // The sort-key list moved to the plain insights module (a value from a
+      // "use client" file is a client reference on the server page).
+      "./project-insights": posix(insightsFile),
       // The ledger table is a Card now, so the gate needs the real module here
       // too -- an unmapped alias kills the whole gate rather than one check.
       "@/components/ui/Card": posix(cardFile),
@@ -233,8 +261,10 @@ module.exports = {
   const noopChild = join(dir, "noop-child.cjs");
   writeFileSync(noopChild, `module.exports = new Proxy({}, { get: () => () => null });`);
   const customerSelectFile = await compile("src/app/(app)/projects/CustomerMultiSelect.tsx", "CustomerMultiSelect.cjs", {
-      "@/lib/locale-format": posix(formatFile),
     "@/lib/locale-format": posix(formatFile),
+    // The select's caret, tick and key caps come from the shared sets now.
+    "@/components/ui/Field": posix(fieldFile),
+    "@/components/nav-icons": posix(iconsFile),
   });
   const explorer = require(
     await compile("src/app/(app)/projects/ProjectsExplorer.tsx", "ProjectsExplorer.cjs", {
@@ -248,6 +278,8 @@ module.exports = {
       "./CustomerMultiSelect": posix(customerSelectFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/ui/Button": posix(buttonFile),
+      "@/components/ui/Segmented": posix(segmentedFile),
+      "@/components/url-state": posix(urlStateFile),
       "@/components/MobileDisclosure": posix(mobileDisclosureFile),
       "@/components/DrillDialog": posix(drillFile),
       "next-intl": posix(intlStub),
@@ -588,9 +620,15 @@ module.exports = {
     /\bpy-1\b/.test(rowClass) && !/\bpy-2\.5\b/.test(rowClass),
     rowClass.slice(0, 90),
   );
+  // t-callout, the 12px row step of the type scale (APPLE_REF §1.3; the raw
+  // `text-[12px]` it replaced is still accepted, and the 12.5px half-step
+  // before that was retired with the rest of the fractional sizes). The intent
+  // is unchanged: the name stays at row-text size, never a caption size
+  // (t-subhead / t-label / a raw 10-11px), however tight the row gets.
   check(
     "the project name keeps its readable size despite the tighter row",
-    /text-\[12\.5px\]/.test(rowClass),
+    /(?:\bt-callout\b|text-\[12px\])/.test(rowClass) &&
+      !/text-\[1[01]px\]|\bt-subhead\b|\bt-label\b/.test(rowClass),
     "the one column people actually read must not shrink",
   );
   check(
@@ -751,13 +789,17 @@ module.exports = {
   // Uneven card heights are what made the old row look broken: only two of five
   // cells had a sub-label, so three were visibly shorter.
   /*
-   * TWO faint spans per tile, not one: StatTile paints the label faint AND the
-   * hint faint, so "has a hint" is "has a second faint span". A tile missing
-   * its hint measures 1 and is caught -- which a mere presence test would not
-   * do, because the label alone satisfies it.
+   * The hint is StatTile's one `t-subhead` + `--text-muted` span (APPLE_REF
+   * §5.5: caption faint, value primary, hint muted). Before the type roles the
+   * hint was faint like the label, so "has a hint" was "has a second faint
+   * span"; that form is still accepted so an older tile is not misread. A tile
+   * missing its hint matches neither and is caught -- which a mere presence
+   * test would not do, because the label alone satisfies it.
    */
   const tilesWithHint = tileSlices.filter(
-    (t) => (t.match(/text-\[var\(--text-faint\)\]/g) ?? []).length >= 2,
+    (t) =>
+      /t-subhead text-\[var\(--text-muted\)\]/.test(t) ||
+      (t.match(/text-\[var\(--text-faint\)\]/g) ?? []).length >= 2,
   ).length;
   check(
     "every tile carries a hint line, so heights match",

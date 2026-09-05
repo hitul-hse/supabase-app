@@ -13,6 +13,9 @@ import { SidebarCollapseProvider } from "@/components/SidebarCollapseContext";
 import { SIDEBAR_COOKIE } from "@/components/sidebar-collapse-shared";
 import { DesktopSidebarShell } from "@/components/DesktopSidebarShell";
 import { StaleDeployNotice } from "@/components/StaleDeployNotice";
+import { MotionProvider } from "@/components/animations/MotionProvider";
+import { TopBarChrome } from "@/components/TopBarChrome";
+import { TopBarChromeProvider } from "@/components/TopBarChromeSlot";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // The client-side message catalogue is mounted HERE, inside the
@@ -58,6 +61,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <NextIntlClientProvider messages={messages}>
     <SidebarCollapseProvider initialCollapsed={collapsed}>
+    {/*
+      The top bar's chrome (locale, theme, search, the user menu) is rendered
+      ONCE, here, and every PageHeader reads it through the slot. TopBarChrome
+      is an async server component handed to a client provider as a prop --
+      the server renders it and the client receives output, not code -- which
+      is what lets client-component pages show it too. See TopBarChromeSlot.
+    */}
+    <TopBarChromeProvider chrome={<TopBarChrome />}>
+    {/* Reduced motion for every framer spring in the shell -- see MotionProvider. */}
+    <MotionProvider>
     <div className="flex min-h-screen">
       {/* Desktop sidebar — collapsible; hidden entirely on mobile */}
       <DesktopSidebarShell>
@@ -146,6 +159,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       */}
       <StaleDeployNotice />
     </div>
+    </MotionProvider>
+    </TopBarChromeProvider>
     </SidebarCollapseProvider>
     </NextIntlClientProvider>
   );

@@ -1,8 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "framer-motion";
+import { buttonClass } from "@/components/ui/Button";
+import { EASE_OUT, SPRING_UI } from "@/components/animations/springs";
 
 /**
  * The house answer to "what is behind this number?" — one dialog shape shared
@@ -75,16 +87,171 @@ const TONE: Record<NonNullable<DrillRow["tone"]>, string> = {
   muted: "var(--text-faint)",
 };
 
-const chrome =
-  "rounded-[var(--radius-sm)] border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-40";
+/** The dialog's own controls (ESC, BACK, NEXT) are ghost Buttons, like every pager's. */
+const chrome = buttonClass("ghost", "sm", "font-mono tracking-[0.06em] disabled:opacity-40");
 
-export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => void }) {
+/** What Tab can land on inside the panel: the row links and the live pager / Close buttons. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Where the dialog comes from: the trigger's centre, as an offset from the
+ * viewport centre, clamped so a tile at the far edge still arrives from
+ * nearby rather than flying in. Apple's spatial-consistency rule -- a panel
+ * emerges from the element that opened it and returns there -- and the exit
+ * runs the same path in reverse, so Esc during the entrance reverses from
+ * wherever the panel has got to.
+ */
+export type DrillOrigin = { x: number; y: number };
+
+const ORIGIN_REACH = 160;
+
+/** The origin for a dialog opened from `el`, or null when there is no viewport (SSR). */
+export function drillOriginFrom(el: Element): DrillOrigin | null {
+  if (typeof window === "undefined") return null;
+  const r = el.getBoundingClientRect();
+  const clamp = (v: number) => Math.max(-ORIGIN_REACH, Math.min(ORIGIN_REACH, v));
+  return {
+    x: clamp(r.left + r.width / 2 - window.innerWidth / 2),
+    y: clamp(r.top + r.height / 2 - window.innerHeight / 2),
+  };
+}
+
+export function DrillDialog({
+  drill,
+  onClose,
+  origin = null,
+  returnFocusTo = null,
+}: {
+  drill: Drill;
+  onClose: () => void;
+  /** The trigger's centre relative to the viewport centre; absent, the dialog scales from the middle. */
+  origin?: DrillOrigin | null;
+  /**
+   * Where focus goes when the dialog closes. `DrillTrigger` passes its button;
+   * a caller that opens the dialog from its own state may leave this out, and
+   * the element that was active when the dialog mounted (the button just
+   * clicked, in every browser that focuses buttons on click) is used instead.
+   */
+  returnFocusTo?: RefObject<HTMLElement | null> | null;
+}) {
   const t = useTranslations("drill");
   const [page, setPage] = useState(0);
+  /*
+    False from the moment the caller dismisses until AnimatePresence has
+    finished the exit. Everything that makes the dialog OWN the page -- the
+    scrim's hit-testing, the scroll lock, Escape, focusability -- is released
+    on this flag, not on unmount: the exit is 150 ms of motion, not 150 ms of
+    modality (APPLE_REF §6.1 #3 "no pointer-events: none during a
+    transition"; apple-design §3 "Never lock out input during a transition").
+    True when rendered outside an AnimatePresence, so nothing here depends
+    on one.
+  */
+  const present = useIsPresent();
+  const reduceMotion = useReducedMotion();
+
+  /*
+    FOCUS, TRAPPED AND RETURNED (APPLE_REF §5.8 "Dialog": "focus trapped and
+    returned to the trigger"; WAI-ARIA modal dialog).
+
+    The opener is captured on the open transition (`present` true), BEFORE
+    the Close button takes focus -- the button no longer carries `autoFocus`,
+    because React focuses an autoFocus child during commit, ahead of this
+    component's effects, and the capture would have read the dialog's own
+    button. The capture is IDEMPOTENT: with reactStrictMode (next.config.ts)
+    the effect runs twice on mount, and the second run finds activeElement on
+    the Close button the first run just focused. A capture that overwrote
+    the ref on every run therefore returned focus to a button that was
+    about to be inert, and the three callers that render this dialog from
+    their own state (ProjectsLedger, CapacityPanel, InsightPanels) left
+    focus on <body> after Escape -- measured. Now `returnFocusTo` always
+    wins, otherwise the ref is written once, and never with an element
+    inside the panel. Every dismissal (Escape, the Close button, a tap on
+    the scrim) goes through `dismiss`, which hands focus back synchronously,
+    before the exit starts and `inert` would drop it to <body>. The effect's
+    cleanup is the fallback for a caller that closes the dialog from its own
+    state: a frame later, if the panel is gone or inert and focus is on
+    <body> or still inside the panel, it goes to the opener. (Deferred and
+    conditioned on the panel, because StrictMode also runs the cleanup once
+    while the dialog is very much open.)
+
+    The trap is the Tab handler on the panel: Tab from the last focusable
+    wraps to the first, Shift+Tab from the first to the last, and a Tab from
+    anywhere outside (a screen reader's virtual cursor) re-enters at the
+    first. Only while `present`: a closing dialog is not a place to be.
+
+    THE TRAP HAS TO HOLD ON A CLICK, TOO. The panel carries tabIndex -1, so
+    a click on its non-focusable text (the title, a figure, a row without a
+    link) focuses the panel itself instead of dropping focus to <body> --
+    from <body>, Shift+Tab walked out to the page's pager buttons behind the
+    scrim (measured). Browsers that would not focus the container on click
+    get the same result from the pointerdown handler, which checks a frame
+    later and focuses the panel if focus landed outside it. From the panel,
+    Tab enters at the first item and Shift+Tab at the last.
+  */
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  const dismiss = useCallback(() => {
+    onClose();
+    const opener = openerRef.current;
+    if (opener?.isConnected) opener.focus();
+  }, [onClose]);
 
   useEffect(() => {
+    if (!present) return;
+    const panel = panelRef.current;
+    const active = document.activeElement as HTMLElement | null;
+    const outside =
+      active && active !== document.body && !(panel?.contains(active) ?? false) ? active : null;
+    if (returnFocusTo?.current) openerRef.current = returnFocusTo.current;
+    else if (!openerRef.current) openerRef.current = outside;
+    closeRef.current?.focus();
+    return () => {
+      const opener = openerRef.current;
+      setTimeout(() => {
+        // Still open: StrictMode's simulated unmount, or nothing to do.
+        if (panel?.isConnected && !panel.hasAttribute("inert")) return;
+        const a = document.activeElement;
+        const lost = a === document.body || (panel !== null && a instanceof Node && panel.contains(a));
+        if (lost && opener?.isConnected) opener.focus();
+      }, 0);
+    };
+  }, [present, returnFocusTo]);
+
+  const onPanelKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab" || !present) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+      (el) => el.offsetParent !== null,
+    );
+    if (items.length === 0) return;
+    // -1: focus is on the panel itself (after a click on its text) or outside
+    // it; either way the next Tab re-enters at an end.
+    const idx = items.indexOf(document.activeElement as HTMLElement);
+    const wrap = e.shiftKey ? idx <= 0 : idx === -1 || idx === items.length - 1;
+    if (wrap) {
+      e.preventDefault();
+      (e.shiftKey ? items[items.length - 1] : items[0]).focus();
+    }
+  };
+
+  const onPanelPointerDown = () => {
+    // mousedown (and its default focus move) follows pointerdown; check after it.
+    setTimeout(() => {
+      const panel = panelRef.current;
+      if (!present || !panel) return;
+      const a = document.activeElement;
+      if (!(a instanceof Node) || !panel.contains(a)) panel.focus({ preventScroll: true });
+    }, 0);
+  };
+
+  useEffect(() => {
+    if (!present) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") dismiss();
     };
     window.addEventListener("keydown", onKey);
     // The page behind must not scroll while the dialog owns the viewport.
@@ -94,7 +261,7 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose]);
+  }, [dismiss, present]);
 
   // Reset paging when a different drill opens in the same mount -- the
   // adjust-state-during-render pattern, not an effect (react-hooks rule).
@@ -111,70 +278,123 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
   const hasSections = (drill.sections?.length ?? 0) > 0;
   const empty = !drill.loading && !drill.error && !hasSections && rows.length === 0;
 
+  /*
+    The panel's resting pose and its off-stage pose: the same values in and
+    out, so the exit runs the entrance's path in reverse and an interrupted
+    entrance reverses from wherever the panel has got to (§6.1 #6). The
+    TIMING is asymmetric (§6.2 "Dialog": spring 0.35 in, 150 ms out): the
+    arrival is the thing the reader watches, the dismissal is a thing they
+    have already decided. Both start from the presentation value -- framer
+    animates a MotionValue from where it is -- so Esc mid-entrance and a
+    re-tap mid-exit re-target without a cut; the physics spring carries the
+    velocity through (animations/springs.ts).
+  */
+  const offstage = { opacity: 0, scale: 0.96, x: origin?.x ?? 0, y: origin?.y ?? 0 };
+  const exitTween = { duration: 0.15, ease: EASE_OUT };
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(10, 14, 15, 0.66)", backdropFilter: "blur(4px)" }}
-      onClick={onClose}
+    <motion.div
+      // `.scrim` (globals.css) owns the dim -- and only the dim: APPLE_REF
+      // §4.2 gives M5 no blur, and the 4 px one it briefly had halved the
+      // frame rate of this very animation (measured; see the class). It
+      // replaces an inline rgba() that belonged to no token.
+      //
+      // HIT-TESTABLE ONLY WHILE PRESENT. This element is `fixed inset-0`
+      // above everything; during the exit it used to keep catching every
+      // click for ~500 ms (measured), invisible for the last 350 of them --
+      // a tap on the tile that had just closed the dialog was swallowed. A
+      // dismissal that has begun no longer owns the page: `data-exiting` is
+      // set the moment the caller dismisses, and the variant below drops the
+      // hit-testing with it (a deployed-page check can read the attribute).
+      className="scrim fixed inset-0 z-50 flex items-center justify-center p-4 data-[exiting]:pointer-events-none"
+      data-exiting={present ? undefined : ""}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+      transition={{ duration: 0.2 }}
+      onClick={dismiss}
       role="presentation"
     >
-      <div
+      <motion.div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={t("dialogLabel", { title: drill.title })}
         data-drill-dialog
         data-check={drill.check}
-        className={`rise-in card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface)] ${
+        tabIndex={-1}
+        onKeyDown={onPanelKeyDown}
+        onPointerDown={onPanelPointerDown}
+        initial={offstage}
+        animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+        exit={{ ...offstage, transition: exitTween }}
+        // Reduce Motion: MotionConfig already snaps the transform; the
+        // opacity keeps §6.2's 150 ms fade rather than a 350 ms spring.
+        transition={reduceMotion ? { duration: 0.15 } : SPRING_UI}
+        // A dialog on its way out is neither a tab stop nor a target: inert
+        // also drops it from the a11y tree, so a screen reader is not read a
+        // dialog that is closing.
+        inert={!present}
+        aria-hidden={!present}
+        className={`card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface-raised)] ${
           hasSections ? "max-w-2xl" : "max-w-xl"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
           <div className="min-w-0">
-            <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
+            <span className="t-label text-[var(--text-faint)]">
               {drill.kicker}
             </span>
+            {/*
+              Title above the figure, not below it. APPLE_REF §5.8 sets the
+              dialog title in t-title-2 (17) and the headline figure in fig-md
+              (15): the title is the larger of the two, so it reads first, and
+              the figure answers it. The old order had a 26px figure over a
+              13px title -- the number you tapped, restated -- and the reader
+              met the answer before the question.
+            */}
+            <div className="mt-0.5 t-title-2 text-[var(--text-primary)]">{drill.title}</div>
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span
-                className="font-mono text-[26px] font-semibold leading-none text-[var(--text-primary)]"
+                className="fig-md text-[var(--text-primary)]"
                 data-drill-headline
                 data-value={drill.headlineValue}
               >
                 {drill.headline}
               </span>
               {drill.subline && (
-                <span className="font-mono text-[11px] text-[var(--text-secondary)]">{drill.subline}</span>
+                <span className="fig text-[var(--text-secondary)]">{drill.subline}</span>
               )}
             </div>
-            <div className="mt-1 text-[13px] font-medium text-[var(--text-primary)]">{drill.title}</div>
           </div>
-          <button type="button" onClick={onClose} autoFocus aria-label={t("close")} className={chrome}>
+          <button ref={closeRef} type="button" onClick={dismiss} aria-label={t("close")} className={chrome}>
             {t("esc")}
           </button>
         </div>
 
         <div className="px-5 py-4">
           {drill.loading && (
-            <p className="py-8 text-center font-mono text-[11px] text-[var(--text-faint)]">{t("fetching")}</p>
+            <p className="py-8 text-center t-subhead text-[var(--text-faint)]">{t("fetching")}</p>
           )}
           {drill.error && (
-            <p className="py-6 text-center text-sm text-[var(--critical)]">{drill.error}</p>
+            <p className="py-6 text-center t-callout text-[var(--critical)]">{drill.error}</p>
           )}
           {empty && (
-            <p className="py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
+            <p className="py-6 text-center t-subhead text-[var(--text-faint)]">
               {t("nothingLogged")}
             </p>
           )}
 
           {!drill.loading && !drill.error && hasSections && (
-            <div className="stagger grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {drill.sections!.map((section) => (
                 <div key={section.title} data-drill-section>
-                  <h3 className="mb-2 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
+                  <h3 className="mb-2 t-label text-[var(--text-faint)]">
                     {section.title}
                   </h3>
                   {section.rows.length === 0 ? (
-                    <p className="font-mono text-[11px] text-[var(--text-faint)]">{t("nothingLogged")}</p>
+                    <p className="t-subhead text-[var(--text-faint)]">{t("nothingLogged")}</p>
                   ) : (
                     <RowList rows={section.rows} />
                   )}
@@ -184,7 +404,7 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
           )}
 
           {!drill.loading && !drill.error && !hasSections && rows.length > 0 && (
-            <RowList rows={visible} scaleTo={rows} stagger />
+            <RowList rows={visible} scaleTo={rows} />
           )}
 
           {!hasSections && pageCount > 1 && (
@@ -199,7 +419,7 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
                 {t("back")}
               </button>
               <span
-                className="font-mono text-[10px] text-[var(--text-faint)]"
+                className="t-label text-[var(--text-faint)]"
                 data-drill-page={safePage + 1}
                 data-drill-pages={pageCount}
               >
@@ -219,28 +439,32 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
         </div>
 
         {drill.footer && (
-          <div className="border-t border-[var(--border)] px-5 py-3 font-mono text-[10px] text-[var(--text-faint)]">
+          <div className="border-t border-[var(--border)] px-5 py-3 t-label text-[var(--text-faint)]">
             {drill.footer}
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
+/*
+ * No stagger on the rows. Ten rows staggered on top of the 0.25s bar delay
+ * landed the last bar ~1.3s after the dialog opened (measured); the panel
+ * itself has already arrived on the spring, and the figures are what the
+ * reader opened it for. Every bar draws in 0.4s from the moment it mounts.
+ */
 function RowList({
   rows,
   scaleTo,
-  stagger = false,
 }: {
   rows: DrillRow[];
   /** Bars scale to the largest row of the WHOLE list, not the visible page. */
   scaleTo?: DrillRow[];
-  stagger?: boolean;
 }) {
   const max = Math.max(1, ...(scaleTo ?? rows).map((row) => Math.abs(row.magnitude)));
   return (
-    <ul className={`${stagger ? "stagger " : ""}flex flex-col gap-2.5`}>
+    <ul className="flex flex-col gap-2.5">
       {rows.map((row) => {
         const width = row.percent ?? Math.max(2, (Math.abs(row.magnitude) / max) * 100);
         const colour = TONE[row.tone ?? "accent"];
@@ -256,21 +480,28 @@ function RowList({
         );
         return (
           <li key={`${row.name}·${row.sub ?? ""}`} data-drill-row data-value={row.magnitude}>
-            <div className="flex items-baseline justify-between gap-2 text-[12px]">
+            <div className="flex items-baseline justify-between gap-2 t-callout">
               <span
                 className={`min-w-0 truncate ${row.tone === "muted" ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}`}
               >
                 {name}
                 {row.sub && <span className="ml-2 text-[var(--text-faint)]">{row.sub}</span>}
               </span>
-              <span className="flex-none font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
+              <span className="flex-none fig text-[var(--text-secondary)]">
                 {row.value}
               </span>
             </div>
             <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
               <div
                 className="bar-grow h-full rounded-full"
-                style={{ width: `${Math.min(100, width)}%`, background: colour }}
+                style={{
+                  width: `${Math.min(100, width)}%`,
+                  background: colour,
+                  // The house bar-grow is 0.7s after a 0.25s delay; inside a
+                  // dialog that has already arrived, 0.4s from frame 0.
+                  animationDuration: "400ms",
+                  animationDelay: "0ms",
+                }}
               />
             </div>
           </li>
@@ -302,14 +533,25 @@ export function DrillTrigger({
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "type" | "children">) {
   const t = useTranslations("drill");
   const [open, setOpen] = useState(false);
+  const [origin, setOrigin] = useState<DrillOrigin | null>(null);
+  // The dialog returns focus here on every dismissal (DrillDialog `dismiss`,
+  // §5.8): the ref is passed rather than read, so the element is resolved at
+  // close time, not at render.
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
   const label = t("open", { title: drill.title });
+  const openFrom = (e: MouseEvent<HTMLButtonElement>) => {
+    // Captured on the click, not at render: the tile may have scrolled.
+    setOrigin(drillOriginFrom(e.currentTarget));
+    setOpen(true);
+  };
   return (
     <>
       <button
         {...rest}
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openFrom}
         aria-haspopup="dialog"
         aria-label={label}
         title={label}
@@ -318,7 +560,13 @@ export function DrillTrigger({
       >
         {children}
       </button>
-      {open && <DrillDialog drill={drill} onClose={close} />}
+      {/* AnimatePresence keeps the dialog mounted through its exit, so Esc
+          plays the entrance in reverse and a re-tap mid-exit re-targets. */}
+      <AnimatePresence>
+        {open && (
+          <DrillDialog drill={drill} onClose={close} origin={origin} returnFocusTo={triggerRef} />
+        )}
+      </AnimatePresence>
     </>
   );
 }

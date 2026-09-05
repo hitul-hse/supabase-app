@@ -7,18 +7,23 @@
  * It used to carry RESPONSIBLE / OWNER / REPLACEMENT / ASSIGNED beside these,
  * on the argument that the role ladder is the headline: 4 / 2 / 36 / 12 is a
  * different page from an undifferentiated 54, and that is still true. What
- * changed is that the ladder acquired two better homes underneath. The MY ROLE
- * filter chips carry the same four counts AND select on them, and the
- * disclosure above the table states them in a sentence. Three copies of one
- * fact, of which the tiles were the only copy you could not act on and the
- * furthest from the rows they describe.
+ * changed is that the ladder acquired a better home underneath. The MY ROLE
+ * filter chips carry the same four counts AND select on them -- the one copy
+ * you can act on, and the nearest to the rows it describes.
  *
  * Nine cells in an eight-wide grid also left SERVICES KNOWN alone on a second
  * row, so the strip looked broken as well as repetitive.
  *
- * So the strip keeps only what appears nowhere else on the page, and the ladder
- * is read one row lower where it is also a control. Nothing is lost: every
- * number that left is still on screen, twice.
+ * FIVE StatTiles ON A GAP, NOT A FUSED GRID. The previous strip was one grid
+ * whose cells shared hairlines -- exactly the shape Card.tsx's header comment
+ * bans, because five independent facts read as one table row. StatTile also
+ * owns the type (21/600 mono figure, 10px mono label and hint) and the
+ * n/a-never-0 rule, so this file no longer re-decides any of them.
+ *
+ * ALL NEUTRAL. "Customers I lead" used to be painted --accent, the only accent-
+ * coloured figure in the app. Colour is by meaning here (critical means act),
+ * and a count of customers is not a status; leading the strip is emphasis
+ * enough.
  *
  * "Customers I lead" leads because it is the number an operations person means
  * when they say "my customers"; the raw total sits beside it rather than
@@ -27,11 +32,19 @@
  * Hours are labelled "team" because `projects.logged_hours` is what EVERYONE
  * booked. The per-person figure is omitted here: `person_assignments`
  * .logged_hours is unpopulated on live data, and a "mine" cell reading 1
- * beside a team figure of 827 is a plausible wrong number. The page states the
- * gap in words instead. This strip is also now the ONLY place the hours total
- * appears, since the per-project LOGGED column has gone from the table.
+ * beside a team figure of 827 is a plausible wrong number. The table's
+ * footnote states the gap in words instead. This strip is also the ONLY place
+ * the hours total appears, since the per-project LOGGED column has gone from
+ * the table.
+ *
+ * Async, because the words come from the `myWork` catalogue and the figures
+ * format in the request locale rather than a hard-coded en-GB.
  */
-export function MyWorkSummary({
+import { getLocale, getTranslations } from "next-intl/server";
+import { StatTile } from "@/components/ui/Card";
+import { fmtInt, fmtNum } from "@/lib/locale-format";
+
+export async function MyWorkSummary({
   customers,
   customersLed,
   projects,
@@ -45,57 +58,63 @@ export function MyWorkSummary({
   /** How many of `projects` resolve a TrackingTime service tag. */
   serviceCoverage: { known: number; total: number };
 }) {
-  const cells: { label: string; value: string; hint?: string; accent?: boolean }[] = [
+  const t = await getTranslations("myWork.summary");
+  const locale = await getLocale();
+
+  const tiles: { key: string; label: string; value: string; unit?: string; hint: string }[] = [
     {
-      label: "CUSTOMERS I LEAD",
-      value: customersLed.toLocaleString("en-GB"),
-      hint: "responsible or owner",
-      accent: true,
+      key: "led",
+      label: t("led.label"),
+      value: fmtInt(customersLed, locale),
+      hint: t("led.hint"),
     },
     {
-      label: "CUSTOMERS TOTAL",
-      value: customers.toLocaleString("en-GB"),
-      hint: "canonical entities",
+      key: "customers",
+      label: t("customers.label"),
+      value: fmtInt(customers, locale),
+      hint: t("customers.hint"),
     },
-    { label: "MY PROJECTS", value: projects.toLocaleString("en-GB"), hint: "on any rung" },
+    { key: "projects", label: t("projects.label"), value: fmtInt(projects, locale), hint: t("projects.hint") },
     {
-      label: "HOURS · TEAM",
-      value: loggedHours.toLocaleString("en-GB", { maximumFractionDigits: 0 }),
-      hint: "all people",
+      key: "hours",
+      label: t("hours.label"),
+      value: fmtNum(loggedHours, locale, 0),
+      unit: "h",
+      hint: t("hours.hint"),
     },
     {
       // TrackingTime tag, not a contractual "agreed services" figure --
-      // crm.framework_agreement, the table shaped for that, is empty.
-      label: "SERVICES KNOWN",
-      value: serviceCoverage.known.toLocaleString("en-GB"),
+      // crm.framework_agreement, the table shaped for that, is empty. The
+      // source is a proper noun and is interpolated, never translated.
+      key: "services",
+      label: t("services.label"),
+      value: fmtInt(serviceCoverage.known, locale),
       hint:
         serviceCoverage.known === serviceCoverage.total
-          ? "of your projects (TrackingTime)"
-          : `of ${serviceCoverage.total.toLocaleString("en-GB")} projects (TrackingTime)`,
+          ? t("services.hintAll", { source: "TrackingTime" })
+          : t("services.hintOf", {
+              total: fmtInt(serviceCoverage.total, locale),
+              source: "TrackingTime",
+            }),
     },
   ];
 
   return (
     // Five across on a wide screen, so the strip fills exactly one row. The
     // 3-then-2 break at sm is deliberate: five cells cannot divide evenly, and a
-    // trailing pair reads better than a single orphan.
-    <div className="grid grid-cols-2 gap-px border border-[var(--border)] bg-[var(--border)] sm:grid-cols-3 lg:grid-cols-5">
-      {cells.map((c) => (
-        <div key={c.label} className="flex flex-col gap-1 bg-[var(--surface)] px-4 py-3">
-          <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-            {c.label}
-          </span>
-          <span
-            className={`font-mono text-[22px] leading-none tracking-[-0.02em] ${
-              c.accent ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
-            }`}
-          >
-            {c.value}
-          </span>
-          {c.hint ? (
-            <span className="text-[11px] text-[var(--text-muted)]">{c.hint}</span>
-          ) : null}
-        </div>
+    // trailing pair reads better than a single orphan. Every tile carries a
+    // hint so the five stay one height.
+    <div className="grid grid-cols-2 gap-[var(--card-gap)] sm:grid-cols-3 lg:grid-cols-5">
+      {tiles.map((c) => (
+        <StatTile
+          key={c.key}
+          data-metric={`my-work-${c.key}`}
+          label={c.label}
+          value={c.value}
+          unit={c.unit}
+          hint={c.hint}
+          tone="neutral"
+        />
       ))}
     </div>
   );

@@ -279,6 +279,11 @@ const DELIBERATE = new Set([
   //                (AUFZEICHNUNGEN) vs the timesheet tab listing individual
   //                entries (Einträge).
   "records",
+  //   "Next"     — the pager's forward step, a verb (WEITER), vs the adjective
+  //                in the contract panel's "next period" (nächste). The pager
+  //                said "NEXT →" until the arrow glyph left the catalogue for
+  //                an icon, which is what exposed the homonym.
+  "next",
 ]);
 const byEnglish = new Map();
 for (const [k, v] of flat(en)) {

@@ -50,8 +50,12 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/",          label: "Overview",       tourId: "tour-overview"  },
       { href: "/dashboard/management", label: "Management", roles: ["exec"] },
+      // No badge. It carried a hardcoded "7" in --critical -- a permanent red
+      // count of nothing, the same class of defect as the bell TopBarChrome
+      // refuses to draw. The badge code path below stays for a count that is
+      // actually read from somewhere.
       { href: "/team-lead", label: "Team Lead View", tourId: "tour-teamlead",
-        badge: "7", badgeColor: "var(--critical)", roles: ["exec", "dept_head"] },
+        roles: ["exec", "dept_head"] },
     ],
   },
   {
@@ -136,30 +140,48 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
   })).filter((group) => group.items.length > 0);
 
   return (
-    <nav aria-label="Main" className="flex flex-col gap-4">
+    /*
+      8 px between groups, 4 px between a group's header and its first row
+      (APPLE_REF §3.2 "group header 8 px above, 4 px below"); rows inside a
+      group sit on a 2 px gap so the 32 px pills read as one list.
+    */
+    <nav aria-label="Main" className="flex flex-col gap-2">
+      {/*
+        ONE fade per group, and nothing per row. The rows used to slide in from
+        x:-8 one after another on top of the group's own delay, so the last
+        link was opaque 0.72s after a hard load (measured) -- for navigation,
+        which is the thing a reader reaches for first. A group-level opacity
+        cross-fade lands the whole nav by ~0.3s and is exactly what reduced
+        motion keeps.
+      */}
       {groups.map((group, gi) => (
         <motion.div
           key={group.title}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: gi * 0.06 + 0.1, duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          // 30 ms step (§6.2 / §8 #9); four groups land inside 0.4 s.
+          transition={{ delay: gi * 0.03, duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
           className="flex flex-col gap-0.5"
         >
           {/*
             In rail mode the heading collapses to a hairline rule. A group needs
-            SOME separator or the nine icons read as one undifferentiated column,
-            but the word itself will not fit in 64px and truncating "ANALYSE" to
-            "AN…" is worse than a line.
+            SOME separator or the sixteen icons read as one undifferentiated
+            column, but the word itself will not fit in 64px and truncating
+            "ANALYSE" to "AN…" is worse than a line. `mx-3` inside the rail's
+            40 px row width leaves a 16 px rule -- exactly the icon's width,
+            directly under the icon column.
           */}
           <div
             aria-hidden
             className="mx-3 mb-1 hidden h-px bg-[var(--border)] group-data-[collapsed=true]/sidebar:block"
           />
-          <div className="px-4 pb-1 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
+          {/* `px-3`: the header's left edge is the icon's left edge (§3.3
+              "align leading edges"), not the label's. */}
+          <div className="px-3 pb-1 t-label tracking-[0.12em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
             {navTitle(group.title)}
           </div>
 
-          {group.items.map((link, li) => {
+          {group.items.map((link) => {
             const isRoot = link.href === "/";
             const active = isRoot
               ? pathname === "/"
@@ -167,12 +189,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
             const Icon = NAV_ICONS[link.href] ?? IconDot;
 
             return (
-              <motion.div
-                key={link.href}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: gi * 0.06 + li * 0.04 + 0.15, duration: 0.25 }}
-              >
+              <div key={link.href}>
                 <Link
                   href={link.href}
                   data-tour={link.tourId}
@@ -189,14 +206,20 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                 >
                   <div
                     /*
-                      `gap-0` in the rail is load-bearing, not tidying.
+                      ONE geometry for both states: 32 px tall (§3.2 "standard"
+                      row; §5.1 "item 32 px tall, px-3"), `px-3` inside, radius
+                      `--radius-sm`. Expanded, the pane's 4 px inset puts the
+                      icon at x = 24; in the rail the pane's 12 px inset makes
+                      this row exactly 40 px wide and the same `px-3` centres
+                      the 16 px icon at x = 32 by symmetry -- no
+                      `justify-center`, no `px-0`, no row-height change. So the
+                      only thing that moves at the flip is the pane padding (see
+                      Sidebar.tsx and the seam note in DesktopSidebarShell).
 
-                      The label is clipped to width 0 rather than removed, so it
-                      is still a flex item -- and `justify-center` centres the
-                      icon PLUS that zero-width span PLUS the 10px gap between
-                      them. The result is every icon sitting 5px left of centre:
-                      visible as a wonky column, and exactly what the visual
-                      probe measured (icon at 27px, content centre at 32px).
+                      `gap-0` in the rail is still load-bearing: the label is
+                      clipped to width 0 rather than removed, so it is still a
+                      flex item, and a leftover 10 px gap beside it would push
+                      the content past the 16 px the padding leaves for it.
                     */
                     /*
                       The active row is a FILLED PILL, not a tinted rectangle
@@ -213,7 +236,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       A filled pill states the same thing once, at both widths,
                       with nothing to special-case.
                     */
-                    className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 text-[12px] transition-colors duration-150 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5 ${
+                    className={`relative flex h-8 items-center gap-2.5 overflow-hidden rounded-[var(--radius-sm)] px-3 t-callout transition-[color,background-color,transform] duration-150 active:translate-y-px group-data-[collapsed=true]/sidebar:gap-0 ${
                       active
                         ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -232,31 +255,41 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       Clipped, not removed. `w-0 opacity-0` keeps the text in the
                       accessible name while taking no space; the parent's
                       `overflow-hidden` stops it painting over the rail during
-                      the width animation.
+                      the width animation. The fade (opacity, 120 ms, §6.2) is
+                      the label's ONLY animated property: it is gone before
+                      the row has narrowed enough to truncate it, so the eye
+                      never reads "Dashbo…" on the way to the rail.
                     */}
                     <span
                       data-testid="nav-label"
-                      className="min-w-0 flex-1 truncate transition-[opacity] duration-150 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0"
+                      className="min-w-0 flex-1 truncate transition-[opacity] duration-120 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0"
                     >
                       {navLabel(link.label)}
                     </span>
 
                     {/*
+                      NEUTRAL by default: --surface-hover fill, --text-secondary
+                      count (8.05:1 dark, 7.71 light). A badge is a count, not a
+                      call to action, and an accent chip on every row that has
+                      one would put the tint on several controls at once
+                      (APPLE_REF §2.3 #5). A count that needs attention passes
+                      badgeColor (--critical-wash) explicitly.
+
                       On an ACTIVE row the badge sits on the filled accent pill,
-                      so it cannot use an accent fill of its own -- the default
-                      badgeColor is --accent, which would be accent-on-accent
-                      (1.0:1, invisible). Active rows get the pill's own
-                      foreground as a solid chip instead.
+                      so it takes the pill's own foreground as a solid chip with
+                      accent text. Neither default fill survives there: the
+                      neutral --surface-hover reads as a hole cut in the pill,
+                      and an accent fill is accent-on-accent (1.0:1).
                     */}
                     {link.badge && (
                       <span
-                        className={`flex-none rounded-full px-1.5 py-0.5 font-mono text-[10px] font-semibold group-data-[collapsed=true]/sidebar:hidden ${
-                          active ? "text-[var(--accent)]" : "text-black"
+                        className={`flex-none rounded-full px-1.5 py-0.5 t-label group-data-[collapsed=true]/sidebar:hidden ${
+                          active ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
                         }`}
                         style={{
                           background: active
                             ? "var(--accent-contrast)"
-                            : link.badgeColor || "var(--accent)",
+                            : link.badgeColor || "var(--surface-hover)",
                         }}
                       >
                         {link.badge}
@@ -264,15 +297,16 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                     )}
 
                     {/*
-                      Badge in rail mode: a dot in the icon's top-right corner.
-                      The count will not fit, but losing the signal entirely
-                      would hide the one nav item asking for attention.
+                      Badge in rail mode: a dot on the icon's top-right corner
+                      (the icon spans 12–28 of the 40 px row; the dot sits at
+                      26–32). The count will not fit, but losing the signal
+                      entirely would hide the one nav item asking for attention.
                     */}
                     {link.badge && (
                       <span
                         aria-hidden
-                        className="absolute right-3.5 top-2 hidden h-1.5 w-1.5 rounded-full ring-2 ring-[var(--sidebar)] group-data-[collapsed=true]/sidebar:block"
-                        style={{ background: link.badgeColor || "var(--accent)" }}
+                        className="absolute right-2 top-2 hidden h-1.5 w-1.5 rounded-full ring-2 ring-[var(--sidebar)] group-data-[collapsed=true]/sidebar:block"
+                        style={{ background: link.badgeColor || "var(--text-secondary)" }}
                       />
                     )}
                   </div>
@@ -282,20 +316,28 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                     already names the link -- announcing both would read the item
                     twice. Rendered only when collapsed, and never on touch
                     (`pointer-fine`), where there is no hover to trigger it.
+
+                    --surface-raised, not --surface: a tooltip is the M2 raised
+                    material, one step lighter than the card layer in dark so
+                    it reads as floating above it (APPLE_REF §4.2).
+
+                    `calc(100% + 12px)`: the row ends 12 px inside the rail
+                    (the pane's inset), so this lands the tooltip exactly on
+                    the rail's outer edge rather than 4 px inside it.
                   */}
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
+                    className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-100 group-hover/item:opacity-100 group-hover/item:duration-150 group-focus-visible/item:opacity-100 group-focus-visible/item:duration-150 pointer-fine:group-data-[collapsed=true]/sidebar:block"
                   >
                     {navLabel(link.label)}
                     {link.badge ? (
-                      <span className="ml-1.5 font-mono text-[10px] text-[var(--text-faint)]">
+                      <span className="ml-1.5 t-label text-[var(--text-faint)]">
                         {link.badge}
                       </span>
                     ) : null}
                   </span>
                 </Link>
-              </motion.div>
+              </div>
             );
           })}
         </motion.div>

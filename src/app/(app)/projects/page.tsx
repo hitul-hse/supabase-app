@@ -25,10 +25,11 @@
  * RLS still scopes the rows underneath; this gate only decides whether the
  * org-wide rollup is the right page to show.
  */
-import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { ButtonLink } from "@/components/ui/Button";
+import { IconArrowRight } from "@/components/nav-icons";
 import PageTransition from "@/components/animations/PageTransition";
 import { createClient } from "@/utils/supabase/server";
 import {
@@ -40,12 +41,15 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { getProjectList, type ProjectSort } from "@/lib/queries/projects-live";
 import { getSyncFreshness } from "@/lib/queries/time-dashboard";
 import { FreshnessBanner } from "../time/dashboard/ReportPanels";
-import { type LedgerSort } from "./ProjectsLedger";
+import { LEDGER_SORTS, type LedgerSort } from "./project-insights";
 import { ProjectsExplorer } from "./ProjectsExplorer";
 import { fmtInt, fmtNum } from "@/lib/locale-format";
 
-/** `?sort=` values the ledger accepts as its initial state. */
-const SORT_KEYS: LedgerSort[] = ["burn", "hours", "recent", "name", "budget", "people"];
+/**
+ * `?sort=` values the ledger accepts as its initial state -- the ledger's own
+ * list, from the plain module (project-insights.ts says why not the ledger).
+ */
+const SORT_KEYS: LedgerSort[] = LEDGER_SORTS;
 
 function one(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
@@ -88,17 +92,16 @@ export default async function ProjectsPage({
       <PageTransition>
         <div className="flex flex-col">
           <PageHeader title={t("title")} />
-          <div className="p-6">
+          {/* The same 16/24 page padding as the full page, not a one-off. */}
+          <div className="page-shell">
             <EmptyState
               title={t("noAccess.title")}
               description={t("noAccess.description")}
               action={
-                <Link
-                  href="/time"
-                  className="text-[12px] font-medium text-[var(--accent)] hover:underline"
-                >
+                <ButtonLink href="/time" variant="secondary" size="sm">
                   {t("noAccess.action")}
-                </Link>
+                  <IconArrowRight className="h-3.5 w-3.5" />
+                </ButtonLink>
               }
             />
           </div>
@@ -133,7 +136,7 @@ export default async function ProjectsPage({
           })}
         />
 
-        <div className="flex flex-col gap-5 page-shell">
+        <div className="flex flex-col gap-4 page-shell">
           {/* Same reasoning as the dashboard: "no projects match" and "the
               import stopped running three weeks ago" look identical, and the
               second explains the first. */}
@@ -148,7 +151,7 @@ export default async function ProjectsPage({
           */}
 
           {truncated && (
-            <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+            <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 t-callout text-[var(--critical)]">
               {t("truncated")}
             </p>
           )}

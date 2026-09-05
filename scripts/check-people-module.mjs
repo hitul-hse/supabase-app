@@ -438,8 +438,27 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
   // line), so it needs the same next-intl stub the view gets. Compiled without
   // it, the real package's useTranslations throws outside a provider and takes
   // the gate down inside React's renderer, where the stack says nothing useful.
+  // The pager's page sizes wear the Segmented skin and its PREV / NEXT are the
+  // house Button with the arrow icon, so those three modules are compiled for
+  // real and mapped -- an unresolved alias here is MODULE_NOT_FOUND before a
+  // single assertion runs.
+  const iconsFile = await compile("src/components/nav-icons.tsx", "nav-icons.cjs");
+  const segmentedFile = await compile("src/components/ui/Segmented.tsx", "segmented.cjs", {
+    "next/link": posix(linkStub),
+  });
+  const buttonFile = await compile("src/components/ui/Button.tsx", "button.cjs", {
+    "next/link": posix(linkStub),
+  });
+  // The URL mirror the pager's page and size go through (2026-09-05). Compiled
+  // for real: outside a request `useSearchParams()` is null and it is plain
+  // state; its `next/navigation` resolves from node_modules.
+  const urlStateFile = await compile("src/components/url-state.ts", "url-state.cjs");
   const pagerFile = await compile("src/components/Pager.tsx", "pager.cjs", {
+    "@/components/url-state": posix(urlStateFile),
     "next-intl": posix(intlStub),
+    "@/components/ui/Button": posix(buttonFile),
+    "@/components/ui/Segmented": posix(segmentedFile),
+    "@/components/nav-icons": posix(iconsFile),
   });
 
   // The card vocabulary, compiled for real: the directory's KPI tiles are
@@ -625,9 +644,11 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
     }),
   );
   const hubTiles = (hubHtml.match(/data-stat-tile/g) ?? []).length;
-  const hubNa = (hubHtml.match(/>n\/a</g) ?? []).length;
+  // "—" is what StatTile renders for a null since the type-role pass (DESIGN.md
+  // §Data tables 6; APPLE_REF §8 #26); "n/a" stays accepted for older tiles.
+  const hubNa = (hubHtml.match(/>(?:n\/a|—)</g) ?? []).length;
   check(
-    "a Hub-only person's four tiles all render n/a, never 0",
+    "a Hub-only person's four tiles all render —, never 0",
     hubTiles === 4 && hubNa >= 4 && !/>0<|>0 h<|>0%<|0 ENTRIES|0 H BILLABLE/.test(hubHtml),
     `${hubTiles} tiles, ${hubNa} n/a values`,
   );

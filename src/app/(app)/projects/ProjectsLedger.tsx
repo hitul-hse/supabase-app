@@ -1,19 +1,28 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useCallback, useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/EmptyState";
 import { SortHeader, type SortDirection } from "@/components/ui/Field";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { Pager, usePager } from "@/components/Pager";
-import { DrillDialog, type Drill, type DrillRow } from "@/components/DrillDialog";
+import { useUrlState } from "@/components/url-state";
+import { LEDGER_SORTS, type LedgerSort } from "./project-insights";
+import { AnimatePresence } from "framer-motion";
+import {
+  DrillDialog,
+  drillOriginFrom,
+  type Drill,
+  type DrillOrigin,
+  type DrillRow,
+} from "@/components/DrillDialog";
 import { secondsToHours } from "@/lib/time-transform";
 import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
 // and the detail page end up disagreeing about whether a project is "at risk".
 import { burnColor } from "./ProjectPanels";
-import { Card } from "@/components/ui/Card";
+import { Card, CardHeader } from "@/components/ui/Card";
 import {
   getProjectHoursDrilldown,
   type ProjectHoursRest,
@@ -63,17 +72,28 @@ import {
  * the initial state so existing links keep working.
  */
 
-export type LedgerSort = "burn" | "hours" | "recent" | "name" | "budget" | "people";
+/**
+ * Re-exported for the client-side callers (the explorer). The server page
+ * reads the list from project-insights.ts directly: a value re-exported
+ * through this `"use client"` module would reach it as a client reference.
+ */
+export type { LedgerSort };
+
+/** Names sort A-Z first; every measure sorts worst-first (APPLE_REF §5.6 `descFirst`). */
+const defaultDir = (key: LedgerSort): SortDirection => (key === "name" ? "asc" : "desc");
 
 /**
  * How many rows render before the reader has to ask for more.
  *
- * 30 rather than 50: at ~28px a row, 50 rows is still most of two screens, and
- * the point of paging is that the first paint is scannable without scrolling.
- * Anyone who wants the long list is one click from it, and the sort order means
- * the rows that matter are already at the top.
+ * 25, the house default (DESIGN.md §Data tables 2; APPLE_REF §5.6 "page size
+ * 25 default with ALL"): at 28px a row that is ~700px, so the first paint is
+ * the whole answer on a laptop and the pager is the exception. It was 30, a
+ * size the PER PAGE control could not even show as chosen because 30 was not
+ * among its choices. Anyone who wants the long list is one click from it, and
+ * the sort order means the rows that matter are already at the top.
  */
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 25;
+const PAGE_SIZES = [25, 50, 100];
 
 /**
  * How many rows the PHONE shows before asking, within the same page of 30.
@@ -184,8 +204,29 @@ export function ProjectsLedger({
    */
   locale?: string;
 }) {
-  const [sortKey, setSortKey] = useState<LedgerSort>(initialSort);
-  const [sortDir, setSortDir] = useState<SortDirection>(initialSort === "name" ? "asc" : "desc");
+  /*
+   * Sort key and direction live in the URL (`?sort=&dir=`, UI-CONVENTIONS
+   * rule 2) with no round-trip: `initialSort` is the server's reading of the
+   * same `?sort=`, so a shared link opens sorted the way it was sent, and the
+   * columns re-sort in the browser from there. The defaults are absent from
+   * the URL so an untouched ledger keeps a clean one.
+   */
+  const [sort, setSort] = useUrlState<{ key: LedgerSort; dir: SortDirection }>(
+    (params) => {
+      const raw = params.get("sort");
+      const key = LEDGER_SORTS.includes(raw as LedgerSort) ? (raw as LedgerSort) : initialSort;
+      const dir = params.get("dir");
+      return { key, dir: dir === "asc" || dir === "desc" ? dir : defaultDir(key) };
+    },
+    (s) => ({
+      sort: s.key === "burn" ? null : s.key,
+      dir: s.dir === defaultDir(s.key) ? null : s.dir,
+      // A sort defines a new order, and page 7 of the old one is not a page
+      // of it: the pager resets on its key, the URL is cleared here.
+      page: null,
+    }),
+  );
+  const { key: sortKey, dir: sortDir } = sort;
   /** Phone only: has the reader asked for the rest of this page? */
   const [mobileExpanded, setMobileExpanded] = useState(false);
 
@@ -202,11 +243,28 @@ export function ProjectsLedger({
   const tp = useTranslations("projects");
   const tc = useTranslations("common");
   const [drill, setDrill] = useState<Drill | null>(null);
+  /** Where the dialog emerges from: the LOGGED figure that was tapped. */
+  const [drillOrigin, setDrillOrigin] = useState<DrillOrigin | null>(null);
+  /*
+   * Which open request is current. The server action resolves whenever it
+   * resolves; if the reader has dismissed the dialog by then (Escape the
+   * moment it appeared -- measured: closed at +200 ms, back at +500 ms with
+   * the rows), the resolution must be dropped, not rendered. Every open
+   * bumps the generation and every close bumps it again, so a result that
+   * arrives after either is stale and ignored.
+   */
+  const drillGeneration = useRef(0);
+  const closeHours = useCallback(() => {
+    drillGeneration.current += 1;
+    setDrill(null);
+  }, []);
   /** Hours with their unit, in the reader's language: "1,234.5h" / "1.234,5 Std". */
   const h = (n: number) => fmtHours(n, locale, 1);
   const [, startTransition] = useTransition();
 
-  const openHours = (p: ProjectListRow) => {
+  const openHours = (p: ProjectListRow, from: Element | null) => {
+    const generation = ++drillGeneration.current;
+    setDrillOrigin(from ? drillOriginFrom(from) : null);
     const base = {
       kicker: t("projects.ledger.kicker"),
       title: p.name,
@@ -218,6 +276,8 @@ export function ProjectsLedger({
     setDrill({ ...base, loading: true });
     startTransition(async () => {
       const d = await getProjectHoursDrilldown(p.id);
+      // Dismissed (or re-opened for another row) while this was pending.
+      if (generation !== drillGeneration.current) return;
       if (d.error) {
         setDrill({ ...base, error: d.error });
         return;
@@ -274,7 +334,15 @@ export function ProjectsLedger({
   const sorted = sortRows(rows, sortKey, sortDir);
 
   const tableRef = useRef<HTMLDivElement>(null);
-  const pager = usePager(sorted.length, PAGE_SIZE, `${sortKey}|${sortDir}|${rows.length}`);
+  // `?page=` and `?size=` too, so the back button walks pages and a pasted
+  // link opens on the row it was sent from. `rows.length` in the key: the
+  // explorer's filter defines a new list, and its patch clears `page` for the
+  // same reason this key resets it.
+  const pager = usePager(sorted.length, PAGE_SIZE, `${sortKey}|${sortDir}|${rows.length}`, {
+    page: "page",
+    size: "size",
+    sizes: PAGE_SIZES,
+  });
   const visible = sorted.slice(pager.start, pager.end);
   // Re-collapsing on a sort or page change is deliberate: the point of the cap
   // is that the first paint after any control is one screen.
@@ -284,12 +352,32 @@ export function ProjectsLedger({
   const handleSort = (key: string) => {
     const next = key as LedgerSort;
     if (next === sortKey) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      // Click again reverses [Apple: "re-sort… in the opposite direction"].
+      setSort({ key: next, dir: sortDir === "asc" ? "desc" : "asc" });
     } else {
-      setSortKey(next);
-      setSortDir(next === "name" ? "asc" : "desc");
+      setSort({ key: next, dir: defaultDir(next) });
     }
   };
+
+  /*
+   * The count in the card header as well as the foot (APPLE_REF §5.4
+   * "Placement"; §8 #11): a ledger longer than a screen states the size of
+   * the work before the reader scrolls, and states the SLICE ("1–25 OF 334")
+   * once it is paged, so a page is never mistaken for the whole. The same
+   * `pager` strings the foot uses, so the two lines cannot disagree.
+   */
+  const tpager = useTranslations("pager");
+  const shownFrom = sorted.length === 0 ? 0 : pager.start + 1;
+  const shownTo = Math.min(pager.end, sorted.length);
+  const headerCount =
+    pager.pageCount > 1 && pager.size !== "all"
+      ? tpager("range", {
+          from: shownFrom,
+          to: shownTo,
+          count: sorted.length,
+          noun: tp("ledger.pagerNoun").toUpperCase(),
+        })
+      : tp("ledger.count", { count: fmtInt(rows.length, locale) });
 
   if (rows.length === 0) {
     return (
@@ -299,16 +387,15 @@ export function ProjectsLedger({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-mono text-[10px] tracking-[0.14em] text-[var(--text-muted)]">
-          {tp("ledger.title")}
-        </h2>
-        <span className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-faint)]">
-          {tp("ledger.count", { count: fmtInt(rows.length, locale) })}
-        </span>
-      </div>
-
       <Card className="overflow-hidden">
+        {/* The title lives INSIDE the card, in CardHeader's dialect, like every
+            other panel on the page -- a 10px mono kicker floating above the
+            card was the one heading on /projects that did not. */}
+        <CardHeader
+          title={tp("ledger.title")}
+          qualifier={headerCount}
+          className="border-b border-[var(--divider)]"
+        />
         {/* Mobile cards — a 7-column grid is unreadable under ~640px. */}
         <div className="flex flex-col divide-y divide-[var(--divider)] sm:hidden">
           {mobileVisible.map((p) => (
@@ -319,9 +406,9 @@ export function ProjectsLedger({
               className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-[var(--surface-hover)]"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-[12px] font-medium text-[var(--text-primary)]">{p.name}</span>
+                <span className="t-callout font-medium text-[var(--text-primary)]">{p.name}</span>
                 <span
-                  className="shrink-0 font-mono text-[11px] font-semibold"
+                  className="shrink-0 fig font-medium"
                   style={{ color: burnColor(p.burnPercent) }}
                 >
                   {p.burnPercent === null
@@ -329,19 +416,19 @@ export function ProjectsLedger({
                     : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>
-              <span className="font-mono text-[10px] text-[var(--text-muted)]">
+              <span className="t-subhead text-[var(--text-muted)]">
                 {p.customerName ?? tp("ledger.noCustomer")}
               </span>
-              <div className="h-1 w-full bg-[var(--border)]">
+              <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
                 <div
-                  className="h-full"
+                  className="h-full rounded-full"
                   style={{
                     width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
                     background: burnColor(p.burnPercent),
                   }}
                 />
               </div>
-              <div className="flex gap-3 font-mono text-[10px] text-[var(--text-secondary)]">
+              <div className="flex gap-3 fig text-[var(--text-secondary)]">
                 <span>{tp("ledger.loggedH", { hours: fmtNum(p.actualHours, locale, 1) })}</span>
                 <span>
                   {p.estimatedHours && p.estimatedHours > 0
@@ -363,7 +450,7 @@ export function ProjectsLedger({
               type="button"
               onClick={() => setMobileExpanded((v) => !v)}
               aria-expanded={mobileExpanded}
-              className="px-3 py-2.5 text-left font-mono text-[10px] tracking-[0.08em] text-[var(--accent)]"
+              className="px-3 py-2.5 text-left t-label text-[var(--accent)]"
             >
               {mobileExpanded
                 ? tp("ledger.showFewer", {
@@ -380,7 +467,12 @@ export function ProjectsLedger({
         </div>
 
         <div ref={tableRef} className="hidden sm:block">
-          <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5">
+          {/* One header material for every table: --surface with a --divider
+              hairline under it, the same as DataTable's thead. The --surface-2
+              band read as a second, recessed panel inside the card. */}
+          {/* 32px header (APPLE_REF §5.6): `h-8` with the 24px sort targets
+              centred in it, over 28px compact rows. */}
+          <div className="sticky top-0 z-10 grid h-8 min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-1">
             <SortHeader
               label={tp("ledger.columns.project")}
               columnKey="name"
@@ -389,7 +481,9 @@ export function ProjectsLedger({
               onSort={handleSort}
               className="col-span-4"
             />
-            <span className="col-span-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
+            {/* Not sortable (a customer is a label, not a measure): the same
+                caption rung as the sortable headers at rest. */}
+            <span className="col-span-2 t-label text-[var(--text-faint)]">
               {tp("ledger.columns.customer")}
             </span>
             <SortHeader
@@ -442,11 +536,11 @@ export function ProjectsLedger({
             <div
               key={p.id}
               data-ledger-row
-              className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1 text-[12.5px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
+              className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1.5 t-callout transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
             >
               <Link
                 href={`/projects/${p.id}`}
-                className="col-span-4 truncate text-[12.5px] font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
+                className="col-span-4 truncate font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
                 title={p.name}
               >
                 {p.name}
@@ -454,7 +548,7 @@ export function ProjectsLedger({
               <span className="col-span-2 truncate text-[var(--text-secondary)]" title={p.customerName ?? ""}>
                 {p.customerName ?? "—"}
               </span>
-              <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
+              <span className="col-span-1 text-right fig text-[var(--text-secondary)]">
                 {p.estimatedHours && p.estimatedHours > 0
                   ? fmtNum(p.estimatedHours, locale, 1)
                   : "—"}
@@ -465,23 +559,24 @@ export function ProjectsLedger({
               {p.actualHours > 0 ? (
                 <button
                   type="button"
-                  onClick={() => openHours(p)}
+                  onClick={(e) => openHours(p, e.currentTarget)}
                   aria-haspopup="dialog"
                   aria-label={t("open", { title: p.name })}
                   data-drill-trigger={`ledger-hours-${p.id}`}
-                  className="col-span-1 cursor-pointer text-right font-mono text-[11px] text-[var(--text-primary)] underline-offset-4 hover:text-[var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                  className="col-span-1 cursor-pointer text-right fig text-[var(--text-primary)] underline-offset-4 transition-[color,transform] duration-150 hover:text-[var(--accent)] hover:underline active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 >
                   {fmtNum(p.actualHours, locale, 1)}
                 </button>
               ) : (
-                <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-primary)]">
+                <span className="col-span-1 text-right fig text-[var(--text-primary)]">
                   {fmtNum(p.actualHours, locale, 1)}
                 </span>
               )}
               <div className="col-span-2 flex items-center gap-2">
-                <div className="h-1 flex-1 bg-[var(--border)]">
+                {/* A meter is rounded-full, like StatTile's and the drill rows'. */}
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--border)]">
                   <div
-                    className="h-full"
+                    className="h-full rounded-full"
                     style={{
                       width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
                       background: burnColor(p.burnPercent),
@@ -489,16 +584,16 @@ export function ProjectsLedger({
                   />
                 </div>
                 <span
-                  className="w-11 text-right font-mono text-[11px] font-medium"
+                  className="w-11 text-right fig font-medium"
                   style={{ color: burnColor(p.burnPercent) }}
                 >
                   {p.burnPercent === null ? tc("notAvailable") : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>
-              <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
+              <span className="col-span-1 text-right fig text-[var(--text-secondary)]">
                 {p.memberCount || "—"}
               </span>
-              <span className="col-span-1 text-right font-mono text-[10px] text-[var(--text-faint)]">
+              <span className="col-span-1 text-right fig text-[var(--text-faint)]">
                 {p.lastActivity ?? tp("ledger.never")}
               </span>
             </div>
@@ -510,10 +605,15 @@ export function ProjectsLedger({
           total={sorted.length}
           noun={tp("ledger.pagerNoun")}
           anchorRef={tableRef}
+          sizes={PAGE_SIZES}
         />
       </Card>
 
-      {drill && <DrillDialog drill={drill} onClose={() => setDrill(null)} />}
+      <AnimatePresence>
+        {drill && (
+          <DrillDialog drill={drill} onClose={closeHours} origin={drillOrigin} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

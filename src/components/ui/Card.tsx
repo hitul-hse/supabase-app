@@ -105,13 +105,13 @@ export function CardHeader({
 }) {
   return (
     <div
-      className={`flex flex-wrap items-baseline gap-x-2.5 gap-y-1 px-4 pt-3.5 pb-3 ${className}`}
+      className={`flex flex-wrap items-baseline gap-x-2.5 gap-y-1 px-4 pt-3 pb-3 ${className}`}
     >
-      <h2 className="text-[13px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
+      <h2 className="t-title-3 text-[var(--text-primary)]">
         {title}
       </h2>
       {qualifier && (
-        <span className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-faint)]">
+        <span className="t-label text-[var(--text-faint)]">
           {qualifier}
         </span>
       )}
@@ -137,7 +137,7 @@ export function CardDivider({ className = "" }: { className?: string }) {
  *
  * THE RULE THIS ENCODES
  * ---------------------
- * `value === null` renders "n/a" in --text-faint, never 0 and never a plausible
+ * `value === null` renders "—" in --text-faint, never 0 and never a plausible
  * substitute. This is the whole reason the Overview page was rebuilt (see
  * queries/overview-live.ts): the page used to render seeded strings like
  * "73.4%" and "18 240" from a mockup, and a confident wrong number is worse
@@ -190,15 +190,20 @@ export function StatTile({
     <div
       {...rest}
       data-stat-tile
-      className={`card-elev flex flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3.5 ${className}`}
+      /*
+       * 16 px padding and a 76 px floor (APPLE_REF §5.5 "Sizes"): the dense
+       * card padding, and a height a skeleton can mirror exactly even when a
+       * caller omits the hint.
+       */
+      className={`card-elev flex min-h-[76px] flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 ${className}`}
     >
-      <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+      <span className="t-label text-[var(--text-faint)]">
         {label}
       </span>
 
       <span className="flex items-baseline gap-1">
         <span
-          className="font-mono text-[21px] font-semibold leading-none tracking-[-0.02em]"
+          className="fig-lg"
           style={{
             color: isMissing
               ? "var(--text-faint)"
@@ -207,11 +212,11 @@ export function StatTile({
                 : "var(--text-primary)",
           }}
         >
-          {isMissing ? "n/a" : value}
+          {isMissing ? "—" : value}
         </span>
-        {/* Only alongside a real figure -- "n/a h" is nonsense. */}
+        {/* Only alongside a real figure -- "— h" is nonsense. */}
         {unit && !isMissing && (
-          <span className="font-mono text-[11px] font-normal text-[var(--text-muted)]">
+          <span className="fig text-[var(--text-muted)]">
             {unit}
           </span>
         )}
@@ -238,7 +243,7 @@ export function StatTile({
         projects strip, where three of five were visibly shorter.
       */}
       {hint && (
-        <span className="font-mono text-[10px] leading-snug text-[var(--text-faint)]">
+        <span className="t-subhead text-[var(--text-muted)]">
           {hint}
         </span>
       )}
@@ -265,7 +270,7 @@ export function StatTile({
  * WHY NOT A TOOLTIP. A definition hidden behind hover is unavailable on a phone,
  * unavailable to keyboard users who do not know to look, and absent from a
  * screenshot pasted into a board pack -- which is exactly where a misread number
- * does its damage. The cost is one line of 10px muted text.
+ * does its damage. The cost is one line of 11px muted text.
  *
  * WHY NOT IN THE QUALIFIER. `CardHeader`'s qualifier states scope ("LAST 12
  * WEEKS - TRACKINGTIME"), which answers "over what period, from where". This
@@ -274,7 +279,7 @@ export function StatTile({
  */
 export function ChartNote({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <p className={`px-4 pb-3 text-[10px] leading-[1.45] text-[var(--text-faint)] ${className}`}>
+    <p className={`px-4 pb-3 t-subhead text-[var(--text-faint)] ${className}`}>
       {children}
     </p>
   );

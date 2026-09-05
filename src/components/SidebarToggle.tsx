@@ -43,21 +43,28 @@ export function SidebarToggle() {
       aria-keyshortcuts="Control+B"
       title={`${label}  (Ctrl+B)`}
       data-testid="sidebar-toggle"
-      className="group/toggle relative hidden h-7 w-7 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-faint)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:flex"
+      /*
+        40 × 32: the same box as a rail row target, so in the rail it stacks
+        under the brand mark on the icon column and its tooltip lands where the
+        rows' do. Above Apple's 28 × 28 desktop default for an icon-only
+        control (APPLE_REF §3.2) in both dimensions that matter.
+      */
+      className="group/toggle relative hidden h-8 w-10 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-faint)] transition-[color,background-color,transform] duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:flex"
     >
       {collapsed ? <IconPanelExpand /> : <IconPanelCollapse />}
 
       {/*
         Only in the rail: expanded, the panel is wide enough that the icon plus
         its title attribute are sufficient, and a tooltip on every hover there
-        would be noise.
+        would be noise. M2 raised material like the nav rows' tooltips, flush
+        to the rail's outer edge (12 px = the pane's inset).
       */}
       <span
         aria-hidden
-        className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover/toggle:opacity-100 group-focus-visible/toggle:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
+        className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-100 group-hover/toggle:opacity-100 group-hover/toggle:duration-150 group-focus-visible/toggle:opacity-100 group-focus-visible/toggle:duration-150 pointer-fine:group-data-[collapsed=true]/sidebar:block"
       >
         {label}
-        <span className="ml-1.5 font-mono text-[10px] text-[var(--text-faint)]">Ctrl+B</span>
+        <span className="ml-1.5 t-label text-[var(--text-faint)]">Ctrl+B</span>
       </span>
     </button>
   );

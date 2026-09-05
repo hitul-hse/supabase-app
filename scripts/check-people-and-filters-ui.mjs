@@ -113,7 +113,7 @@ try {
     await appending.first().innerText().catch(() => "absent"),
   );
 
-  const next = page.locator('button:text-is("NEXT →")').first();
+  const next = page.getByRole("button", { name: /^NEXT( →)?$/ }).first();
   check("a NEXT control is offered to reach the rest of the roster", (await next.count()) > 0);
 
   const columnHeightBefore = await page.evaluate(() => {
@@ -145,7 +145,7 @@ try {
     `${columnHeightBefore}px -> ${columnHeightAfter}px`,
   );
 
-  const prev = page.locator('button:text-is("← PREV")').first();
+  const prev = page.getByRole("button", { name: /^(← )?PREV$/ }).first();
   check("PREV is offered once past page 1", (await prev.count()) > 0);
   await prev.click();
   await page.waitForTimeout(600);

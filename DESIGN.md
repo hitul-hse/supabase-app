@@ -11,6 +11,54 @@ safety professionals: confident, data-rich, human.
 
 ## Color tokens (real brand — extracted from hs-experts.com)
 
+> The token NAMES in this section are the marketing page's (`--bg-0`, `--teal`,
+> `--text-0`). The app shell is authoritative in `src/app/globals.css`
+> (`--page`, `--surface`, `--accent`, `--text-primary` …), and
+> `check-design-system` enforces those, not these. Same brand, two vocabularies;
+> do not invent a third.
+
+### App-shell colour semantics (globals.css; docs/APPLE-DESIGN-REFERENCE.md §2, §4)
+
+Every token below exists in `:root` (dark) and `[data-theme="light"]`, and the
+gate measures each text token on `--page`, `--surface`, `--surface-hover` and
+`--surface-raised` in BOTH themes. Ratios are WCAG 2.x, dark / light.
+
+**Four label levels** (Apple's label ladder, each rung a visible step):
+`--text-primary` 15.06 / 15.71 on `--surface` → `--text-secondary` 9.21 / 9.09 →
+`--text-muted` 7.45 / 6.97 → `--text-faint` 6.00 / 5.57. Muted-to-faint is
+1.24 / 1.25 (it was 1.04 / 1.14 — two names, one appearance). `--text-faint` is
+caption ink, not a watermark: its floor is 5.5 on `--surface` and 4.5 on
+`--surface-hover` (5.25 / 4.72 measured).
+
+**Backgrounds — elevation in dark is LIGHTER, one step per layer:**
+`--page` < `--surface` (cards, tables; 1.10 above page) < `--surface-raised`
+(popovers, menus, tooltips, dialogs; dark `#20262e`, 1.10 above surface; light
+white + `--shadow-raised`). `--surface-hover` is the hover fill on any of them.
+`--surface-2` is DARKER than `--surface` and means RECESSED — the Segmented
+track, input wells, code, disabled fills — never a nested panel. `--row-alt`
+(1.07 / 1.06 vs surface) is the zebra stripe for > 8-column crosstabs only.
+`--scrim` (black 0.5 / page-ink 0.35) sits behind modals via `.scrim`, a dim
+and nothing else: APPLE_REF §4.2 gives M5 one ingredient and reserves
+`backdrop-filter` for M4 (the mobile tab bar and sheet), and a 4 px scrim
+blur measured 33–50 ms per frame of the dialog's own entrance. The
+reduced-transparency / increased-contrast block still pins
+`backdrop-filter: none` on `.scrim` so the gate can read that no blur comes
+back.
+
+**One tint:** `--accent` means INTERACTIVE (links, the one primary button,
+`--focus-ring`) and CURRENT (nav pill, chosen segment, current page, active
+sort). Healthy status is `--good` — in light it was byte-identical to the
+accent and is now a distinct green (`#15733a`). KPI figures are
+`--text-primary`; teal on a figure only inside the one hero-tone card. Nav
+badges are neutral (`--surface-hover` + `--text-secondary`). The light accent
+is `#1c7360` so a link on a hovered row clears 4.5 (4.85; `#1f7a67` was 4.41).
+
+**Increased contrast:** `@media (prefers-contrast: more)` overrides every text
+token in both themes to ≥ 7:1 on surface, page and hover (dark lighter, light
+darker — Apple's pattern), lifts borders one step, washes to 0.22, widens the
+focus ring to 3px and makes the frosted mobile bar solid. Dark theme also
+softens white-ground images: `img.on-dark { filter: brightness(.92) }`.
+
 ### Backgrounds
 - `--bg-0`: #0e1517  (deepest surface — near-black with teal undertone)
 - `--bg-1`: #141d1f  (raised surface / cards)
@@ -40,12 +88,64 @@ safety professionals: confident, data-rich, human.
 - `--red`:   #f87171
 
 ## Typography (real brand font)
-- **Display/UI:** `Poppins` — 300/400/500/600/700/800 weights
+- **Display/UI:** `Poppins` — loaded at 300/400/500/600/700 (src/app/layout.tsx)
   - Loaded from Google Fonts (same as hs-experts.com)
-  - Large display: 700–800 weight, -0.03em tracking
-  - Body: 400 weight, comfortable line-height 1.6
-  - Labels/badges: 500–600 weight, tracking-widest uppercase
-- **Mono:** `JetBrains Mono` — feature numbers, IDs, code values
+  - Persuade pages only: large display 700 at ≥ 26px, `-0.03em` tracking at the
+    88px marketing display; prose at line-height 1.6
+- **Mono:** `JetBrains Mono` at 400/500 — figures, IDs, codes, labels. Nothing
+  above 500 exists for it: `font-semibold` on a mono span is a synthesised
+  faux-bold, not a weight.
+
+### App-shell type roles (globals.css `@utility`; docs/APPLE-DESIGN-REFERENCE.md §1.3)
+
+The shell sets type through named roles, never through an ad-hoc `text-[Npx]`.
+The ladder is 10 · 11 · 12 · 13 · 15 · 17 · 22 · 26 — Apple's macOS text
+styles, set in the house faces. One size, one line height, one weight and one
+tracking per role; colour is chosen at the call site from the label ladder
+(§App-shell colour semantics), so every role reads identically in both themes.
+
+| Role | Face | px / lh | Weight | Tracking | Use it for |
+| --- | --- | --- | --- | --- | --- |
+| `t-large` | Poppins | 26 / 32 | 600 | −0.015em | sign-in headline; the one hero title. Not elsewhere in the shell |
+| `t-title` | Poppins | 22 / 26 | 600 | −0.01em | the page `h1` (`PageHeader`) at ≥ sm |
+| `t-title-2` | Poppins | 17 / 22 | 600 | −0.005em | page `h1` below sm; `DrillDialog` title |
+| `t-title-3` | Poppins | 15 / 20 | 600 | 0 | `CardHeader` / `DataTable` title; a section heading inside a page |
+| `t-headline` | Poppins | 13 / 16 | 600 | 0 | `EmptyState` title, a disclosure title, a legend, an emphasised cell |
+| `t-body` | Poppins | 13 / 16 | 400 | 0 | comfortable rows, dialog body, ≤ 2-line prose |
+| `t-callout` | Poppins | 12 / 15 | 400 (+`font-medium` inside a control) | 0 | dense rows (ledgers, `DataTable`), inputs, nav items, `md` buttons, tooltips — the shell's de-facto body |
+| `t-subhead` | Poppins | 11 / 14 | 400 | +0.005em | hints under tiles, footnotes, `sm` buttons, the "no rows" line inside a table |
+| `t-label` | JetBrains Mono | 10 / 13 | 500 | +0.08em | column headers, KPI captions, sidebar group headers, pager copy, the meta line, chips and badges. Uppercase is the content's job |
+| `fig-xl` | JetBrains Mono | 26 / 32 | 500 | 0 | the one hero figure per page |
+| `fig-lg` | JetBrains Mono | 22 / 26 | 500 | 0 | `StatTile` value, a panel's headline figure |
+| `fig-md` | JetBrains Mono | 15 / 20 | 500 | 0 | inline totals, the `DrillDialog` headline figure |
+| `fig` | JetBrains Mono | 11 / 15 | 400 | 0 | every number in a table column, IDs, codes |
+
+Rules that come with the table:
+
+1. **Weights.** 400 words, 500 controls / labels / figures, 600 headings and
+   emphasis. **300 and 800 are banned in the app shell**; 700 only on Persuade
+   pages at ≥ 26px. Emphasis inside a role is one weight step up
+   (`t-callout font-medium`), or one step up the label ladder — never a size
+   step. Never stack two roles on one element.
+2. **Leading.** The role's line height is the standard. `t-tight` (−2px) is for
+   a two-line cell — a name over its code — and never for three or more lines;
+   `t-loose` (+2px) is for a paragraph. `leading-relaxed` and 1.6 are prose
+   values for Persuade pages.
+3. **Tracking** is size-specific and HSE's own curve for Poppins (near zero at
+   12–13px, negative from 17px up, +0.005em at 11px, +0.08em on mono labels):
+   never one `tracking-*` for every size, never SF Pro's table.
+4. **Floors.** No Poppins under 11px. Mono at 10px only as `t-label`. Nothing
+   under 11px on a touch surface. Whole pixels only — 12.5 and 11.5 are gone.
+5. **Figures.** Every number in a column is `fig` (mono, tabular by nature);
+   a number inside a sentence stays Poppins and inherits `tabular-nums` from
+   `body`. Hours to one decimal, percent as integers, `—` for a missing value.
+6. **Per screen:** at most four Poppins roles + `t-label` + two figure sizes —
+   typically `t-title`, `t-title-3`, `t-callout`, `t-subhead`, `t-label`,
+   `fig-lg`, `fig`. A dialog adds `t-title-2`; a two-line cell adds
+   `t-headline`. Two roles one step apart doing the same job on one screen is
+   how 12 and 12.5 both shipped.
+7. **German.** Every role is checked with the `de` strings; a label that fits
+   in EN and wraps in DE is a defect.
 
 ## Logo
 - `/public/hse-logo.png` — 14KB PNG, valid
@@ -70,7 +170,25 @@ safety professionals: confident, data-rich, human.
 - **No bounce** on data tables, form fields, or navigation
 - **Tilt cards:** `rotateX/Y` via `useSpring` + `useMotionValue` for glow tracking
 - **Particles:** 22 floating teal specks, `easeInOut` loop, 10–22s duration
-- Framer Motion respects `prefers-reduced-motion` automatically
+- Framer Motion does NOT respect `prefers-reduced-motion` by default (its
+  `reducedMotion` config defaults to `"never"` — measured: with the OS setting on,
+  every JS spring still ran at full amplitude while every CSS entrance was
+  correctly disabled). The app shell mounts `MotionConfig reducedMotion="user"`
+  (`src/components/animations/MotionProvider.tsx`), which makes transforms
+  instant and keeps opacity cross-fades. Springs are the constants in
+  `src/components/animations/springs.ts`, written as Apple's (response,
+  damping ratio) in Motion's physics form via `appleSpring()`:
+  `SPRING_POPOVER` 0.28, `SPRING_UI` 0.35, `SPRING_MOVE` 0.4 (all damping
+  1.0) and `SPRING_FLICK` 0.4 / 0.85 for a flicked sheet only. Physics form
+  on purpose: motion-dom 13 zeroes the velocity handed to any `bounce` /
+  `duration` / `visualDuration` spring, so a released drag would restart
+  from rest. The `{ bounce: 0, duration: 0.4 }` above is the demo page's
+  shorthand and is NOT the same spring (Motion's `duration` solves for the
+  settle time, roughly a response of 0.27).
+- Sidebar collapse is CSS (`width` 220 → 64 over 220 ms `--ease-out`, the
+  pane inset and label opacity on the same curve), the one ruled exception
+  to transform/opacity-only (APPLE_REF §6.2); it is guarded by a frame-time
+  measurement, not a property list.
 
 ## Components
 

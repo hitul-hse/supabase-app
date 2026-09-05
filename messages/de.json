@@ -39,7 +39,20 @@
       "rows": "{count} ZEILEN"
     },
     "show": "ANZEIGEN",
-    "hide": "AUSBLENDEN"
+    "hide": "AUSBLENDEN",
+    "replayTour": "Tour erneut abspielen",
+    "signingOut": "Abmeldung läuft …",
+    "profile": "Profil",
+    "accountMenu": "Kontomenü — {name}",
+    "themeToDark": "Zum Dunkelmodus wechseln",
+    "themeToLight": "Zum Hellmodus wechseln",
+    "error": {
+      "title": "Diese Seite konnte nicht geladen werden",
+      "description": "Die Daten hinter dieser Ansicht konnten nicht geladen werden. Das ist meist vorübergehend — ein erneuter Versuch hilft oft. Tritt es weiterhin auf, hilft die Referenz unten bei der Ursachensuche.",
+      "tryAgain": "Erneut versuchen",
+      "backToOverview": "Zurück zur Übersicht",
+      "ref": "REF {digest}"
+    }
   },
   "overview": {
     "title": "Übersicht",
@@ -203,8 +216,8 @@
     "fetching": "Wird geladen …",
     "nothingLogged": "Nichts erfasst.",
     "page": "SEITE {page} / {count}",
-    "back": "← ZURÜCK",
-    "next": "WEITER →",
+    "back": "ZURÜCK",
+    "next": "WEITER",
     "noProject": "(ohne Projekt)",
     "noCustomer": "(ohne Kunde)",
     "noTask": "(ohne Aufgabe)",
@@ -1554,15 +1567,15 @@
     },
     "noAccess": {
       "title": "Sie haben keinen Zugriff auf das Projektportfolio",
-      "description": "Alle Projekte zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Ihre eigene Projektzeit sehen Sie unter Zeit. Eine Administratorin kann weiteren Zugriff unter Rollenberechtigungen erteilen.",
-      "action": "Zu Zeit →"
+      "description": "Alle Projekte zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Ihre Projektzeit finden Sie unter Zeit.",
+      "action": "Zu Zeit"
     },
     "filters": {
       "searchLabel": "Projekte nach Name, Kunde oder Code suchen",
       "searchPlaceholder": "Projekte suchen …",
-      "all": "Alle",
-      "billable": "Abrechenbar",
-      "nonBillable": "Nicht abr.",
+      "all": "ALLE",
+      "billable": "ABRECHENBAR",
+      "nonBillable": "NICHT ABRECHENBAR",
       "clear": "Zurücksetzen",
       "countAll": "{count} PROJEKTE",
       "countOf": "{shown} VON {total}",
@@ -1572,7 +1585,8 @@
         "healthy": "GESUND",
         "nobudget": "KEIN BUDGET",
         "idle": "KEINE AKTIVITÄT"
-      }
+      },
+      "billableGroup": "Abrechnungsfilter"
     },
     "customer": {
       "label": "KUNDE",
@@ -1628,7 +1642,7 @@
       }
     },
     "ledger": {
-      "title": "PROJEKTÜBERSICHT",
+      "title": "Projektübersicht",
       "count": "{count} PROJEKTE",
       "empty": {
         "title": "Keine Projekte gefunden",
@@ -1715,7 +1729,7 @@
       },
       "meta": "{customer}{code} · {entries} EINTRÄGE",
       "noCustomer": "KEIN KUNDE",
-      "allProjects": "← Alle Projekte",
+      "allProjects": "Alle Projekte",
       "pills": {
         "archived": "ARCHIVIERT",
         "billable": "ABRECHENBAR",
@@ -1922,8 +1936,8 @@
     "range": "{from, number}–{to, number} VON {count, number} {noun}",
     "perPage": "PRO SEITE",
     "all": "ALLE",
-    "prev": "← ZURÜCK",
-    "next": "WEITER →",
+    "prev": "ZURÜCK",
+    "next": "WEITER",
     "srAll": "Alle {count, number} {noun} werden angezeigt",
     "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}"
   },
@@ -1938,6 +1952,74 @@
     "rowsPerPage": "{count, number} Zeilen pro Seite",
     "all": "ALLE",
     "csvTitle": "Diese Zeilen als CSV herunterladen — mit aktuellem Filter und aktueller Sortierung",
-    "empty": "Nichts anzuzeigen."
+    "empty": "Nichts anzuzeigen.",
+    "searchLabel": "{title} durchsuchen",
+    "rowsPerPageGroup": "Zeilen pro Seite",
+    "noMatch": "Keine Zeile passt zu „{query}“.",
+    "clearTheSearch": "Suche zurücksetzen",
+    "prev": "ZURÜCK",
+    "next": "WEITER"
+  },
+  "myWork": {
+    "header": {
+      "linkedTo": "VERKNÜPFT MIT {name}"
+    },
+    "summary": {
+      "led": {
+        "label": "KUNDEN, DIE ICH LEITE",
+        "hint": "verantwortlich oder Betreuer"
+      },
+      "customers": {
+        "label": "KUNDEN GESAMT",
+        "hint": "kanonische Entitäten"
+      },
+      "projects": {
+        "label": "MEINE PROJEKTE",
+        "hint": "auf jeder Stufe"
+      },
+      "hours": {
+        "label": "STUNDEN · TEAM",
+        "hint": "alle Personen"
+      },
+      "services": {
+        "label": "SERVICES BEKANNT",
+        "hintAll": "deiner Projekte ({source})",
+        "hintOf": "von {total} Projekten ({source})"
+      }
+    },
+    "views": {
+      "label": "Ansicht",
+      "projects": "PROJEKTE",
+      "customers": "KUNDEN"
+    },
+    "filters": {
+      "role": "MEINE ROLLE",
+      "all": "ALLE",
+      "clearCustomer": "Kundenfilter zurücksetzen"
+    },
+    "tables": {
+      "projects": "Meine Projekte",
+      "customers": "Meine Kunden",
+      "coverage": "{measured} VON {total} GEMESSEN",
+      "coverageTitle": "Stunden sind für {measured} von {total} Projekten bekannt; diese Summe ist eine Untergrenze, nicht das Ganze.",
+      "emptyFiltered": "Keine Zeile passt zu Rolle oder Kunde. Oben zurücksetzen.",
+      "emptyCustomers": "Dir sind keine Kunden zugewiesen"
+    },
+    "empty": {
+      "browseProjects": "Alle Projekte ansehen",
+      "reload": "Neu laden",
+      "unlinked": {
+        "title": "Dein Konto ist noch keinem Personendatensatz zugeordnet",
+        "description": "Arbeit wird über einen Personendatensatz zugeordnet; dieses Konto hat noch keinen. Ein Administrator verknüpft ihn unter Benutzer & Rollen."
+      },
+      "loadFailed": {
+        "title": "Deine Arbeit konnte nicht geladen werden",
+        "description": "Die Projektabfrage ist fehlgeschlagen; statt einer Teilliste wird nichts angezeigt. Neu laden – bleibt es, prüft ein Administrator die Logs."
+      },
+      "none": {
+        "title": "Dir sind keine Projekte zugewiesen",
+        "description": "Nichts nennt {name} als verantwortlich, Betreuer, Vertretung oder zugewiesen. Weist dich eine Projektleitung zu, erscheint es hier."
+      }
+    }
   }
 }

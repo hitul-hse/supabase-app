@@ -32,15 +32,15 @@ export function TasksSection({
   return (
     <Card className="flex flex-col lg:col-span-7">
       <div className="flex items-baseline justify-between border-b border-[var(--divider)] p-4">
-        <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">{t("title")}</span>
+        <span className="t-title-3 text-[var(--text-primary)]">{t("title")}</span>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[10.5px] text-[var(--text-muted)]">
+          <span className="t-label text-[var(--text-muted)]">
             {t("openOf", { open: fmtInt(openCount, locale), total: fmtInt(tasks.length, locale) })}
           </span>
           <div className="flex border border-[var(--border-strong)]">
             <button
               onClick={() => setView("list")}
-              className={`px-2.5 py-1 text-[10.5px] font-medium ${
+              className={`px-2.5 py-1 t-label ${
                 view === "list"
                   ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
@@ -50,7 +50,7 @@ export function TasksSection({
             </button>
             <button
               onClick={() => setView("board")}
-              className={`border-l border-[var(--border-strong)] px-2.5 py-1 text-[10.5px] font-medium ${
+              className={`border-l border-[var(--border-strong)] px-2.5 py-1 t-label ${
                 view === "board"
                   ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"

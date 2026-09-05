@@ -67,7 +67,7 @@ export function CustomerPortfolioCharts({
     return (
       <Card className="flex flex-col">
         <CardHeader title={t("customerCharts.title")} qualifier={t("customerCharts.qualifier")} />
-        <p className="px-4 pb-5 text-[12px] text-[var(--text-faint)]">
+        <p className="px-4 pb-5 t-callout text-[var(--text-faint)]">
           {t("customerCharts.empty")}
         </p>
       </Card>
@@ -136,7 +136,7 @@ export function CustomerPortfolioCharts({
                   <LegendDot color={SLICE_COLORS[i % SLICE_COLORS.length]}>
                     <span className="max-w-[12rem] truncate">{display(r.name)}</span>
                   </LegendDot>
-                  <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
+                  <span className="fig text-[var(--text-muted)]">
                     {fmtPct(r.sharePercent, locale, 1)} · {fmtHours(r.hours, locale, 1)}
                   </span>
                 </>
@@ -162,7 +162,7 @@ export function CustomerPortfolioCharts({
             {tailHours > 0 && (
               <div className="flex items-baseline justify-between gap-2">
                 <LegendDot color="var(--border-strong)">{moreLabel}</LegendDot>
-                <span className="font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
+                <span className="fig text-[var(--text-muted)]">
                   {fmtHours(tailHours, locale, 1)}
                 </span>
               </div>
@@ -170,7 +170,7 @@ export function CustomerPortfolioCharts({
           </div>
         </div>
         {top[0].sharePercent >= 25 && (
-          <p className="border-t border-[var(--border)] px-4 py-2.5 text-[10px] leading-relaxed text-[var(--text-faint)]">
+          <p className="border-t border-[var(--border)] px-4 py-2.5 t-subhead text-[var(--text-faint)]">
             {t("customerCharts.concentration", {
               name: display(top[0].name),
               share: fmtPct(top[0].sharePercent, locale, 1),
@@ -193,7 +193,7 @@ export function CustomerPortfolioCharts({
           qualifier={t("customerCharts.capacity.qualifier")}
           actions={
             <div className="flex items-center gap-3">
-              <LegendDot color="var(--accent)">{t("customerCharts.capacity.delivered")}</LegendDot>
+              <LegendDot color="var(--good)">{t("customerCharts.capacity.delivered")}</LegendDot>
               <LegendDot color="var(--critical)">
                 {t("customerCharts.capacity.overBudget")}
               </LegendDot>
@@ -202,7 +202,7 @@ export function CustomerPortfolioCharts({
         />
         <div className="flex flex-col gap-2.5 px-4 pb-4">
           {budgeted.length === 0 ? (
-            <p className="py-4 font-mono text-[11px] text-[var(--text-faint)]">
+            <p className="py-4 t-subhead text-[var(--text-faint)]">
               {t("customerCharts.capacity.empty")}
             </p>
           ) : (
@@ -214,11 +214,11 @@ export function CustomerPortfolioCharts({
               return (
                 <div key={r.name} className="flex flex-col gap-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="max-w-[60%] truncate text-[12px] text-[var(--text-primary)]">
+                    <span className="max-w-[60%] truncate t-callout text-[var(--text-primary)]">
                       {display(r.name)}
                     </span>
                     <span
-                      className={`font-mono text-[10px] tabular-nums ${
+                      className={`fig ${
                         over ? "text-[var(--critical)]" : "text-[var(--text-muted)]"
                       }`}
                     >
@@ -235,17 +235,17 @@ export function CustomerPortfolioCharts({
                   {/* The track is the committed budget; the fill is delivered.
                       When delivered exceeds committed the fill runs past the
                       track marker and turns critical -- an overrun you can see. */}
-                  <div className="relative h-3 w-full rounded-[3px] bg-[var(--surface-2)]">
+                  <div className="relative h-3 w-full rounded-[var(--radius-sm)] bg-[var(--surface-2)]">
                     {/* committed marker */}
                     <span
                       className="absolute top-0 h-full border-r border-[var(--border-strong)]"
                       style={{ width: `${Math.min(100, committedPct)}%` }}
                     />
                     <span
-                      className="absolute left-0 top-0 h-full rounded-[3px] transition-all"
+                      className="absolute left-0 top-0 h-full rounded-[var(--radius-sm)] transition-colors"
                       style={{
                         width: `${Math.min(100, deliveredPct)}%`,
-                        background: over ? "var(--critical)" : "var(--accent)",
+                        background: over ? "var(--critical)" : "var(--good)",
                         opacity: 0.9,
                       }}
                     />
@@ -257,7 +257,7 @@ export function CustomerPortfolioCharts({
           <Link
             href="/projects?sort=burn"
             scroll={false}
-            className="mt-1 self-start text-[11px] text-[var(--accent)] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            className="mt-1 self-start t-subhead text-[var(--accent)] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
             {t("customerCharts.capacity.link")}
           </Link>

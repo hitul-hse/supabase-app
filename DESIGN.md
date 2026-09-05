@@ -11,6 +11,12 @@ safety professionals: confident, data-rich, human.
 
 ## Color tokens (real brand — extracted from hs-experts.com)
 
+> The token NAMES in this section are the marketing page's (`--bg-0`, `--teal`,
+> `--text-0`). The app shell is authoritative in `src/app/globals.css:130-407`
+> (`--page`, `--surface`, `--accent`, `--text-primary` …), and
+> `check-design-system` enforces those, not these. Same brand, two vocabularies;
+> do not invent a third.
+
 ### Backgrounds
 - `--bg-0`: #0e1517  (deepest surface — near-black with teal undertone)
 - `--bg-1`: #141d1f  (raised surface / cards)
@@ -70,7 +76,15 @@ safety professionals: confident, data-rich, human.
 - **No bounce** on data tables, form fields, or navigation
 - **Tilt cards:** `rotateX/Y` via `useSpring` + `useMotionValue` for glow tracking
 - **Particles:** 22 floating teal specks, `easeInOut` loop, 10–22s duration
-- Framer Motion respects `prefers-reduced-motion` automatically
+- Framer Motion does NOT respect `prefers-reduced-motion` by default (its
+  `reducedMotion` config defaults to `"never"` — measured: with the OS setting on,
+  every JS spring still ran at full amplitude while every CSS entrance was
+  correctly disabled). The app shell mounts `MotionConfig reducedMotion="user"`
+  (`src/components/animations/MotionProvider.tsx`), which makes transforms
+  instant and keeps opacity cross-fades. Springs are the two constants in
+  `src/components/animations/springs.ts`: `SPRING_UI` (damping 1.0, response
+  0.3) and `SPRING_MOVE` (1.0, 0.4); the `{ bounce: 0, duration: 0.4 }` above is
+  the same family written with Motion's older key.
 
 ## Components
 

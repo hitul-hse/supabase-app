@@ -235,14 +235,14 @@ export function CustomerPortfolioCharts({
                   {/* The track is the committed budget; the fill is delivered.
                       When delivered exceeds committed the fill runs past the
                       track marker and turns critical -- an overrun you can see. */}
-                  <div className="relative h-3 w-full rounded-[3px] bg-[var(--surface-2)]">
+                  <div className="relative h-3 w-full rounded-[var(--radius-sm)] bg-[var(--surface-2)]">
                     {/* committed marker */}
                     <span
                       className="absolute top-0 h-full border-r border-[var(--border-strong)]"
                       style={{ width: `${Math.min(100, committedPct)}%` }}
                     />
                     <span
-                      className="absolute left-0 top-0 h-full rounded-[3px] transition-all"
+                      className="absolute left-0 top-0 h-full rounded-[var(--radius-sm)] transition-colors"
                       style={{
                         width: `${Math.min(100, deliveredPct)}%`,
                         background: over ? "var(--critical)" : "var(--accent)",

@@ -83,7 +83,7 @@ export async function BudgetPanel({ status }: { status: ProjectBudgetStatusRow |
             aria-label={t("barLabel")}
           >
             <div
-              className="h-full transition-[width] duration-500"
+              className="h-full"
               style={{
                 width: `${Math.min(100, percent ?? 0)}%`,
                 background: barColor,

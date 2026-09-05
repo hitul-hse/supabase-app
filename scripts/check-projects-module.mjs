@@ -199,6 +199,10 @@ module.exports = {
       "../nav-icons": posix(iconsFile) });
   const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+  // The segmented skin the billable trough wears. Its Link is never rendered
+  // here (only the class exports are used), but the module still imports it.
+  const segmentedFile = await compile("src/components/ui/Segmented.tsx", "Segmented.cjs", {
+      "next/link": posix(linkStub) });
   // Added when the mobile work wrapped the explorer's panels in a disclosure.
   // Compiled rather than stubbed: it is small and dependency-free, and a stub
   // would keep this gate green if the real component started throwing.
@@ -257,6 +261,7 @@ module.exports = {
       "./CustomerMultiSelect": posix(customerSelectFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/ui/Button": posix(buttonFile),
+      "@/components/ui/Segmented": posix(segmentedFile),
       "@/components/MobileDisclosure": posix(mobileDisclosureFile),
       "@/components/DrillDialog": posix(drillFile),
       "next-intl": posix(intlStub),
@@ -597,9 +602,13 @@ module.exports = {
     /\bpy-1\b/.test(rowClass) && !/\bpy-2\.5\b/.test(rowClass),
     rowClass.slice(0, 90),
   );
+  // 12px, the body step of the type scale -- the 12.5px half-step this used to
+  // pin was retired with the rest of the fractional sizes (check-design-system
+  // now owns the ledger's scale). The intent is unchanged: the name stays at
+  // row-text size, never a caption size, however tight the row gets.
   check(
     "the project name keeps its readable size despite the tighter row",
-    /text-\[12\.5px\]/.test(rowClass),
+    /text-\[12px\]/.test(rowClass) && !/text-\[1[01]px\]/.test(rowClass),
     "the one column people actually read must not shrink",
   );
   check(

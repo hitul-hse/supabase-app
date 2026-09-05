@@ -170,14 +170,14 @@ export function PortfolioCharts({
               className="group grid grid-cols-12 items-center gap-2 rounded-[var(--radius-sm)] px-1.5 py-0.5 transition-colors hover:bg-[var(--surface-hover)]"
             >
               <span
-                className="col-span-4 truncate text-[11.5px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] sm:col-span-3"
+                className="col-span-4 truncate text-[11px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] sm:col-span-3"
                 title={p.name}
               >
                 {p.name}
               </span>
-              <div className="col-span-6 h-[14px] overflow-hidden rounded-[3px] bg-[var(--surface-2)] sm:col-span-7">
+              <div className="col-span-6 h-[14px] overflow-hidden rounded-[var(--radius-sm)] bg-[var(--surface-2)] sm:col-span-7">
                 <div
-                  className="h-full rounded-[3px] transition-[filter] duration-150 group-hover:brightness-110"
+                  className="h-full rounded-[var(--radius-sm)] transition-[filter] duration-150 group-hover:brightness-110"
                   style={{
                     width: `${Math.max(1.5, (p.actualHours / maxHours) * 100)}%`,
                     // The bar carries the project's burn judgement, so the ranking

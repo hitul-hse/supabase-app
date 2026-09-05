@@ -13,7 +13,7 @@ import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
 // and the detail page end up disagreeing about whether a project is "at risk".
 import { burnColor } from "./ProjectPanels";
-import { Card } from "@/components/ui/Card";
+import { Card, CardHeader } from "@/components/ui/Card";
 import {
   getProjectHoursDrilldown,
   type ProjectHoursRest,
@@ -299,16 +299,15 @@ export function ProjectsLedger({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-mono text-[10px] tracking-[0.14em] text-[var(--text-muted)]">
-          {tp("ledger.title")}
-        </h2>
-        <span className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-faint)]">
-          {tp("ledger.count", { count: fmtInt(rows.length, locale) })}
-        </span>
-      </div>
-
       <Card className="overflow-hidden">
+        {/* The title lives INSIDE the card, in CardHeader's dialect, like every
+            other panel on the page -- a 10px mono kicker floating above the
+            card was the one heading on /projects that did not. */}
+        <CardHeader
+          title={tp("ledger.title")}
+          qualifier={tp("ledger.count", { count: fmtInt(rows.length, locale) })}
+          className="border-b border-[var(--divider)]"
+        />
         {/* Mobile cards — a 7-column grid is unreadable under ~640px. */}
         <div className="flex flex-col divide-y divide-[var(--divider)] sm:hidden">
           {mobileVisible.map((p) => (
@@ -332,9 +331,9 @@ export function ProjectsLedger({
               <span className="font-mono text-[10px] text-[var(--text-muted)]">
                 {p.customerName ?? tp("ledger.noCustomer")}
               </span>
-              <div className="h-1 w-full bg-[var(--border)]">
+              <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
                 <div
-                  className="h-full"
+                  className="h-full rounded-full"
                   style={{
                     width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
                     background: burnColor(p.burnPercent),
@@ -380,7 +379,10 @@ export function ProjectsLedger({
         </div>
 
         <div ref={tableRef} className="hidden sm:block">
-          <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-12 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5">
+          {/* One header material for every table: --surface with a --divider
+              hairline under it, the same as DataTable's thead. The --surface-2
+              band read as a second, recessed panel inside the card. */}
+          <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-12 gap-3 border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-2">
             <SortHeader
               label={tp("ledger.columns.project")}
               columnKey="name"
@@ -442,11 +444,11 @@ export function ProjectsLedger({
             <div
               key={p.id}
               data-ledger-row
-              className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1 text-[12.5px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
+              className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1.5 text-[12px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
             >
               <Link
                 href={`/projects/${p.id}`}
-                className="col-span-4 truncate text-[12.5px] font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
+                className="col-span-4 truncate text-[12px] font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
                 title={p.name}
               >
                 {p.name}
@@ -469,7 +471,7 @@ export function ProjectsLedger({
                   aria-haspopup="dialog"
                   aria-label={t("open", { title: p.name })}
                   data-drill-trigger={`ledger-hours-${p.id}`}
-                  className="col-span-1 cursor-pointer text-right font-mono text-[11px] text-[var(--text-primary)] underline-offset-4 hover:text-[var(--accent)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                  className="col-span-1 cursor-pointer text-right font-mono text-[11px] text-[var(--text-primary)] underline-offset-4 transition-[color,transform] duration-150 hover:text-[var(--accent)] hover:underline active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 >
                   {fmtNum(p.actualHours, locale, 1)}
                 </button>
@@ -479,9 +481,10 @@ export function ProjectsLedger({
                 </span>
               )}
               <div className="col-span-2 flex items-center gap-2">
-                <div className="h-1 flex-1 bg-[var(--border)]">
+                {/* A meter is rounded-full, like StatTile's and the drill rows'. */}
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--border)]">
                   <div
-                    className="h-full"
+                    className="h-full rounded-full"
                     style={{
                       width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
                       background: burnColor(p.burnPercent),

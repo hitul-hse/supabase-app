@@ -399,7 +399,7 @@ export function Donut({
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-mono text-[22px] font-semibold leading-none tracking-tight text-[var(--text-primary)]">
+          <span className="font-mono text-[21px] font-semibold leading-none tracking-tight text-[var(--text-primary)]">
             {centre}
           </span>
           {centreLabel && (

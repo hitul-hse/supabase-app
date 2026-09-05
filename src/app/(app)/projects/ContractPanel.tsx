@@ -26,14 +26,23 @@ import {
   type ContractActionResult,
 } from "./contract-actions";
 import { Card } from "@/components/ui/Card";
+import { buttonClass } from "@/components/ui/Button";
+import { controlClass } from "@/components/ui/Field";
 import { fmtNum, fmtPct } from "@/lib/locale-format";
 
 const LABEL =
-  "block font-mono text-[9.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]";
-const FIELD =
-  "w-full border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] placeholder:text-[var(--text-faint)] focus:border-[var(--accent)] disabled:opacity-50";
-const BUTTON =
-  "border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+  "block font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]";
+/*
+ * The house field and button skins, not a third dialect. The fields used to
+ * be square boxes on --surface-2 and the buttons 11px uppercase mono outlines;
+ * this panel is the one place on the project record a person types, and it
+ * should look like the leave form and the invite form, which already wear
+ * these. PRIMARY is the one accent-filled action per form (record / renew /
+ * save), SECONDARY the way out beside it.
+ */
+const FIELD = `${controlClass} w-full px-2.5 py-1.5 disabled:opacity-50`;
+const PRIMARY = buttonClass("primary", "sm");
+const SECONDARY = buttonClass("secondary", "sm");
 
 /**
  * Dates stay as the ISO strings the database holds (yyyy-mm-dd) in both
@@ -56,7 +65,7 @@ function BurnBar({ percent, warnAt }: { percent: number | null; warnAt: number }
   const clamped = Math.max(0, Math.min(100, percent ?? 0));
   return (
     <div
-      className="h-1.5 w-full bg-[var(--surface-2)]"
+      className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]"
       role="img"
       aria-label={
         percent === null
@@ -65,7 +74,7 @@ function BurnBar({ percent, warnAt }: { percent: number | null; warnAt: number }
       }
     >
       <div
-        className="h-full transition-[width]"
+        className="h-full rounded-full"
         style={{ width: `${clamped}%`, backgroundColor: burnTone(percent, warnAt) }}
       />
     </div>
@@ -79,7 +88,7 @@ function Feedback({ result }: { result: ContractActionResult | null }) {
   if (!result?.message) return null;
   return (
     <p
-      className="mt-2 text-[11.5px] leading-relaxed"
+      className="mt-2 text-[11px] leading-relaxed"
       style={{ color: result.ok ? "var(--accent)" : "var(--critical)" }}
       role={result.ok ? "status" : "alert"}
     >
@@ -175,7 +184,7 @@ function TermFields({
           defaultValue={defaults?.warnAtPercent ?? 80}
           className={FIELD}
         />
-        <p className="mt-1 text-[10.5px] leading-snug text-[var(--text-faint)]">
+        <p className="mt-1 text-[10px] leading-snug text-[var(--text-faint)]">
           {t("fields.warnAtHint")}
         </p>
       </div>
@@ -252,10 +261,10 @@ export function ContractPanel({
     <Card as="section">
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--divider)] px-4 py-3">
         <div>
-          <h2 className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+          <h2 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
             {t("title")}
           </h2>
-          <p className="mt-0.5 text-[11.5px] text-[var(--text-faint)]">{t("intro")}</p>
+          <p className="mt-0.5 text-[11px] text-[var(--text-faint)]">{t("intro")}</p>
         </div>
         {canWrite && periods.length > 0 && !renewing && (
           <button
@@ -264,7 +273,7 @@ export function ContractPanel({
               setRenewing(true);
               setResult(null);
             }}
-            className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
+            className={PRIMARY}
           >
             {t("renew")}
           </button>
@@ -291,7 +300,7 @@ export function ContractPanel({
               <p className="text-[12px] leading-relaxed text-[var(--text-primary)]">
                 {t("notInstalled.title")}
               </p>
-              <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
                 {/* The two migration paths are file names, not prose: they stay
                     verbatim in both languages and only the sentence around
                     them moves. */}
@@ -320,7 +329,7 @@ export function ContractPanel({
                 <button
                   type="submit"
                   disabled={pending}
-                  className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
+                  className={PRIMARY}
                 >
                   {pending ? t("recording") : t("record")}
                 </button>
@@ -339,7 +348,7 @@ export function ContractPanel({
       {periods.length > 0 && (
         <div className="px-4 py-4">
           {current === null && latest !== null && (
-            <p className="mb-4 border border-[var(--critical)] px-3 py-2 text-[11.5px] leading-relaxed text-[var(--critical)]">
+            <p className="mb-4 border border-[var(--critical)] px-3 py-2 text-[11px] leading-relaxed text-[var(--critical)]">
               {t("gap", { period: latest.periodNo, endsOn: latest.endsOn })}
             </p>
           )}
@@ -347,7 +356,7 @@ export function ContractPanel({
           {current !== null && (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <span className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
                   {t("period", {
                     period: current.periodNo,
                     // A contract reference is a proper noun; interpolated whole
@@ -385,7 +394,7 @@ export function ContractPanel({
                     ? tc("notAvailable")
                     : fmtPct(current.burnPercent, locale)}
                 </span>
-                <span className="text-[11.5px] text-[var(--text-secondary)]">
+                <span className="text-[11px] text-[var(--text-secondary)]">
                   {current.remainingHours >= 0
                     ? t("remaining", { hours: h(current.remainingHours) })
                     : t("overBudget", { hours: h(Math.abs(current.remainingHours)) })}
@@ -406,7 +415,7 @@ export function ContractPanel({
                       setCorrecting(current.id);
                       setResult(null);
                     }}
-                    className={`${BUTTON} border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text-primary)]`}
+                    className={SECONDARY}
                   >
                     {t("correct")}
                   </button>
@@ -422,7 +431,7 @@ export function ContractPanel({
               className="mt-4 flex flex-col gap-3 border-t border-[var(--border)] pt-4"
             >
               <input type="hidden" name="project_id" value={projectId} />
-              <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
                 {t("renewIntro", { period: latest?.periodNo ?? 1 })}
               </p>
               <TermFields
@@ -440,7 +449,7 @@ export function ContractPanel({
                 <button
                   type="submit"
                   disabled={pending}
-                  className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
+                  className={PRIMARY}
                 >
                   {pending ? t("renewing") : t("confirmRenewal")}
                 </button>
@@ -448,7 +457,7 @@ export function ContractPanel({
                   type="button"
                   disabled={pending}
                   onClick={() => setRenewing(false)}
-                  className={`${BUTTON} border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text-primary)]`}
+                  className={SECONDARY}
                 >
                   {t("cancel")}
                 </button>
@@ -464,7 +473,7 @@ export function ContractPanel({
             >
               <input type="hidden" name="project_id" value={projectId} />
               <input type="hidden" name="period_id" value={correcting} />
-              <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
                 {t("correctIntro")}
               </p>
               <TermFields
@@ -475,7 +484,7 @@ export function ContractPanel({
                 <button
                   type="submit"
                   disabled={pending}
-                  className={`${BUTTON} border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10`}
+                  className={PRIMARY}
                 >
                   {pending ? t("saving") : t("saveCorrection")}
                 </button>
@@ -483,7 +492,7 @@ export function ContractPanel({
                   type="button"
                   disabled={pending}
                   onClick={() => setCorrecting(null)}
-                  className={`${BUTTON} border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text-primary)]`}
+                  className={SECONDARY}
                 >
                   {t("cancel")}
                 </button>
@@ -503,9 +512,9 @@ export function ContractPanel({
                 {t("history.intro")}
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-[11.5px]">
+                <table className="w-full border-collapse text-[11px]">
                   <thead>
-                    <tr className="border-b border-[var(--border)] text-left font-mono text-[9.5px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                    <tr className="border-b border-[var(--border)] text-left font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
                       <th className="py-1.5 pr-3 font-normal">{t("history.columns.period")}</th>
                       <th className="py-1.5 pr-3 font-normal">{t("history.columns.dates")}</th>
                       <th className="py-1.5 pr-3 text-right font-normal">

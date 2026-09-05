@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 import { FilterChip, SearchInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
 import type { Drill } from "@/components/DrillDialog";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import {
@@ -337,12 +338,15 @@ export function ProjectsExplorer({
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* ------------------------------------------------------ the one filter bar */}
-      <div
-        data-projects-explorer="1"
-        className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 card-elev"
-      >
+      {/*
+        A flat control row, NOT a card. UI-CONVENTIONS: "Not a card: interactive
+        chrome -- inputs, pills, tabs". The bar used to be a Card with card-elev,
+        so it rose under the cursor like the tiles beside it while responding to
+        nothing as an object; the controls inside it are the affordance.
+      */}
+      <div data-projects-explorer="1" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <SearchInput
             value={filters.query}
@@ -358,7 +362,7 @@ export function ProjectsExplorer({
             locale={locale}
             labels={customerLabels}
           />
-          <div className="flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5">
+          <div role="group" aria-label={tp("filters.billableGroup")} className={segmentedTrackClass}>
             <BillableToggle
               on={filters.billableOnly === null}
               onClick={() => setFilters((prev) => ({ ...prev, billableOnly: null }))}
@@ -478,7 +482,13 @@ export function ProjectsExplorer({
   );
 }
 
-/** A segment button for the billable trough; hoisted so it keeps focus. */
+/**
+ * A segment button for the billable trough; hoisted so it keeps focus. It
+ * wears the Segmented skin (10px mono, accent pill on a recessed track, press
+ * on pointer-down) rather than its own 12px sans dialect, so the one segmented
+ * control on this page looks like every other segmented control in the app.
+ * A button, not a Segmented link, because the filter is in-memory state.
+ */
 function BillableToggle({
   on,
   onClick,
@@ -489,16 +499,7 @@ function BillableToggle({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
-        on
-          ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
-          : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-      }`}
-    >
+    <button type="button" onClick={onClick} aria-pressed={on} className={segmentedItemClass(on)}>
       {children}
     </button>
   );

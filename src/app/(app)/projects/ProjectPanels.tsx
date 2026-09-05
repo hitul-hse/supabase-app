@@ -196,8 +196,12 @@ export function ProjectTotalsStrip({
             hint={c.hint}
             tone={c.tone ?? "neutral"}
             // Inside a button the tile must fill it, or the hit target and the
-            // card outline disagree about where the tile ends.
+            // card outline disagree about where the tile ends. `data-interactive`
+            // is what lets the tile LIFT under the cursor: the hover lift is
+            // scoped to cards that respond (globals.css), and a tile that opens
+            // a drill-down does.
             className={drills?.[c.key] ? "h-full" : ""}
+            data-interactive={drills?.[c.key] ? "" : undefined}
           />
         );
         const drill = drills?.[c.key];
@@ -206,7 +210,10 @@ export function ProjectTotalsStrip({
             key={c.key}
             drill={drill}
             id={`projects-${c.key}`}
-            className="card-elev block w-full rounded-[var(--radius-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            // No card-elev on the button itself: the tile inside carries the
+            // elevation, and two shadows on one tile read as a smudge. The press
+            // is a 1.5% scale on pointer-down.
+            className="block w-full rounded-[var(--radius-card)] transition-transform duration-100 active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
             {tile}
           </DrillTrigger>

@@ -25,10 +25,11 @@
  * RLS still scopes the rows underneath; this gate only decides whether the
  * org-wide rollup is the right page to show.
  */
-import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { ButtonLink } from "@/components/ui/Button";
+import { IconArrowRight } from "@/components/nav-icons";
 import PageTransition from "@/components/animations/PageTransition";
 import { createClient } from "@/utils/supabase/server";
 import {
@@ -93,12 +94,10 @@ export default async function ProjectsPage({
               title={t("noAccess.title")}
               description={t("noAccess.description")}
               action={
-                <Link
-                  href="/time"
-                  className="text-[12px] font-medium text-[var(--accent)] hover:underline"
-                >
+                <ButtonLink href="/time" variant="secondary" size="sm">
                   {t("noAccess.action")}
-                </Link>
+                  <IconArrowRight className="h-3.5 w-3.5" />
+                </ButtonLink>
               }
             />
           </div>
@@ -133,7 +132,7 @@ export default async function ProjectsPage({
           })}
         />
 
-        <div className="flex flex-col gap-5 page-shell">
+        <div className="flex flex-col gap-4 page-shell">
           {/* Same reasoning as the dashboard: "no projects match" and "the
               import stopped running three weeks ago" look identical, and the
               second explains the first. */}
@@ -148,7 +147,7 @@ export default async function ProjectsPage({
           */}
 
           {truncated && (
-            <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+            <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
               {t("truncated")}
             </p>
           )}

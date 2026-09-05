@@ -67,12 +67,37 @@ const check = (name, ok, detail = "") => {
  * The debt shrinks or holds; it cannot silently grow.
  */
 /**
- * The focus-ring debt is CLEARED. `UserRow.tsx` carried the last two
- * `focus:outline-none` declarations — on the role select and the department
- * input, i.e. the two controls that change someone's permissions. Nothing is
- * pinned here any more, so the list staying empty is the assertion.
+ * The focus-ring debt was CLEARED once, for the `focus:outline-none` spelling:
+ * `UserRow.tsx` carried the last two, on the two controls that change
+ * someone's permissions.
+ *
+ * Then the regex was widened (2026-09-05) to ANY `outline-none` in a file with
+ * no `focus-visible:` replacement, because a bare `outline-none` on an <input>
+ * removes the ring exactly as `focus:outline-none` does -- the audit found 16
+ * files doing it, every one an input or a listbox. The in-scope ones
+ * (DataTable, CustomerMultiSelect) are fixed outright; the rest are pinned
+ * here so the debt is VISIBLE rather than invisible, and cannot grow. The
+ * task board (TaskRow, TaskBoardView, AddTaskForm) is pinned debt elsewhere in
+ * this gate too and carries server actions; it is not chrome and is not
+ * touched by a presentation pass.
  */
-const KNOWN_FOCUS_DEBT = [];
+const KNOWN_FOCUS_DEBT = [
+  "src/app/(app)/OverviewFilters.tsx",
+  "src/app/(app)/admin/users/InviteUserForm.tsx",
+  "src/app/(app)/people/BillableRatePanel.tsx",
+  "src/app/(app)/profile/PreferencesCard.tsx",
+  "src/app/(app)/profile/SecurityCard.tsx",
+  "src/app/(app)/projects/AddTaskForm.tsx",
+  "src/app/(app)/projects/TaskBoardView.tsx",
+  "src/app/(app)/projects/TaskRow.tsx",
+  "src/app/(app)/team-lead/BoardRangeFilter.tsx",
+  "src/app/(app)/team-lead/PendingTimesheetApprovals.tsx",
+  "src/app/(app)/team-lead/TeamLeadExplorer.tsx",
+  "src/app/(app)/time/TimeTracker.tsx",
+  "src/app/(app)/time/dashboard/ReportFilters.tsx",
+  "src/app/(app)/timesheets/AddEntryForm.tsx",
+  "src/app/(app)/timesheets/TimesheetGrid.tsx",
+];
 
 /**
  * What remains is entirely files another agent has uncommitted edits in right
@@ -85,11 +110,39 @@ const KNOWN_FOCUS_DEBT = [];
  * directory had an in-flight refactor. That refactor was the i18n migration of
  * /time/dashboard, and it deleted the file, so the pin is gone with it.
  */
+/*
+ * Widened 2026-09-05 from emoji alone to the arrows (U+2190-21FF), the
+ * geometric shapes (U+25A0-25FF: the ▶ ▼ ▲ ▾ carets), the multiplication sign
+ * (U+00D7, the × close) and the return symbol (U+23CE), because those were the
+ * glyphs actually standing in for icons on the shell -- twenty-one files. The
+ * shell, /my-work and /projects are fixed outright (IconCaret, IconCross,
+ * IconArrowRight, the key caps); the remaining offenders are pinned here under
+ * the ratchet's own rule: existing tolerated, new ones fail.
+ *
+ * ProjectPanels.tsx is on the list for one character: the `12×` entry count in
+ * the detail page's contributor and task tables -- a multiplication sign, not
+ * an icon. Those two panels are outside this pass; the pin is honest about it.
+ * CustomerGroup.tsx is dead code that check-my-work-survives-nulls still reads.
+ */
 const KNOWN_EMOJI_DEBT = [
+  "src/app/(app)/OverviewFilters.tsx",
+  "src/app/(app)/admin/factorial-identity/ReviewRow.tsx",
+  "src/app/(app)/admin/roles/RolePermissionMatrix.tsx",
+  "src/app/(app)/admin/users/actions.ts",
+  "src/app/(app)/leave/PendingLeaveApprovals.tsx",
+  "src/app/(app)/projects/ProjectPanels.tsx",
   "src/app/(app)/projects/TaskBoardView.tsx",
   "src/app/(app)/projects/TaskRow.tsx",
+  "src/app/(app)/team-lead/BoardRangeFilter.tsx",
+  "src/app/(app)/team-lead/TeamDeepAnalysis.tsx",
+  "src/app/(app)/team-lead/TeamLeadExplorer.tsx",
+  "src/app/(app)/time/TimeViewTabs.tsx",
   "src/app/(app)/time/dashboard/ReportFilters.tsx",
+  "src/app/(app)/time/dashboard/page.tsx",
   "src/app/(app)/timesheets/TimesheetGrid.tsx",
+  "src/app/portal/page.tsx",
+  "src/components/factorial/factorial-hours-panel.tsx",
+  "src/components/my-work/CustomerGroup.tsx",
 ];
 
 const KNOWN_DIVIDER_DEBT = [
@@ -223,10 +276,12 @@ check("SortHeader responds on pointer-down (active:)", /active:/.test(sortHeader
 // globals.css defines a single :focus-visible ring. `focus:outline-none`
 // silently deletes it for that control, and the damage is invisible to anyone
 // testing with a mouse.
+// Any `outline-none`, not only the `focus:` spelling: on an input the bare
+// form removes the ring just the same, and it was the form the audit found.
 const offenders = [];
 for (const f of TSX) {
   const src = stripComments(read(f));
-  if (/focus:outline-none/.test(src) && !/focus-visible:/.test(src)) offenders.push(f);
+  if (/\boutline-none\b/.test(src) && !/focus-visible:/.test(src)) offenders.push(f);
 }
 ratchet("focus ring is never removed without a replacement", offenders, KNOWN_FOCUS_DEBT);
 
@@ -258,7 +313,8 @@ check("onboarding tour uses the brand accent", /var\(--accent\)/.test(tour));
 check("onboarding tour has no gold literal", !/#d4a843/i.test(tour));
 
 // craft-floor: "Unicode glyphs or emoji standing in for an icon system."
-const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
+// Emoji, plus the arrows, carets, × and ⏎ that were doing an icon's job.
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{25A0}-\u{25FF}\u{00D7}\u{23CE}]/u;
 const emojiFiles = APP_SHELL.filter((f) => EMOJI.test(stripComments(read(f))));
 ratchet("no emoji standing in for icons", emojiFiles, KNOWN_EMOJI_DEBT);
 
@@ -732,19 +788,61 @@ check(
  * editing still carry the old half-steps, and failing on those would turn CI red
  * for unscheduled work.
  */
+/*
+ * Extended 2026-09-05 to the shell, /my-work and /projects (minus the task
+ * board): the permitted sizes there are 10 / 11 / 12 / 13 / 19 (17 below sm) /
+ * 21 and nothing fractional, nothing under 10px. Both rules are asserted,
+ * because 9px was the other way the scale drifted (three role lines and two
+ * select labels measured at 9px).
+ */
 const SCALE_OWNED = [
   "src/app/(app)/page.tsx",
+  "src/app/(app)/error.tsx",
+  "src/app/(app)/my-work/page.tsx",
+  "src/app/(app)/projects/page.tsx",
+  "src/app/(app)/projects/[id]/page.tsx",
+  "src/app/(app)/projects/ContractPanel.tsx",
+  "src/app/(app)/projects/BudgetPanel.tsx",
+  "src/app/(app)/projects/CustomerMultiSelect.tsx",
+  "src/app/(app)/projects/CustomerPortfolioCharts.tsx",
+  "src/app/(app)/projects/PortfolioCharts.tsx",
+  "src/app/(app)/projects/ProjectPanels.tsx",
+  "src/app/(app)/projects/ProjectsExplorer.tsx",
+  "src/app/(app)/projects/ProjectsLedger.tsx",
   "src/components/ui/Card.tsx",
+  "src/components/ui/Button.tsx",
+  "src/components/ui/Field.tsx",
   "src/components/ui/Segmented.tsx",
+  "src/components/data-table/DataTable.tsx",
+  "src/components/my-work/MyWorkSummary.tsx",
+  "src/components/my-work/MyWorkTables.tsx",
+  "src/components/my-work/RoleBadge.tsx",
+  "src/components/DrillDialog.tsx",
+  "src/components/EmptyState.tsx",
+  "src/components/LoadingSkeleton.tsx",
+  "src/components/LogoutButton.tsx",
   "src/components/PageHeader.tsx",
+  "src/components/Pager.tsx",
+  "src/components/Sidebar.tsx",
+  "src/components/SidebarNav.tsx",
+  "src/components/SidebarToggle.tsx",
+  "src/components/StatusBadge.tsx",
   "src/components/SyncBar.tsx",
+  "src/components/TopBarChrome.tsx",
 ];
 for (const f of SCALE_OWNED) {
-  const halfSteps = readStripped(f).match(/text-\[(?:\d+\.5)px\]/g) ?? [];
+  const src = readStripped(f);
+  const halfSteps = src.match(/text-\[(?:\d+\.5)px\]/g) ?? [];
   check(
     `${f.split("/").pop()} uses whole-pixel type sizes`,
     halfSteps.length === 0,
     halfSteps.length ? `half-pixel steps: ${[...new Set(halfSteps)].join(", ")}` : "",
+  );
+  const tiny = src.match(/text-\[(?:[1-9])px\]/g) ?? [];
+  check(
+    `${f.split("/").pop()} sets nothing under 10px`,
+    tiny.length === 0,
+    tiny.length ? `${[...new Set(tiny)].join(", ")}` : "",
   );
 }
 

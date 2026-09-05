@@ -411,6 +411,17 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-poppins);
   --font-mono: var(--font-jetbrains);
+  /*
+   * ONE CURVE FOR EVERY TRANSITION UTILITY. These two are Tailwind's own theme
+   * keys, not invented variables: every `transition-*` utility that does not
+   * name an `ease-*` inherits them. Before this override ~110 utilities in the
+   * app ran on Tailwind's default cubic-bezier(.4,0,.2,1) -- an ease-in-out,
+   * which is exactly the "never ease-in on UI" rule above being broken by
+   * default (measured with scratchpad/measure-motion.mjs). Pointing the
+   * default at --ease-out fixes all of them in one line; 150ms stays.
+   */
+  --default-transition-timing-function: var(--ease-out);
+  --default-transition-duration: 150ms;
 }
 
 body {
@@ -869,18 +880,23 @@ body {
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
+/*
+ * 0.4s / 8px, retimed from 0.45s / 12px so the CSS entrances share the
+ * response (0.4s) of the JS springs in animations/springs.ts -- one arrival
+ * speed across the product, whichever mechanism draws it.
+ */
 .rise-in {
-  animation: rise-in 0.45s var(--ease-out) both;
+  animation: rise-in 0.4s var(--ease-out) both;
 }
 .stagger > * {
-  animation: rise-in 0.45s var(--ease-out) both;
+  animation: rise-in 0.4s var(--ease-out) both;
 }
 .stagger > *:nth-child(1) { animation-delay: 0.03s; }
 .stagger > *:nth-child(2) { animation-delay: 0.075s; }
@@ -908,6 +924,13 @@ body {
  *
  * Transition lives here rather than per-page so every .card-elev in the app
  * behaves identically the moment it exists.
+ *
+ * THE LIFT IS AN AFFORDANCE, so it is scoped to cards that RESPOND: an <a>, a
+ * <button>, or anything marked data-interactive (a drill tile). A chart card or
+ * a table card that rises under the cursor promises a click it cannot keep --
+ * measured on /projects, 17 cards lifted and 6 of them did anything. `:where`
+ * rather than `:is` keeps the specificity at (0,2,0), so the reduced-motion
+ * override below still wins without being rewritten.
  */
 .card-elev {
   transition:
@@ -915,7 +938,7 @@ body {
     border-color 0.25s var(--ease-settle),
     transform 0.25s var(--ease-settle);
 }
-.card-elev:hover {
+.card-elev:hover:where(a, button, [data-interactive]) {
   border-color: var(--border-strong);
   box-shadow:
     var(--shadow-card),

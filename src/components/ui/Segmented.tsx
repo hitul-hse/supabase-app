@@ -25,6 +25,34 @@ import type { ComponentProps, ReactNode } from "react";
  * outlining the chosen one -- reads as "this option is disabled" against a dark
  * UI, because an outline with no fill is what every disabled control here uses.
  */
+
+/**
+ * The SKIN, exported separately from the component.
+ *
+ * Two controls in this app are segmented by shape but not by URL: the /my-work
+ * view switch and the /projects billable trough both flip in-memory filter
+ * state, so they are `<button aria-pressed>`s and cannot be `Segmented` (which
+ * is links by design, and the design-system gate holds it to that). They wear
+ * these classes instead, so a reader meets ONE segmented dialect whether the
+ * control navigates or filters.
+ *
+ * `active:scale-[0.97]` is the press: feedback on pointer-down, not on release,
+ * and CSS `:active` needs no JavaScript to fire on the down event.
+ */
+export const segmentedTrackClass =
+  "inline-flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5";
+
+export function segmentedItemClass(active: boolean): string {
+  return (
+    "rounded-full px-2.5 py-1 font-mono text-[10px] font-medium tracking-[0.04em] " +
+    "transition-[color,background-color,transform] duration-150 active:scale-[0.97] " +
+    "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
+    (active
+      ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+      : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]")
+  );
+}
+
 export function Segmented({
   options,
   current,
@@ -42,7 +70,7 @@ export function Segmented({
       role="group"
       aria-label={ariaLabel}
       data-segmented
-      className={`inline-flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5 ${className}`}
+      className={`${segmentedTrackClass} ${className}`}
     >
       {options.map((option) => {
         const active = option.href === current;
@@ -53,11 +81,7 @@ export function Segmented({
             scroll={false}
             aria-current={active ? "true" : undefined}
             data-active={active || undefined}
-            className={`rounded-full px-2.5 py-1 font-mono text-[10px] font-medium tracking-[0.04em] transition-colors duration-150 pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 ${
-              active
-                ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-                : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-            }`}
+            className={segmentedItemClass(active)}
           >
             {option.label}
           </Link>

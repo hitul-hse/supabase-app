@@ -209,6 +209,14 @@ check(
   /h-1\.5 w-1\.5 rounded-full transition-colors/.test(fieldSrc),
 );
 
+// Feedback on pointer-DOWN, not on release. CSS `:active` fires on the down
+// event; a control whose only response is a hover colour feels dead on touch
+// and late on a mouse. Asserted on the two filter primitives every list uses.
+const filterChipBody = fieldSrc.slice(fieldSrc.indexOf("export function FilterChip"), fieldSrc.indexOf("export type SortDirection"));
+const sortHeaderBody = fieldSrc.slice(fieldSrc.indexOf("export function SortHeader"), fieldSrc.indexOf("export function SearchableSelect"));
+check("FilterChip responds on pointer-down (active:)", /active:/.test(filterChipBody));
+check("SortHeader responds on pointer-down (active:)", /active:/.test(sortHeaderBody));
+
 // ---------------------------------------------------------------------------
 // 2. Focus is never removed
 // ---------------------------------------------------------------------------
@@ -687,6 +695,22 @@ check(
   "the Overview still tags its KPI tiles with data-metric",
   /data-metric=\{metric\.key\}/.test(read("src/app/(app)/page.tsx")),
 );
+
+/*
+ * Elevation is a vocabulary of four classes (card-elev, card-elev-raised,
+ * card-elev-glass, none), never a literal. The rail tooltips carried four copies
+ * of `shadow-[0_4px_16px_-4px_rgba(0,0,0,0.5)]` -- a fifth elevation that
+ * matched no token and drifted from the popovers beside it. The sidebar files
+ * are the ones that had them, so they are held to zero outright.
+ */
+for (const f of [
+  "src/components/Sidebar.tsx",
+  "src/components/SidebarNav.tsx",
+  "src/components/SidebarToggle.tsx",
+  "src/components/LogoutButton.tsx",
+]) {
+  check(`${f.split("/").pop()} carries no literal shadow (elevation is a class)`, !/shadow-\[/.test(readStripped(f)));
+}
 
 // The old SyncBar shipped a hardcoded near-black. It was the darkest surface in
 // the app and belonged to no token.

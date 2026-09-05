@@ -52,7 +52,7 @@ export function StatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] ${
+      className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] ${
         TONE_CLASS[tone ?? toneForStatus(status)]
       } ${className}`}
     >

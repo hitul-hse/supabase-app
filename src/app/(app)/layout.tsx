@@ -13,6 +13,7 @@ import { SidebarCollapseProvider } from "@/components/SidebarCollapseContext";
 import { SIDEBAR_COOKIE } from "@/components/sidebar-collapse-shared";
 import { DesktopSidebarShell } from "@/components/DesktopSidebarShell";
 import { StaleDeployNotice } from "@/components/StaleDeployNotice";
+import { MotionProvider } from "@/components/animations/MotionProvider";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // The client-side message catalogue is mounted HERE, inside the
@@ -58,6 +59,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <NextIntlClientProvider messages={messages}>
     <SidebarCollapseProvider initialCollapsed={collapsed}>
+    {/* Reduced motion for every framer spring in the shell -- see MotionProvider. */}
+    <MotionProvider>
     <div className="flex min-h-screen">
       {/* Desktop sidebar — collapsible; hidden entirely on mobile */}
       <DesktopSidebarShell>
@@ -146,6 +149,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       */}
       <StaleDeployNotice />
     </div>
+    </MotionProvider>
     </SidebarCollapseProvider>
     </NextIntlClientProvider>
   );

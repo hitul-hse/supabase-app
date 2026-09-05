@@ -189,8 +189,14 @@ module.exports = {
 
   const emptyStateFile = await compile("src/components/EmptyState.tsx", "EmptyState.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+  // The shared icon set. Field's select caret and the key caps draw from it, as
+  // do the ledger's and the explorer's carets -- compiled once and mapped
+  // wherever a relative or aliased import names it, because an unmapped import
+  // kills the whole gate rather than one check.
+  const iconsFile = await compile("src/components/nav-icons.tsx", "nav-icons.cjs");
   const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", {
-      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub),
+      "../nav-icons": posix(iconsFile) });
   const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
   // Added when the mobile work wrapped the explorer's panels in a disclosure.

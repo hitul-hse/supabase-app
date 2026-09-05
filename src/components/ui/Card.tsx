@@ -105,7 +105,7 @@ export function CardHeader({
 }) {
   return (
     <div
-      className={`flex flex-wrap items-baseline gap-x-2.5 gap-y-1 px-4 pt-3.5 pb-3 ${className}`}
+      className={`flex flex-wrap items-baseline gap-x-2.5 gap-y-1 px-4 pt-3 pb-3 ${className}`}
     >
       <h2 className="text-[13px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
         {title}
@@ -190,7 +190,7 @@ export function StatTile({
     <div
       {...rest}
       data-stat-tile
-      className={`card-elev flex flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3.5 ${className}`}
+      className={`card-elev flex flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 ${className}`}
     >
       <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
         {label}

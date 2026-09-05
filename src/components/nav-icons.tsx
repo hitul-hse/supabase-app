@@ -322,6 +322,51 @@ function IconOperationsAnalytics({ className }: IconProps) {
   );
 }
 
+/**
+ * The 7px filled caret the sort headers draw, pointing DOWN. The one exception
+ * to the stroked rule above: at 7px a stroked triangle has no interior, and
+ * this is the disclosure dialect (collapsible tables, select triggers) shared
+ * with SortHeader so a reader learns one caret. Rotate with a class.
+ */
+export function IconCaret({ className }: IconProps) {
+  return (
+    <svg
+      width="7"
+      height="7"
+      viewBox="0 0 8 8"
+      fill="currentColor"
+      className={className}
+      aria-hidden
+      focusable="false"
+    >
+      <path d="M0 1.5h8L4 7z" />
+    </svg>
+  );
+}
+
+/** Up and down — the keyboard hint for a list that arrow keys move through. */
+export function IconArrowsVertical({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M5 13.25V2.75" />
+      <path d="M2.75 5 5 2.75 7.25 5" />
+      <path d="M11 2.75v10.5" />
+      <path d="M8.75 11 11 13.25 13.25 11" />
+    </Svg>
+  );
+}
+
+/** Sign out — the sidebar footer's exit. */
+export function IconLogout({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M6.25 13.5H3.5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h2.75" />
+      <path d="M10.25 10.75 13 8l-2.75-2.75" />
+      <path d="M13 8H6.25" />
+    </Svg>
+  );
+}
+
 /** Registry keyed by nav href, so SidebarNav stays declarative. */
 export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
+import { IconArrowsVertical, IconCaret } from "../nav-icons";
 
 /**
  * Form-control and filter vocabulary for the app shell: search boxes, selects,
@@ -33,6 +34,32 @@ const CONTROL_BASE =
   // keyboard-accessibility story and removing it here would be invisible.
   "focus:border-[var(--accent)] " +
   "disabled:cursor-not-allowed disabled:text-[var(--text-faint)] disabled:hover:border-[var(--border-strong)]";
+
+/**
+ * The same skin for a caller that renders its own <input>. DataTable does: its
+ * search box keeps a visually-hidden <label> that the primitive's aria-label
+ * form would replace. One exported class, so the two boxes cannot drift.
+ */
+export const controlClass = CONTROL_BASE;
+
+/**
+ * The key caps drawn under a searchable list: arrows move, Enter picks, Esc
+ * closes. Key NAMES, not prose -- they read the same on a German keyboard --
+ * and aria-hidden, because the listbox semantics already carry the grammar.
+ */
+export function KeyboardHint({ className = "" }: { className?: string }) {
+  const cap =
+    "inline-flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] px-1 font-mono text-[10px] text-[var(--text-faint)]";
+  return (
+    <span aria-hidden className={`inline-flex items-center gap-1 ${className}`}>
+      <span className={cap}>
+        <IconArrowsVertical className="h-3 w-3" />
+      </span>
+      <span className={cap}>Enter</span>
+      <span className={cap}>Esc</span>
+    </span>
+  );
+}
 
 export function SearchInput({
   value,
@@ -151,7 +178,10 @@ export function FilterChip({
       aria-pressed={active}
       className={
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 " +
-        "font-mono text-[10px] tracking-[0.06em] transition-colors duration-150 " +
+        "font-mono text-[10px] tracking-[0.06em] " +
+        // The press is on pointer-DOWN: CSS :active fires on the down event, so
+        // the chip acknowledges the touch before the click ever commits.
+        "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] " +
         "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
         (active
           ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]"
@@ -218,7 +248,7 @@ export function SortHeader({
       }
       className={
         "group inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.1em] " +
-        "transition-colors duration-150 " +
+        "transition-[color,transform] duration-150 active:translate-y-px " +
         (align === "right" ? "justify-end " : "") +
         (isActive
           ? "text-[var(--accent)] "
@@ -390,21 +420,21 @@ export function SearchableSelect({
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] transition-[color,border-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
           current && (!allowEmpty || value !== allowEmpty.value)
             ? "border-[var(--accent)] text-[var(--text-primary)]"
             : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         }`}
       >
         <span className="flex min-w-0 flex-col leading-tight">
-          <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
+          <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
             {label.toUpperCase()}
           </span>
           <span className="truncate">{current ? current.name : placeholder}</span>
         </span>
-        <span aria-hidden className="text-[9px] text-[var(--text-faint)]">
-          ▼
-        </span>
+        <IconCaret
+          className={`flex-none text-[var(--text-faint)] transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
@@ -437,7 +467,7 @@ export function SearchableSelect({
                   : ""}{" "}
                 {all.length === 1 ? "option" : "options"}
               </span>
-              <span aria-hidden>↑↓ move · ⏎ pick · esc close</span>
+              <KeyboardHint />
             </p>
           </div>
 

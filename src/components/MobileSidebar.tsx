@@ -268,8 +268,15 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         */}
         <div
           aria-hidden
-          className="flex cursor-grab touch-none justify-center pt-2.5 pb-3 active:cursor-grabbing"
-          onPointerDown={(e) => dragControls.start(e)}
+          className="flex cursor-grab touch-none select-none justify-center pt-2.5 pb-3 active:cursor-grabbing"
+          onPointerDown={(e) => {
+            // preventDefault stops the browser starting a text selection or a
+            // native drag under the moving pointer -- either of which fires
+            // pointercancel and kills the second drag (measured: the first
+            // drag worked, every later one died on pointercancel).
+            e.preventDefault();
+            dragControls.start(e);
+          }}
         >
           <div className="h-1 w-9 rounded-full bg-[var(--text-faint)] opacity-40" />
         </div>

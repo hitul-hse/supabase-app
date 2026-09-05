@@ -1952,7 +1952,9 @@
     "searchLabel": "Search {title}",
     "rowsPerPageGroup": "Rows per page",
     "noMatch": "No row matches “{query}”.",
-    "clearTheSearch": "Clear the search"
+    "clearTheSearch": "Clear the search",
+    "prev": "PREV",
+    "next": "NEXT"
   },
   "myWork": {
     "header": {

@@ -1952,7 +1952,9 @@
     "searchLabel": "{title} durchsuchen",
     "rowsPerPageGroup": "Zeilen pro Seite",
     "noMatch": "Keine Zeile passt zu „{query}“.",
-    "clearTheSearch": "Suche zurücksetzen"
+    "clearTheSearch": "Suche zurücksetzen",
+    "prev": "ZURÜCK",
+    "next": "WEITER"
   },
   "myWork": {
     "header": {

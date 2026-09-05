@@ -438,8 +438,22 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
   // line), so it needs the same next-intl stub the view gets. Compiled without
   // it, the real package's useTranslations throws outside a provider and takes
   // the gate down inside React's renderer, where the stack says nothing useful.
+  // The pager's page sizes wear the Segmented skin and its PREV / NEXT are the
+  // house Button with the arrow icon, so those three modules are compiled for
+  // real and mapped -- an unresolved alias here is MODULE_NOT_FOUND before a
+  // single assertion runs.
+  const iconsFile = await compile("src/components/nav-icons.tsx", "nav-icons.cjs");
+  const segmentedFile = await compile("src/components/ui/Segmented.tsx", "segmented.cjs", {
+    "next/link": posix(linkStub),
+  });
+  const buttonFile = await compile("src/components/ui/Button.tsx", "button.cjs", {
+    "next/link": posix(linkStub),
+  });
   const pagerFile = await compile("src/components/Pager.tsx", "pager.cjs", {
     "next-intl": posix(intlStub),
+    "@/components/ui/Button": posix(buttonFile),
+    "@/components/ui/Segmented": posix(segmentedFile),
+    "@/components/nav-icons": posix(iconsFile),
   });
 
   // The card vocabulary, compiled for real: the directory's KPI tiles are

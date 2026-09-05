@@ -7,8 +7,12 @@
  * `card-elev-raised` shadow class, radius `--radius-lg` (8). Both elevation
  * mechanisms ship; dark leans on fill + rim, light on the shadow (§4.2 rule 4).
  *
- * ITEMS: 32 px tall (the `md` control height, §3.2), hover `--surface-hover`,
- * radius `--radius-sm`. Concentric with the panel: the panel insets its
+ * ITEMS: 32 px tall (the `md` control height, §3.2) on a fine pointer and
+ * 44 px on a coarse one (`pointer-coarse:h-11`; §3.2 "touch 44", §8 #19) --
+ * below `sm` the language and theme rows ARE the phone's overflow for two
+ * bar buttons that were 44 x 44, and a row that shrank them to 32 gave the
+ * thumb less than the bar had (measured 190 x 32 at 390). Hover
+ * `--surface-hover`, radius `--radius-sm`. Concentric with the panel: the panel insets its
  * children by 4 px (`p-1`), so an inner radius of max(8 − 4, 2) = 4 is exactly
  * `--radius-sm` [Apple: WWDC25 356]. Keyboard focus tints the row the same way
  * hover does, because a menu's focused item IS its highlighted item; the ring
@@ -24,7 +28,7 @@ export const menuPanelClass =
   "z-50 min-w-[200px] rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 card-elev-raised";
 
 export const menuItemClass =
-  "flex h-8 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 text-left t-callout text-[var(--text-primary)] transition-[color,background-color] duration-150 hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] disabled:text-[var(--text-faint)] disabled:hover:bg-transparent";
+  "flex h-8 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 text-left t-callout pointer-coarse:h-11 text-[var(--text-primary)] transition-[color,background-color] duration-150 hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] disabled:text-[var(--text-faint)] disabled:hover:bg-transparent";
 
 export function MenuSeparator() {
   return <div role="separator" aria-orientation="horizontal" className="my-1 h-px bg-[var(--border)]" />;

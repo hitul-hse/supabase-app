@@ -7,7 +7,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { SortHeader, type SortDirection } from "@/components/ui/Field";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { Pager, usePager } from "@/components/Pager";
-import { DrillDialog, type Drill, type DrillRow } from "@/components/DrillDialog";
+import { AnimatePresence } from "framer-motion";
+import {
+  DrillDialog,
+  drillOriginFrom,
+  type Drill,
+  type DrillOrigin,
+  type DrillRow,
+} from "@/components/DrillDialog";
 import { secondsToHours } from "@/lib/time-transform";
 import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
@@ -202,11 +209,14 @@ export function ProjectsLedger({
   const tp = useTranslations("projects");
   const tc = useTranslations("common");
   const [drill, setDrill] = useState<Drill | null>(null);
+  /** Where the dialog emerges from: the LOGGED figure that was tapped. */
+  const [drillOrigin, setDrillOrigin] = useState<DrillOrigin | null>(null);
   /** Hours with their unit, in the reader's language: "1,234.5h" / "1.234,5 Std". */
   const h = (n: number) => fmtHours(n, locale, 1);
   const [, startTransition] = useTransition();
 
-  const openHours = (p: ProjectListRow) => {
+  const openHours = (p: ProjectListRow, from: Element | null) => {
+    setDrillOrigin(from ? drillOriginFrom(from) : null);
     const base = {
       kicker: t("projects.ledger.kicker"),
       title: p.name,
@@ -467,7 +477,7 @@ export function ProjectsLedger({
               {p.actualHours > 0 ? (
                 <button
                   type="button"
-                  onClick={() => openHours(p)}
+                  onClick={(e) => openHours(p, e.currentTarget)}
                   aria-haspopup="dialog"
                   aria-label={t("open", { title: p.name })}
                   data-drill-trigger={`ledger-hours-${p.id}`}
@@ -516,7 +526,11 @@ export function ProjectsLedger({
         />
       </Card>
 
-      {drill && <DrillDialog drill={drill} onClose={() => setDrill(null)} />}
+      <AnimatePresence>
+        {drill && (
+          <DrillDialog drill={drill} onClose={() => setDrill(null)} origin={drillOrigin} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

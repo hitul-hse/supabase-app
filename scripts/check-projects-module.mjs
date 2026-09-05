@@ -149,10 +149,19 @@ const { createTranslator } = require("next-intl");
 const messages = JSON.parse(readFileSync(${JSON.stringify(resolve("messages/en.json"))}, "utf8"));
 module.exports = { __esModule: true, useTranslations: (namespace) => createTranslator({ locale: "en", messages, namespace }) };`,
   );
+  // The dialog's chrome is the house Button and its motion the shared spring
+  // constants; both are compiled for real. framer-motion itself resolves from
+  // node_modules (the temp dir sits inside it) and renders its initial pose
+  // through renderToStaticMarkup like any other component.
+  const springsFile = await compile("src/components/animations/springs.ts", "springs.cjs");
+  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
   const drillFile = await compile("src/components/DrillDialog.tsx", "DrillDialog.cjs", {
       "@/lib/locale-format": posix(formatFile),
     "next-intl": posix(intlStub),
     "next/link": posix(linkStub),
+    "@/components/ui/Button": posix(buttonFile),
+    "@/components/animations/springs": posix(springsFile),
   });
   // The ledger's LOGGED popup asks the server; outside a request the action is
   // never called (the dialog opens on click), so an unresolvable stub is enough.
@@ -197,8 +206,6 @@ module.exports = {
   const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub),
       "../nav-icons": posix(iconsFile) });
-  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
-      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
   // The segmented skin the billable trough wears. Its Link is never rendered
   // here (only the class exports are used), but the module still imports it.
   const segmentedFile = await compile("src/components/ui/Segmented.tsx", "Segmented.cjs", {

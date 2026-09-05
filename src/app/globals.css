@@ -891,12 +891,20 @@ body {
  * 0.4s / 8px, retimed from 0.45s / 12px so the CSS entrances share the
  * response (0.4s) of the JS springs in animations/springs.ts -- one arrival
  * speed across the product, whichever mechanism draws it.
+ *
+ * `backwards`, NOT `both`, and it matters: a filled-forwards transform
+ * animation keeps the element a containing block for `position: fixed`
+ * descendants after it has finished (measured in Chromium: a drill dialog
+ * opened inside a `.rise-in` page centred itself on the 2,500px page, not the
+ * viewport -- y=958 in a 900px window). `backwards` covers the delay with the
+ * from-keyframe and then hands the element back to its base style, which is
+ * the same resting pose the to-keyframe drew.
  */
 .rise-in {
-  animation: rise-in 0.4s var(--ease-out) both;
+  animation: rise-in 0.4s var(--ease-out) backwards;
 }
 .stagger > * {
-  animation: rise-in 0.4s var(--ease-out) both;
+  animation: rise-in 0.4s var(--ease-out) backwards;
 }
 .stagger > *:nth-child(1) { animation-delay: 0.03s; }
 .stagger > *:nth-child(2) { animation-delay: 0.075s; }

@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { AnimatePresence, motion } from "framer-motion";
+import { buttonClass } from "@/components/ui/Button";
+import { SPRING_UI } from "@/components/animations/springs";
 
 /**
  * The house answer to "what is behind this number?" — one dialog shape shared
@@ -75,10 +78,42 @@ const TONE: Record<NonNullable<DrillRow["tone"]>, string> = {
   muted: "var(--text-faint)",
 };
 
-const chrome =
-  "rounded-[var(--radius-sm)] border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-40";
+/** The dialog's own controls (ESC, BACK, NEXT) are ghost Buttons, like every pager's. */
+const chrome = buttonClass("ghost", "sm", "font-mono tracking-[0.06em] disabled:opacity-40");
 
-export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => void }) {
+/**
+ * Where the dialog comes from: the trigger's centre, as an offset from the
+ * viewport centre, clamped so a tile at the far edge still arrives from
+ * nearby rather than flying in. Apple's spatial-consistency rule -- a panel
+ * emerges from the element that opened it and returns there -- and the exit
+ * runs the same path in reverse, so Esc during the entrance reverses from
+ * wherever the panel has got to.
+ */
+export type DrillOrigin = { x: number; y: number };
+
+const ORIGIN_REACH = 160;
+
+/** The origin for a dialog opened from `el`, or null when there is no viewport (SSR). */
+export function drillOriginFrom(el: Element): DrillOrigin | null {
+  if (typeof window === "undefined") return null;
+  const r = el.getBoundingClientRect();
+  const clamp = (v: number) => Math.max(-ORIGIN_REACH, Math.min(ORIGIN_REACH, v));
+  return {
+    x: clamp(r.left + r.width / 2 - window.innerWidth / 2),
+    y: clamp(r.top + r.height / 2 - window.innerHeight / 2),
+  };
+}
+
+export function DrillDialog({
+  drill,
+  onClose,
+  origin = null,
+}: {
+  drill: Drill;
+  onClose: () => void;
+  /** The trigger's centre relative to the viewport centre; absent, the dialog scales from the middle. */
+  origin?: DrillOrigin | null;
+}) {
   const t = useTranslations("drill");
   const [page, setPage] = useState(0);
 
@@ -111,20 +146,33 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
   const hasSections = (drill.sections?.length ?? 0) > 0;
   const empty = !drill.loading && !drill.error && !hasSections && rows.length === 0;
 
+  // The panel's resting pose and its off-stage pose: the same values in and
+  // out, on the same spring, so an interrupted entrance reverses along the path
+  // it was travelling rather than cutting to a different exit.
+  const offstage = { opacity: 0, scale: 0.96, x: origin?.x ?? 0, y: origin?.y ?? 0 };
+
   return (
-    <div
+    <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(10, 14, 15, 0.66)", backdropFilter: "blur(4px)" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
       onClick={onClose}
       role="presentation"
     >
-      <div
+      <motion.div
         role="dialog"
         aria-modal="true"
         aria-label={t("dialogLabel", { title: drill.title })}
         data-drill-dialog
         data-check={drill.check}
-        className={`rise-in card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface)] ${
+        initial={offstage}
+        animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+        exit={offstage}
+        transition={SPRING_UI}
+        className={`card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface)] ${
           hasSections ? "max-w-2xl" : "max-w-xl"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -167,7 +215,7 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
           )}
 
           {!drill.loading && !drill.error && hasSections && (
-            <div className="stagger grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {drill.sections!.map((section) => (
                 <div key={section.title} data-drill-section>
                   <h3 className="mb-2 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
@@ -184,7 +232,7 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
           )}
 
           {!drill.loading && !drill.error && !hasSections && rows.length > 0 && (
-            <RowList rows={visible} scaleTo={rows} stagger />
+            <RowList rows={visible} scaleTo={rows} />
           )}
 
           {!hasSections && pageCount > 1 && (
@@ -223,24 +271,28 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
             {drill.footer}
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
+/*
+ * No stagger on the rows. Ten rows staggered on top of the 0.25s bar delay
+ * landed the last bar ~1.3s after the dialog opened (measured); the panel
+ * itself has already arrived on the spring, and the figures are what the
+ * reader opened it for. Every bar draws in 0.4s from the moment it mounts.
+ */
 function RowList({
   rows,
   scaleTo,
-  stagger = false,
 }: {
   rows: DrillRow[];
   /** Bars scale to the largest row of the WHOLE list, not the visible page. */
   scaleTo?: DrillRow[];
-  stagger?: boolean;
 }) {
   const max = Math.max(1, ...(scaleTo ?? rows).map((row) => Math.abs(row.magnitude)));
   return (
-    <ul className={`${stagger ? "stagger " : ""}flex flex-col gap-2.5`}>
+    <ul className="flex flex-col gap-2.5">
       {rows.map((row) => {
         const width = row.percent ?? Math.max(2, (Math.abs(row.magnitude) / max) * 100);
         const colour = TONE[row.tone ?? "accent"];
@@ -270,7 +322,14 @@ function RowList({
             <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
               <div
                 className="bar-grow h-full rounded-full"
-                style={{ width: `${Math.min(100, width)}%`, background: colour }}
+                style={{
+                  width: `${Math.min(100, width)}%`,
+                  background: colour,
+                  // The house bar-grow is 0.7s after a 0.25s delay; inside a
+                  // dialog that has already arrived, 0.4s from frame 0.
+                  animationDuration: "400ms",
+                  animationDelay: "0ms",
+                }}
               />
             </div>
           </li>
@@ -302,14 +361,20 @@ export function DrillTrigger({
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "type" | "children">) {
   const t = useTranslations("drill");
   const [open, setOpen] = useState(false);
+  const [origin, setOrigin] = useState<DrillOrigin | null>(null);
   const close = useCallback(() => setOpen(false), []);
   const label = t("open", { title: drill.title });
+  const openFrom = (e: MouseEvent<HTMLButtonElement>) => {
+    // Captured on the click, not at render: the tile may have scrolled.
+    setOrigin(drillOriginFrom(e.currentTarget));
+    setOpen(true);
+  };
   return (
     <>
       <button
         {...rest}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openFrom}
         aria-haspopup="dialog"
         aria-label={label}
         title={label}
@@ -318,7 +383,11 @@ export function DrillTrigger({
       >
         {children}
       </button>
-      {open && <DrillDialog drill={drill} onClose={close} />}
+      {/* AnimatePresence keeps the dialog mounted through its exit, so Esc
+          plays the entrance in reverse and a re-tap mid-exit re-targets. */}
+      <AnimatePresence>
+        {open && <DrillDialog drill={drill} onClose={close} origin={origin} />}
+      </AnimatePresence>
     </>
   );
 }

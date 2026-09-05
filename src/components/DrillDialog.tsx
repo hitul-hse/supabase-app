@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "framer-motion";
@@ -81,6 +90,10 @@ const TONE: Record<NonNullable<DrillRow["tone"]>, string> = {
 /** The dialog's own controls (ESC, BACK, NEXT) are ghost Buttons, like every pager's. */
 const chrome = buttonClass("ghost", "sm", "font-mono tracking-[0.06em] disabled:opacity-40");
 
+/** What Tab can land on inside the panel: the row links and the live pager / Close buttons. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 /**
  * Where the dialog comes from: the trigger's centre, as an offset from the
  * viewport centre, clamped so a tile at the far edge still arrives from
@@ -108,11 +121,19 @@ export function DrillDialog({
   drill,
   onClose,
   origin = null,
+  returnFocusTo = null,
 }: {
   drill: Drill;
   onClose: () => void;
   /** The trigger's centre relative to the viewport centre; absent, the dialog scales from the middle. */
   origin?: DrillOrigin | null;
+  /**
+   * Where focus goes when the dialog closes. `DrillTrigger` passes its button;
+   * a caller that opens the dialog from its own state may leave this out, and
+   * the element that was active when the dialog mounted (the button just
+   * clicked, in every browser that focuses buttons on click) is used instead.
+   */
+  returnFocusTo?: RefObject<HTMLElement | null> | null;
 }) {
   const t = useTranslations("drill");
   const [page, setPage] = useState(0);
@@ -129,10 +150,67 @@ export function DrillDialog({
   const present = useIsPresent();
   const reduceMotion = useReducedMotion();
 
+  /*
+    FOCUS, TRAPPED AND RETURNED (APPLE_REF §5.8 "Dialog": "focus trapped and
+    returned to the trigger"; WAI-ARIA modal dialog).
+
+    The opener is captured in the mount effect, BEFORE the Close button takes
+    focus -- the button no longer carries `autoFocus`, because React focuses
+    an autoFocus child during commit, ahead of this component's effects, and
+    the capture would have read the dialog's own button. Every dismissal
+    (Escape, the Close button, a tap on the scrim) goes through `dismiss`,
+    which hands focus back synchronously, before the exit starts and `inert`
+    would drop it to <body> -- measured: after Escape, activeElement was BODY.
+    The unmount cleanup is the fallback for a caller that closes the dialog
+    from its own state: if focus is on <body> by then, it goes to the opener.
+
+    The trap is the Tab handler on the panel: Tab from the last focusable
+    wraps to the first, Shift+Tab from the first to the last, and a Tab from
+    anywhere outside (a screen reader's virtual cursor) re-enters at the
+    first. Only while `present`: a closing dialog is not a place to be.
+  */
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  const dismiss = useCallback(() => {
+    onClose();
+    const opener = openerRef.current;
+    if (opener?.isConnected) opener.focus();
+  }, [onClose]);
+
+  useEffect(() => {
+    openerRef.current =
+      returnFocusTo?.current ?? (document.activeElement as HTMLElement | null);
+    closeRef.current?.focus();
+    return () => {
+      const opener = openerRef.current;
+      if (document.activeElement === document.body && opener?.isConnected) opener.focus();
+    };
+  }, [returnFocusTo]);
+
+  const onPanelKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab" || !present) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+      (el) => el.offsetParent !== null,
+    );
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement;
+    const inside = active instanceof Node && panel.contains(active);
+    if (e.shiftKey ? active === first || !inside : active === last || !inside) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    }
+  };
+
   useEffect(() => {
     if (!present) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") dismiss();
     };
     window.addEventListener("keydown", onKey);
     // The page behind must not scroll while the dialog owns the viewport.
@@ -142,7 +220,7 @@ export function DrillDialog({
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose, present]);
+  }, [dismiss, present]);
 
   // Reset paging when a different drill opens in the same mount -- the
   // adjust-state-during-render pattern, not an effect (react-hooks rule).
@@ -193,15 +271,17 @@ export function DrillDialog({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.15 } }}
       transition={{ duration: 0.2 }}
-      onClick={onClose}
+      onClick={dismiss}
       role="presentation"
     >
       <motion.div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={t("dialogLabel", { title: drill.title })}
         data-drill-dialog
         data-check={drill.check}
+        onKeyDown={onPanelKeyDown}
         initial={offstage}
         animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
         exit={{ ...offstage, transition: exitTween }}
@@ -245,7 +325,7 @@ export function DrillDialog({
               )}
             </div>
           </div>
-          <button type="button" onClick={onClose} autoFocus aria-label={t("close")} className={chrome}>
+          <button ref={closeRef} type="button" onClick={dismiss} aria-label={t("close")} className={chrome}>
             {t("esc")}
           </button>
         </div>
@@ -411,6 +491,10 @@ export function DrillTrigger({
   const t = useTranslations("drill");
   const [open, setOpen] = useState(false);
   const [origin, setOrigin] = useState<DrillOrigin | null>(null);
+  // The dialog returns focus here on every dismissal (DrillDialog `dismiss`,
+  // §5.8): the ref is passed rather than read, so the element is resolved at
+  // close time, not at render.
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
   const label = t("open", { title: drill.title });
   const openFrom = (e: MouseEvent<HTMLButtonElement>) => {
@@ -422,6 +506,7 @@ export function DrillTrigger({
     <>
       <button
         {...rest}
+        ref={triggerRef}
         type="button"
         onClick={openFrom}
         aria-haspopup="dialog"
@@ -435,7 +520,9 @@ export function DrillTrigger({
       {/* AnimatePresence keeps the dialog mounted through its exit, so Esc
           plays the entrance in reverse and a re-tap mid-exit re-targets. */}
       <AnimatePresence>
-        {open && <DrillDialog drill={drill} onClose={close} origin={origin} />}
+        {open && (
+          <DrillDialog drill={drill} onClose={close} origin={origin} returnFocusTo={triggerRef} />
+        )}
       </AnimatePresence>
     </>
   );

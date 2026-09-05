@@ -639,9 +639,11 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
     }),
   );
   const hubTiles = (hubHtml.match(/data-stat-tile/g) ?? []).length;
-  const hubNa = (hubHtml.match(/>n\/a</g) ?? []).length;
+  // "—" is what StatTile renders for a null since the type-role pass (DESIGN.md
+  // §Data tables 6; APPLE_REF §8 #26); "n/a" stays accepted for older tiles.
+  const hubNa = (hubHtml.match(/>(?:n\/a|—)</g) ?? []).length;
   check(
-    "a Hub-only person's four tiles all render n/a, never 0",
+    "a Hub-only person's four tiles all render —, never 0",
     hubTiles === 4 && hubNa >= 4 && !/>0<|>0 h<|>0%<|0 ENTRIES|0 H BILLABLE/.test(hubHtml),
     `${hubTiles} tiles, ${hubNa} n/a values`,
   );

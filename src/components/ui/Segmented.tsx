@@ -44,7 +44,7 @@ export const segmentedTrackClass =
 
 export function segmentedItemClass(active: boolean): string {
   return (
-    "rounded-full px-2.5 py-1 font-mono text-[10px] font-medium tracking-[0.04em] " +
+    "rounded-full px-2.5 py-1 t-label " +
     "transition-[color,background-color,transform] duration-150 active:scale-[0.97] " +
     "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
     (active
@@ -180,7 +180,7 @@ export function Pill({
   return (
     <span
       data-pill={tone}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.02em] ${TONES[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 t-label ${TONES[tone]} ${className}`}
     >
       {children}
     </span>

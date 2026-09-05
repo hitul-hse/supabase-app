@@ -167,7 +167,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
             aria-hidden
             className="mx-3 mb-1 hidden h-px bg-[var(--border)] group-data-[collapsed=true]/sidebar:block"
           />
-          <div className="px-4 pb-1 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
+          <div className="px-4 pb-1 t-label tracking-[0.12em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
             {navTitle(group.title)}
           </div>
 
@@ -220,7 +220,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       A filled pill states the same thing once, at both widths,
                       with nothing to special-case.
                     */
-                    className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 text-[12px] transition-[color,background-color,transform] duration-150 active:translate-y-px group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5 ${
+                    className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 t-callout transition-[color,background-color,transform] duration-150 active:translate-y-px group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5 ${
                       active
                         ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -264,7 +264,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                     */}
                     {link.badge && (
                       <span
-                        className={`flex-none rounded-full px-1.5 py-0.5 font-mono text-[10px] font-semibold group-data-[collapsed=true]/sidebar:hidden ${
+                        className={`flex-none rounded-full px-1.5 py-0.5 t-label group-data-[collapsed=true]/sidebar:hidden ${
                           active ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
                         }`}
                         style={{
@@ -303,11 +303,11 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                   */}
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
+                    className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
                   >
                     {navLabel(link.label)}
                     {link.badge ? (
-                      <span className="ml-1.5 font-mono text-[10px] text-[var(--text-faint)]">
+                      <span className="ml-1.5 t-label text-[var(--text-faint)]">
                         {link.badge}
                       </span>
                     ) : null}

@@ -95,7 +95,7 @@ export function MobileDisclosure({
         className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left card-elev sm:hidden"
       >
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="flex items-center gap-1.5 text-[13px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
+          <span className="flex items-center gap-1.5 t-headline text-[var(--text-primary)]">
             {/* The same caret DataTable's collapsible header rotates: one
                 disclosure dialect, drawn from the icon set rather than a glyph. */}
             <IconCaret
@@ -107,9 +107,9 @@ export function MobileDisclosure({
           </span>
           {/* Stated whether open or shut: a collapsed panel must never read as
               an absent one. */}
-          <span className="text-[10px] leading-tight text-[var(--text-faint)]">{summary}</span>
+          <span className="t-subhead text-[var(--text-faint)]">{summary}</span>
         </span>
-        <span aria-hidden className="flex-none font-mono text-[10px] text-[var(--text-faint)]">
+        <span aria-hidden className="flex-none t-label text-[var(--text-faint)]">
           {open ? t("hide") : t("show")}
         </span>
       </button>

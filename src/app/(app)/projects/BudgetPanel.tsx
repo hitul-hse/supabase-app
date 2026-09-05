@@ -48,27 +48,27 @@ export async function BudgetPanel({ status }: { status: ProjectBudgetStatusRow |
     <Card as="section" className="flex flex-col gap-4 p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-2.5">
-          <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{t("title")}</h2>
-          <span className="font-mono text-[10px] text-[var(--text-muted)]">{t("qualifier")}</span>
+          <h2 className="t-title-3 text-[var(--text-primary)]">{t("title")}</h2>
+          <span className="t-label text-[var(--text-muted)]">{t("qualifier")}</span>
         </div>
 
         {overBudget && (
-          <span className="bg-[var(--critical-wash)] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--critical)]">
+          <span className="bg-[var(--critical-wash)] px-2 py-0.5 t-label uppercase text-[var(--critical)]">
             {t("overBudget")}
           </span>
         )}
         {nearLimit && (
-          <span className="bg-[var(--warning-wash)] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--warning)]">
+          <span className="bg-[var(--warning-wash)] px-2 py-0.5 t-label uppercase text-[var(--warning)]">
             {t("pastAlert", { percent: status.budget_alert_percent ?? 0 })}
           </span>
         )}
       </div>
 
       {budgetHours == null ? (
-        <p className="text-[12px] text-[var(--text-muted)]">{t("noBudget")}</p>
+        <p className="t-callout text-[var(--text-muted)]">{t("noBudget")}</p>
       ) : (
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between font-mono text-[11px]">
+          <div className="flex items-baseline justify-between fig">
             <span className="text-[var(--text-secondary)]">
               {t("ofHours", { logged: num(hoursLogged), budget: num(budgetHours) })}
             </span>
@@ -123,16 +123,16 @@ function Figure({
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
+      <span className="t-label text-[var(--text-muted)]">
         {label}
       </span>
       <span
-        className="font-mono text-[18px] font-semibold"
+        className="fig-lg"
         style={{ color: color ?? "var(--text-primary)" }}
       >
         {value}
       </span>
-      {hint && <span className="text-[10px] text-[var(--text-faint)]">{hint}</span>}
+      {hint && <span className="t-subhead text-[var(--text-faint)]">{hint}</span>}
     </div>
   );
 }

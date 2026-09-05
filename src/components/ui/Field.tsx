@@ -27,7 +27,7 @@ import { IconArrowsVertical, IconCaret } from "../nav-icons";
 
 const CONTROL_BASE =
   "rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--page)] " +
-  "text-[12px] text-[var(--text-primary)] placeholder-[var(--text-muted)] " +
+  "t-callout text-[var(--text-primary)] placeholder-[var(--text-muted)] " +
   "transition-colors duration-150 " +
   "hover:border-[var(--text-faint)] " +
   // No `focus:outline-none` — the global :focus-visible ring is the whole
@@ -49,7 +49,7 @@ export const controlClass = CONTROL_BASE;
  */
 export function KeyboardHint({ className = "" }: { className?: string }) {
   const cap =
-    "inline-flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] px-1 font-mono text-[10px] text-[var(--text-faint)]";
+    "inline-flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] px-1 t-label text-[var(--text-faint)]";
   return (
     <span aria-hidden className={`inline-flex items-center gap-1 ${className}`}>
       <span className={cap}>
@@ -182,7 +182,7 @@ export function FilterChip({
       title={title}
       className={
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 " +
-        "font-mono text-[10px] tracking-[0.06em] " +
+        "t-label " +
         // The press is on pointer-DOWN: CSS :active fires on the down event, so
         // the chip acknowledges the touch before the click ever commits.
         "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] " +
@@ -251,7 +251,7 @@ export function SortHeader({
           : `Sort by ${label}`
       }
       className={
-        "group inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.1em] " +
+        "group inline-flex items-center gap-1 t-label " +
         "transition-[color,transform] duration-150 active:translate-y-px " +
         (align === "right" ? "justify-end " : "") +
         (isActive
@@ -424,14 +424,14 @@ export function SearchableSelect({
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] transition-[color,border-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left t-callout transition-[color,border-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
           current && (!allowEmpty || value !== allowEmpty.value)
             ? "border-[var(--accent)] text-[var(--text-primary)]"
             : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         }`}
       >
-        <span className="flex min-w-0 flex-col leading-tight">
-          <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
+        <span className="flex min-w-0 flex-col">
+          <span className="t-label text-[var(--text-faint)]">
             {label.toUpperCase()}
           </span>
           <span className="truncate">{current ? current.name : placeholder}</span>
@@ -459,11 +459,11 @@ export function SearchableSelect({
               aria-controls={listId}
               aria-autocomplete="list"
               placeholder={`Search ${label.toLowerCase()}…`}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] focus:border-[var(--accent)]"
+              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 t-callout text-[var(--text-primary)] focus:border-[var(--accent)]"
             />
             {/* The count line: a list that scrolls past the fold must never
                 look complete when it is not. */}
-            <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
+            <p className="mt-1 flex items-center justify-between t-subhead text-[var(--text-faint)]">
               <span>
                 {filtered.length.toLocaleString("en-GB")}
                 {filtered.length !== all.length
@@ -483,7 +483,7 @@ export function SearchableSelect({
             className="flex-1 overflow-y-auto"
           >
             {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
+              <p className="px-3 py-4 text-center t-subhead text-[var(--text-faint)]">
                 No {label.toLowerCase()} matches “{query.trim()}”
               </p>
             ) : (
@@ -501,7 +501,7 @@ export function SearchableSelect({
                     // the keyboard never disagree about which row Enter hits.
                     onMouseEnter={() => setCursor(i)}
                     onClick={() => pick(o.value)}
-                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-[12px] transition-colors ${
+                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left t-callout transition-colors ${
                       hot ? "bg-[var(--surface-hover)]" : ""
                     } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
                   >
@@ -513,10 +513,10 @@ export function SearchableSelect({
                         on ? "bg-[var(--accent)]" : "bg-transparent"
                       }`}
                     />
-                    <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="flex min-w-0 flex-col">
                       <span className="truncate">{o.name}</span>
                       {o.hint && (
-                        <span className="truncate text-[10px] text-[var(--text-faint)]">
+                        <span className="truncate t-subhead text-[var(--text-faint)]">
                           {o.hint}
                         </span>
                       )}

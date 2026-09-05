@@ -147,7 +147,7 @@ export default async function ProjectsPage({
           */}
 
           {truncated && (
-            <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+            <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 t-callout text-[var(--critical)]">
               {t("truncated")}
             </p>
           )}

@@ -244,7 +244,7 @@ export default async function ProjectDetailPage({
           </div>
 
           {truncated && (
-            <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+            <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 t-callout text-[var(--critical)]">
               {t("detail.truncated")}
             </p>
           )}
@@ -317,7 +317,7 @@ export default async function ProjectDetailPage({
           {/* The bridge back to the filtered report. Everything here is
               all-time and unfiltered on purpose; the dashboard is where you
               narrow by date, member or billability. */}
-          <p className="text-[11px] text-[var(--text-faint)]">
+          <p className="t-subhead text-[var(--text-faint)]">
             {t.rich("detail.footnote", {
               link: (chunks) => (
                 <Link

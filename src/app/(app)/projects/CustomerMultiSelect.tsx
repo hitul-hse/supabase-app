@@ -128,14 +128,14 @@ export function CustomerMultiSelect({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex min-w-[9rem] max-w-[15rem] items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] transition-[color,border-color,transform] duration-150 active:scale-[0.97] ${
+        className={`flex min-w-[9rem] max-w-[15rem] items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left t-callout transition-[color,border-color,transform] duration-150 active:scale-[0.97] ${
           selected.size
             ? "border-[var(--accent)] text-[var(--text-primary)]"
             : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         }`}
       >
-        <span className="flex min-w-0 flex-col leading-tight">
-          <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
+        <span className="flex min-w-0 flex-col">
+          <span className="t-label text-[var(--text-faint)]">
             {labels.field}
           </span>
           <span className="truncate">{summary}</span>
@@ -161,9 +161,9 @@ export function CustomerMultiSelect({
               aria-controls="customer-options"
               aria-autocomplete="list"
               placeholder={labels.searchPlaceholder}
-              className="w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--page)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] transition-colors placeholder-[var(--text-muted)] focus:border-[var(--accent)]"
+              className="w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--page)] px-2.5 py-1 t-callout text-[var(--text-primary)] transition-colors placeholder-[var(--text-muted)] focus:border-[var(--accent)]"
             />
-            <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
+            <p className="mt-1 flex items-center justify-between t-subhead text-[var(--text-faint)]">
               <span>{labels.counts(filtered.length, options.length, selected.size)}</span>
               <KeyboardHint />
             </p>
@@ -178,7 +178,7 @@ export function CustomerMultiSelect({
             className="flex-1 overflow-y-auto"
           >
             {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
+              <p className="px-3 py-4 text-center t-subhead text-[var(--text-faint)]">
                 {labels.noMatch(query.trim())}
               </p>
             ) : (
@@ -194,7 +194,7 @@ export function CustomerMultiSelect({
                     aria-selected={on}
                     onMouseEnter={() => setCursor(i)}
                     onClick={() => toggle(o.name)}
-                    className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12px] transition-colors active:translate-y-px ${
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left t-callout transition-colors active:translate-y-px ${
                       hot ? "bg-[var(--surface-hover)]" : ""
                     } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
                   >
@@ -211,7 +211,7 @@ export function CustomerMultiSelect({
                       </span>
                       <span className="truncate">{labels.displayName(o.name)}</span>
                     </span>
-                    <span className="flex-none font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
+                    <span className="flex-none fig text-[var(--text-faint)]">
                       {fmtNum(o.hours, locale, 0)}h
                     </span>
                   </button>
@@ -225,7 +225,7 @@ export function CustomerMultiSelect({
               <button
                 type="button"
                 onClick={() => onChange(new Set())}
-                className="text-[11px] text-[var(--text-secondary)] transition-[color,transform] duration-150 hover:text-[var(--text-primary)] active:translate-y-px"
+                className="t-subhead text-[var(--text-secondary)] transition-[color,transform] duration-150 hover:text-[var(--text-primary)] active:translate-y-px"
               >
                 {labels.clear(selected.size)}
               </button>

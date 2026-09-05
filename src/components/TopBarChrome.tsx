@@ -97,12 +97,12 @@ export async function TopBarChrome() {
         className="flex flex-none items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] py-1 pl-1 pr-1 transition-[color,background-color,border-color,transform] duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] active:translate-y-px sm:pr-3"
       >
         <Avatar name={identityLabel} src={signedAvatarUrl} size={24} />
-        <span className="hidden min-w-0 flex-col leading-tight sm:flex">
-          <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
+        <span className="hidden min-w-0 flex-col sm:flex">
+          <span className="truncate t-callout font-medium text-[var(--text-primary)]">
             {identityLabel}
           </span>
           {roleDisplayName && (
-            <span className="truncate font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]">
+            <span className="truncate t-label text-[var(--text-faint)]">
               {roleDisplayName.toUpperCase()}
             </span>
           )}

@@ -55,11 +55,11 @@ export function PageHeader({ title, meta, actions, chrome }: PageHeaderProps) {
     <header className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--topbar)] px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h1 className="truncate text-[17px] font-semibold tracking-[-0.02em] text-[var(--text-primary)] sm:text-[19px]">
+          <h1 className="truncate t-title-2 sm:t-title text-[var(--text-primary)]">
             {title}
           </h1>
           {meta && (
-            <span className="truncate font-mono text-[10px] tracking-[0.04em] text-[var(--text-faint)] sm:text-[10px]">
+            <span className="truncate t-label text-[var(--text-faint)]">
               {meta}
             </span>
           )}

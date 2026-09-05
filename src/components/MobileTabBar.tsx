@@ -275,7 +275,7 @@ export function MobileTabBar({
                   icon, not informational.
                 */}
                 {active ? (
-                  <span className="truncate text-[12px] font-medium leading-none tracking-[0.01em]">
+                  <span className="truncate t-callout font-medium leading-none">
                     {tab.short}
                   </span>
                 ) : null}
@@ -304,7 +304,7 @@ export function MobileTabBar({
           >
             <IconMore className="h-[20px] w-[20px] flex-none" />
             {moreActive ? (
-              <span className="truncate text-[12px] font-medium leading-none tracking-[0.01em]">
+              <span className="truncate t-callout font-medium leading-none">
                 More
               </span>
             ) : null}

@@ -131,7 +131,7 @@ export async function Sidebar({
             would be a stutter in the middle of someone's work, not a delight.
           */}
           <BrandMark size={26} className="flex-none" />
-          <span className="min-w-0 truncate font-sans text-[12px] font-bold tracking-[0.02em] text-[var(--text-primary)] transition-opacity duration-150 group-data-[collapsed=true]/sidebar:hidden">
+          <span className="min-w-0 truncate t-callout font-semibold tracking-[0.02em] text-[var(--text-primary)] transition-opacity duration-150 group-data-[collapsed=true]/sidebar:hidden">
             HSE HUB
           </span>
         </Link>
@@ -198,7 +198,7 @@ export async function Sidebar({
             className="h-1.5 w-1.5 flex-none rounded-full"
             style={{ background: dotColor }}
           />
-          <span className="font-mono text-[10px] tracking-[0.02em] text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
+          <span className="t-label text-[var(--text-faint)] group-data-[collapsed=true]/sidebar:hidden">
             {statusLabel.toUpperCase()}
           </span>
           {/* Always announced, even when the words are visually hidden. */}

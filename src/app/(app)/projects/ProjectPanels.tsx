@@ -271,8 +271,8 @@ export function BurnChart({
   if (points.length === 0) {
     return (
       <Card className="p-5">
-        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
-        <p className="mt-3 font-mono text-[11px] text-[var(--text-faint)]">{wording.empty}</p>
+        <span className="t-title-3 text-[var(--text-primary)]">{wording.title}</span>
+        <p className="mt-3 t-subhead text-[var(--text-faint)]">{wording.empty}</p>
       </Card>
     );
   }
@@ -295,9 +295,9 @@ export function BurnChart({
   return (
     <Card tone="hero" className="flex flex-col gap-3 p-5">
       <div className="flex flex-wrap items-baseline gap-3">
-        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
-        <span className="font-mono text-[10px] text-[var(--text-muted)]">{wording.qualifier}</span>
-        <div className="ml-auto flex items-center gap-4 font-mono text-[10px] text-[var(--text-secondary)]">
+        <span className="t-title-3 text-[var(--text-primary)]">{wording.title}</span>
+        <span className="t-label text-[var(--text-muted)]">{wording.qualifier}</span>
+        <div className="ml-auto flex items-center gap-4 t-label text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5">
             <span className="h-0.5 w-3 bg-[var(--accent)]" /> {wording.logged}
           </span>
@@ -333,7 +333,7 @@ export function BurnChart({
         </svg>
       </div>
 
-      <div className="flex justify-between font-mono text-[10px] text-[var(--text-faint)]">
+      <div className="flex justify-between t-label text-[var(--text-faint)]">
         <span>{points[0].label}</span>
         {points.length > 2 && <span>{points[Math.floor(points.length / 2)].label}</span>}
         <span>{points[points.length - 1].label}</span>
@@ -355,20 +355,20 @@ export function ContributorTable({
   return (
     <Card className="flex flex-col">
       <div className="border-b border-[var(--divider)] px-4 py-3">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
+        <span className="t-title-3 text-[var(--text-primary)]">{wording.title}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="px-4 py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
+        <p className="px-4 py-6 text-center t-subhead text-[var(--text-faint)]">
           {wording.empty}
         </p>
       ) : (
         rows.map((r) => (
           <div
             key={r.memberId}
-            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 text-[12px] last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 t-callout last:border-b-0"
           >
             <span className="truncate text-[var(--text-primary)]">{r.memberName}</span>
-            <span className="flex shrink-0 gap-4 font-mono text-[11px]">
+            <span className="flex shrink-0 gap-4 fig">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
               <span className="w-16 text-right text-[var(--text-secondary)]">
                 {fmtNum(r.billableHours, locale, 1)} {wording.billableUnit}
@@ -398,25 +398,25 @@ export function TaskTable({
   return (
     <Card className="flex flex-col">
       <div className="flex items-baseline justify-between border-b border-[var(--divider)] px-4 py-3">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
+        <span className="t-title-3 text-[var(--text-primary)]">{wording.title}</span>
         {rows.length > shown.length && (
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">
+          <span className="t-label text-[var(--text-faint)]">
             {wording.topOf(shown.length, rows.length)}
           </span>
         )}
       </div>
       {rows.length === 0 ? (
-        <p className="px-4 py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
+        <p className="px-4 py-6 text-center t-subhead text-[var(--text-faint)]">
           {wording.empty}
         </p>
       ) : (
         shown.map((r) => (
           <div
             key={r.taskName}
-            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 text-[12px] last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 t-callout last:border-b-0"
           >
             <span className="truncate text-[var(--text-secondary)]">{r.taskName}</span>
-            <span className="flex shrink-0 gap-4 font-mono text-[11px]">
+            <span className="flex shrink-0 gap-4 fig">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
               <span className="w-16 text-right text-[var(--text-primary)]">
                 {fmtNum(r.hours, locale, 1)} {wording.hoursUnit}

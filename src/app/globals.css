@@ -605,6 +605,160 @@ body {
 }
 
 /*
+ * THE TYPE ROLES. docs/APPLE-DESIGN-REFERENCE.md §1.3, DESIGN.md §Typography.
+ *
+ * One ladder for the whole app shell: 10 · 11 · 12 · 13 · 15 · 17 · 22 · 26,
+ * each size with ONE line height, ONE weight and ONE tracking value, named by
+ * the job it does rather than the number it is. A browser census of the
+ * rebuilt pages had found thirteen sizes in use -- 12 and 12.5 both doing
+ * "row text", 10 / 10.5 / 9.5 / 9 all doing "caption" -- and no two authors
+ * choosing the same one for the same job. A role is a name, and a name cannot
+ * be off by half a pixel.
+ *
+ * Apple's macOS text styles are the template (Large Title 26/32 … Caption 2
+ * 10/13, leading 1.18-1.33, hierarchy by weight before size); the faces are
+ * the house ones -- Poppins for words, JetBrains Mono for figures and labels
+ * -- so the tracking values are HSE's, shaped like Apple's curve (near zero at
+ * 12-13, negative on the display sizes, slightly positive under 12) and NOT
+ * SF Pro's numbers, which do not transfer to a wide geometric face.
+ *
+ * Weights: 400 words, 500 controls / labels / figures, 600 headings and
+ * emphasis. Poppins 300 and 800 are banned in the shell (§8 #1); 700 only on
+ * Persuade pages at 26px and up. JetBrains Mono is loaded at 400 and 500 only
+ * (src/app/layout.tsx), so `font-semibold` on a mono figure was never a real
+ * weight -- the browser synthesised a smeared faux-bold. Every figure role
+ * below is 500 for that reason.
+ *
+ * Leading: the role's line height is the standard. `t-tight` (-2px) is for a
+ * two-line cell -- a name over its code -- and never for three lines or more;
+ * `t-loose` (+2px) is for a paragraph. Tailwind's `leading-relaxed` (1.625) and
+ * DESIGN.md's 1.6 are prose values for Persuade pages, not for UI text.
+ *
+ * Floors: no Poppins under 11px; mono at 10px only as `t-label`; nothing under
+ * 11px on a touch surface.
+ *
+ * `@utility`, not a plain class, so the roles take variants (`sm:t-title`) and
+ * sort BEFORE the single-property utilities: `t-callout font-medium` reads as
+ * "callout, one weight step up", which is exactly the emphasis rule (+1 weight,
+ * never +1 size). Never stack two roles on one element -- equal property
+ * counts make the winner an accident of source order.
+ *
+ * Colour is deliberately NOT part of a role. The label ladder (--text-primary
+ * … --text-faint) is chosen at the call site, so a role reads the same in both
+ * themes and the contrast gate keeps measuring tokens, not classes.
+ *
+ * The next/font variables are used directly (not --font-sans / --font-mono,
+ * which `@theme inline` inlines into Tailwind's own utilities and does not
+ * guarantee as runtime custom properties).
+ */
+@utility t-large {
+  font-family: var(--font-poppins);
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+@utility t-title {
+  font-family: var(--font-poppins);
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+@utility t-title-2 {
+  font-family: var(--font-poppins);
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+@utility t-title-3 {
+  font-family: var(--font-poppins);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+@utility t-headline {
+  font-family: var(--font-poppins);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+@utility t-body {
+  font-family: var(--font-poppins);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+@utility t-callout {
+  font-family: var(--font-poppins);
+  font-size: 12px;
+  line-height: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+@utility t-subhead {
+  font-family: var(--font-poppins);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+}
+/* Caption 2: column headers, KPI captions, group headers, pager copy, meta.
+   Case is the content's job (labels are uppercased where they are written),
+   because the same role also sets the non-uppercase meta line and codes. */
+@utility t-label {
+  font-family: var(--font-jetbrains);
+  font-size: 10px;
+  line-height: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+/* Figures. One hero figure per page (fig-xl), the tile / strip value (fig-lg),
+   an inline total or a dialog headline (fig-md), and the numeric table cell
+   (fig, one step under the row's t-callout). */
+@utility fig-xl {
+  font-family: var(--font-jetbrains);
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+@utility fig-lg {
+  font-family: var(--font-jetbrains);
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+@utility fig-md {
+  font-family: var(--font-jetbrains);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+@utility fig {
+  font-family: var(--font-jetbrains);
+  font-size: 11px;
+  line-height: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+/* -2px / +2px from the role's own leading (Apple: WWDC20 10175). Computed
+   from the font size so one class serves every role: 12/15 -> 12/13,
+   13/16 -> 13/14 under t-tight; 12/15 -> 12/17, 11/14 -> 11/16 under t-loose. */
+@utility t-tight {
+  line-height: calc(1em + 1px);
+}
+@utility t-loose {
+  line-height: calc(1em + 5px);
+}
+
+/*
  * THE PAGE SHELL: content padding and the width cap, in one class.
  *
  * Every page container used to spell out `p-4 sm:p-6` and none capped its

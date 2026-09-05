@@ -170,7 +170,7 @@ export function PortfolioCharts({
               className="group grid grid-cols-12 items-center gap-2 rounded-[var(--radius-sm)] px-1.5 py-0.5 transition-colors hover:bg-[var(--surface-hover)]"
             >
               <span
-                className="col-span-4 truncate text-[11px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] sm:col-span-3"
+                className="col-span-4 truncate t-subhead text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] sm:col-span-3"
                 title={p.name}
               >
                 {p.name}
@@ -186,7 +186,7 @@ export function PortfolioCharts({
                   }}
                 />
               </div>
-              <span className="col-span-2 text-right font-mono text-[11px] tabular-nums text-[var(--text-primary)]">
+              <span className="col-span-2 text-right fig text-[var(--text-primary)]">
                 {fmtHours(p.actualHours, locale, 1)}
               </span>
             </Link>
@@ -234,7 +234,7 @@ function BurnDonutRow({ rows, locale }: { rows: ProjectListRow[]; locale?: strin
     <Card className="flex flex-col lg:col-span-12">
       <CardHeader title={t("burnDonuts.title")} qualifier={t("burnDonuts.qualifier")} />
       {top.length === 0 ? (
-        <p className="px-4 pb-5 text-[12px] text-[var(--text-faint)]">
+        <p className="px-4 pb-5 t-callout text-[var(--text-faint)]">
           {t("burnDonuts.empty")}
         </p>
       ) : (
@@ -278,12 +278,12 @@ function BurnDonutRow({ rows, locale }: { rows: ProjectListRow[]; locale?: strin
                   })}
                 />
                 <span
-                  className="w-full truncate text-center text-[11px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                  className="w-full truncate text-center t-subhead text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                   title={p.name}
                 >
                   {p.name}
                 </span>
-                <span className="font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
+                <span className="fig text-[var(--text-faint)]">
                   {fmtHours(p.actualHours, locale, 1)} / {fmtHours(est, locale, 1)}
                 </span>
               </Link>

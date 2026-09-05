@@ -12,7 +12,7 @@
  *
  * my-work.ts handles the per-row case correctly: numOrNull preserves NULL, the
  * per-project burn is only computed when both figures are known, and the UI
- * renders "n/a" rather than 0 (CustomerGroup.tsx, MyWorkTables.tsx).
+ * renders "—" (or the older "n/a") rather than 0 (CustomerGroup.tsx, MyWorkTables.tsx).
  *
  * The subtle part is the AGGREGATES. Lines 628 and 691 sum with `?? 0`, which is
  * the honest-null problem in aggregate form: a total that silently treats
@@ -48,7 +48,7 @@ check("the per-project burn is only computed when BOTH figures are known",
   /contractHours !== null && loggedHours !== null/.test(q),
   "otherwise an unmeasured project reports a burn percentage it cannot support");
 
-/* -------------------------- the UI must render unknown as n/a, never 0 ------ */
+/* ------------------- the UI must render unknown as "—" (or n/a), never 0 ---- */
 
 /*
  * Assertions about what a file RENDERS run against the code with comments
@@ -62,8 +62,10 @@ const stripComments = (src) =>
 
 for (const f of ["src/components/my-work/CustomerGroup.tsx", "src/components/my-work/MyWorkTables.tsx"]) {
   const s = stripComments(readFileSync(join(REPO, f), "utf8"));
-  check(`${f} renders a null figure as n/a`,
-    /if \(n === null\) return "n\/a"/.test(s));
+  // "—" is the house glyph for a missing number (DESIGN.md §Data tables 6,
+  // APPLE_REF §8 #26); "n/a" is accepted where a file has not been converted.
+  check(`${f} renders a null figure as —, never 0`,
+    /if \(n === null\) return "(?:—|n\/a)"/.test(s));
   /*
    * Conditional on the file actually SHOWING a burn, which MyWorkTables.tsx
    * stopped doing on 2026-09-04 when the owner cut LOGGED / BUDGET / BURN from
@@ -76,8 +78,8 @@ for (const f of ["src/components/my-work/CustomerGroup.tsx", "src/components/my-
    * matching the first regex.
    */
   if (/consumedPercent/.test(s)) {
-    check(`${f} renders a null burn as n/a rather than 0%`,
-      /consumedPercent === null \? "n\/a"/.test(s));
+    check(`${f} renders a null burn as — rather than 0%`,
+      /consumedPercent === null \? "(?:—|n\/a)"/.test(s));
   } else {
     check(`${f} shows no burn at all, so there is no null burn to mis-render`,
       !/consumedPercent|BURN/.test(s),

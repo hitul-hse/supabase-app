@@ -181,22 +181,30 @@ export function DrillDialog({
       >
         <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
           <div className="min-w-0">
-            <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
+            <span className="t-label text-[var(--text-faint)]">
               {drill.kicker}
             </span>
+            {/*
+              Title above the figure, not below it. APPLE_REF §5.8 sets the
+              dialog title in t-title-2 (17) and the headline figure in fig-md
+              (15): the title is the larger of the two, so it reads first, and
+              the figure answers it. The old order had a 26px figure over a
+              13px title -- the number you tapped, restated -- and the reader
+              met the answer before the question.
+            */}
+            <div className="mt-0.5 t-title-2 text-[var(--text-primary)]">{drill.title}</div>
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span
-                className="font-mono text-[26px] font-semibold leading-none text-[var(--text-primary)]"
+                className="fig-md text-[var(--text-primary)]"
                 data-drill-headline
                 data-value={drill.headlineValue}
               >
                 {drill.headline}
               </span>
               {drill.subline && (
-                <span className="font-mono text-[11px] text-[var(--text-secondary)]">{drill.subline}</span>
+                <span className="fig text-[var(--text-secondary)]">{drill.subline}</span>
               )}
             </div>
-            <div className="mt-1 text-[13px] font-medium text-[var(--text-primary)]">{drill.title}</div>
           </div>
           <button type="button" onClick={onClose} autoFocus aria-label={t("close")} className={chrome}>
             {t("esc")}
@@ -205,13 +213,13 @@ export function DrillDialog({
 
         <div className="px-5 py-4">
           {drill.loading && (
-            <p className="py-8 text-center font-mono text-[11px] text-[var(--text-faint)]">{t("fetching")}</p>
+            <p className="py-8 text-center t-subhead text-[var(--text-faint)]">{t("fetching")}</p>
           )}
           {drill.error && (
-            <p className="py-6 text-center text-sm text-[var(--critical)]">{drill.error}</p>
+            <p className="py-6 text-center t-callout text-[var(--critical)]">{drill.error}</p>
           )}
           {empty && (
-            <p className="py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
+            <p className="py-6 text-center t-subhead text-[var(--text-faint)]">
               {t("nothingLogged")}
             </p>
           )}
@@ -220,11 +228,11 @@ export function DrillDialog({
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {drill.sections!.map((section) => (
                 <div key={section.title} data-drill-section>
-                  <h3 className="mb-2 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
+                  <h3 className="mb-2 t-label text-[var(--text-faint)]">
                     {section.title}
                   </h3>
                   {section.rows.length === 0 ? (
-                    <p className="font-mono text-[11px] text-[var(--text-faint)]">{t("nothingLogged")}</p>
+                    <p className="t-subhead text-[var(--text-faint)]">{t("nothingLogged")}</p>
                   ) : (
                     <RowList rows={section.rows} />
                   )}
@@ -249,7 +257,7 @@ export function DrillDialog({
                 {t("back")}
               </button>
               <span
-                className="font-mono text-[10px] text-[var(--text-faint)]"
+                className="t-label text-[var(--text-faint)]"
                 data-drill-page={safePage + 1}
                 data-drill-pages={pageCount}
               >
@@ -269,7 +277,7 @@ export function DrillDialog({
         </div>
 
         {drill.footer && (
-          <div className="border-t border-[var(--border)] px-5 py-3 font-mono text-[10px] text-[var(--text-faint)]">
+          <div className="border-t border-[var(--border)] px-5 py-3 t-label text-[var(--text-faint)]">
             {drill.footer}
           </div>
         )}
@@ -310,14 +318,14 @@ function RowList({
         );
         return (
           <li key={`${row.name}·${row.sub ?? ""}`} data-drill-row data-value={row.magnitude}>
-            <div className="flex items-baseline justify-between gap-2 text-[12px]">
+            <div className="flex items-baseline justify-between gap-2 t-callout">
               <span
                 className={`min-w-0 truncate ${row.tone === "muted" ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}`}
               >
                 {name}
                 {row.sub && <span className="ml-2 text-[var(--text-faint)]">{row.sub}</span>}
               </span>
-              <span className="flex-none font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
+              <span className="flex-none fig text-[var(--text-secondary)]">
                 {row.value}
               </span>
             </div>

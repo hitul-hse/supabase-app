@@ -82,9 +82,9 @@ import {
 import { LINK_ICON } from "./link-icons";
 import { RoleBadge } from "./RoleBadge";
 
-/** `n/a` rather than 0: an unrecorded figure and a real zero are different facts. */
+/** `—` rather than 0: an unrecorded figure and a real zero are different facts. */
 function hours(n: number | null): string {
-  if (n === null) return "n/a";
+  if (n === null) return "—";
   return n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 }
 
@@ -227,7 +227,7 @@ export function MyWorkTables({
              * empty space. It stays a cap: at 1920 min-content is 1069 against
              * 1550 available. The full name is in the tooltip either way.
              */
-            className="block max-w-[12rem] truncate text-left text-[12px] text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline 2xl:max-w-[18rem]"
+            className="block max-w-[12rem] truncate text-left t-callout text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline 2xl:max-w-[18rem]"
           >
             {r.customer}
           </button>
@@ -265,10 +265,10 @@ export function MyWorkTables({
               costs a mid-word split on a narrow screen and buys 45px; the
               alternative was scrolling the whole table sideways.
             */}
-            <span className="[overflow-wrap:anywhere] text-[12px] text-[var(--text-primary)]">
+            <span className="[overflow-wrap:anywhere] t-callout t-tight text-[var(--text-primary)]">
               {r.name}
             </span>
-            <span className="font-mono text-[10px] text-[var(--text-faint)]">
+            <span className="fig t-tight text-[var(--text-faint)]">
               {r.code}
               {/* The masterdata order number ONLY when it differs from the code:
                   the live import set order_no to the project id itself, so
@@ -314,10 +314,10 @@ export function MyWorkTables({
         search: (r) => r.services.join(" "),
         csv: (r) => r.services.join(" / "),
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+          <span className="fig text-[var(--text-secondary)]">
             {/* No time.project row at all for this project (9 of 54 on live
-                data) -- honest n/a, never a blank cell or a guessed service. */}
-            {r.services.length > 0 ? r.services.join(" · ") : "n/a"}
+                data) -- honest "—", never a blank cell or a guessed service. */}
+            {r.services.length > 0 ? r.services.join(" · ") : "—"}
           </span>
         ),
       },
@@ -339,8 +339,8 @@ export function MyWorkTables({
           // column was rendering "2026-04-" over "19", which reads as two
           // fields. Its min-content rises from 52px to 82px, which the width
           // budget can afford; a date split across two lines it cannot.
-          <span className="whitespace-nowrap font-mono text-[11px] text-[var(--text-muted)]">
-            {r.dueDate ?? "n/a"}
+          <span className="whitespace-nowrap fig text-[var(--text-muted)]">
+            {r.dueDate ?? "—"}
           </span>
         ),
       },
@@ -361,7 +361,7 @@ export function MyWorkTables({
         title: "Hours your own assignment row carries for this project",
         csv: (r) => r.myLoggedHours ?? "",
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-faint)]">
+          <span className="fig text-[var(--text-faint)]">
             {hours(r.myLoggedHours)}
           </span>
         ),
@@ -512,7 +512,7 @@ export function MyWorkTables({
                 setView("projects");
               }}
               title={`Show this customer's ${r.projectCount} project${r.projectCount === 1 ? "" : "s"}`}
-              className="block truncate text-left text-[12px] text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
+              className="block truncate text-left t-callout text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
             >
               {r.customer}
             </button>
@@ -520,14 +520,14 @@ export function MyWorkTables({
                 "GEPLAHN-T GmbH" are one legal entity, and folding them silently
                 leaves a customer count nobody can reconcile. */}
             {r.aliases.length > 0 ? (
-              <span className="truncate font-mono text-[10px] text-[var(--text-faint)]">
+              <span className="truncate t-label text-[var(--text-faint)]">
                 booked as {r.aliases.join(" · ")}
               </span>
             ) : null}
             {r.entityId === null ? (
               <span
                 title="Not linked to a canonical legal entity, so this row is keyed on the free-text name"
-                className="font-mono text-[10px] text-[var(--text-faint)]"
+                className="t-label text-[var(--text-faint)]"
               >
                 UNLINKED
               </span>
@@ -557,12 +557,12 @@ export function MyWorkTables({
             .join(" / "),
         cell: (r) => (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+            <span className="fig text-[var(--text-secondary)]">
               {r.projectCount}
             </span>
             {ROLE_ORDER.filter((x) => r.roleCounts[x] > 0).map((x) => (
               <span key={x} className="flex flex-none items-center gap-1">
-                <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                <span className="fig text-[var(--text-muted)]">
                   {r.roleCounts[x]}
                 </span>
                 <RoleBadge role={x} />
@@ -588,7 +588,7 @@ export function MyWorkTables({
             {r.services.length > 0 ? (
               r.services.map((s) => <Pill key={s}>{s}</Pill>)
             ) : (
-              <span className="font-mono text-[11px] text-[var(--text-faint)]">n/a</span>
+              <span className="fig text-[var(--text-faint)]">—</span>
             )}
           </div>
         ),
@@ -601,7 +601,7 @@ export function MyWorkTables({
         title: "Team hours logged across your projects for this customer",
         csv: (r) => r.loggedHours,
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+          <span className="fig text-[var(--text-secondary)]">
             {hours(r.loggedHours)}
           </span>
         ),
@@ -616,7 +616,7 @@ export function MyWorkTables({
           : "Contracted hours summed across your projects for this customer",
         csv: (r) => r.contractHours ?? "",
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-muted)]">
+          <span className="fig text-[var(--text-muted)]">
             {/* 0 summed contract hours across the group means no budget was set
                 on any of them, which is not a budget of zero -- and null means
                 the reader may not see it, which is neither. */}
@@ -639,7 +639,7 @@ export function MyWorkTables({
         title: "Hours your own assignment rows carry for this customer",
         csv: (r) => r.myLoggedHours,
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-faint)]">
+          <span className="fig text-[var(--text-faint)]">
             {hours(r.myLoggedHours)}
           </span>
         ),
@@ -704,7 +704,7 @@ export function MyWorkTables({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
+          <span className="t-label text-[var(--text-faint)]">
             {t("filters.role")}
           </span>
           {/*

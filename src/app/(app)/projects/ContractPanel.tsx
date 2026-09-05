@@ -31,7 +31,7 @@ import { controlClass } from "@/components/ui/Field";
 import { fmtNum, fmtPct } from "@/lib/locale-format";
 
 const LABEL =
-  "block font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]";
+  "block t-label uppercase text-[var(--text-muted)]";
 /*
  * The house field and button skins, not a third dialect. The fields used to
  * be square boxes on --surface-2 and the buttons 11px uppercase mono outlines;
@@ -88,7 +88,7 @@ function Feedback({ result }: { result: ContractActionResult | null }) {
   if (!result?.message) return null;
   return (
     <p
-      className="mt-2 text-[11px] leading-relaxed"
+      className="mt-2 t-subhead"
       style={{ color: result.ok ? "var(--good)" : "var(--critical)" }}
       role={result.ok ? "status" : "alert"}
     >
@@ -184,7 +184,7 @@ function TermFields({
           defaultValue={defaults?.warnAtPercent ?? 80}
           className={FIELD}
         />
-        <p className="mt-1 text-[10px] leading-snug text-[var(--text-faint)]">
+        <p className="mt-1 t-subhead text-[var(--text-faint)]">
           {t("fields.warnAtHint")}
         </p>
       </div>
@@ -261,10 +261,10 @@ export function ContractPanel({
     <Card as="section">
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--divider)] px-4 py-3">
         <div>
-          <h2 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+          <h2 className="t-label uppercase text-[var(--text-muted)]">
             {t("title")}
           </h2>
-          <p className="mt-0.5 text-[11px] text-[var(--text-faint)]">{t("intro")}</p>
+          <p className="mt-0.5 t-subhead text-[var(--text-faint)]">{t("intro")}</p>
         </div>
         {canWrite && periods.length > 0 && !renewing && (
           <button
@@ -283,13 +283,13 @@ export function ContractPanel({
       {/* ------------------------------------------------- no contract yet */}
       {periods.length === 0 && (
         <div className="px-4 py-4">
-          <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">
+          <p className="t-callout t-loose text-[var(--text-secondary)]">
             {t("none")}
             {fallbackEstimateHours !== null && fallbackEstimateHours > 0
               ? t.rich("fallback", {
                   hours: `${h(fallbackEstimateHours)}h`,
                   strong: (chunks) => (
-                    <strong className="text-[var(--text-primary)]">{chunks}</strong>
+                    <strong className="font-medium text-[var(--text-primary)]">{chunks}</strong>
                   ),
                 })
               : t("noBudgetToEnforce")}
@@ -297,21 +297,21 @@ export function ContractPanel({
 
           {!featureInstalled ? (
             <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4">
-              <p className="text-[12px] leading-relaxed text-[var(--text-primary)]">
+              <p className="t-callout t-loose text-[var(--text-primary)]">
                 {t("notInstalled.title")}
               </p>
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+              <p className="t-subhead t-loose text-[var(--text-secondary)]">
                 {/* The two migration paths are file names, not prose: they stay
                     verbatim in both languages and only the sentence around
                     them moves. */}
                 {t.rich("notInstalled.apply", {
                   first: () => (
-                    <code className="font-mono text-[11px] text-[var(--text-primary)]">
+                    <code className="fig text-[var(--text-primary)]">
                       supabase/migrations/add_contract_periods.sql
                     </code>
                   ),
                   second: () => (
-                    <code className="font-mono text-[11px] text-[var(--text-primary)]">
+                    <code className="fig text-[var(--text-primary)]">
                       supabase/migrations/add_budget_alert_visibility.sql
                     </code>
                   ),
@@ -336,7 +336,7 @@ export function ContractPanel({
               </div>
             </form>
           ) : (
-            <p className="mt-2 text-[11px] text-[var(--text-faint)]">
+            <p className="mt-2 t-subhead text-[var(--text-faint)]">
               {t("noPermission")}
             </p>
           )}
@@ -348,7 +348,7 @@ export function ContractPanel({
       {periods.length > 0 && (
         <div className="px-4 py-4">
           {current === null && latest !== null && (
-            <p className="mb-4 border border-[var(--critical)] px-3 py-2 text-[11px] leading-relaxed text-[var(--critical)]">
+            <p className="mb-4 border border-[var(--critical)] px-3 py-2 t-subhead t-loose text-[var(--critical)]">
               {t("gap", { period: latest.periodNo, endsOn: latest.endsOn })}
             </p>
           )}
@@ -356,7 +356,7 @@ export function ContractPanel({
           {current !== null && (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                <span className="t-label uppercase text-[var(--text-muted)]">
                   {t("period", {
                     period: current.periodNo,
                     // A contract reference is a proper noun; interpolated whole
@@ -364,7 +364,7 @@ export function ContractPanel({
                     reference: current.contractReference ? ` · ${current.contractReference}` : "",
                   })}
                 </span>
-                <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+                <span className="fig text-[var(--text-secondary)]">
                   {t("dates", {
                     startsOn: current.startsOn,
                     endsOn: current.endsOn,
@@ -378,7 +378,7 @@ export function ContractPanel({
 
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 <span
-                  className="font-mono text-[24px] font-semibold tracking-[-0.02em]"
+                  className="fig-lg"
                   style={{ color: burnTone(current.burnPercent, current.warnAtPercent) }}
                 >
                   {t("hoursOf", {
@@ -387,14 +387,14 @@ export function ContractPanel({
                   })}
                 </span>
                 <span
-                  className="font-mono text-[13px]"
+                  className="fig-md"
                   style={{ color: burnTone(current.burnPercent, current.warnAtPercent) }}
                 >
                   {current.burnPercent === null
                     ? tc("notAvailable")
                     : fmtPct(current.burnPercent, locale)}
                 </span>
-                <span className="text-[11px] text-[var(--text-secondary)]">
+                <span className="t-subhead text-[var(--text-secondary)]">
                   {current.remainingHours >= 0
                     ? t("remaining", { hours: h(current.remainingHours) })
                     : t("overBudget", { hours: h(Math.abs(current.remainingHours)) })}
@@ -403,7 +403,7 @@ export function ContractPanel({
 
               <BurnBar percent={current.burnPercent} warnAt={current.warnAtPercent} />
 
-              <p className="text-[11px] text-[var(--text-faint)]">
+              <p className="t-subhead text-[var(--text-faint)]">
                 {t("warnNote", { percent: current.warnAtPercent })}
               </p>
 
@@ -431,7 +431,7 @@ export function ContractPanel({
               className="mt-4 flex flex-col gap-3 border-t border-[var(--border)] pt-4"
             >
               <input type="hidden" name="project_id" value={projectId} />
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+              <p className="t-subhead t-loose text-[var(--text-secondary)]">
                 {t("renewIntro", { period: latest?.periodNo ?? 1 })}
               </p>
               <TermFields
@@ -473,7 +473,7 @@ export function ContractPanel({
             >
               <input type="hidden" name="project_id" value={projectId} />
               <input type="hidden" name="period_id" value={correcting} />
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+              <p className="t-subhead t-loose text-[var(--text-secondary)]">
                 {t("correctIntro")}
               </p>
               <TermFields
@@ -505,47 +505,47 @@ export function ContractPanel({
           {/* --------------------------------------------------- history */}
           {history.length > 0 && (
             <div className="mt-5 border-t border-[var(--border)] pt-4">
-              <h3 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+              <h3 className="t-label uppercase text-[var(--text-muted)]">
                 {t("history.title")}
               </h3>
-              <p className="mt-0.5 mb-2 text-[11px] text-[var(--text-faint)]">
+              <p className="mt-0.5 mb-2 t-subhead text-[var(--text-faint)]">
                 {t("history.intro")}
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-[11px]">
+                <table className="w-full border-collapse t-subhead">
                   <thead>
-                    <tr className="border-b border-[var(--border)] text-left font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
-                      <th className="py-1.5 pr-3 font-normal">{t("history.columns.period")}</th>
-                      <th className="py-1.5 pr-3 font-normal">{t("history.columns.dates")}</th>
-                      <th className="py-1.5 pr-3 text-right font-normal">
+                    <tr className="border-b border-[var(--border)] text-left t-label uppercase text-[var(--text-muted)]">
+                      <th className="py-1.5 pr-3">{t("history.columns.period")}</th>
+                      <th className="py-1.5 pr-3">{t("history.columns.dates")}</th>
+                      <th className="py-1.5 pr-3 text-right">
                         {t("history.columns.budget")}
                       </th>
-                      <th className="py-1.5 pr-3 text-right font-normal">
+                      <th className="py-1.5 pr-3 text-right">
                         {t("history.columns.booked")}
                       </th>
-                      <th className="py-1.5 pr-3 text-right font-normal">
+                      <th className="py-1.5 pr-3 text-right">
                         {t("history.columns.burn")}
                       </th>
-                      <th className="py-1.5 font-normal">{t("history.columns.reference")}</th>
+                      <th className="py-1.5">{t("history.columns.reference")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {history.map((p) => (
                       <tr key={p.id} className="border-b border-[var(--border)] last:border-0">
-                        <td className="py-1.5 pr-3 font-mono tabular-nums text-[var(--text-secondary)]">
+                        <td className="py-1.5 pr-3 fig text-[var(--text-secondary)]">
                           {p.periodNo}
                         </td>
-                        <td className="py-1.5 pr-3 font-mono tabular-nums text-[var(--text-secondary)]">
+                        <td className="py-1.5 pr-3 fig text-[var(--text-secondary)]">
                           {t("history.dates", { startsOn: p.startsOn, endsOn: p.endsOn })}
                         </td>
-                        <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-[var(--text-primary)]">
+                        <td className="py-1.5 pr-3 text-right fig text-[var(--text-primary)]">
                           {t("history.hours", { hours: h(p.budgetHours) })}
                         </td>
-                        <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-[var(--text-primary)]">
+                        <td className="py-1.5 pr-3 text-right fig text-[var(--text-primary)]">
                           {t("history.hours", { hours: h(p.loggedHours) })}
                         </td>
                         <td
-                          className="py-1.5 pr-3 text-right font-mono tabular-nums"
+                          className="py-1.5 pr-3 text-right fig"
                           style={{ color: burnTone(p.burnPercent, p.warnAtPercent) }}
                         >
                           {p.burnPercent === null

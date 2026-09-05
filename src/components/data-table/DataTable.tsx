@@ -316,7 +316,7 @@ export function DataTable<T>({
         {(() => {
           const heading = (
             <>
-              <h2 className="flex items-center gap-1.5 text-[13px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
+              <h2 className="flex items-center gap-1.5 t-title-3 text-[var(--text-primary)]">
                 {collapsible && (
                   <IconCaret
                     className={`flex-none text-[var(--text-faint)] transition-transform duration-150 ${
@@ -326,7 +326,7 @@ export function DataTable<T>({
                 )}
                 {title}
               </h2>
-              <span className="font-mono text-[10px] leading-tight tracking-[0.06em] text-[var(--text-faint)]">
+              <span className="t-label text-[var(--text-faint)]">
                 {/* The row count is stated whether open or shut. A collapsed
                     panel must never look like an absent one. */}
                 {open ? showing : (summary ?? showing)}
@@ -423,9 +423,9 @@ export function DataTable<T>({
       </header>
 
       {!open ? null : rows.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">{emptyText ?? t("empty")}</p>
+        <p className="px-4 py-6 text-center t-subhead text-[var(--text-faint)]">{emptyText ?? t("empty")}</p>
       ) : total === 0 ? (
-        <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">
+        <p className="px-4 py-6 text-center t-subhead text-[var(--text-faint)]">
           {t("noMatch", { query: query.trim() })}{" "}
           <button
             type="button"
@@ -463,7 +463,7 @@ export function DataTable<T>({
                         key={c.key}
                         scope="col"
                         aria-sort={active ? (desc ? "descending" : "ascending") : "none"}
-                        className={`whitespace-nowrap ${c.compact ? "px-2" : "px-4"} py-2 font-mono text-[10px] font-medium tracking-[0.1em] ${
+                        className={`whitespace-nowrap ${c.compact ? "px-2" : "px-4"} py-2 t-label ${
                           c.align === "right" ? "text-right" : "text-left"
                         } ${active ? "text-[var(--accent)]" : "text-[var(--text-faint)]"} ${frozenCell(i, true)} ${c.className ?? ""}`}
                       >
@@ -504,7 +504,7 @@ export function DataTable<T>({
                     {columns.map((c, i) => (
                       <td
                         key={c.key}
-                        className={`${c.compact ? "px-2" : "px-4"} py-1.5 text-[12px] ${
+                        className={`${c.compact ? "px-2" : "px-4"} py-1.5 t-callout ${
                           c.align === "right" ? "text-right" : "text-left"
                         } ${frozenCell(i, false)} ${c.className ?? ""}`}
                       >
@@ -521,7 +521,7 @@ export function DataTable<T>({
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--divider)] px-4 py-1.5">
               {/* Prose, so it is set in the sans face at 11px with real leading,
                   not as a 10px mono label -- a sentence is not a column header. */}
-              <span className="text-[11px] leading-[1.45] text-[var(--text-faint)]">{footnote}</span>
+              <span className="t-subhead text-[var(--text-faint)]">{footnote}</span>
               {pageCount > 1 && (
                 <div className="flex items-center gap-1">
                   <Button
@@ -537,7 +537,7 @@ export function DataTable<T>({
                     <IconArrowRight className="h-3.5 w-3.5 rotate-180" />
                     {t("prev")}
                   </Button>
-                  <span className="px-1 font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
+                  <span className="px-1 t-label text-[var(--text-faint)]">
                     {safePage + 1} / {pageCount}
                   </span>
                   <Button

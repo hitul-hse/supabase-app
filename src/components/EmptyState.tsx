@@ -23,9 +23,9 @@ export function EmptyState({
     <div
       className={`flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-dashed border-[var(--border-strong)] px-6 py-10 text-center ${className}`}
     >
-      <p className="text-[13px] font-medium text-[var(--text-primary)]">{title}</p>
+      <p className="t-headline text-[var(--text-primary)]">{title}</p>
       {description && (
-        <p className="max-w-[46ch] text-[12px] leading-relaxed text-[var(--text-muted)]">
+        <p className="max-w-[46ch] t-callout t-loose text-[var(--text-muted)]">
           {description}
         </p>
       )}

@@ -917,14 +917,17 @@ check(
 );
 
 // StatTile owns the never-zero rule now, so it has to keep it.
+// "—", not "n/a": APPLE_REF §8 #26 -- the table primitive and DESIGN.md
+// §Data tables 6 already said em dash, and a tile must agree with the table
+// under it.
 check(
-  "StatTile renders n/a for a missing value, never 0",
-  /isMissing \? "n\/a"/.test(card) && /value === null/.test(card),
+  "StatTile renders — for a missing value, never 0",
+  /isMissing \? "—"/.test(card) && /value === null/.test(card),
 );
 check(
   "StatTile suppresses the unit when the value is missing",
   /unit && !isMissing/.test(card),
-  '"n/a h" is nonsense',
+  '"— h" is nonsense',
 );
 
 /*
@@ -1030,6 +1033,13 @@ const SCALE_OWNED = [
   "src/components/StatusBadge.tsx",
   "src/components/SyncBar.tsx",
   "src/components/TopBarChrome.tsx",
+  // The task views under /projects/[id], added 2026-09-05 with the type roles:
+  // they carried 12.5 / 11.5 / 10.5 / 9.5 and are on the ladder now.
+  "src/app/(app)/projects/AddTaskForm.tsx",
+  "src/app/(app)/projects/TasksSection.tsx",
+  "src/app/(app)/projects/TaskRow.tsx",
+  "src/app/(app)/projects/TaskBoardView.tsx",
+  "src/app/(app)/projects/TaskListView.tsx",
 ];
 for (const f of SCALE_OWNED) {
   const src = readStripped(f);
@@ -1045,6 +1055,57 @@ for (const f of SCALE_OWNED) {
     tiny.length === 0,
     tiny.length ? `${[...new Set(tiny)].join(", ")}` : "",
   );
+}
+
+/*
+ * THE TYPE ROLES (APPLE_REF §1.3; DESIGN.md §Typography). Since 2026-09-05 the
+ * shell, /my-work and /projects set type through the named roles in
+ * globals.css -- t-title … t-label, fig-xl … fig -- and never through an
+ * ad-hoc `text-[Npx]`. A role is a name, and a name cannot be off by half a
+ * pixel; the SCALE_OWNED checks above are the fallback for files that still
+ * carry raw sizes (the Overview page), and these are the ratchet for the files
+ * that no longer do.
+ *
+ * Three more things the roles make checkable:
+ *   - Poppins 300 / 800 are banned in the shell and 700 is display-only (§8
+ *     #1), so no light or bold weight utility may appear in a role file.
+ *   - JetBrains Mono is loaded at 400 and 500 only (layout.tsx); `font-semibold`
+ *     on a mono span is a synthesised faux-bold, so no mono role may carry it.
+ *   - `leading-relaxed` is a prose value; UI text sits on the role's leading
+ *     (§8 #21). `t-loose` is the paragraph step.
+ */
+const ROLES = [
+  "t-large", "t-title", "t-title-2", "t-title-3", "t-headline", "t-body",
+  "t-callout", "t-subhead", "t-label", "fig-xl", "fig-lg", "fig-md", "fig",
+  "t-tight", "t-loose",
+];
+for (const role of ROLES) {
+  check(`globals.css defines the ${role} role as an @utility`, new RegExp(`@utility ${role} \\{`).test(globals));
+}
+const ROLE_ONLY = SCALE_OWNED.filter((f) => f !== "src/app/(app)/page.tsx").concat([
+  "src/components/LogoutButton.tsx",
+  "src/components/MobileDisclosure.tsx",
+  "src/components/MobileSidebar.tsx",
+  "src/components/MobileTabBar.tsx",
+  "src/components/StaleDeployNotice.tsx",
+  "src/components/TourReplayButton.tsx",
+  "src/app/(app)/projects/AddTaskForm.tsx",
+  "src/app/(app)/projects/TasksSection.tsx",
+  "src/app/(app)/projects/TaskRow.tsx",
+  "src/app/(app)/projects/TaskBoardView.tsx",
+  "src/app/(app)/projects/TaskListView.tsx",
+]);
+for (const f of new Set(ROLE_ONLY)) {
+  const src = readStripped(f);
+  const name = f.split("/").pop();
+  const raw = src.match(/text-\[\d+(?:\.\d+)?px\]|\btext-(?:xs|sm|base|lg|xl|2xl)\b/g) ?? [];
+  check(`${name} sets type through roles, not raw sizes`, raw.length === 0, [...new Set(raw)].join(", "));
+  const weights = src.match(/\bfont-(?:thin|extralight|light|bold|extrabold|black)\b/g) ?? [];
+  check(`${name} uses no light or bold Poppins weight`, weights.length === 0, [...new Set(weights)].join(", "));
+  const monoBold = src.match(/(?:font-mono|\bfig(?:-[a-z]+)?\b|\bt-label\b)[^"'\`]*\bfont-(?:semibold|bold)\b|\bfont-(?:semibold|bold)\b[^"'\`]*(?:font-mono|\bfig(?:-[a-z]+)?\b|\bt-label\b)/g) ?? [];
+  check(`${name} never asks JetBrains Mono for a weight above 500`, monoBold.length === 0, monoBold.length ? `${monoBold.length} faux-bold mono span(s)` : "");
+  const prose = src.match(/\bleading-(?:relaxed|loose)\b/g) ?? [];
+  check(`${name} keeps prose leading off UI text`, prose.length === 0, [...new Set(prose)].join(", "));
 }
 
 const seg = readStripped("src/components/ui/Segmented.tsx");

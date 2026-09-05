@@ -229,8 +229,8 @@ if (page) {
   );
   const statTile = read("src/components/ui/Card.tsx") ?? "";
   check(
-    'StatTile renders "n/a" for a null value, and no unit beside it',
-    /isMissing\s*\?\s*["']n\/a["']/.test(statTile) && /unit && !isMissing/.test(statTile),
+    'StatTile renders "—" for a null value, and no unit beside it',
+    /isMissing\s*\?\s*["'](?:—|n\/a)["']/.test(statTile) && /unit && !isMissing/.test(statTile),
     "the rule moved into the primitive; if it leaves there, every figure in the app regresses at once",
   );
   // Asserted on stripped source: the file explains this rule in a comment, and

@@ -36,10 +36,10 @@ export default function AppError({
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-[19px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
+        <h1 className="t-title text-[var(--text-primary)]">
           {t("title")}
         </h1>
-        <p className="max-w-[52ch] text-[12px] leading-relaxed text-[var(--text-muted)]">
+        <p className="max-w-[52ch] t-callout t-loose text-[var(--text-muted)]">
           {t("description")}
         </p>
       </div>
@@ -54,7 +54,7 @@ export default function AppError({
       </div>
 
       {error.digest && (
-        <span className="font-mono text-[10px] text-[var(--text-faint)]">
+        <span className="t-label text-[var(--text-faint)]">
           {t("ref", { digest: error.digest })}
         </span>
       )}

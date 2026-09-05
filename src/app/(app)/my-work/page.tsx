@@ -167,7 +167,7 @@ export default async function MyWorkPage() {
                   radius says so, and it stays outside any disclosure because
                   it says the numbers on screen may be wrong. */}
               {work.truncated ? (
-                <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+                <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 t-callout text-[var(--critical)]">
                   This list hit the reporting ceiling, so it may be incomplete and the
                   totals above may understate.
                 </p>

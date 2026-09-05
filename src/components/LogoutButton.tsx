@@ -53,7 +53,7 @@ export function LogoutButton() {
     >
       {/* The same inner row as a nav link: `gap-0` and `px-0` in the rail so
           the zero-width label does not push the icon off centre. */}
-      <div className="flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] transition-[color,background-color,transform] duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5">
+      <div className="flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 t-callout text-[var(--text-secondary)] transition-[color,background-color,transform] duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5">
         <IconLogout className="flex-none" />
         {/*
           Clipped rather than removed so the button keeps a text accessible name
@@ -67,7 +67,7 @@ export function LogoutButton() {
 
       <span
         aria-hidden
-        className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] font-normal text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/logout:opacity-100 group-focus-visible/logout:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
+        className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/logout:opacity-100 group-focus-visible/logout:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
       >
         {t("logOut")}
       </span>

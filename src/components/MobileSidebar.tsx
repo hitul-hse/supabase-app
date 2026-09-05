@@ -144,7 +144,7 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
           on the cap-height of the wordmark beside it, not tower over it.
         */}
         <BrandMark size={22} className="flex-none" />
-        <span className="font-sans text-[13px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
+        <span className="t-headline tracking-[0.02em] text-[var(--text-primary)]">
           HSE HUB
         </span>
       </div>

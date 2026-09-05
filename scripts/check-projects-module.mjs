@@ -609,13 +609,15 @@ module.exports = {
     /\bpy-1\b/.test(rowClass) && !/\bpy-2\.5\b/.test(rowClass),
     rowClass.slice(0, 90),
   );
-  // 12px, the body step of the type scale -- the 12.5px half-step this used to
-  // pin was retired with the rest of the fractional sizes (check-design-system
-  // now owns the ledger's scale). The intent is unchanged: the name stays at
-  // row-text size, never a caption size, however tight the row gets.
+  // t-callout, the 12px row step of the type scale (APPLE_REF §1.3; the raw
+  // `text-[12px]` it replaced is still accepted, and the 12.5px half-step
+  // before that was retired with the rest of the fractional sizes). The intent
+  // is unchanged: the name stays at row-text size, never a caption size
+  // (t-subhead / t-label / a raw 10-11px), however tight the row gets.
   check(
     "the project name keeps its readable size despite the tighter row",
-    /text-\[12px\]/.test(rowClass) && !/text-\[1[01]px\]/.test(rowClass),
+    /(?:\bt-callout\b|text-\[12px\])/.test(rowClass) &&
+      !/text-\[1[01]px\]|\bt-subhead\b|\bt-label\b/.test(rowClass),
     "the one column people actually read must not shrink",
   );
   check(
@@ -776,13 +778,17 @@ module.exports = {
   // Uneven card heights are what made the old row look broken: only two of five
   // cells had a sub-label, so three were visibly shorter.
   /*
-   * TWO faint spans per tile, not one: StatTile paints the label faint AND the
-   * hint faint, so "has a hint" is "has a second faint span". A tile missing
-   * its hint measures 1 and is caught -- which a mere presence test would not
-   * do, because the label alone satisfies it.
+   * The hint is StatTile's one `t-subhead` + `--text-muted` span (APPLE_REF
+   * §5.5: caption faint, value primary, hint muted). Before the type roles the
+   * hint was faint like the label, so "has a hint" was "has a second faint
+   * span"; that form is still accepted so an older tile is not misread. A tile
+   * missing its hint matches neither and is caught -- which a mere presence
+   * test would not do, because the label alone satisfies it.
    */
   const tilesWithHint = tileSlices.filter(
-    (t) => (t.match(/text-\[var\(--text-faint\)\]/g) ?? []).length >= 2,
+    (t) =>
+      /t-subhead text-\[var\(--text-muted\)\]/.test(t) ||
+      (t.match(/text-\[var\(--text-faint\)\]/g) ?? []).length >= 2,
   ).length;
   check(
     "every tile carries a hint line, so heights match",

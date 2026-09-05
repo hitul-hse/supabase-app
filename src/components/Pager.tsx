@@ -137,7 +137,7 @@ export function Pager({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--divider)] px-3 py-2">
-      <span className="font-mono text-[10px] tracking-[0.04em] text-[var(--text-faint)]">
+      <span className="t-label text-[var(--text-faint)]">
         {size === "all"
           ? t("allCount", { count: total, noun: noun.toUpperCase() })
           : t("range", {
@@ -165,7 +165,7 @@ export function Pager({
         {/* Rows per page. Offered because the right answer depends on the screen: 25 fits
             a laptop, 100 suits a large monitor where paging every 25 rows is friction. */}
         <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-faint)]">
+          <span className="t-label text-[var(--text-faint)]">
             {t("perPage")}
           </span>
           {/* The segmented skin DataTable's page sizes wear: one dialect for
@@ -203,7 +203,7 @@ export function Pager({
               <IconArrowRight className="h-3.5 w-3.5 rotate-180" />
               {t("prev")}
             </Button>
-            <span className="px-1 font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
+            <span className="px-1 t-label text-[var(--text-faint)]">
               {page + 1} / {pageCount}
             </span>
             <Button

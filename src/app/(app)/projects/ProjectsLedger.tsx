@@ -328,9 +328,9 @@ export function ProjectsLedger({
               className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-[var(--surface-hover)]"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-[12px] font-medium text-[var(--text-primary)]">{p.name}</span>
+                <span className="t-callout font-medium text-[var(--text-primary)]">{p.name}</span>
                 <span
-                  className="shrink-0 font-mono text-[11px] font-semibold"
+                  className="shrink-0 fig font-medium"
                   style={{ color: burnColor(p.burnPercent) }}
                 >
                   {p.burnPercent === null
@@ -338,7 +338,7 @@ export function ProjectsLedger({
                     : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>
-              <span className="font-mono text-[10px] text-[var(--text-muted)]">
+              <span className="t-subhead text-[var(--text-muted)]">
                 {p.customerName ?? tp("ledger.noCustomer")}
               </span>
               <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
@@ -350,7 +350,7 @@ export function ProjectsLedger({
                   }}
                 />
               </div>
-              <div className="flex gap-3 font-mono text-[10px] text-[var(--text-secondary)]">
+              <div className="flex gap-3 fig text-[var(--text-secondary)]">
                 <span>{tp("ledger.loggedH", { hours: fmtNum(p.actualHours, locale, 1) })}</span>
                 <span>
                   {p.estimatedHours && p.estimatedHours > 0
@@ -372,7 +372,7 @@ export function ProjectsLedger({
               type="button"
               onClick={() => setMobileExpanded((v) => !v)}
               aria-expanded={mobileExpanded}
-              className="px-3 py-2.5 text-left font-mono text-[10px] tracking-[0.08em] text-[var(--accent)]"
+              className="px-3 py-2.5 text-left t-label text-[var(--accent)]"
             >
               {mobileExpanded
                 ? tp("ledger.showFewer", {
@@ -401,7 +401,7 @@ export function ProjectsLedger({
               onSort={handleSort}
               className="col-span-4"
             />
-            <span className="col-span-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-muted)]">
+            <span className="col-span-2 t-label text-[var(--text-muted)]">
               {tp("ledger.columns.customer")}
             </span>
             <SortHeader
@@ -454,11 +454,11 @@ export function ProjectsLedger({
             <div
               key={p.id}
               data-ledger-row
-              className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1.5 text-[12px] transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
+              className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1.5 t-callout transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
             >
               <Link
                 href={`/projects/${p.id}`}
-                className="col-span-4 truncate text-[12px] font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
+                className="col-span-4 truncate font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
                 title={p.name}
               >
                 {p.name}
@@ -466,7 +466,7 @@ export function ProjectsLedger({
               <span className="col-span-2 truncate text-[var(--text-secondary)]" title={p.customerName ?? ""}>
                 {p.customerName ?? "—"}
               </span>
-              <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
+              <span className="col-span-1 text-right fig text-[var(--text-secondary)]">
                 {p.estimatedHours && p.estimatedHours > 0
                   ? fmtNum(p.estimatedHours, locale, 1)
                   : "—"}
@@ -481,12 +481,12 @@ export function ProjectsLedger({
                   aria-haspopup="dialog"
                   aria-label={t("open", { title: p.name })}
                   data-drill-trigger={`ledger-hours-${p.id}`}
-                  className="col-span-1 cursor-pointer text-right font-mono text-[11px] text-[var(--text-primary)] underline-offset-4 transition-[color,transform] duration-150 hover:text-[var(--accent)] hover:underline active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                  className="col-span-1 cursor-pointer text-right fig text-[var(--text-primary)] underline-offset-4 transition-[color,transform] duration-150 hover:text-[var(--accent)] hover:underline active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 >
                   {fmtNum(p.actualHours, locale, 1)}
                 </button>
               ) : (
-                <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-primary)]">
+                <span className="col-span-1 text-right fig text-[var(--text-primary)]">
                   {fmtNum(p.actualHours, locale, 1)}
                 </span>
               )}
@@ -502,16 +502,16 @@ export function ProjectsLedger({
                   />
                 </div>
                 <span
-                  className="w-11 text-right font-mono text-[11px] font-medium"
+                  className="w-11 text-right fig font-medium"
                   style={{ color: burnColor(p.burnPercent) }}
                 >
                   {p.burnPercent === null ? tc("notAvailable") : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>
-              <span className="col-span-1 text-right font-mono text-[11px] text-[var(--text-secondary)]">
+              <span className="col-span-1 text-right fig text-[var(--text-secondary)]">
                 {p.memberCount || "—"}
               </span>
-              <span className="col-span-1 text-right font-mono text-[10px] text-[var(--text-faint)]">
+              <span className="col-span-1 text-right fig text-[var(--text-faint)]">
                 {p.lastActivity ?? tp("ledger.never")}
               </span>
             </div>

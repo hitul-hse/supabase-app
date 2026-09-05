@@ -385,7 +385,7 @@ export function ProjectsExplorer({
 
           <div className="flex items-center gap-3 sm:ml-auto">
             <span
-              className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-muted)]"
+              className="t-label text-[var(--text-muted)]"
               role="status"
               aria-live="polite"
             >

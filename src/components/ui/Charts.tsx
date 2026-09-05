@@ -135,7 +135,7 @@ export function AreaTrend({
           because content appearing on hover must not reflow the chart. */}
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex justify-end px-1">
         <span
-          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
+          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-1 fig text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
             hot ? "opacity-100" : "opacity-0"
           }`}
           aria-hidden
@@ -399,11 +399,11 @@ export function Donut({
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-mono text-[21px] font-semibold leading-none tracking-tight text-[var(--text-primary)]">
+          <span className="fig-lg text-[var(--text-primary)]">
             {centre}
           </span>
           {centreLabel && (
-            <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-faint)]">
+            <span className="mt-1 t-label uppercase text-[var(--text-faint)]">
               {centreLabel}
             </span>
           )}
@@ -504,7 +504,7 @@ export function Gauge({
             className={
               figure === "hero"
                 ? "text-[48px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-primary)]"
-                : "font-mono text-[24px] font-semibold leading-none tracking-tight text-[var(--text-primary)]"
+                : "fig-lg text-[var(--text-primary)]"
             }
           >
             {centre ?? String(value)}
@@ -512,14 +512,14 @@ export function Gauge({
               className={
                 figure === "hero"
                   ? "ml-0.5 font-mono text-[15px] font-normal tracking-normal text-[var(--text-faint)]"
-                  : "text-[13px] font-normal text-[var(--text-faint)]"
+                  : "fig text-[var(--text-faint)]"
               }
             >
               {unit ?? `/${max}`}
             </span>
           </span>
           {centreLabel && (
-            <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-faint)]">
+            <span className="mt-1 t-label uppercase text-[var(--text-faint)]">
               {centreLabel}
             </span>
           )}
@@ -534,7 +534,7 @@ export function Gauge({
 /** The little legend marker every chart card uses; one shape, not five ad-hoc spans. */
 export function LegendDot({ color, children }: { color: string; children: React.ReactNode }) {
   return (
-    <span className="flex items-center gap-1.5 font-mono text-[10px] text-[var(--text-secondary)]">
+    <span className="flex items-center gap-1.5 t-label text-[var(--text-secondary)]">
       <span className="h-2 w-2 rounded-full" style={{ background: color }} />
       {children}
     </span>
@@ -578,7 +578,7 @@ export function BarTrend({
     <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex justify-end px-1">
         <span
-          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
+          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-1 fig text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
             hot ? "opacity-100" : "opacity-0"
           }`}
           aria-hidden
@@ -700,7 +700,7 @@ export function TrendFigure({
             aria-pressed={kind === k}
             aria-label={`Draw this figure as ${k === "area" ? "an area" : "bars"}`}
             onClick={() => setChartKind(id, k)}
-            className={`rounded-full px-2 py-0.5 font-mono text-[9px] tracking-[0.08em] transition-colors ${
+            className={`rounded-full px-2 py-0.5 t-label transition-colors ${
               kind === k
                 ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
                 : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
@@ -765,7 +765,7 @@ function PinnedReadout({ text }: { text: string | null }) {
   return (
     <span
       aria-hidden
-      className={`pointer-events-none absolute right-0 top-0 z-10 max-w-full truncate rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-0.5 font-mono text-[10px] leading-[14px] tabular-nums text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
+      className={`pointer-events-none absolute right-0 top-0 z-10 max-w-full truncate rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-0.5 fig text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
         text ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -856,12 +856,12 @@ const barMotion = (i: number) => ({ animationDuration: "0.4s", animationDelay: `
 function RowLabel({ label, prefix, sub, wide }: { label: string; prefix?: string; sub?: string; wide?: boolean }) {
   return (
     <span className="flex min-w-0 flex-col">
-      <span className="flex min-w-0 flex-wrap items-baseline text-[12px] leading-[16px] text-[var(--text-secondary)]">
-        {prefix && <span className="font-mono text-[10px] text-[var(--text-faint)]">{prefix}</span>}
+      <span className="flex min-w-0 flex-wrap items-baseline t-callout text-[var(--text-secondary)]">
+        {prefix && <span className="t-label text-[var(--text-faint)]">{prefix}</span>}
         {/* A wide label (free-text SQL) wraps to two lines rather than losing its end. */}
         <span className={wide ? "line-clamp-2 [overflow-wrap:anywhere]" : "truncate"}>{label}</span>
       </span>
-      {sub && <span className="truncate font-mono text-[10px] leading-[14px] text-[var(--text-faint)]">{sub}</span>}
+      {sub && <span className="truncate t-label text-[var(--text-faint)]">{sub}</span>}
     </span>
   );
 }
@@ -957,7 +957,7 @@ export function HBar({
             <span />
             <span className="relative h-[14px]">
               <span
-                className="absolute top-0 whitespace-nowrap font-mono text-[10px] leading-[14px] text-[var(--text-faint)]"
+                className="absolute top-0 whitespace-nowrap t-label text-[var(--text-faint)]"
                 style={
                   limitRight
                     ? { right: `calc(100% - ${limitX})`, marginRight: 5 }
@@ -973,7 +973,7 @@ export function HBar({
         {sections.map((s) => (
           <div key={s.group ?? "__none"} className="flex flex-col gap-1">
             {s.group && (
-              <div className="pt-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--text-faint)] first:pt-0">
+              <div className="pt-2 t-label uppercase text-[var(--text-faint)] first:pt-0">
                 {s.group}
               </div>
             )}
@@ -1010,7 +1010,7 @@ export function HBar({
                         colour, so where it crosses the rule it cuts a gap instead of
                         colliding -- the surface doing the separating, as everywhere. */}
                     <span
-                      className="absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-[2px] font-mono text-[11px] leading-[14px] tabular-nums text-[var(--text-primary)]"
+                      className="absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-[2px] fig text-[var(--text-primary)]"
                       style={{
                         left: `calc(${xOf(r.value)} + ${fraction > 0 ? 4 : 0}px)`,
                         padding: limit ? "0 2px" : undefined,
@@ -1167,7 +1167,7 @@ export function StackedHBar({
           } ${onSelect ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]" : ""}`;
           const inner = (
             <>
-              <span className="truncate text-[12px] leading-[16px] text-[var(--text-secondary)]">{r.label}</span>
+              <span className="truncate t-callout text-[var(--text-secondary)]">{r.label}</span>
               <span className="relative block" style={{ height: Math.max(t, 16) }}>
                 <span
                   className="bar-grow absolute left-0 top-1/2 flex -translate-y-1/2 gap-[2px] transition-opacity duration-150"
@@ -1187,7 +1187,7 @@ export function StackedHBar({
                   ))}
                 </span>
                 <span
-                  className="absolute top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[11px] leading-[14px] tabular-nums text-[var(--text-primary)]"
+                  className="absolute top-1/2 -translate-y-1/2 whitespace-nowrap fig text-[var(--text-primary)]"
                   style={{ left: `calc((100% - ${reserve}) * ${fraction} + ${fraction > 0 ? 6 : 0}px)` }}
                 >
                   {values[i]}
@@ -1309,7 +1309,7 @@ export function ProportionBar({
               {fits && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 flex items-center justify-center whitespace-nowrap font-mono text-[10px] tabular-nums"
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center whitespace-nowrap t-label"
                   style={{ color: s.ink ?? "var(--accent-contrast)" }}
                 >
                   {text}
@@ -1327,7 +1327,7 @@ export function ProportionBar({
               <li
                 key={s.key}
                 onMouseEnter={() => setActive(s.key)}
-                className={`flex items-baseline gap-2 rounded-[var(--radius-sm)] px-1 py-0.5 font-mono text-[10px] leading-[14px] transition-colors ${
+                className={`flex items-baseline gap-2 rounded-[var(--radius-sm)] px-1 py-0.5 t-label transition-colors ${
                   on ? "bg-[var(--surface-hover)]" : ""
                 }`}
               >
@@ -1477,16 +1477,16 @@ export function Timeline({
   const slotPx = width > 0 ? width / days : Infinity;
   const MARK = slotPx >= 16 ? 12 : 8;
   const HIT = 24;
-  const laneLabelClass = "w-[5.5rem] shrink-0 truncate pr-3 font-mono text-[10px] text-[var(--text-faint)]";
+  const laneLabelClass = "w-[5.5rem] shrink-0 truncate pr-3 t-label text-[var(--text-faint)]";
   const hasMeta = lanes.some((l) => l.meta);
-  const laneMetaClass = "w-[4.5rem] shrink-0 pl-3 text-right font-mono text-[10px] tabular-nums text-[var(--text-muted)]";
+  const laneMetaClass = "w-[4.5rem] shrink-0 pl-3 text-right fig text-[var(--text-muted)]";
 
   return (
     <div className={`flex flex-col gap-2 ${className}`} onMouseLeave={() => setActive(null)}>
       <FigureStrip text={hot?.readout ?? null}>
         <div className="flex flex-wrap gap-x-3 gap-y-1" aria-hidden>
           {(["ok", "failed", "running"] as const).map((k) => (
-            <span key={k} className="flex items-center gap-1 font-mono text-[10px] text-[var(--text-secondary)]">
+            <span key={k} className="flex items-center gap-1 t-label text-[var(--text-secondary)]">
               <EventMark kind={k} size={12} />
               {kindLabels?.[k] ?? KIND_LABEL[k]}
             </span>
@@ -1545,7 +1545,7 @@ export function Timeline({
             {ticks.map((d) => (
               <span
                 key={d}
-                className="absolute top-0 whitespace-nowrap font-mono text-[10px] leading-[14px] text-[var(--text-faint)]"
+                className="absolute top-0 whitespace-nowrap t-label text-[var(--text-faint)]"
                 style={{
                   left: `${((d + 0.5) / days) * 100}%`,
                   transform: "translateX(-50%)",
@@ -1624,7 +1624,7 @@ export function Sparkline({
           to reserve, and floating never reflows. */}
       <span className="pointer-events-none absolute bottom-full right-0 z-10 mb-1" aria-hidden>
         <span
-          className={`block whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-0.5 font-mono text-[10px] leading-[14px] tabular-nums text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
+          className={`block whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-0.5 fig text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
             hot ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -1705,15 +1705,15 @@ export function Meter({
     <div className={`flex flex-col gap-1.5 ${className}`}>
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="truncate text-[13px] leading-[16px] text-[var(--text-primary)]">{label}</span>
+          <span className="truncate t-body text-[var(--text-primary)]">{label}</span>
           {qualifier && (
-            <span className="shrink-0 font-mono text-[10px] leading-[14px] tracking-[0.06em] text-[var(--text-faint)]">
+            <span className="shrink-0 t-label text-[var(--text-faint)]">
               {qualifier}
             </span>
           )}
         </span>
         {/* Four meters stack in a column, so the scores align on tabular digits. */}
-        <span className="shrink-0 text-[15px] font-semibold leading-[16px] tabular-nums text-[var(--text-primary)]">{text}</span>
+        <span className="shrink-0 fig-md text-[var(--text-primary)]">{text}</span>
       </div>
       <div
         role="img"

@@ -82,8 +82,39 @@ async function compile(src, out, rewrites = {}) {
 }
 
 const transformFile = await compile("src/lib/time-transform.ts", "time-transform.cjs");
+// TimeTotalsStrip imports @/lib/locale-format since c55de64 (2026-09-03). That
+// commit taught check-time-page-render.mjs the alias and missed this file, so the
+// component require below died with "Cannot find module '@/lib/locale-format'"
+// on every night-shift run from 2026-09-03T22:03 -- ten in a row -- before a single
+// render assertion ran. A crash, not a verdict, and only the nightly channel ran
+// this gate, so nobody saw it. Compiled for real, as page-render does: a stub would
+// test nothing.
+const formatFile = await compile("src/lib/locale-format.ts", "locale-format.cjs");
+// TimeTotalsStrip and TimeEntryList are async Server Components that read their
+// words through next-intl/server (also since c55de64). getTranslations() and
+// getLocale() need a request context that only exists inside Next; here they are
+// a translator over the real messages/en.json, exactly as check-time-page-render
+// and check-data-table-primitive do it, so a missing key renders as its key path
+// and FAILS rather than passing on a stub.
+const intlFile = join(dir, "next-intl-server.cjs");
+writeFileSync(
+  intlFile,
+  `const { createTranslator } = require("next-intl");
+const messages = require("${posix(resolve("messages/en.json"))}");
+const locale = "en";
+exports.getLocale = async () => locale;
+exports.getTranslations = async (arg) =>
+  createTranslator({
+    locale,
+    messages,
+    namespace: typeof arg === "string" ? arg : arg?.namespace,
+  });
+`,
+);
 const alias = {
+  "next-intl/server": posix(intlFile),
   "@/lib/time-transform": posix(transformFile),
+  "@/lib/locale-format": posix(formatFile),
   "@/lib/database.types": posix(transformFile), // types only; erased at compile time
 };
 
@@ -196,9 +227,14 @@ const { TimeEntryList } = require(
 let renderThrew = null;
 let html = "";
 try {
+  // Async Server Components: await each down to an element tree first.
+  // renderToStaticMarkup is synchronous and throws "A component suspended while
+  // responding to synchronous input" if handed the promise itself -- which is
+  // what this gate did from 2026-09-03 until now, as the first of its three
+  // render FAILs. Same helper shape as check-time-page-render.mjs:124.
   html =
-    renderToStaticMarkup(h(TimeTotalsStrip, { totals })) +
-    renderToStaticMarkup(h(TimeEntryList, { days, showMember: false }));
+    renderToStaticMarkup(await TimeTotalsStrip({ totals })) +
+    renderToStaticMarkup(await TimeEntryList({ days, showMember: false }));
 } catch (e) {
   renderThrew = e;
 }

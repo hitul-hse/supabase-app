@@ -42,6 +42,8 @@
     "hide": "AUSBLENDEN",
     "replayTour": "Tour erneut abspielen",
     "signingOut": "Abmeldung läuft …",
+    "profile": "Profil",
+    "accountMenu": "Kontomenü — {name}",
     "error": {
       "title": "Diese Seite konnte nicht geladen werden",
       "description": "Die Daten hinter dieser Ansicht konnten nicht geladen werden. Das ist meist vorübergehend — ein erneuter Versuch hilft oft. Tritt es weiterhin auf, hilft die Referenz unten bei der Ursachensuche.",
@@ -1563,7 +1565,7 @@
     },
     "noAccess": {
       "title": "Sie haben keinen Zugriff auf das Projektportfolio",
-      "description": "Alle Projekte zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Ihre eigene Projektzeit sehen Sie unter Zeit. Eine Administratorin kann weiteren Zugriff unter Rollenberechtigungen erteilen.",
+      "description": "Alle Projekte zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Ihre Projektzeit finden Sie unter Zeit.",
       "action": "Zu Zeit"
     },
     "filters": {
@@ -1999,7 +2001,19 @@
     },
     "empty": {
       "browseProjects": "Alle Projekte ansehen",
-      "reload": "Neu laden"
+      "reload": "Neu laden",
+      "unlinked": {
+        "title": "Dein Konto ist noch keinem Personendatensatz zugeordnet",
+        "description": "Arbeit wird über einen Personendatensatz zugeordnet; dieses Konto hat noch keinen. Ein Administrator verknüpft ihn unter Benutzer & Rollen."
+      },
+      "loadFailed": {
+        "title": "Deine Arbeit konnte nicht geladen werden",
+        "description": "Die Projektabfrage ist fehlgeschlagen; statt einer Teilliste wird nichts angezeigt. Neu laden – bleibt es, prüft ein Administrator die Logs."
+      },
+      "none": {
+        "title": "Dir sind keine Projekte zugewiesen",
+        "description": "Nichts nennt {name} als verantwortlich, Betreuer, Vertretung oder zugewiesen. Weist dich eine Projektleitung zu, erscheint es hier."
+      }
     }
   }
 }

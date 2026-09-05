@@ -356,7 +356,17 @@ export function IconArrowsVertical({ className }: IconProps) {
   );
 }
 
-/** Sign out — the sidebar footer's exit. */
+/** A person — the account menu's Profile entry. */
+export function IconUser({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="8" cy="5.25" r="2.75" />
+      <path d="M2.75 13.5a5.25 5.25 0 0 1 10.5 0" />
+    </Svg>
+  );
+}
+
+/** Sign out — the account menu's exit. */
 export function IconLogout({ className }: IconProps) {
   return (
     <Svg className={className}>

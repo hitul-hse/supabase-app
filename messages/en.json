@@ -42,6 +42,8 @@
     "hide": "HIDE",
     "replayTour": "Replay tour",
     "signingOut": "Signing out…",
+    "profile": "Profile",
+    "accountMenu": "Account menu — {name}",
     "error": {
       "title": "This page couldn't load",
       "description": "The data behind this screen failed to load. This is usually temporary — trying again often resolves it. If it keeps happening, the reference below helps trace the cause.",
@@ -1559,11 +1561,11 @@
     "truncated": "This portfolio exceeds the reporting ceiling, so the hours below cover only the most recent entries. Totals per project may be understated.",
     "empty": {
       "title": "No projects yet",
-      "description": "Nothing has been imported from TrackingTime yet. The nightly sync populates this list; you can also run it manually with `npm run sync:trackingtime`."
+      "description": "Nothing has been imported from TrackingTime yet. The nightly sync fills this list; `npm run sync:trackingtime` runs it by hand."
     },
     "noAccess": {
       "title": "You don't have access to the project portfolio",
-      "description": "Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is visible under Time. An administrator can grant wider access under Role Permissions.",
+      "description": "Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is under Time.",
       "action": "Go to Time"
     },
     "filters": {
@@ -1999,7 +2001,19 @@
     },
     "empty": {
       "browseProjects": "Browse all projects",
-      "reload": "Reload"
+      "reload": "Reload",
+      "unlinked": {
+        "title": "Your account isn't linked to a person record yet",
+        "description": "Work is attributed through a person record, and this account has none yet. An administrator can link one under Users & Roles."
+      },
+      "loadFailed": {
+        "title": "Your work couldn't be loaded",
+        "description": "The projects query failed, so nothing is shown rather than a partial list. Reload; if it persists, an administrator can check the logs."
+      },
+      "none": {
+        "title": "No projects are assigned to you",
+        "description": "Nothing names {name} as responsible, owner, replacement or assignee yet. Once a project lead assigns you, it appears here."
+      }
     }
   }
 }

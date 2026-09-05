@@ -107,10 +107,18 @@ export default async function MyWorkPage() {
             describing and exactly what an administrator must do, rather than
             rendering an empty table that reads as "you have no work".
           */}
+          {/*
+            Three distinct empty states (APPLE_REF §5.9: "nothing yet",
+            "not permitted"/unlinked, "load failed"), each capped at a
+            one-line title, ≤ 140 characters of description and one action
+            (§8 #28). The "who am I" that used to open each paragraph is gone
+            from the copy: the top bar's user menu now states the account on
+            every page, and the header meta says which person record it reads.
+          */}
           {work.unlinked ? (
             <EmptyState
-              title="Your account isn't linked to a person record yet"
-              description={`Signed in as ${profile.email ?? "this account"} with the ${profile.roleDisplayName} role. My Work is driven by project ownership and assignments, both of which hang off a person record — and this account has none, so there is nothing to attribute to you. An administrator can link it under Users & Roles. This is not an error and no data is missing.`}
+              title={t("empty.unlinked.title")}
+              description={t("empty.unlinked.description")}
               action={
                 <ButtonLink href="/projects" variant="secondary" size="sm">
                   {t("empty.browseProjects")}
@@ -127,8 +135,8 @@ export default async function MyWorkPage() {
               more than a confident wrong answer.
             */
             <EmptyState
-              title="Your work couldn't be loaded"
-              description={`Signed in as ${work.personName ?? work.personId}. The projects and assignments query failed, so this page is showing nothing rather than showing a partial list as if it were complete. This is a fault on our side, not an empty book of work — try reloading, and if it persists an administrator can check the server logs.`}
+              title={t("empty.loadFailed.title")}
+              description={t("empty.loadFailed.description")}
               action={
                 <ButtonLink href="/my-work" variant="secondary" size="sm">
                   {t("empty.reload")}
@@ -138,8 +146,10 @@ export default async function MyWorkPage() {
             />
           ) : work.totals.projects === 0 ? (
             <EmptyState
-              title="No projects are assigned to you"
-              description={`Your account is linked to ${work.personName ?? work.personId}, but no project names you as responsible, owner, replacement or assignee. When a project lead assigns you, it appears here automatically.`}
+              title={t("empty.none.title")}
+              description={t("empty.none.description", {
+                name: work.personName ?? profile.personName ?? work.personId ?? "",
+              })}
             />
           ) : (
             <>

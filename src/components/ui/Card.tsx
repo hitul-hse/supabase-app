@@ -190,7 +190,12 @@ export function StatTile({
     <div
       {...rest}
       data-stat-tile
-      className={`card-elev flex flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 ${className}`}
+      /*
+       * 16 px padding and a 76 px floor (APPLE_REF §5.5 "Sizes"): the dense
+       * card padding, and a height a skeleton can mirror exactly even when a
+       * caller omits the hint.
+       */
+      className={`card-elev flex min-h-[76px] flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 ${className}`}
     >
       <span className="t-label text-[var(--text-faint)]">
         {label}

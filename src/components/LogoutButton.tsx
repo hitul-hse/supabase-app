@@ -1,21 +1,23 @@
 "use client";
 
 /**
- * LogoutButton — sign out, in both sidebar shapes.
+ * LogoutButton — sign out, in two shapes.
  *
- * Expanded: a NAV ROW -- icon + "Log out" in exactly the geometry of the links
- *           above it, because it sits in the same column and a bordered button
- *           at the bottom of a list of borderless rows read as a form control
- *           that had wandered into the navigation.
- * Rail:     icon only, centred, with the same hover/focus tooltip the nav rows
- *           surface their labels in.
+ * `menuitem` (the default place, inside `UserMenu`): a 32 px menu row with the
+ *   exit icon, the last item under a separator. It moved here from the foot
+ *   of the sidebar (APPLE_REF §8 #30: "Avoid putting critical… actions at the
+ *   bottom of a sidebar"), and it is under the identity it signs out.
  *
- * Like SidebarNav, the shape comes from `group-data-[collapsed]/sidebar`
- * rather than a hook, because this renders inside an async server component
- * that cannot read the collapse context.
+ * `row` (the default prop value, for /portal and /access-pending, which have
+ *   no top bar): a bare nav-row-shaped button -- icon + "Log out" -- because a
+ *   bordered button in a column of borderless rows read as a form control
+ *   that had wandered into the navigation.
  *
- * The press (`active:translate-y-px`) is CSS on the down event, so the row
- * acknowledges the click before the sign-out round trip starts.
+ * The visible text IS the accessible name -- it changes to "Signing out…"
+ * while the round trip runs, and a static aria-label would keep announcing
+ * "Log out" over a button that is already doing it. The press
+ * (`active:translate-y-px`) is CSS on the down event, so the row acknowledges
+ * the click before the sign-out starts.
  */
 
 import { useState } from "react";
@@ -23,8 +25,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/utils/supabase/client";
 import { IconLogout } from "./nav-icons";
+import { menuItemClass } from "./ui/Menu";
 
-export function LogoutButton() {
+export function LogoutButton({ variant = "row" }: { variant?: "row" | "menuitem" }) {
   const router = useRouter();
   const t = useTranslations("common");
   const [pending, setPending] = useState(false);
@@ -42,35 +45,35 @@ export function LogoutButton() {
     router.push("/auth/login");
   };
 
+  const label = pending ? t("signingOut") : t("logOut");
+
+  if (variant === "menuitem") {
+    return (
+      <button
+        type="button"
+        role="menuitem"
+        tabIndex={-1}
+        onClick={handleLogout}
+        disabled={pending}
+        data-testid="logout-button"
+        className={menuItemClass}
+      >
+        <IconLogout className="flex-none text-[var(--text-secondary)]" />
+        {label}
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={handleLogout}
       type="button"
       disabled={pending}
-      aria-label={t("logOut")}
       data-testid="logout-button"
-      className="group/logout relative block w-full rounded-[var(--radius-sm)] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] disabled:opacity-60"
+      className="flex h-8 items-center gap-2.5 rounded-[var(--radius-sm)] px-3 text-left t-callout text-[var(--text-secondary)] transition-[color,background-color,transform] duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] disabled:opacity-60"
     >
-      {/* The same inner row as a nav link: `gap-0` and `px-0` in the rail so
-          the zero-width label does not push the icon off centre. */}
-      <div className="flex items-center gap-2.5 overflow-hidden rounded-[var(--radius)] px-3 py-1.5 t-callout text-[var(--text-secondary)] transition-[color,background-color,transform] duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-2.5">
-        <IconLogout className="flex-none" />
-        {/*
-          Clipped rather than removed so the button keeps a text accessible name
-          even in the rail; `aria-label` above is the belt to this braces. 200ms
-          so the label and the rail width settle together.
-        */}
-        <span className="min-w-0 flex-1 truncate transition-[opacity] duration-200 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0">
-          {pending ? t("signingOut") : t("logOut")}
-        </span>
-      </div>
-
-      <span
-        aria-hidden
-        className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/logout:opacity-100 group-focus-visible/logout:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
-      >
-        {t("logOut")}
-      </span>
+      <IconLogout className="flex-none" />
+      {label}
     </button>
   );
 }

@@ -26,6 +26,35 @@
  * seeds its state from the request cookie. Compare `<html data-sidebar-
  * collapsed>`, which the provider only sets in an effect and is therefore
  * wrong until hydration; do not reach for that one to drive layout.
+ *
+ * THE MOTION SEAM (for the motion stage; APPLE_REF §6.2 "Sidebar collapse")
+ * -------------------------------------------------------------------------
+ * The layout stage arranged the pane so that this element's `width` is the
+ * ONE layout property the collapse animates -- everything inside it is either
+ * static or opacity:
+ *
+ *   - `animate={{ width }}` below is the single width. Rows are `w-full` of
+ *     the pane, so they narrow on the same curve; §6.2 wants this as CSS
+ *     (220 → 64 over 220 ms `--ease-out`) or keeps the spring -- either way
+ *     it stays ONE transition. The gate (check-sidebar-collapse.mjs) reads
+ *     `width:64px` off this element's server-rendered markup, which
+ *     `initial={false}` guarantees; keep an inline width in whatever replaces
+ *     this.
+ *   - Rows are 32 px tall in BOTH states and keep `px-3` in both, so no row
+ *     changes height or inner padding at the flip (SidebarNav.tsx).
+ *   - The pane's own inset flips 4 → 12 px (`px-1` ↔ `px-3` on the header,
+ *     nav and foot wrappers in Sidebar.tsx). That is the ONLY horizontal
+ *     geometry that changes, and it moves the icon column 24 → 32. To make
+ *     the collapse transform-only inside the pane, animate that 8 px as a
+ *     translate (framer `layout="position"` on the row's icon, or a
+ *     `translateX` driven by the same curve) -- the padding value itself is
+ *     otherwise a discrete flip, hidden under the moving edge.
+ *   - Labels: `group-data-[collapsed=true]/sidebar:opacity-0` (+ `w-0`, which
+ *     the gate pins) on the label span -- opacity is the only thing to time
+ *     (§6.2: 120 ms). The toggle moves column at the flip (trailing edge →
+ *     under the mark); it is the element the user just pressed.
+ *   - The brand mark, group hairlines and the connection dot are already on
+ *     the icon column in both states.
  */
 
 import { motion, useReducedMotion } from "framer-motion";

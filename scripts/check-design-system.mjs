@@ -1033,6 +1033,13 @@ const SCALE_OWNED = [
   "src/components/StatusBadge.tsx",
   "src/components/SyncBar.tsx",
   "src/components/TopBarChrome.tsx",
+  // The account menu and the chrome slot, added 2026-09-05 with the layout
+  // pass (the /profile entry point on every page; §8 #30's menu).
+  "src/components/TopBarChromeSlot.tsx",
+  "src/components/UserMenu.tsx",
+  "src/components/ui/Menu.tsx",
+  "src/components/locale/LocaleSwitcher.tsx",
+  "src/components/ThemeToggle.tsx",
   // The task views under /projects/[id], added 2026-09-05 with the type roles:
   // they carried 12.5 / 11.5 / 10.5 / 9.5 and are on the ladder now.
   "src/app/(app)/projects/AddTaskForm.tsx",

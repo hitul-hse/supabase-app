@@ -1,21 +1,22 @@
-import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { getProfileView } from "@/lib/queries/profile";
-import { Avatar } from "./Avatar";
 import { IconButtonLink } from "./ui/Segmented";
 import { IconSearch } from "./nav-icons";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./locale/LocaleSwitcher";
+import { UserMenu } from "./UserMenu";
 
 /**
  * The top bar's right-hand chrome: find, and who you are signed in as.
  *
  * WHY THIS IS ITS OWN COMPONENT AND NOT INLINE IN THE LAYOUT
  * ---------------------------------------------------------
- * It is a server component that queries the profile, and it is rendered from
- * `PageHeader`'s `chrome` slot on every page. Inlining it would mean either
- * every page repeating the query, or the layout passing a rendered tree down
- * through props -- and the first is how three subtly different top bars happen.
+ * It is a server component that queries the profile. The LAYOUT renders it
+ * exactly once and hands the result to `TopBarChromeProvider`; every
+ * `PageHeader` shows it through `TopBarChromeSlot` by default, so no page has
+ * to remember to pass it and no page can render a subtly different bar. (It
+ * was a per-page `chrome` prop before, and one page passed it -- every other
+ * page shipped without a /profile entry point.)
  *
  * WHAT IT DELIBERATELY DOES NOT INCLUDE
  * -------------------------------------
@@ -84,30 +85,17 @@ export async function TopBarChrome() {
       </IconButtonLink>
 
       {/*
-        The chip is a LINK to /profile, and it carries the name as text on
-        desktop rather than relying on the monogram alone: across a 49-person
-        company two colleagues share initials often enough that an avatar is not
-        an identity. Below `sm` the name is dropped and the avatar's own
-        aria-label carries it, because a full name plus a role in a 390px bar
-        pushes the page title off screen.
+        The identity chip opens the account menu -- Profile, Replay tour, Log
+        out -- and is the one /profile entry point at every width. A client
+        component, because a menu needs open state and focus management; it
+        gets plain strings, never the Supabase client.
       */}
-      <Link
-        href="/profile"
-        data-testid="topbar-user"
-        className="flex flex-none items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] py-1 pl-1 pr-1 transition-[color,background-color,border-color,transform] duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] active:translate-y-px sm:pr-3"
-      >
-        <Avatar name={identityLabel} src={signedAvatarUrl} size={24} />
-        <span className="hidden min-w-0 flex-col sm:flex">
-          <span className="truncate t-callout font-medium text-[var(--text-primary)]">
-            {identityLabel}
-          </span>
-          {roleDisplayName && (
-            <span className="truncate t-label text-[var(--text-faint)]">
-              {roleDisplayName.toUpperCase()}
-            </span>
-          )}
-        </span>
-      </Link>
+      <UserMenu
+        name={identityLabel}
+        email={email}
+        role={roleDisplayName}
+        avatarUrl={signedAvatarUrl}
+      />
     </>
   );
 }

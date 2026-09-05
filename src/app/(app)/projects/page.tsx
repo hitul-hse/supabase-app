@@ -89,7 +89,8 @@ export default async function ProjectsPage({
       <PageTransition>
         <div className="flex flex-col">
           <PageHeader title={t("title")} />
-          <div className="p-6">
+          {/* The same 16/24 page padding as the full page, not a one-off. */}
+          <div className="page-shell">
             <EmptyState
               title={t("noAccess.title")}
               description={t("noAccess.description")}

@@ -165,17 +165,21 @@ export function FilterChip({
   onToggle,
   children,
   count,
+  title,
 }: {
   active: boolean;
   onToggle: () => void;
   children: ReactNode;
   count?: number;
+  /** A one-line definition of what the chip selects, for mouse users. */
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={active}
+      title={title}
       className={
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 " +
         "font-mono text-[10px] tracking-[0.06em] " +

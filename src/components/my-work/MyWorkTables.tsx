@@ -62,8 +62,13 @@
  * one -- see the block that builds them.
  */
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { DataTable, cmpNum, cmpText, type Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/Button";
+import { FilterChip } from "@/components/ui/Field";
+import { Pill, segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
+import { IconCross } from "@/components/nav-icons";
 import {
   LINK_DESTINATION,
   LINK_LABEL,
@@ -120,6 +125,12 @@ export function MyWorkTables({
   /** The hours caveat, rendered under the table it applies to. */
   footnote?: React.ReactNode;
 }) {
+  // The chrome this component adds around the two tables -- the view switch,
+  // the role filter, the clear control and the table titles -- reads from the
+  // catalogue. Column headers and hints keep their English literals: several
+  // are pinned by check-my-work-services.mjs, and moving the rest is its own
+  // change with that gate.
+  const t = useTranslations("myWork");
   const [view, setView] = useState<View>("projects");
   const [role, setRole] = useState<MyRole | "all">("all");
   /**
@@ -572,15 +583,10 @@ export function MyWorkTables({
         csv: (r) => r.services.join(" / "),
         cell: (r) => (
           <div className="flex flex-wrap items-center gap-1">
+            {/* A service tag is a status-shaped token, so it wears the Pill:
+                rounded-full is "a choice or a status" in the radius vocabulary. */}
             {r.services.length > 0 ? (
-              r.services.map((s) => (
-                <span
-                  key={s}
-                  className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
-                >
-                  {s}
-                </span>
-              ))
+              r.services.map((s) => <Pill key={s}>{s}</Pill>)
             ) : (
               <span className="font-mono text-[11px] text-[var(--text-faint)]">n/a</span>
             )}
@@ -646,7 +652,7 @@ export function MyWorkTables({
   const roleChips: { value: MyRole | "all"; label: string; count: number }[] = [
     {
       value: "all",
-      label: "ALL",
+      label: t("filters.all"),
       count: ROLE_ORDER.reduce((s, r) => s + roleCounts[r], 0),
     },
     ...ROLE_ORDER.map((r) => ({ value: r, label: ROLE_LABEL[r], count: roleCounts[r] })),
@@ -662,84 +668,84 @@ export function MyWorkTables({
         click; the view switch decides whether the answer is counted per project
         or per customer.
       */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex overflow-hidden border border-[var(--border)]">
+      <div className="flex flex-wrap items-center gap-2">
+        {/*
+          The view switch wears the segmented skin: a choice among a few, with
+          the chosen one an accent pill on a recessed track -- the same control
+          the /projects billable trough and every Segmented in the app draw.
+          It is buttons, not Segmented's links, because the view is in-memory
+          state and a URL round trip per click would be a regression.
+        */}
+        <div role="group" aria-label={t("views.label")} className={segmentedTrackClass}>
           {(
             [
-              { v: "projects" as View, label: "PROJECTS", n: projects.length },
-              { v: "customers" as View, label: "CUSTOMERS", n: customers.length },
+              { v: "projects" as View, label: t("views.projects"), n: projects.length },
+              { v: "customers" as View, label: t("views.customers"), n: customers.length },
             ]
-          ).map((t) => (
+          ).map((option) => (
             <button
-              key={t.v}
+              key={option.v}
               type="button"
-              onClick={() => setView(t.v)}
-              aria-pressed={view === t.v}
+              onClick={() => setView(option.v)}
+              aria-pressed={view === option.v}
               title={
-                t.v === "projects"
+                option.v === "projects"
                   ? "One row per project, with its customer beside it"
                   : "One row per customer, with your projects and hour totals for it"
               }
-              className={`px-2.5 py-1 font-mono text-[10px] tracking-[0.08em] transition-colors ${
-                view === t.v
-                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)]"
-                  : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
-              }`}
+              className={segmentedItemClass(view === option.v)}
             >
-              {t.label} <span className="text-[var(--text-muted)]">{t.n}</span>
+              {option.label}{" "}
+              <span className={view === option.v ? "opacity-70" : "text-[var(--text-faint)]"}>
+                {option.n}
+              </span>
             </button>
           ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-            MY ROLE
+            {t("filters.role")}
           </span>
-          {roleChips.map((c) => {
-            const active = role === c.value;
-            return (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => setRole(c.value)}
-                aria-pressed={active}
-                title={
-                  c.value === "all"
-                    ? "Every project you have any claim on"
-                    : `Only the ${c.count} where you are ${c.label.toLowerCase()}`
-                }
-                className={`flex items-center gap-1.5 border px-2 py-1 font-mono text-[10px] transition-colors ${
-                  active
-                    ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--text-primary)]"
-                    : "border-[var(--border)] text-[var(--text-faint)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                {c.value === "all" ? (
-                  <span className="tracking-[0.08em]">ALL</span>
-                ) : (
-                  <RoleBadge role={c.value} />
-                )}
-                <span className="text-[var(--text-muted)]">{c.count}</span>
-              </button>
-            );
-          })}
+          {/*
+            FilterChip, the house filter: one chip per rung with its count, the
+            same control the /projects and /people filter rows use. The chip
+            used to wrap a RoleBadge -- a pill inside a square chip -- so the
+            filter and the row badge were the same token at two sizes. The
+            badge stays in the rows, where it IS the information; the chip is
+            a filter and looks like one.
+          */}
+          {roleChips.map((c) => (
+            <FilterChip
+              key={c.value}
+              active={role === c.value}
+              onToggle={() => setRole(c.value)}
+              count={c.count}
+              title={
+                c.value === "all"
+                  ? "Every project you have any claim on"
+                  : `Only the ${c.count} where you are ${c.label.toLowerCase()}`
+              }
+            >
+              {c.label}
+            </FilterChip>
+          ))}
         </div>
 
         {/* The drill-down is stated and reversible. A silently filtered table
             whose control is elsewhere is how a reader concludes rows are
-            missing. */}
+            missing. A ghost button with the icon-set cross, not a chip with a
+            typographic ×. */}
         {activeCustomer ? (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setCustomer(null)}
-            className="flex items-center gap-1.5 border border-[var(--accent)] bg-[var(--accent-wash)] px-2 py-1 font-mono text-[10px] text-[var(--text-primary)] transition-colors hover:border-[var(--critical)]"
-            title="Clear the customer filter"
+            title={t("filters.clearCustomer")}
           >
+            <IconCross className="h-3.5 w-3.5" />
             <span className="max-w-[16rem] truncate">{activeCustomer}</span>
-            <span aria-hidden className="text-[var(--text-muted)]">
-              ×
-            </span>
-          </button>
+          </Button>
         ) : null}
       </div>
 
@@ -748,7 +754,7 @@ export function MyWorkTables({
           rows={filteredProjects}
           columns={projectColumns}
           rowKey={(r) => r.id}
-          title="MY PROJECTS"
+          title={t("tables.projects")}
           hint={
             role === "all" && activeCustomer === null
               ? "strongest claim first"
@@ -788,7 +794,7 @@ export function MyWorkTables({
           rows={filteredCustomers}
           columns={customerColumns}
           rowKey={(r) => r.entityId ?? `text:${r.customer}`}
-          title="MY CUSTOMERS"
+          title={t("tables.customers")}
           hint={
             role === "all"
               ? "customers you lead first"

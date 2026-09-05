@@ -56,9 +56,11 @@
  * should: the whole page is an argument about who a row belongs to, and a
  * key that sees everything would make that argument unfalsifiable.
  */
-import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { ButtonLink } from "@/components/ui/Button";
+import { IconArrowRight } from "@/components/nav-icons";
 import PageTransition from "@/components/animations/PageTransition";
 import { createClient } from "@/utils/supabase/server";
 import { requireProfile } from "@/utils/supabase/require-profile";
@@ -75,6 +77,7 @@ export default async function MyWorkPage() {
   const profile = await requireProfile("/my-work");
   const supabase = await createClient();
   const work = await getMyWork(supabase);
+  const t = await getTranslations("myWork");
 
   const firstName = profile.personName?.split(" ")[0] ?? null;
 
@@ -83,14 +86,20 @@ export default async function MyWorkPage() {
       <div className="flex flex-col">
         <PageHeader
           title={firstName ? `${firstName}'s work` : "My work"}
+          /*
+            The meta states the page's PREMISE -- which person record this
+            account is read through -- rather than repeating the three counts
+            that sit in the tiles 60px below it. A header line that restates
+            the first row of content is a header line nobody reads twice.
+          */
           meta={
             work.unlinked
               ? "NO PERSON RECORD LINKED"
-              : `${work.totals.customers} CUSTOMERS · ${work.totals.customersLed} LED · ${work.totals.projects} PROJECTS`
+              : t("header.linkedTo", { name: work.personName ?? profile.personName ?? work.personId ?? "" })
           }
         />
 
-        <div className="flex flex-col gap-5 page-shell">
+        <div className="flex flex-col gap-4 page-shell">
           {/*
             The unlinked case is the DEFAULT for most accounts, not an edge:
             11 of the 20 provisioned users have no person_id, so this branch is
@@ -103,12 +112,10 @@ export default async function MyWorkPage() {
               title="Your account isn't linked to a person record yet"
               description={`Signed in as ${profile.email ?? "this account"} with the ${profile.roleDisplayName} role. My Work is driven by project ownership and assignments, both of which hang off a person record — and this account has none, so there is nothing to attribute to you. An administrator can link it under Users & Roles. This is not an error and no data is missing.`}
               action={
-                <Link
-                  href="/projects"
-                  className="text-[12px] font-medium text-[var(--accent)] hover:underline"
-                >
-                  Browse all projects instead →
-                </Link>
+                <ButtonLink href="/projects" variant="secondary" size="sm">
+                  {t("empty.browseProjects")}
+                  <IconArrowRight className="h-3.5 w-3.5" />
+                </ButtonLink>
               }
             />
           ) : work.loadFailed ? (
@@ -123,12 +130,10 @@ export default async function MyWorkPage() {
               title="Your work couldn't be loaded"
               description={`Signed in as ${work.personName ?? work.personId}. The projects and assignments query failed, so this page is showing nothing rather than showing a partial list as if it were complete. This is a fault on our side, not an empty book of work — try reloading, and if it persists an administrator can check the server logs.`}
               action={
-                <Link
-                  href="/my-work"
-                  className="text-[12px] font-medium text-[var(--accent)] hover:underline"
-                >
-                  Reload →
-                </Link>
+                <ButtonLink href="/my-work" variant="secondary" size="sm">
+                  {t("empty.reload")}
+                  <IconArrowRight className="h-3.5 w-3.5" />
+                </ButtonLink>
               }
             />
           ) : work.totals.projects === 0 ? (
@@ -147,91 +152,22 @@ export default async function MyWorkPage() {
               />
 
               {/*
-                THE LADDER IN WORDS — kept, but folded.
-
-                This paragraph is what makes the strip above mean something:
-                "responsible for 4, cover on 36" is the sentence a reader needs
-                ONCE, and never again on the same visit. Rendered open it cost
-                ~90px of the first screen on every load, which is why it now
-                sits behind a `<details>` whose summary states the shape of the
-                answer ("4 responsible · 2 owner · 36 replacement · 12
-                assigned") rather than hiding it. Nothing is lost: the counts
-                are in the summary line, the strip, the filter chips and the
-                badges, and the reasoning is one click away.
-
-                A `<details>`, not React state, because the page is a server
-                component and one disclosure triangle is not worth a client
-                boundary.
+                THE LADDER IN WORDS is gone. It was the third copy of the four
+                role counts on one screen (the tiles, the chips, and an
+                accent-wash callout with a left bar restating them in a
+                sentence). The definitions it carried live where they are
+                needed: RoleBadge's title on every badge, the MY ROLE chips'
+                titles, and the table footnote that already states the hours
+                caveat. A full-width tinted callout also spent the accent on
+                prose, and the accent is reserved for selection and the one
+                primary action.
               */}
-              <details className="group border-l-2 border-[var(--accent)] bg-[var(--accent-wash)]">
-                <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                  <span
-                    aria-hidden
-                    className="flex-none font-mono text-[10px] text-[var(--text-faint)] transition-transform duration-150 group-open:rotate-90"
-                  >
-                    ▶
-                  </span>
-                  <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                    HOW YOUR {work.totals.projects} PROJECTS SPLIT
-                  </span>
-                  <span className="font-mono text-[11px] text-[var(--text-muted)]">
-                    {work.totals.roleCounts.responsible} responsible ·{" "}
-                    {work.totals.roleCounts.owner} owner ·{" "}
-                    {work.totals.roleCounts.replacement} replacement ·{" "}
-                    {work.totals.roleCounts.assigned} assigned
-                  </span>
-                </summary>
 
-                <div className="flex flex-col gap-2 px-4 pb-3 pt-0.5">
-                  <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">
-                    You are the{" "}
-                    <strong className="text-[var(--text-primary)]">responsible lead</strong>{" "}
-                    on {work.totals.roleCounts.responsible} of these{" "}
-                    {work.totals.projects} projects and the recorded owner of{" "}
-                    {work.totals.roleCounts.owner} more — those are yours to answer
-                    for. You are the named{" "}
-                    <strong className="text-[var(--text-primary)]">replacement</strong> on{" "}
-                    {work.totals.roleCounts.replacement}, which is cover rather than
-                    accountability, and on the assignment list only for{" "}
-                    {work.totals.roleCounts.assigned}. Every project sits on exactly
-                    one of those four rungs, so the counts add up to{" "}
-                    {work.totals.projects}. Use the{" "}
-                    <strong className="text-[var(--text-primary)]">MY ROLE</strong>{" "}
-                    filter below to see one rung at a time, and the{" "}
-                    <strong className="text-[var(--text-primary)]">CUSTOMERS</strong>{" "}
-                    view for per-customer totals.
-                  </p>
-
-                  {/*
-                    Stated, not hidden. person_assignments.logged_hours was never
-                    backfilled — Mathias's 54 rows sum to ONE hour against
-                    thousands of team hours on the same projects. Printing that
-                    beside the team figure without comment invites the reader to
-                    conclude he did nothing all year. The column is suppressed
-                    and the reason given instead.
-                  */}
-                  {work.myHoursUnpopulated ? (
-                    <p className="text-[12px] leading-relaxed text-[var(--text-muted)]">
-                      Per-person hours are not shown: your assignment records carry no
-                      logged time (they were never backfilled from the time data), so a
-                      &ldquo;mine&rdquo; column here would report near-zero against real
-                      team hours. The hours in these tables are the{" "}
-                      <strong>whole team&rsquo;s</strong> time on each project. Your own
-                      tracked time is under{" "}
-                      <Link href="/time" className="text-[var(--accent)] hover:underline">
-                        Time
-                      </Link>
-                      .
-                    </p>
-                  ) : null}
-                </div>
-              </details>
-
-              {/* A truncated read stays OUTSIDE the disclosure: it says the
-                  numbers on screen may be wrong, and that cannot be one click
-                  away. */}
+              {/* A truncated read is a warning STRIP, not a card: the 6px
+                  radius says so, and it stays outside any disclosure because
+                  it says the numbers on screen may be wrong. */}
               {work.truncated ? (
-                <p className="border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+                <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
                   This list hit the reporting ceiling, so it may be incomplete and the
                   totals above may understate.
                 </p>

@@ -39,7 +39,16 @@
       "rows": "{count} ZEILEN"
     },
     "show": "ANZEIGEN",
-    "hide": "AUSBLENDEN"
+    "hide": "AUSBLENDEN",
+    "replayTour": "Tour erneut abspielen",
+    "signingOut": "Abmeldung läuft …",
+    "error": {
+      "title": "Diese Seite konnte nicht geladen werden",
+      "description": "Die Daten hinter dieser Ansicht konnten nicht geladen werden. Das ist meist vorübergehend — ein erneuter Versuch hilft oft. Tritt es weiterhin auf, hilft die Referenz unten bei der Ursachensuche.",
+      "tryAgain": "Erneut versuchen",
+      "backToOverview": "Zurück zur Übersicht",
+      "ref": "REF {digest}"
+    }
   },
   "overview": {
     "title": "Übersicht",
@@ -1555,14 +1564,14 @@
     "noAccess": {
       "title": "Sie haben keinen Zugriff auf das Projektportfolio",
       "description": "Alle Projekte zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Ihre eigene Projektzeit sehen Sie unter Zeit. Eine Administratorin kann weiteren Zugriff unter Rollenberechtigungen erteilen.",
-      "action": "Zu Zeit →"
+      "action": "Zu Zeit"
     },
     "filters": {
       "searchLabel": "Projekte nach Name, Kunde oder Code suchen",
       "searchPlaceholder": "Projekte suchen …",
-      "all": "Alle",
-      "billable": "Abrechenbar",
-      "nonBillable": "Nicht abr.",
+      "all": "ALLE",
+      "billable": "ABRECHENBAR",
+      "nonBillable": "NICHT ABRECHENBAR",
       "clear": "Zurücksetzen",
       "countAll": "{count} PROJEKTE",
       "countOf": "{shown} VON {total}",
@@ -1572,7 +1581,8 @@
         "healthy": "GESUND",
         "nobudget": "KEIN BUDGET",
         "idle": "KEINE AKTIVITÄT"
-      }
+      },
+      "billableGroup": "Abrechnungsfilter"
     },
     "customer": {
       "label": "KUNDE",
@@ -1628,7 +1638,7 @@
       }
     },
     "ledger": {
-      "title": "PROJEKTÜBERSICHT",
+      "title": "Projektübersicht",
       "count": "{count} PROJEKTE",
       "empty": {
         "title": "Keine Projekte gefunden",
@@ -1715,7 +1725,7 @@
       },
       "meta": "{customer}{code} · {entries} EINTRÄGE",
       "noCustomer": "KEIN KUNDE",
-      "allProjects": "← Alle Projekte",
+      "allProjects": "Alle Projekte",
       "pills": {
         "archived": "ARCHIVIERT",
         "billable": "ABRECHENBAR",

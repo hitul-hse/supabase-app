@@ -39,7 +39,16 @@
       "rows": "{count} ROWS"
     },
     "show": "SHOW",
-    "hide": "HIDE"
+    "hide": "HIDE",
+    "replayTour": "Replay tour",
+    "signingOut": "Signing out…",
+    "error": {
+      "title": "This page couldn't load",
+      "description": "The data behind this screen failed to load. This is usually temporary — trying again often resolves it. If it keeps happening, the reference below helps trace the cause.",
+      "tryAgain": "Try again",
+      "backToOverview": "Back to Overview",
+      "ref": "REF {digest}"
+    }
   },
   "overview": {
     "title": "Overview",
@@ -1555,14 +1564,14 @@
     "noAccess": {
       "title": "You don't have access to the project portfolio",
       "description": "Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is visible under Time. An administrator can grant wider access under Role Permissions.",
-      "action": "Go to Time →"
+      "action": "Go to Time"
     },
     "filters": {
       "searchLabel": "Search projects by name, customer or code",
       "searchPlaceholder": "Search projects…",
-      "all": "All",
-      "billable": "Billable",
-      "nonBillable": "Non-bill.",
+      "all": "ALL",
+      "billable": "BILLABLE",
+      "nonBillable": "NON-BILLABLE",
       "clear": "Clear",
       "countAll": "{count} PROJECTS",
       "countOf": "{shown} OF {total}",
@@ -1572,7 +1581,8 @@
         "healthy": "HEALTHY",
         "nobudget": "NO BUDGET",
         "idle": "NO ACTIVITY"
-      }
+      },
+      "billableGroup": "Billing filter"
     },
     "customer": {
       "label": "CUSTOMER",
@@ -1628,7 +1638,7 @@
       }
     },
     "ledger": {
-      "title": "PROJECT LEDGER",
+      "title": "Project ledger",
       "count": "{count} PROJECTS",
       "empty": {
         "title": "No projects match",
@@ -1715,7 +1725,7 @@
       },
       "meta": "{customer}{code} · {entries} ENTRIES",
       "noCustomer": "NO CUSTOMER",
-      "allProjects": "← All projects",
+      "allProjects": "All projects",
       "pills": {
         "archived": "ARCHIVED",
         "billable": "BILLABLE",

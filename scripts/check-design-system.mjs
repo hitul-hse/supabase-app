@@ -1025,6 +1025,10 @@ const SCALE_OWNED = [
   "src/components/LoadingSkeleton.tsx",
   "src/components/LogoutButton.tsx",
   "src/components/PageHeader.tsx",
+  // The h1 PageHeader renders through (2026-09-05, the clipped-only title
+  // attribute). It takes its class string from PageHeader and must never
+  // grow one of its own.
+  "src/components/PageTitle.tsx",
   "src/components/Pager.tsx",
   "src/components/Sidebar.tsx",
   "src/components/SidebarNav.tsx",

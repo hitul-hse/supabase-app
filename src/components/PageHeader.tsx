@@ -1,4 +1,5 @@
 import React from "react";
+import { PageTitle } from "./PageTitle";
 import { TopBarChromeSlot } from "./TopBarChromeSlot";
 
 interface PageHeaderProps {
@@ -94,11 +95,16 @@ export function PageHeader({
     <header className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--topbar)] px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:px-6">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:flex-nowrap">
         <div className="flex min-w-0 basis-full flex-col gap-0.5 sm:basis-auto sm:flex-row sm:items-baseline sm:gap-2.5">
-          {/* `title` so a name that still overruns 358 px is reachable in full
-              (§8 #17: end truncation + title is the house form). */}
-          <h1 title={title} className="min-w-0 truncate t-title-2 sm:t-title text-[var(--text-primary)]">
-            {title}
-          </h1>
+          {/* A name that overruns is reachable in full through the h1's `title`
+              (§8 #17: end truncation + title is the house form) -- and ONLY
+              then. PageTitle sets the attribute while scrollWidth exceeds
+              clientWidth; an unclipped heading carrying a tooltip that repeats
+              itself is the thing §5.8 bans ("never repeats the control's
+              name"), and every desktop page had one. */}
+          <PageTitle
+            title={title}
+            className="min-w-0 truncate t-title-2 sm:t-title text-[var(--text-primary)]"
+          />
           {/* Gives way three times faster than the title when the row is
               short: the qualifier truncates long before the heading does. */}
           {meta && (

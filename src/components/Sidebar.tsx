@@ -89,7 +89,16 @@ export async function Sidebar({
         went -- the only text in the app under 10px, truncated to "HEALTH &
         SAFETY E…" at 220px, i.e. a line that never once rendered in full.
       */}
-      <div className="flex h-8 items-center gap-1 px-1 group-data-[collapsed=true]/sidebar:h-auto group-data-[collapsed=true]/sidebar:flex-col group-data-[collapsed=true]/sidebar:gap-1 group-data-[collapsed=true]/sidebar:px-3">
+      {/*
+        `transition-[padding] duration-220` on this and the two wrappers
+        below: the pane inset (4 ↔ 12 px) is the ONE horizontal thing that
+        moves at the flip, and it used to flip in a single frame -- every
+        icon jumped 8 px at t=0 while the shell's width took 220 ms
+        (measured). On the shell's own curve it is one motion. It costs no
+        layout pass of its own: the width transition already lays the pane
+        out every frame, and the padding is resolved in that same pass.
+      */}
+      <div className="flex h-8 items-center gap-1 px-1 transition-[padding] duration-220 group-data-[collapsed=true]/sidebar:h-auto group-data-[collapsed=true]/sidebar:flex-col group-data-[collapsed=true]/sidebar:gap-1 group-data-[collapsed=true]/sidebar:px-3">
         <Link
           href="/"
           aria-label="HSE Hub — go to overview"
@@ -139,7 +148,7 @@ export async function Sidebar({
         Sixteen 32 px rows plus three group rules fit a 768 px laptop with the
         header and foot, so losing the scroll in rail mode costs nothing.
       */}
-      <div className="flex-1 overflow-y-auto px-1 group-data-[collapsed=true]/sidebar:overflow-visible group-data-[collapsed=true]/sidebar:px-3">
+      <div className="flex-1 overflow-y-auto px-1 transition-[padding] duration-220 group-data-[collapsed=true]/sidebar:overflow-visible group-data-[collapsed=true]/sidebar:px-3">
         <SidebarNav roleKey={roleKey} />
       </div>
 
@@ -150,7 +159,7 @@ export async function Sidebar({
         sits in a 40 px box on the icon column; in the rail it is the whole
         signal, with the words in a title and in the accessible name.
       */}
-      <div className="mt-auto border-t border-[var(--border)] px-1 pt-3 group-data-[collapsed=true]/sidebar:px-3">
+      <div className="mt-auto border-t border-[var(--border)] px-1 pt-3 transition-[padding] duration-220 group-data-[collapsed=true]/sidebar:px-3">
         <div className="flex h-8 items-center" title={statusLabel}>
           <span className="flex h-8 w-10 flex-none items-center justify-center">
             <span

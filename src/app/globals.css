@@ -1147,21 +1147,27 @@ body {
 /*
  * .scrim — the M5 material behind DrillDialog and the mobile sheet.
  *
- * One class, so the dim and its blur have one fallback path: no backdrop-filter
- * support, reduced transparency and increased contrast each get the flat
- * --scrim with no blur. The blur is 4px: enough to take the edge off text
- * behind a modal, not enough to read as a second frosted surface (glass on
- * glass is banned -- APPLE_REF §4.2 rule 1). "Dim to focus, separate to keep
+ * A DIM, NOT A BLUR. APPLE_REF §4.2 gives M5 exactly one ingredient
+ * (`--scrim`) and says of M4 that "nothing else in the app gets
+ * backdrop-filter"; §6.1 #8 allows a bounded filter on M4 only. This class
+ * briefly carried `backdrop-filter: blur(4px)`, and the motion gate found what
+ * that costs: with the blur on, every frame of the drill dialog's entrance
+ * and exit measured 33-50 ms on /projects at 1440 x 900 (the whole 0.35 s
+ * spring ran at ~25 fps -- scripts/lib/launch-chromium.mjs, software
+ * compositing, production build); with it off, 43 frames at 16.8 ms max. A
+ * full-viewport backdrop blur is re-rendered on every frame the scrim's
+ * opacity animates, and it is the one thing in the app that is neither
+ * transform nor opacity. The M4 sheet keeps its own 28 px blur, which is
+ * bounded to the sheet and is the glass. "Dim to focus, separate to keep
  * flow": a modal gets this; a non-blocking panel gets none.
+ *
+ * The reduced-transparency / increased-contrast block below is kept as the
+ * explicit statement that this material has no blur under those preferences
+ * either -- if a blur is ever proposed again, the fallback is already wired
+ * and the design-system gate reads it.
  */
 .scrim {
   background-color: var(--scrim);
-}
-@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .scrim {
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
-  }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .scrim {
@@ -1235,7 +1241,8 @@ body {
  * same product rather than a collection of effects:
  *
  *   .rise-in       an element settles into place on arrival (page load only)
- *   .stagger       children of this element rise in sequence, 45ms apart
+ *   .stagger       children of this element rise in sequence, 30ms apart,
+ *                  the delay capped at the sixth child
  *   .bar-grow      a horizontal bar draws itself from zero
  *
  * All of it is CSS keyframes on load, not scroll-triggered JS: these pages are
@@ -1278,14 +1285,21 @@ body {
 .stagger > * {
   animation: rise-in 0.4s var(--ease-out) backwards;
 }
+/*
+ * 30 ms per child, and the delay stops growing at the sixth (APPLE_REF §6.2
+ * "Page load"; §8 #9). The old 45 ms step over eight children put the last
+ * arrival at 0.345 + 0.4 = 745 ms, past the vocabulary's own 500 ms ceiling;
+ * now the whole choreography is over by 0.18 + 0.4 = 580 ms, and a seventh
+ * or later child rises with the sixth rather than queueing behind it. "Cap
+ * the total delay" (impeccable animate.md) -- a stagger is decorative and
+ * must never make anyone wait.
+ */
 .stagger > *:nth-child(1) { animation-delay: 0.03s; }
-.stagger > *:nth-child(2) { animation-delay: 0.075s; }
-.stagger > *:nth-child(3) { animation-delay: 0.12s; }
-.stagger > *:nth-child(4) { animation-delay: 0.165s; }
-.stagger > *:nth-child(5) { animation-delay: 0.21s; }
-.stagger > *:nth-child(6) { animation-delay: 0.255s; }
-.stagger > *:nth-child(7) { animation-delay: 0.3s; }
-.stagger > *:nth-child(n + 8) { animation-delay: 0.345s; }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.09s; }
+.stagger > *:nth-child(4) { animation-delay: 0.12s; }
+.stagger > *:nth-child(5) { animation-delay: 0.15s; }
+.stagger > *:nth-child(n + 6) { animation-delay: 0.18s; }
 
 @keyframes bar-grow {
   from { transform: scaleX(0); }

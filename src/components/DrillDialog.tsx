@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "framer-motion";
 import { buttonClass } from "@/components/ui/Button";
-import { SPRING_UI } from "@/components/animations/springs";
+import { EASE_OUT, SPRING_UI } from "@/components/animations/springs";
 
 /**
  * The house answer to "what is behind this number?" — one dialog shape shared
@@ -116,8 +116,21 @@ export function DrillDialog({
 }) {
   const t = useTranslations("drill");
   const [page, setPage] = useState(0);
+  /*
+    False from the moment the caller dismisses until AnimatePresence has
+    finished the exit. Everything that makes the dialog OWN the page -- the
+    scrim's hit-testing, the scroll lock, Escape, focusability -- is released
+    on this flag, not on unmount: the exit is 150 ms of motion, not 150 ms of
+    modality (APPLE_REF §6.1 #3 "no pointer-events: none during a
+    transition"; apple-design §3 "Never lock out input during a transition").
+    True when rendered outside an AnimatePresence, so nothing here depends
+    on one.
+  */
+  const present = useIsPresent();
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (!present) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -129,7 +142,7 @@ export function DrillDialog({
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose]);
+  }, [onClose, present]);
 
   // Reset paging when a different drill opens in the same mount -- the
   // adjust-state-during-render pattern, not an effect (react-hooks rule).
@@ -146,21 +159,40 @@ export function DrillDialog({
   const hasSections = (drill.sections?.length ?? 0) > 0;
   const empty = !drill.loading && !drill.error && !hasSections && rows.length === 0;
 
-  // The panel's resting pose and its off-stage pose: the same values in and
-  // out, on the same spring, so an interrupted entrance reverses along the path
-  // it was travelling rather than cutting to a different exit.
+  /*
+    The panel's resting pose and its off-stage pose: the same values in and
+    out, so the exit runs the entrance's path in reverse and an interrupted
+    entrance reverses from wherever the panel has got to (§6.1 #6). The
+    TIMING is asymmetric (§6.2 "Dialog": spring 0.35 in, 150 ms out): the
+    arrival is the thing the reader watches, the dismissal is a thing they
+    have already decided. Both start from the presentation value -- framer
+    animates a MotionValue from where it is -- so Esc mid-entrance and a
+    re-tap mid-exit re-target without a cut; the physics spring carries the
+    velocity through (animations/springs.ts).
+  */
   const offstage = { opacity: 0, scale: 0.96, x: origin?.x ?? 0, y: origin?.y ?? 0 };
+  const exitTween = { duration: 0.15, ease: EASE_OUT };
 
   return (
     <motion.div
-      // `.scrim` (globals.css) owns the dim AND the blur, with the no-blur
-      // fallbacks for reduced transparency and increased contrast. It replaces
-      // an inline rgba() that belonged to no token.
-      className="scrim fixed inset-0 z-50 flex items-center justify-center p-4"
+      // `.scrim` (globals.css) owns the dim -- and only the dim: APPLE_REF
+      // §4.2 gives M5 no blur, and the 4 px one it briefly had halved the
+      // frame rate of this very animation (measured; see the class). It
+      // replaces an inline rgba() that belonged to no token.
+      //
+      // HIT-TESTABLE ONLY WHILE PRESENT. This element is `fixed inset-0`
+      // above everything; during the exit it used to keep catching every
+      // click for ~500 ms (measured), invisible for the last 350 of them --
+      // a tap on the tile that had just closed the dialog was swallowed. A
+      // dismissal that has begun no longer owns the page: `data-exiting` is
+      // set the moment the caller dismisses, and the variant below drops the
+      // hit-testing with it (a deployed-page check can read the attribute).
+      className="scrim fixed inset-0 z-50 flex items-center justify-center p-4 data-[exiting]:pointer-events-none"
+      data-exiting={present ? undefined : ""}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
+      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+      transition={{ duration: 0.2 }}
       onClick={onClose}
       role="presentation"
     >
@@ -172,8 +204,15 @@ export function DrillDialog({
         data-check={drill.check}
         initial={offstage}
         animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-        exit={offstage}
-        transition={SPRING_UI}
+        exit={{ ...offstage, transition: exitTween }}
+        // Reduce Motion: MotionConfig already snaps the transform; the
+        // opacity keeps §6.2's 150 ms fade rather than a 350 ms spring.
+        transition={reduceMotion ? { duration: 0.15 } : SPRING_UI}
+        // A dialog on its way out is neither a tab stop nor a target: inert
+        // also drops it from the a11y tree, so a screen reader is not read a
+        // dialog that is closing.
+        inert={!present}
+        aria-hidden={!present}
         className={`card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface-raised)] ${
           hasSections ? "max-w-2xl" : "max-w-xl"
         }`}

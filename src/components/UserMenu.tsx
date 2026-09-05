@@ -27,11 +27,16 @@
  * and returns focus to the chip, Tab closes and lets focus move on. Items are
  * `tabIndex={-1}` so the menu is one tab stop, not four.
  *
- * MOTION: none here, deliberately -- a plain mount. §6.2 gives the values
- * (spring 0.28 s, bounce 0, scale .96 → 1 + opacity, origin at the trigger;
- * 120 ms fade out; reduced motion = 150 ms fade). The panel already carries
- * `transform-origin: top right` and framer-motion 13 is installed; the motion
- * engineer wraps the portal content in `AnimatePresence` + `motion.div`.
+ * MOTION (APPLE_REF §6.2 "Popover / menu"): the panel scales .96 → 1 with
+ * opacity on SPRING_POPOVER (response 0.28, no bounce) from its
+ * `transform-origin` at the chip -- it grows out of the thing that opened it
+ * (§6.1 #6; apple-design §7) -- and leaves along the same path in a 120 ms
+ * fade. Reduce Motion keeps a 150 ms opacity cross-fade and snaps the scale
+ * (MotionConfig "user" in the app shell does the snapping). The exit is
+ * carried by AnimatePresence, so the portal is rendered by a component that
+ * can ask `useIsPresent()`: a menu on its way out is neither a target nor a
+ * tab stop, and a click on the chip during those 120 ms re-opens it from
+ * wherever it has got to rather than waiting.
  */
 import {
   useCallback,
@@ -40,15 +45,29 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "framer-motion";
 import { Avatar } from "./Avatar";
 import { LogoutButton } from "./LogoutButton";
 import { TourReplayButton } from "./TourReplayButton";
 import { IconUser } from "./nav-icons";
 import { MenuSeparator, menuItemClass, menuPanelClass } from "./ui/Menu";
+import { EASE_OUT, SPRING_POPOVER } from "./animations/springs";
+
+/**
+ * The portal, rendered by a component so it can be an AnimatePresence child
+ * (a bare `createPortal()` return value is not a React element and
+ * AnimatePresence would not track it) and so the panel can read its own
+ * presence. Context crosses a portal, so the presence reaches the motion.div.
+ */
+function PortalPanel({ children }: { children: (present: boolean) => ReactNode }) {
+  const present = useIsPresent();
+  return createPortal(children(present), document.body);
+}
 
 /** 8 px between the chip and the panel (§5.8: no arrow needed at this offset). */
 const GAP = 8;
@@ -65,6 +84,7 @@ export function UserMenu({
   avatarUrl: string | null;
 }) {
   const t = useTranslations("common");
+  const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const [initialFocus, setInitialFocus] = useState<"first" | "last">("first");
@@ -201,43 +221,52 @@ export function UserMenu({
         </span>
       </button>
 
-      {open &&
-        pos &&
-        createPortal(
-          <div
-            ref={menuRef}
-            id={menuId}
-            role="menu"
-            aria-labelledby={triggerId}
-            data-testid="user-menu"
-            onKeyDown={onMenuKeyDown}
-            style={{ position: "fixed", top: pos.top, right: pos.right, transformOrigin: "top right" }}
-            className={menuPanelClass}
-          >
-            {/* Who this menu acts for. The chip shows name + role; the e-mail
-                is the one identity fact that is unambiguous, so it lives here. */}
-            <div className="px-3 pb-1.5 pt-2">
-              <p className="truncate t-callout font-medium text-[var(--text-primary)]">{name}</p>
-              {email && <p className="truncate t-subhead text-[var(--text-muted)]">{email}</p>}
-            </div>
-            <MenuSeparator />
-            <Link
-              role="menuitem"
-              tabIndex={-1}
-              href="/profile"
-              data-testid="menu-profile"
-              className={menuItemClass}
-              onClick={() => setOpen(false)}
-            >
-              <IconUser className="flex-none text-[var(--text-secondary)]" />
-              {t("profile")}
-            </Link>
-            <TourReplayButton />
-            <MenuSeparator />
-            <LogoutButton variant="menuitem" />
-          </div>,
-          document.body,
+      <AnimatePresence>
+        {open && pos && (
+          <PortalPanel key="user-menu">
+            {(present) => (
+              <motion.div
+                ref={menuRef}
+                id={menuId}
+                role="menu"
+                aria-labelledby={triggerId}
+                data-testid="user-menu"
+                onKeyDown={onMenuKeyDown}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.12, ease: EASE_OUT } }}
+                transition={reduceMotion ? { duration: 0.15 } : SPRING_POPOVER}
+                inert={!present}
+                aria-hidden={!present}
+                style={{ position: "fixed", top: pos.top, right: pos.right, transformOrigin: "top right" }}
+                className={`${menuPanelClass} ${present ? "" : "pointer-events-none"}`}
+              >
+                {/* Who this menu acts for. The chip shows name + role; the e-mail
+                    is the one identity fact that is unambiguous, so it lives here. */}
+                <div className="px-3 pb-1.5 pt-2">
+                  <p className="truncate t-callout font-medium text-[var(--text-primary)]">{name}</p>
+                  {email && <p className="truncate t-subhead text-[var(--text-muted)]">{email}</p>}
+                </div>
+                <MenuSeparator />
+                <Link
+                  role="menuitem"
+                  tabIndex={-1}
+                  href="/profile"
+                  data-testid="menu-profile"
+                  className={menuItemClass}
+                  onClick={() => setOpen(false)}
+                >
+                  <IconUser className="flex-none text-[var(--text-secondary)]" />
+                  {t("profile")}
+                </Link>
+                <TourReplayButton />
+                <MenuSeparator />
+                <LogoutButton variant="menuitem" />
+              </motion.div>
+            )}
+          </PortalPanel>
         )}
+      </AnimatePresence>
     </>
   );
 }

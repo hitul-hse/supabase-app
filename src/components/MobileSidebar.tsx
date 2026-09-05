@@ -11,31 +11,62 @@
  * `transition-transform duration-300` with a grab handle painted on top -- a
  * handle that promised a gesture the sheet could not perform, which the
  * honest-chrome rule this codebase holds its bell and its badges to does not
- * allow. So the handle drags: the thumb owns the sheet 1:1 from the moment it
- * touches the handle strip, the backdrop dims in step with the sheet's
- * position, and on release the sheet goes where the gesture was HEADING
- * (velocity projected forward, Apple's decelerationRate arithmetic) rather
- * than where the finger happened to be. The spring that finishes the move
- * starts at the release velocity, so there is no seam between dragging and
- * animating. Critically damped: no bounce on navigation (DESIGN.md).
+ * allow. So the handle drags: the thumb owns the sheet 1:1 after 10 px of
+ * hysteresis, the backdrop dims in step with the sheet's position, and on
+ * release the sheet goes where the gesture was HEADING (velocity projected
+ * forward, Apple's decelerationRate arithmetic) rather than where the finger
+ * happened to be. The spring that finishes the move starts at the release
+ * velocity, so there is no seam between dragging and animating (APPLE_REF
+ * §6.1 #4, §6.2 "Mobile sheet drag / release").
+ *
+ * `y` IS THE ONE POSITION VALUE, and it is driven IMPERATIVELY, not by an
+ * `animate` prop. Three reasons, all measured on the previous build:
+ *
+ *   - A declarative re-target reads the value's own velocity, and a
+ *     MotionValue forgets it 30 ms after the last update -- a React commit
+ *     after pointer-up is often later than that, so the spring restarted
+ *     from rest. The release velocity is now handed over explicitly.
+ *   - The springs used to be written as `bounce` + `visualDuration`, a form
+ *     motion-dom zeroes velocity for (see animations/springs.ts). They are
+ *     physics springs now, so the value handed over is the value used.
+ *   - A flick and a slow release need DIFFERENT springs (§6.2: bounce 0.15
+ *     only after a flick, bounce 0 otherwise) -- a prop can carry only one.
+ *
+ * A CLOSING SHEET CAN BE GRABBED. `inert`, `aria-hidden` and pointer-events
+ * used to flip the instant `open` became false, so the sheet was untouchable
+ * for the whole exit -- the canonical interruptibility failure (apple-design
+ * §3: "A closing modal the user grabs again should follow the finger"). They
+ * now follow `offstage`, which is read off `y` itself: the sheet is "gone"
+ * only once its top edge is within 2 px of the bottom of the viewport, in
+ * whichever direction it is travelling. Off-screen still means out of the
+ * tab order and the accessibility tree (check-mobile-sheet reads that state).
  *
  * Only the handle strip starts a drag (`dragListener={false}` + drag
  * controls). The nav list below it scrolls, and a sheet that hijacked every
  * vertical pan would make a long nav unscrollable.
+ *
+ * Reduce Motion (§6.2): open and close are a 150 ms opacity fade with the
+ * transform snapped; a drag still tracks 1:1 and settles on the bounce-0
+ * spring, because a gesture the person is making is not motion imposed on
+ * them. The imperative `animate()` calls bypass `MotionConfig`, so the
+ * branch is explicit here.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   animate,
   motion,
   useDragControls,
   useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
   useTransform,
   type PanInfo,
+  type Transition,
 } from "framer-motion";
 import { MobileTabBar } from "./MobileTabBar";
 import { BrandMark } from "./BrandMark";
-import { SPRING_UI } from "./animations/springs";
+import { SPRING_FLICK, SPRING_MOVE } from "./animations/springs";
 
 interface MobileSidebarProps {
   children: React.ReactNode;
@@ -56,6 +87,27 @@ function project(velocityPxPerSecond: number, decelerationRate = 0.998): number 
 /* Before the sheet has been measured it parks well below any phone's edge. */
 const OFFSTAGE = 2000;
 
+/*
+ * A release faster than this is a flick: the velocity SIGN decides the
+ * outcome and the settle spring may carry a little bounce (§6.2). Slower, and
+ * the projected resting position decides against the 40% line. 200 px/s is
+ * well above the jitter of a thumb coming to rest (measured ~0-60 px/s).
+ */
+const FLICK = 200;
+
+/* Apple's "usually 10 points" of hysteresis before a drag commits (§6.1 #1). */
+const DRAG_THRESHOLD = 10;
+
+/*
+ * "Gone" is the top edge within this many px of the viewport's bottom edge --
+ * the same 2 px check-mobile-sheet uses for "displaced". Not 0: the spring's
+ * rest thresholds leave it a fraction of a pixel short for ~100 ms, and inert
+ * would otherwise wait on that.
+ */
+const OFFSTAGE_SLACK = 2;
+
+const REDUCED_FADE: Transition = { duration: 0.15 };
+
 /* MobileSidebarToggle (the top-left hamburger) was deleted with the bottom tab
    bar, not merely unmounted: it had one caller, and leaving an exported
    component nobody renders invites somebody to put it back beside the tab bar
@@ -66,8 +118,36 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
   const [open, setOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(OFFSTAGE);
+  // The same number for the event handlers, which must not close over a
+  // render's `height` (a stale closure would park the sheet at the old edge).
+  const heightRef = useRef(OFFSTAGE);
   const y = useMotionValue(OFFSTAGE);
+  // 1 except under Reduce Motion, where it carries the 150 ms fade.
+  const opacity = useMotionValue(1);
   const dragControls = useDragControls();
+  const reduceMotion = useReducedMotion();
+
+  /*
+    Off-screen, as read from the sheet's own position. `inert`, `aria-hidden`
+    and pointer-events follow this, never `open`, so a sheet that is still on
+    screen -- opening, closing, or held -- can always be touched, and a sheet
+    that has left the viewport is out of the tab order and the a11y tree.
+  */
+  const [offstage, setOffstage] = useState(true);
+  useMotionValueEvent(y, "change", (v) => {
+    const off = v >= heightRef.current - OFFSTAGE_SLACK;
+    setOffstage((prev) => (prev === off ? prev : off));
+  });
+
+  /*
+    Set by a drag release that also flips `open`: the release has ALREADY
+    started the spring (from the finger's position and velocity, on the same
+    frame), so the effect below must not start a second one when the state
+    lands a render later. Measured without this: one dead frame between the
+    thumb lifting and the sheet moving -- the seam the hand-off exists to
+    remove.
+  */
+  const releasedByDrag = useRef(false);
 
   // Close on route change (pathname shift detected via popstate / pushstate)
   useEffect(() => {
@@ -94,29 +174,85 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
-    const measure = () => setHeight(el.offsetHeight || OFFSTAGE);
+    const measure = () => {
+      const h = el.offsetHeight || OFFSTAGE;
+      heightRef.current = h;
+      setHeight(h);
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  // The backdrop follows the sheet 1:1 -- while dragging, while springing.
-  const backdropOpacity = useTransform(y, [0, height], [1, 0]);
+  // The backdrop follows the sheet 1:1 -- while dragging, while springing --
+  // and shares its fade under Reduce Motion, so the two never disagree.
+  const backdropOpacity = useTransform(
+    [y, opacity],
+    ([yv, o]: number[]) => o * Math.max(0, Math.min(1, 1 - yv / height)),
+  );
 
-  const onDragEnd = (_e: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
-    const v = info.velocity.y;
-    // Velocity SIGN decides a clear flick; only a slow release falls back to
-    // the projected resting position against the 40% line.
-    const dismiss =
-      v > 200 ? true : v < -200 ? false : y.get() + project(v) > 0.4 * height;
-    if (dismiss) {
-      // The declarative animate below carries the motion value's velocity.
-      setOpen(false);
-    } else {
-      animate(y, 0, { ...SPRING_UI, velocity: v });
+  /*
+    `open` drives `y`. A spring from wherever the sheet is (the presentation
+    value -- framer starts from the MotionValue's current value, never the
+    target) to its edge or its rest, carrying the value's velocity or the
+    one a drag release handed over. Stopping the previous animation on
+    cleanup is what makes a second tap mid-flight re-target instead of
+    racing two springs.
+  */
+  useEffect(() => {
+    if (releasedByDrag.current) {
+      releasedByDrag.current = false;
+      return;
     }
-  };
+    const target = open ? 0 : height;
+    if (reduceMotion) {
+      if (open) {
+        y.set(0);
+        opacity.set(0);
+        const fade = animate(opacity, 1, REDUCED_FADE);
+        return () => fade.stop();
+      }
+      // Fade first, then park it -- the other order fades an empty viewport.
+      const fade = animate(opacity, 0, { ...REDUCED_FADE, onComplete: () => y.set(target) });
+      return () => fade.stop();
+    }
+    opacity.set(1);
+    // Already past the closed line (first mount before measuring, a
+    // re-measure while shut): nothing to travel, so nothing to animate.
+    if (!open && y.get() >= target) {
+      y.set(target);
+      return;
+    }
+    const controls = animate(y, target, SPRING_MOVE);
+    return () => controls.stop();
+  }, [open, height, reduceMotion, y, opacity]);
+
+  const onDragEnd = useCallback(
+    (_e: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
+      const v = info.velocity.y;
+      const flick = Math.abs(v) > FLICK;
+      // A flick's SIGN decides; only a slow release falls back to the
+      // projected resting position against the 40% line.
+      const dismiss = flick ? v > 0 : y.get() + project(v) > 0.4 * heightRef.current;
+      // The spring starts at the finger's velocity -- the hand-off. Bounce
+      // only after a flick, and never under Reduce Motion.
+      const transition: Transition = {
+        ...(flick && !reduceMotion ? SPRING_FLICK : SPRING_MOVE),
+        velocity: v,
+      };
+      // The spring starts NOW, on the release frame, from the presentation
+      // value -- not a render later. Dismissing an open sheet, or catching a
+      // closing one and throwing it back up, also flips `open`; the effect
+      // above is told to leave the running spring alone.
+      animate(y, dismiss ? heightRef.current : 0, transition);
+      if (dismiss === open) {
+        releasedByDrag.current = true;
+        setOpen(!dismiss);
+      }
+    },
+    [open, reduceMotion, y],
+  );
 
   return (
     <>
@@ -150,13 +286,15 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
       </div>
 
       {/*
-        Backdrop. Blurred as well as dimmed, which is the half of "frosted" that
-        gets forgotten: the sheet can only read as glass if what is BEHIND it is
-        visibly out of focus. `.scrim` (globals.css) is --scrim at 0.5 on dark
-        and the page ink at 0.35 on light -- lighter than a /60 black because
-        the blur does most of the separating, and a heavy scrim over a blur
-        just reads as mud. The class also drops the blur under reduced
-        transparency and increased contrast, which bg-black/40 could not.
+        Backdrop: the M5 scrim, a dim and nothing else (APPLE_REF §4.2). The
+        glass is the SHEET's -- `.surface-translucent` blurs what is behind the
+        sheet, bounded to the sheet -- so the page behind it is out of focus
+        exactly where the sheet is and sharp where it is not, which is what a
+        pane in front of a page looks like. A blur on the backdrop as well
+        would be glass on glass (§4.2 rule 1) and, measured, a full-viewport
+        filter re-rendered on every frame the sheet moves. `.scrim` is
+        --scrim at 0.5 on dark and the page ink at 0.35 on light, with the
+        reduced-transparency and increased-contrast fallbacks in one place.
 
         Its opacity is the sheet's position, not a transition of its own: dragging
         the sheet halfway dims the page halfway, and there is no moment where the
@@ -220,45 +358,46 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         what tells you this is a layer and not a new page.
 
         `y` is the ONE position value: the spring animates it, the drag moves
-        it, the backdrop reads it. Closed = its own height, so its top edge
-        sits on the bottom of the viewport and nothing is left hit-testable
-        over the pill.
+        it, the backdrop reads it, `offstage` is derived from it. Closed = its
+        own height, so its top edge sits on the bottom of the viewport and
+        nothing is left hit-testable over the pill.
       */}
       <motion.div
         ref={sheetRef}
         data-testid="mobile-sheet"
         className={`surface-translucent card-elev-raised fixed inset-x-0 bottom-0 z-50 flex max-h-[72svh] flex-col overflow-hidden rounded-t-[28px] border-t border-[var(--glass-edge)] lg:hidden ${
-          open ? "" : "pointer-events-none"
+          offstage ? "pointer-events-none" : ""
         }`}
-        style={{ y }}
-        initial={false}
-        animate={{ y: open ? 0 : height }}
-        transition={SPRING_UI}
+        style={{ y, opacity }}
         drag="y"
         dragListener={false}
         dragControls={dragControls}
-        // Nothing above its resting pose but a soft rubber-band; downward it
-        // follows the thumb all the way, because that is the dismissal.
+        /*
+          Above its resting pose it rubber-bands at 0.55 (APPLE_REF §6.1 #5,
+          §6.2): framer's elastic factor is linear where Apple's curve
+          saturates, and the two agree to within 10% for the first 100 px of
+          over-drag, which is all a thumb does. Downward it follows the thumb
+          all the way, because that is the dismissal.
+        */
         dragConstraints={{ top: 0 }}
-        dragElastic={{ top: 0.08, bottom: 1 }}
+        dragElastic={{ top: 0.55, bottom: 1 }}
         dragMomentum={false}
         onDragEnd={onDragEnd}
         /*
-          aria-hidden + inert when closed, and pointer-events-none above.
-
-          All three are kept even though the sheet is flush to the bottom edge
-          and y = height genuinely clears the viewport. Being off-screen is not
-          the same as being out of the accessibility tree: a keyboard or
-          screen-reader user could still tab into a panel that is not visible,
-          land on nine nav links, and have no idea where focus went. inert
-          removes it from the tab order AND the a11y tree; pointer-events-none
-          covers the thumb if the spring is ever interrupted mid-flight.
+          aria-hidden + inert + pointer-events-none once OFF-SCREEN -- not
+          once `open` is false. Being off-screen is not the same as being out
+          of the accessibility tree: a keyboard or screen-reader user could
+          still tab into a panel that is not visible, land on nine nav links,
+          and have no idea where focus went. inert removes it from the tab
+          order AND the a11y tree. But a sheet that is still on screen, on its
+          way out, is a thing a thumb can catch -- so none of the three apply
+          until its top edge has reached the bottom of the viewport.
         */
         role="dialog"
         aria-modal="true"
         aria-label="Navigation"
-        aria-hidden={!open}
-        inert={!open}
+        aria-hidden={offstage}
+        inert={offstage}
       >
         {/*
           The grab handle, and the strip around it is the drag surface: a full-
@@ -277,7 +416,11 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
             // pointercancel and kills the second drag (measured: the first
             // drag worked, every later one died on pointercancel).
             e.preventDefault();
-            dragControls.start(e);
+            // Touching the handle of a MOVING sheet catches it: the pan
+            // session stops the running spring and tracks from the
+            // presentation value. 10 px of travel before it commits, so a
+            // tap on the handle is still a tap.
+            dragControls.start(e, { distanceThreshold: DRAG_THRESHOLD });
           }}
         >
           <div className="h-1 w-9 rounded-full bg-[var(--text-faint)] opacity-40" />

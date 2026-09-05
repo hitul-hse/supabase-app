@@ -170,10 +170,20 @@ Rules that come with the table:
   every JS spring still ran at full amplitude while every CSS entrance was
   correctly disabled). The app shell mounts `MotionConfig reducedMotion="user"`
   (`src/components/animations/MotionProvider.tsx`), which makes transforms
-  instant and keeps opacity cross-fades. Springs are the two constants in
-  `src/components/animations/springs.ts`: `SPRING_UI` (damping 1.0, response
-  0.3) and `SPRING_MOVE` (1.0, 0.4); the `{ bounce: 0, duration: 0.4 }` above is
-  the same family written with Motion's older key.
+  instant and keeps opacity cross-fades. Springs are the constants in
+  `src/components/animations/springs.ts`, written as Apple's (response,
+  damping ratio) in Motion's physics form via `appleSpring()`:
+  `SPRING_POPOVER` 0.28, `SPRING_UI` 0.35, `SPRING_MOVE` 0.4 (all damping
+  1.0) and `SPRING_FLICK` 0.4 / 0.85 for a flicked sheet only. Physics form
+  on purpose: motion-dom 13 zeroes the velocity handed to any `bounce` /
+  `duration` / `visualDuration` spring, so a released drag would restart
+  from rest. The `{ bounce: 0, duration: 0.4 }` above is the demo page's
+  shorthand and is NOT the same spring (Motion's `duration` solves for the
+  settle time, roughly a response of 0.27).
+- Sidebar collapse is CSS (`width` 220 → 64 over 220 ms `--ease-out`, the
+  pane inset and label opacity on the same curve), the one ruled exception
+  to transform/opacity-only (APPLE_REF §6.2); it is guarded by a frame-time
+  measurement, not a property list.
 
 ## Components
 

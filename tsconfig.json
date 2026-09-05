@@ -42,7 +42,9 @@
     ".next-order-probe/types/**/*.ts",
     ".next-order-probe/dev/types/**/*.ts",
     ".next-tables/types/**/*.ts",
-    ".next-tables/dev/types/**/*.ts"
+    ".next-tables/dev/types/**/*.ts",
+    ".next-motion/types/**/*.ts",
+    ".next-motion/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

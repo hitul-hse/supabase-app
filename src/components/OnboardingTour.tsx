@@ -195,8 +195,8 @@ export default function OnboardingTour() {
       Re-measure after the sidebar's open animation as well as on resize. The
       first measurement can land while the panel is still springing out, which
       would pin the spotlight to a half-open position and leave it there. 320ms
-      covers SPRING_MOVE's 0.4s visual duration to within a pixel; this is a
-      re-measure, never an input lock.
+      covers the shell's 220 ms width transition (DesktopSidebarShell) with
+      room for a late frame; this is a re-measure, never an input lock.
     */
     const settle = setTimeout(update, 320);
     window.addEventListener("resize", update);

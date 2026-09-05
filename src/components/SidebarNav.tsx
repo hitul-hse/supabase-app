@@ -159,7 +159,8 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
           key={group.title}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: gi * 0.04, duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+          // 30 ms step (§6.2 / §8 #9); four groups land inside 0.4 s.
+          transition={{ delay: gi * 0.03, duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
           className="flex flex-col gap-0.5"
         >
           {/*
@@ -254,13 +255,14 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       Clipped, not removed. `w-0 opacity-0` keeps the text in the
                       accessible name while taking no space; the parent's
                       `overflow-hidden` stops it painting over the rail during
-                      the width animation. The fade (opacity, 200 ms here) is
-                      the label's ONLY animated property -- the motion engineer
-                      tunes it to §6.2's 120 ms alongside the width.
+                      the width animation. The fade (opacity, 120 ms, §6.2) is
+                      the label's ONLY animated property: it is gone before
+                      the row has narrowed enough to truncate it, so the eye
+                      never reads "Dashbo…" on the way to the rail.
                     */}
                     <span
                       data-testid="nav-label"
-                      className="min-w-0 flex-1 truncate transition-[opacity] duration-200 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0"
+                      className="min-w-0 flex-1 truncate transition-[opacity] duration-120 group-data-[collapsed=true]/sidebar:w-0 group-data-[collapsed=true]/sidebar:flex-none group-data-[collapsed=true]/sidebar:opacity-0"
                     >
                       {navLabel(link.label)}
                     </span>
@@ -325,7 +327,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                   */}
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
+                    className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-100 group-hover/item:opacity-100 group-hover/item:duration-150 group-focus-visible/item:opacity-100 group-focus-visible/item:duration-150 pointer-fine:group-data-[collapsed=true]/sidebar:block"
                   >
                     {navLabel(link.label)}
                     {link.badge ? (

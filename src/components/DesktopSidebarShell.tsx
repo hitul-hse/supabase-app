@@ -27,47 +27,47 @@
  * collapsed>`, which the provider only sets in an effect and is therefore
  * wrong until hydration; do not reach for that one to drive layout.
  *
- * THE MOTION SEAM (for the motion stage; APPLE_REF §6.2 "Sidebar collapse")
- * -------------------------------------------------------------------------
- * The layout stage arranged the pane so that this element's `width` is the
- * ONE layout property the collapse animates -- everything inside it is either
- * static or opacity:
+ * THE MOTION (APPLE_REF §6.2 "Sidebar collapse ↔ rail")
+ * -----------------------------------------------------
+ * One CSS transition, on `width`, 220 ms on `--ease-out`, on this element and
+ * nothing else. The content column is a flex sibling, so it reflows on the
+ * same curve for free -- there is no second animation to keep in step.
  *
- *   - `animate={{ width }}` below is the single width. Rows are `w-full` of
- *     the pane, so they narrow on the same curve; §6.2 wants this as CSS
- *     (220 → 64 over 220 ms `--ease-out`) or keeps the spring -- either way
- *     it stays ONE transition. The gate (check-sidebar-collapse.mjs) reads
- *     `width:64px` off this element's server-rendered markup, which
- *     `initial={false}` guarantees; keep an inline width in whatever replaces
- *     this.
- *   - Rows are 32 px tall in BOTH states and keep `px-3` in both, so no row
- *     changes height or inner padding at the flip (SidebarNav.tsx).
- *   - The pane's own inset flips 4 → 12 px (`px-1` ↔ `px-3` on the header,
- *     nav and foot wrappers in Sidebar.tsx). That is the ONLY horizontal
- *     geometry that changes, and it moves the icon column 24 → 32. To make
- *     the collapse transform-only inside the pane, animate that 8 px as a
- *     translate (framer `layout="position"` on the row's icon, or a
- *     `translateX` driven by the same curve) -- the padding value itself is
- *     otherwise a discrete flip, hidden under the moving edge.
- *   - Labels: `group-data-[collapsed=true]/sidebar:opacity-0` (+ `w-0`, which
- *     the gate pins) on the label span -- opacity is the only thing to time
- *     (§6.2: 120 ms). The toggle moves column at the flip (trailing edge →
- *     under the mark); it is the element the user just pressed.
- *   - The brand mark, group hairlines and the connection dot are already on
- *     the icon column in both states.
+ * WIDTH, KNOWINGLY. The compositor rule (apple-design §11; §6.1 #8 "never
+ * animate row height or width") is the default here, and this is its one
+ * ruled exception: a sidebar collapse IS a change of the content column's
+ * width, and a transform cannot deliver that -- a rail slid in on
+ * `translateX` either overlaps the first 156 px of the page or leaves them
+ * empty until the layout snaps. Apple's own split view animates the divider,
+ * i.e. layout. §6.2 rules the width transition in and sets the guard as a
+ * measurement rather than a property list: one transition, max frame under
+ * 32 ms (measured 16.8 ms on /projects and on /my-work at 1440 × 900, 44
+ * rAF ticks each, through scripts/lib/launch-chromium.mjs; the move takes 12
+ * frames, 220 ms). Inside the pane the collapse is transform and opacity
+ * only, plus the pane's own inset on this same curve (Sidebar.tsx): rows are
+ * 32 px in both states, the icon column travels its 8 px at ≤ 2.5 px a frame
+ * where it used to jump the whole 8 in one, and labels fade 120 ms
+ * (SidebarNav.tsx).
+ *
+ * CSS, not a spring, because §6.2 says so and because nothing about it is
+ * gesture-driven: a transition re-targets from the current computed value
+ * when Ctrl+B is pressed mid-flight (measured: the width keeps stepping
+ * 17 px a frame through the reversal, no restart), and the global
+ * `prefers-reduced-motion` rule in globals.css makes it instant (measured:
+ * the first changed frame is the resting one), which is exactly §6.2's
+ * reduced-motion value. The gate (check-sidebar-collapse.mjs) reads
+ * `width:64px` off this element's server-rendered markup; the inline style
+ * keeps that true with no client-side step in between.
  */
 
-import { motion, useReducedMotion } from "framer-motion";
-import { SPRING_MOVE } from "./animations/springs";
 import { useSidebarCollapse } from "./SidebarCollapseContext";
 import { SIDEBAR_RAIL_WIDTH, SIDEBAR_WIDTH } from "./sidebar-collapse-shared";
 
 export function DesktopSidebarShell({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebarCollapse();
-  const reduceMotion = useReducedMotion();
 
   return (
-    <motion.div
+    <div
       id="app-sidebar"
       data-collapsed={collapsed ? "true" : "false"}
       /*
@@ -79,22 +79,8 @@ export function DesktopSidebarShell({ children }: { children: React.ReactNode })
         they become the only way to read a label. The animation still looks
         right because at 64px the content already fits.
       */
-      className="group/sidebar hidden flex-none overflow-hidden lg:block data-[collapsed=true]:overflow-visible"
-      // `initial={false}` so the very first paint uses the real width straight
-      // away. Without it, a collapsed-by-cookie sidebar would animate open->shut
-      // on every page load, which is precisely the flash the cookie exists to
-      // prevent.
-      initial={false}
-      animate={{ width: collapsed ? SIDEBAR_RAIL_WIDTH : SIDEBAR_WIDTH }}
-      transition={
-        reduceMotion
-          ? { duration: 0 }
-          : // A spring, not a tween: Ctrl+B pressed mid-flight re-targets from
-            // the width the panel is actually at, carrying its velocity, instead
-            // of restarting a 0.26s curve from wherever it was. Apple's
-            // "move / reposition" values (damping 1.0, response 0.4).
-            SPRING_MOVE
-      }
+      className="group/sidebar hidden flex-none overflow-hidden transition-[width] duration-220 lg:block data-[collapsed=true]:overflow-visible"
+      style={{ width: collapsed ? SIDEBAR_RAIL_WIDTH : SIDEBAR_WIDTH }}
     >
       {/*
         The panel fills whatever width the shell currently has, so labels fade
@@ -103,6 +89,6 @@ export function DesktopSidebarShell({ children }: { children: React.ReactNode })
         content has to actually reflow.
       */}
       <div className="h-full w-full">{children}</div>
-    </motion.div>
+    </div>
   );
 }

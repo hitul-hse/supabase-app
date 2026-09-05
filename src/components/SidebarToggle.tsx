@@ -61,7 +61,7 @@ export function SidebarToggle() {
       */}
       <span
         aria-hidden
-        className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/toggle:opacity-100 group-focus-visible/toggle:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
+        className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-100 group-hover/toggle:opacity-100 group-hover/toggle:duration-150 group-focus-visible/toggle:opacity-100 group-focus-visible/toggle:duration-150 pointer-fine:group-data-[collapsed=true]/sidebar:block"
       >
         {label}
         <span className="ml-1.5 t-label text-[var(--text-faint)]">Ctrl+B</span>

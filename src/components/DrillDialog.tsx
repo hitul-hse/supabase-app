@@ -154,20 +154,40 @@ export function DrillDialog({
     FOCUS, TRAPPED AND RETURNED (APPLE_REF §5.8 "Dialog": "focus trapped and
     returned to the trigger"; WAI-ARIA modal dialog).
 
-    The opener is captured in the mount effect, BEFORE the Close button takes
-    focus -- the button no longer carries `autoFocus`, because React focuses
-    an autoFocus child during commit, ahead of this component's effects, and
-    the capture would have read the dialog's own button. Every dismissal
-    (Escape, the Close button, a tap on the scrim) goes through `dismiss`,
-    which hands focus back synchronously, before the exit starts and `inert`
-    would drop it to <body> -- measured: after Escape, activeElement was BODY.
-    The unmount cleanup is the fallback for a caller that closes the dialog
-    from its own state: if focus is on <body> by then, it goes to the opener.
+    The opener is captured on the open transition (`present` true), BEFORE
+    the Close button takes focus -- the button no longer carries `autoFocus`,
+    because React focuses an autoFocus child during commit, ahead of this
+    component's effects, and the capture would have read the dialog's own
+    button. The capture is IDEMPOTENT: with reactStrictMode (next.config.ts)
+    the effect runs twice on mount, and the second run finds activeElement on
+    the Close button the first run just focused. A capture that overwrote
+    the ref on every run therefore returned focus to a button that was
+    about to be inert, and the three callers that render this dialog from
+    their own state (ProjectsLedger, CapacityPanel, InsightPanels) left
+    focus on <body> after Escape -- measured. Now `returnFocusTo` always
+    wins, otherwise the ref is written once, and never with an element
+    inside the panel. Every dismissal (Escape, the Close button, a tap on
+    the scrim) goes through `dismiss`, which hands focus back synchronously,
+    before the exit starts and `inert` would drop it to <body>. The effect's
+    cleanup is the fallback for a caller that closes the dialog from its own
+    state: a frame later, if the panel is gone or inert and focus is on
+    <body> or still inside the panel, it goes to the opener. (Deferred and
+    conditioned on the panel, because StrictMode also runs the cleanup once
+    while the dialog is very much open.)
 
     The trap is the Tab handler on the panel: Tab from the last focusable
     wraps to the first, Shift+Tab from the first to the last, and a Tab from
     anywhere outside (a screen reader's virtual cursor) re-enters at the
     first. Only while `present`: a closing dialog is not a place to be.
+
+    THE TRAP HAS TO HOLD ON A CLICK, TOO. The panel carries tabIndex -1, so
+    a click on its non-focusable text (the title, a figure, a row without a
+    link) focuses the panel itself instead of dropping focus to <body> --
+    from <body>, Shift+Tab walked out to the page's pager buttons behind the
+    scrim (measured). Browsers that would not focus the container on click
+    get the same result from the pointerdown handler, which checks a frame
+    later and focuses the panel if focus landed outside it. From the panel,
+    Tab enters at the first item and Shift+Tab at the last.
   */
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -180,14 +200,25 @@ export function DrillDialog({
   }, [onClose]);
 
   useEffect(() => {
-    openerRef.current =
-      returnFocusTo?.current ?? (document.activeElement as HTMLElement | null);
+    if (!present) return;
+    const panel = panelRef.current;
+    const active = document.activeElement as HTMLElement | null;
+    const outside =
+      active && active !== document.body && !(panel?.contains(active) ?? false) ? active : null;
+    if (returnFocusTo?.current) openerRef.current = returnFocusTo.current;
+    else if (!openerRef.current) openerRef.current = outside;
     closeRef.current?.focus();
     return () => {
       const opener = openerRef.current;
-      if (document.activeElement === document.body && opener?.isConnected) opener.focus();
+      setTimeout(() => {
+        // Still open: StrictMode's simulated unmount, or nothing to do.
+        if (panel?.isConnected && !panel.hasAttribute("inert")) return;
+        const a = document.activeElement;
+        const lost = a === document.body || (panel !== null && a instanceof Node && panel.contains(a));
+        if (lost && opener?.isConnected) opener.focus();
+      }, 0);
     };
-  }, [returnFocusTo]);
+  }, [present, returnFocusTo]);
 
   const onPanelKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.key !== "Tab" || !present) return;
@@ -197,14 +228,24 @@ export function DrillDialog({
       (el) => el.offsetParent !== null,
     );
     if (items.length === 0) return;
-    const first = items[0];
-    const last = items[items.length - 1];
-    const active = document.activeElement;
-    const inside = active instanceof Node && panel.contains(active);
-    if (e.shiftKey ? active === first || !inside : active === last || !inside) {
+    // -1: focus is on the panel itself (after a click on its text) or outside
+    // it; either way the next Tab re-enters at an end.
+    const idx = items.indexOf(document.activeElement as HTMLElement);
+    const wrap = e.shiftKey ? idx <= 0 : idx === -1 || idx === items.length - 1;
+    if (wrap) {
       e.preventDefault();
-      (e.shiftKey ? last : first).focus();
+      (e.shiftKey ? items[items.length - 1] : items[0]).focus();
     }
+  };
+
+  const onPanelPointerDown = () => {
+    // mousedown (and its default focus move) follows pointerdown; check after it.
+    setTimeout(() => {
+      const panel = panelRef.current;
+      if (!present || !panel) return;
+      const a = document.activeElement;
+      if (!(a instanceof Node) || !panel.contains(a)) panel.focus({ preventScroll: true });
+    }, 0);
   };
 
   useEffect(() => {
@@ -281,7 +322,9 @@ export function DrillDialog({
         aria-label={t("dialogLabel", { title: drill.title })}
         data-drill-dialog
         data-check={drill.check}
+        tabIndex={-1}
         onKeyDown={onPanelKeyDown}
+        onPointerDown={onPanelPointerDown}
         initial={offstage}
         animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
         exit={{ ...offstage, transition: exitTween }}

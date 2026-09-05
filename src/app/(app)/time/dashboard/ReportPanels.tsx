@@ -391,7 +391,7 @@ export async function FreshnessBanner({ freshness }: { freshness: SyncFreshness 
 
   if (status === "ok" && lastSuccessAt && hoursSince !== null) {
     return (
-      <p className="text-[10px] text-[var(--text-faint)]">
+      <p className="t-subhead text-[var(--text-faint)]">
         {t("imported", { age: age(hoursSince), stamp: stamp(lastSuccessAt) })}
         {/* The entry count reuses drill.entries, whose ICU plural formats 1,234
             exactly as the old en-GB call did. */}

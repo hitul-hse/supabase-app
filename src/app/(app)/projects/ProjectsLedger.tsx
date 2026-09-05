@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useCallback, useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/EmptyState";
@@ -245,11 +245,25 @@ export function ProjectsLedger({
   const [drill, setDrill] = useState<Drill | null>(null);
   /** Where the dialog emerges from: the LOGGED figure that was tapped. */
   const [drillOrigin, setDrillOrigin] = useState<DrillOrigin | null>(null);
+  /*
+   * Which open request is current. The server action resolves whenever it
+   * resolves; if the reader has dismissed the dialog by then (Escape the
+   * moment it appeared -- measured: closed at +200 ms, back at +500 ms with
+   * the rows), the resolution must be dropped, not rendered. Every open
+   * bumps the generation and every close bumps it again, so a result that
+   * arrives after either is stale and ignored.
+   */
+  const drillGeneration = useRef(0);
+  const closeHours = useCallback(() => {
+    drillGeneration.current += 1;
+    setDrill(null);
+  }, []);
   /** Hours with their unit, in the reader's language: "1,234.5h" / "1.234,5 Std". */
   const h = (n: number) => fmtHours(n, locale, 1);
   const [, startTransition] = useTransition();
 
   const openHours = (p: ProjectListRow, from: Element | null) => {
+    const generation = ++drillGeneration.current;
     setDrillOrigin(from ? drillOriginFrom(from) : null);
     const base = {
       kicker: t("projects.ledger.kicker"),
@@ -262,6 +276,8 @@ export function ProjectsLedger({
     setDrill({ ...base, loading: true });
     startTransition(async () => {
       const d = await getProjectHoursDrilldown(p.id);
+      // Dismissed (or re-opened for another row) while this was pending.
+      if (generation !== drillGeneration.current) return;
       if (d.error) {
         setDrill({ ...base, error: d.error });
         return;
@@ -595,7 +611,7 @@ export function ProjectsLedger({
 
       <AnimatePresence>
         {drill && (
-          <DrillDialog drill={drill} onClose={() => setDrill(null)} origin={drillOrigin} />
+          <DrillDialog drill={drill} onClose={closeHours} origin={drillOrigin} />
         )}
       </AnimatePresence>
     </div>

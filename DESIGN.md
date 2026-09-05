@@ -37,8 +37,13 @@ white + `--shadow-raised`). `--surface-hover` is the hover fill on any of them.
 `--surface-2` is DARKER than `--surface` and means RECESSED — the Segmented
 track, input wells, code, disabled fills — never a nested panel. `--row-alt`
 (1.07 / 1.06 vs surface) is the zebra stripe for > 8-column crosstabs only.
-`--scrim` (black 0.5 / page-ink 0.35) sits behind modals via `.scrim`, which
-drops its blur under reduced transparency and increased contrast.
+`--scrim` (black 0.5 / page-ink 0.35) sits behind modals via `.scrim`, a dim
+and nothing else: APPLE_REF §4.2 gives M5 one ingredient and reserves
+`backdrop-filter` for M4 (the mobile tab bar and sheet), and a 4 px scrim
+blur measured 33–50 ms per frame of the dialog's own entrance. The
+reduced-transparency / increased-contrast block still pins
+`backdrop-filter: none` on `.scrim` so the gate can read that no blur comes
+back.
 
 **One tint:** `--accent` means INTERACTIVE (links, the one primary button,
 `--focus-ring`) and CURRENT (nav pill, chosen segment, current page, active

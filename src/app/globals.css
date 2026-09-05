@@ -325,7 +325,7 @@
    * ground only reaches ~1.05). The light value is the page ink at 0.35 rather
    * than black, so the dimmed page stays a warm grey (#a3a7ab) and the white
    * dialog separates 2.42 from it by shadow. Applied through `.scrim` below,
-   * which owns the blur and its three fallbacks.
+   * which is a dim and nothing else (M5 has no blur; see that rule).
    */
   --scrim: rgba(0, 0, 0, 0.5);
 

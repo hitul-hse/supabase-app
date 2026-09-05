@@ -27,6 +27,10 @@
  */
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { controlClass } from "@/components/ui/Field";
+import { segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
+import { IconArrowRight, IconCaret, IconCross } from "@/components/nav-icons";
 
 export type Align = "left" | "right";
 
@@ -302,24 +306,27 @@ export function DataTable<T>({
 
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
+      {/*
+        CardHeader geometry, not a bespoke 10px mono kicker: a table is a panel
+        with a heading, and the heading dialect is the one every other card on
+        the page uses -- 13/600 sans title, 10px mono qualifier beside it. The
+        controls on the right are what keep this from BEING a CardHeader.
+      */}
       <header className="flex flex-col gap-2 border-b border-[var(--divider)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
         {(() => {
           const heading = (
             <>
-              <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
+              <h2 className="flex items-center gap-1.5 text-[13px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
                 {collapsible && (
-                  <span
-                    aria-hidden
-                    className={`mr-1.5 inline-block text-[8px] text-[var(--text-faint)] transition-transform ${
-                      open ? "rotate-90" : ""
+                  <IconCaret
+                    className={`flex-none text-[var(--text-faint)] transition-transform duration-150 ${
+                      open ? "" : "-rotate-90"
                     }`}
-                  >
-                    ▶
-                  </span>
+                  />
                 )}
                 {title}
               </h2>
-              <span className="text-[10px] leading-tight text-[var(--text-faint)]">
+              <span className="font-mono text-[10px] leading-tight tracking-[0.06em] text-[var(--text-faint)]">
                 {/* The row count is stated whether open or shut. A collapsed
                     panel must never look like an absent one. */}
                 {open ? showing : (summary ?? showing)}
@@ -339,7 +346,7 @@ export function DataTable<T>({
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
-              className="flex min-w-0 flex-col gap-0.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              className="flex min-w-0 flex-col gap-0.5 rounded-[var(--radius-sm)] text-left transition-transform duration-100 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
             >
               {heading}
             </button>
@@ -354,8 +361,11 @@ export function DataTable<T>({
         <div className={`flex flex-none flex-wrap items-center gap-1.5 ${open ? "" : "hidden"}`}>
           {searchable.length > 0 && (
             <div className="relative">
+              {/* A real <label>, visually hidden, rather than the SearchInput
+                  primitive's aria-label form: the label is what the table's
+                  gate reads, and the skin is shared through controlClass. */}
               <label className="sr-only" htmlFor={searchId}>
-                Search {title.toLowerCase()}
+                {t("searchLabel", { title: title.toLowerCase() })}
               </label>
               <input
                 id={searchId}
@@ -365,7 +375,9 @@ export function DataTable<T>({
                   setPage(0);
                 }}
                 placeholder={searchPlaceholder ?? t("searchPlaceholder")}
-                className="w-[9.5rem] border border-[var(--border)] bg-[var(--page)] py-1 pl-2 pr-6 text-[11px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-faint)] focus:border-[var(--accent)] sm:w-[12rem]"
+                // No `outline-none`: the global :focus-visible ring is the
+                // keyboard story, and controlClass already tints the border.
+                className={`${controlClass} w-[9.5rem] py-1 pl-2.5 pr-7 sm:w-[12rem]`}
               />
               {query && (
                 <button
@@ -375,15 +387,16 @@ export function DataTable<T>({
                     setPage(0);
                   }}
                   aria-label={t("clearSearch")}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-[11px] text-[var(--text-faint)] hover:text-[var(--critical)]"
+                  className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
                 >
-                  ×
+                  <IconCross className="h-3 w-3" />
                 </button>
               )}
             </div>
           )}
 
-          <div className="flex overflow-hidden border border-[var(--border)]">
+          {/* Page sizes wear the segmented skin: a choice among a few, one lit. */}
+          <div role="group" aria-label={t("rowsPerPageGroup")} className={segmentedTrackClass}>
             {PAGE_SIZES.map((s) => (
               <button
                 key={String(s)}
@@ -394,11 +407,7 @@ export function DataTable<T>({
                 }}
                 aria-pressed={pageSize === s}
                 title={s === "all" ? t("showEveryRow") : t("rowsPerPage", { count: s })}
-                className={`px-1.5 py-1 font-mono text-[10px] transition-colors ${
-                  pageSize === s
-                    ? "bg-[var(--surface-hover)] text-[var(--text-primary)]"
-                    : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
-                }`}
+                className={segmentedItemClass(pageSize === s)}
               >
                 {s === "all" ? t("all") : s}
               </button>
@@ -406,14 +415,9 @@ export function DataTable<T>({
           </div>
 
           {exportName !== undefined && total > 0 && (
-            <button
-              type="button"
-              onClick={download}
-              title={t("csvTitle")}
-              className="border border-[var(--border)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-            >
+            <Button variant="ghost" size="sm" onClick={download} title={t("csvTitle")} className="font-mono">
               CSV
-            </button>
+            </Button>
           )}
         </div>
       </header>
@@ -422,13 +426,13 @@ export function DataTable<T>({
         <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">{emptyText ?? t("empty")}</p>
       ) : total === 0 ? (
         <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">
-          No row matches “{query.trim()}”.{" "}
+          {t("noMatch", { query: query.trim() })}{" "}
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="text-[var(--accent)] underline-offset-2 hover:underline"
+            className="text-[var(--accent)] underline-offset-2 transition-transform duration-100 hover:underline active:translate-y-px"
           >
-            Clear the search
+            {t("clearTheSearch")}
           </button>
         </p>
       ) : (
@@ -445,7 +449,10 @@ export function DataTable<T>({
                 // Sticky so the column meaning survives scrolling a long table.
                 // Opaque background, because a translucent header over scrolling
                 // numbers is unreadable.
-                className="sticky top-0 z-10 bg-[var(--surface)] shadow-[0_1px_0_var(--border)]"
+                // The hairline is a shadow because border-collapse eats a
+                // sticky thead's own border; --divider, not --border, because
+                // it separates rows inside ONE surface (Card.tsx's two-tier rule).
+                className="sticky top-0 z-10 bg-[var(--surface)] shadow-[0_1px_0_var(--divider)]"
               >
                 <tr>
                   {columns.map((c, i) => {
@@ -465,17 +472,20 @@ export function DataTable<T>({
                             type="button"
                             onClick={() => onSort(c)}
                             title={c.title ?? `Sort by ${c.header.toLowerCase()}`}
-                            className={`inline-flex items-center gap-1 transition-colors hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+                            className={`inline-flex items-center gap-1 transition-[color,transform] duration-150 hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                               c.align === "right" ? "flex-row-reverse" : ""
                             }`}
                           >
                             <span>{c.header}</span>
                             {/* The inactive marker is rendered too, at low
                                 opacity, so the column's width does not jump
-                                when the sort moves to it. */}
-                            <span aria-hidden className={active ? "" : "opacity-25"}>
-                              {active ? (desc ? "▼" : "▲") : "▾"}
-                            </span>
+                                when the sort moves to it. Same caret as
+                                SortHeader: descending points down. */}
+                            <IconCaret
+                              className={`flex-none transition-transform duration-150 ${
+                                active ? (desc ? "" : "rotate-180") : "opacity-25"
+                              }`}
+                            />
                           </button>
                         ) : (
                           <span title={c.title}>{c.header}</span>
@@ -494,7 +504,7 @@ export function DataTable<T>({
                     {columns.map((c, i) => (
                       <td
                         key={c.key}
-                        className={`${c.compact ? "px-2" : "px-4"} py-2 text-[12px] ${
+                        className={`${c.compact ? "px-2" : "px-4"} py-1.5 text-[12px] ${
                           c.align === "right" ? "text-right" : "text-left"
                         } ${frozenCell(i, false)} ${c.className ?? ""}`}
                       >
@@ -509,34 +519,40 @@ export function DataTable<T>({
 
           {(pageCount > 1 || footnote) && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--divider)] px-4 py-1.5">
-              <span className="text-[10px] text-[var(--text-faint)]">{footnote}</span>
+              {/* Prose, so it is set in the sans face at 11px with real leading,
+                  not as a 10px mono label -- a sentence is not a column header. */}
+              <span className="text-[11px] leading-[1.45] text-[var(--text-faint)]">{footnote}</span>
               {pageCount > 1 && (
                 <div className="flex items-center gap-1">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setPage((p) => Math.max(0, p - 1));
                       scrollRef.current?.scrollTo({ top: 0 });
                     }}
                     disabled={safePage === 0}
-                    className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text-secondary)]"
+                    className="font-mono tracking-[0.06em] disabled:opacity-35"
                   >
-                    ← PREV
-                  </button>
+                    <IconArrowRight className="h-3.5 w-3.5 rotate-180" />
+                    {t("prev")}
+                  </Button>
                   <span className="px-1 font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
                     {safePage + 1} / {pageCount}
                   </span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setPage((p) => Math.min(pageCount - 1, p + 1));
                       scrollRef.current?.scrollTo({ top: 0 });
                     }}
                     disabled={safePage >= pageCount - 1}
-                    className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text-secondary)]"
+                    className="font-mono tracking-[0.06em] disabled:opacity-35"
                   >
-                    NEXT →
-                  </button>
+                    {t("next")}
+                    <IconArrowRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               )}
             </div>

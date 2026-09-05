@@ -203,8 +203,8 @@
     "fetching": "Fetching…",
     "nothingLogged": "Nothing logged.",
     "page": "PAGE {page} / {count}",
-    "back": "← BACK",
-    "next": "NEXT →",
+    "back": "BACK",
+    "next": "NEXT",
     "noProject": "(no project)",
     "noCustomer": "(no customer)",
     "noTask": "(no task)",
@@ -1922,8 +1922,8 @@
     "range": "{from, number}–{to, number} OF {count, number} {noun}",
     "perPage": "PER PAGE",
     "all": "ALL",
-    "prev": "← PREV",
-    "next": "NEXT →",
+    "prev": "PREV",
+    "next": "NEXT",
     "srAll": "Showing all {count, number} {noun}",
     "srRange": "Showing {from, number} to {to, number} of {count, number} {noun}, page {page, number} of {pages, number}"
   },
@@ -1938,6 +1938,56 @@
     "rowsPerPage": "{count, number} rows per page",
     "all": "ALL",
     "csvTitle": "Download these rows as CSV, with the current filter and sort applied",
-    "empty": "Nothing to show."
+    "empty": "Nothing to show.",
+    "searchLabel": "Search {title}",
+    "rowsPerPageGroup": "Rows per page",
+    "noMatch": "No row matches “{query}”.",
+    "clearTheSearch": "Clear the search"
+  },
+  "myWork": {
+    "header": {
+      "linkedTo": "LINKED TO {name}"
+    },
+    "summary": {
+      "led": {
+        "label": "CUSTOMERS I LEAD",
+        "hint": "responsible or owner"
+      },
+      "customers": {
+        "label": "CUSTOMERS TOTAL",
+        "hint": "canonical entities"
+      },
+      "projects": {
+        "label": "MY PROJECTS",
+        "hint": "on any rung"
+      },
+      "hours": {
+        "label": "HOURS · TEAM",
+        "hint": "all people"
+      },
+      "services": {
+        "label": "SERVICES KNOWN",
+        "hintAll": "of your projects ({source})",
+        "hintOf": "of {total} projects ({source})"
+      }
+    },
+    "views": {
+      "label": "View",
+      "projects": "PROJECTS",
+      "customers": "CUSTOMERS"
+    },
+    "filters": {
+      "role": "MY ROLE",
+      "all": "ALL",
+      "clearCustomer": "Clear the customer filter"
+    },
+    "tables": {
+      "projects": "My projects",
+      "customers": "My customers"
+    },
+    "empty": {
+      "browseProjects": "Browse all projects",
+      "reload": "Reload"
+    }
   }
 }

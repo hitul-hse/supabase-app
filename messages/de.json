@@ -203,8 +203,8 @@
     "fetching": "Wird geladen …",
     "nothingLogged": "Nichts erfasst.",
     "page": "SEITE {page} / {count}",
-    "back": "← ZURÜCK",
-    "next": "WEITER →",
+    "back": "ZURÜCK",
+    "next": "WEITER",
     "noProject": "(ohne Projekt)",
     "noCustomer": "(ohne Kunde)",
     "noTask": "(ohne Aufgabe)",
@@ -1922,8 +1922,8 @@
     "range": "{from, number}–{to, number} VON {count, number} {noun}",
     "perPage": "PRO SEITE",
     "all": "ALLE",
-    "prev": "← ZURÜCK",
-    "next": "WEITER →",
+    "prev": "ZURÜCK",
+    "next": "WEITER",
     "srAll": "Alle {count, number} {noun} werden angezeigt",
     "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}"
   },
@@ -1938,6 +1938,56 @@
     "rowsPerPage": "{count, number} Zeilen pro Seite",
     "all": "ALLE",
     "csvTitle": "Diese Zeilen als CSV herunterladen — mit aktuellem Filter und aktueller Sortierung",
-    "empty": "Nichts anzuzeigen."
+    "empty": "Nichts anzuzeigen.",
+    "searchLabel": "{title} durchsuchen",
+    "rowsPerPageGroup": "Zeilen pro Seite",
+    "noMatch": "Keine Zeile passt zu „{query}“.",
+    "clearTheSearch": "Suche zurücksetzen"
+  },
+  "myWork": {
+    "header": {
+      "linkedTo": "VERKNÜPFT MIT {name}"
+    },
+    "summary": {
+      "led": {
+        "label": "KUNDEN, DIE ICH LEITE",
+        "hint": "verantwortlich oder Betreuer"
+      },
+      "customers": {
+        "label": "KUNDEN GESAMT",
+        "hint": "kanonische Entitäten"
+      },
+      "projects": {
+        "label": "MEINE PROJEKTE",
+        "hint": "auf jeder Stufe"
+      },
+      "hours": {
+        "label": "STUNDEN · TEAM",
+        "hint": "alle Personen"
+      },
+      "services": {
+        "label": "SERVICES BEKANNT",
+        "hintAll": "deiner Projekte ({source})",
+        "hintOf": "von {total} Projekten ({source})"
+      }
+    },
+    "views": {
+      "label": "Ansicht",
+      "projects": "PROJEKTE",
+      "customers": "KUNDEN"
+    },
+    "filters": {
+      "role": "MEINE ROLLE",
+      "all": "ALLE",
+      "clearCustomer": "Kundenfilter zurücksetzen"
+    },
+    "tables": {
+      "projects": "Meine Projekte",
+      "customers": "Meine Kunden"
+    },
+    "empty": {
+      "browseProjects": "Alle Projekte ansehen",
+      "reload": "Neu laden"
+    }
   }
 }

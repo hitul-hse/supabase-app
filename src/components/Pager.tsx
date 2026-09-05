@@ -29,6 +29,9 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/Button";
+import { segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
+import { IconArrowRight } from "@/components/nav-icons";
 
 export type PagerState = {
   /** Zero-based index of the visible page. */
@@ -133,8 +136,8 @@ export function Pager({
   const shownTo = Math.min(end, total);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] px-3 py-2">
-      <span className="font-mono text-[10.5px] text-[var(--text-faint)]">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--divider)] px-3 py-2">
+      <span className="font-mono text-[10px] tracking-[0.04em] text-[var(--text-faint)]">
         {size === "all"
           ? t("allCount", { count: total, noun: noun.toUpperCase() })
           : t("range", {
@@ -161,52 +164,58 @@ export function Pager({
       <div className="flex flex-wrap items-center gap-3">
         {/* Rows per page. Offered because the right answer depends on the screen: 25 fits
             a laptop, 100 suits a large monitor where paging every 25 rows is friction. */}
-        <div className="flex items-center gap-1">
-          <span className="font-mono text-[9.5px] tracking-[0.06em] text-[var(--text-faint)]">
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-[10px] tracking-[0.06em] text-[var(--text-faint)]">
             {t("perPage")}
           </span>
-          {[...sizes, "all" as const].map((s) => (
-            <button
-              key={String(s)}
-              type="button"
-              onClick={() => {
-                setSize(s);
-                setPage(0);
-                anchorRef?.current?.scrollIntoView({ block: "start", behavior: "auto" });
-              }}
-              aria-pressed={size === s}
-              className={`border px-1.5 py-0.5 font-mono text-[10px] transition-colors ${
-                size === s
-                  ? "border-[var(--accent)] text-[var(--accent)]"
-                  : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-faint)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              {s === "all" ? t("all") : s}
-            </button>
-          ))}
+          {/* The segmented skin DataTable's page sizes wear: one dialect for
+              "a choice among a few", whichever table draws it. */}
+          <div role="group" aria-label={t("perPage")} className={segmentedTrackClass}>
+            {[...sizes, "all" as const].map((s) => (
+              <button
+                key={String(s)}
+                type="button"
+                onClick={() => {
+                  setSize(s);
+                  setPage(0);
+                  anchorRef?.current?.scrollIntoView({ block: "start", behavior: "auto" });
+                }}
+                aria-pressed={size === s}
+                className={segmentedItemClass(size === s)}
+              >
+                {s === "all" ? t("all") : s}
+              </button>
+            ))}
+          </div>
         </div>
 
         {pageCount > 1 && size !== "all" && (
           <div className="flex items-center gap-1">
-            <button
-              type="button"
+            {/* Ghost buttons with a real icon: the same PREV / NEXT DataTable
+                draws, so a reader pages the same way in every table. */}
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => go(Math.max(0, page - 1))}
               disabled={page === 0}
-              className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text-secondary)]"
+              className="font-mono tracking-[0.06em] disabled:opacity-35"
             >
+              <IconArrowRight className="h-3.5 w-3.5 rotate-180" />
               {t("prev")}
-            </button>
+            </Button>
             <span className="px-1 font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
               {page + 1} / {pageCount}
             </span>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => go(Math.min(pageCount - 1, page + 1))}
               disabled={page >= pageCount - 1}
-              className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text-secondary)]"
+              className="font-mono tracking-[0.06em] disabled:opacity-35"
             >
               {t("next")}
-            </button>
+              <IconArrowRight className="h-3.5 w-3.5" />
+            </Button>
           </div>
         )}
       </div>

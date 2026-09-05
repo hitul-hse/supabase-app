@@ -53,6 +53,7 @@
 
 import { useTranslations } from "next-intl";
 import { useId, useState, type ReactNode } from "react";
+import { IconCaret } from "./nav-icons";
 
 export function MobileDisclosure({
   title,
@@ -94,16 +95,15 @@ export function MobileDisclosure({
         className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left card-elev sm:hidden"
       >
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
-            <span
-              aria-hidden
-              className={`mr-1.5 inline-block text-[8px] text-[var(--text-faint)] transition-transform ${
-                open ? "rotate-90" : ""
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
+            {/* The same caret DataTable's collapsible header rotates: one
+                disclosure dialect, drawn from the icon set rather than a glyph. */}
+            <IconCaret
+              className={`flex-none text-[var(--text-faint)] transition-transform duration-150 ${
+                open ? "" : "-rotate-90"
               }`}
-            >
-              ▶
-            </span>
-            {title.toUpperCase()}
+            />
+            {title}
           </span>
           {/* Stated whether open or shut: a collapsed panel must never read as
               an absent one. */}

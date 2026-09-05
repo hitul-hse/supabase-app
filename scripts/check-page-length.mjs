@@ -137,7 +137,7 @@ try {
     );
 
     // Advancing a page must not make the document taller, and must change the rows.
-    const next = page.locator('button:text-is("NEXT →")').first();
+    const next = page.getByRole("button", { name: /\bNEXT\b/ }).first();
     if ((await next.count()) > 0 && await next.isEnabled()) {
       const before = await rowFingerprint();
       await next.click();

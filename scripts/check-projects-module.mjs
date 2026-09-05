@@ -205,6 +205,7 @@ module.exports = {
   const mobileDisclosureFile = await compile("src/components/MobileDisclosure.tsx", "MobileDisclosure.cjs", {
       "@/lib/locale-format": posix(formatFile),
       "next-intl": posix(intlStub),
+      "./nav-icons": posix(iconsFile),
     });
 
   const insightsFile = await compile("src/app/(app)/projects/project-insights.ts", "project-insights.cjs", {
@@ -239,8 +240,10 @@ module.exports = {
   const noopChild = join(dir, "noop-child.cjs");
   writeFileSync(noopChild, `module.exports = new Proxy({}, { get: () => () => null });`);
   const customerSelectFile = await compile("src/app/(app)/projects/CustomerMultiSelect.tsx", "CustomerMultiSelect.cjs", {
-      "@/lib/locale-format": posix(formatFile),
     "@/lib/locale-format": posix(formatFile),
+    // The select's caret, tick and key caps come from the shared sets now.
+    "@/components/ui/Field": posix(fieldFile),
+    "@/components/nav-icons": posix(iconsFile),
   });
   const explorer = require(
     await compile("src/app/(app)/projects/ProjectsExplorer.tsx", "ProjectsExplorer.cjs", {

@@ -72,7 +72,10 @@ export async function TopBarChrome() {
   return (
     <>
       {/* Theme first, then find: the toggle is the control people asked for by
-          name, and the reference bars put appearance controls at the outer edge. */}
+          name, and the reference bars put appearance controls at the outer edge.
+          Both are `hidden` below `sm` -- on a phone they are rows of the
+          account menu instead (UserMenu), so the bar keeps two 44 px targets
+          and the page title keeps its row (PageHeader). */}
       <LocaleSwitcher />
       <ThemeToggle />
 

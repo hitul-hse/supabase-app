@@ -44,6 +44,7 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
@@ -54,9 +55,30 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "framer-
 import { Avatar } from "./Avatar";
 import { LogoutButton } from "./LogoutButton";
 import { TourReplayButton } from "./TourReplayButton";
+import { ThemeToggle } from "./ThemeToggle";
+import { LocaleSwitcher } from "./locale/LocaleSwitcher";
 import { IconUser } from "./nav-icons";
 import { MenuSeparator, menuItemClass, menuPanelClass } from "./ui/Menu";
 import { EASE_OUT, SPRING_POPOVER } from "./animations/springs";
+
+/*
+ * THE PHONE OVERFLOW (APPLE_REF §3.1, HIG/toolbars: on a narrow window
+ * secondary controls collapse into an overflow). Below Tailwind's `sm`
+ * (40rem) the top bar hides its language and theme buttons and this menu
+ * carries them as rows instead, so the bar is two 44 px targets and the page
+ * title keeps its 358 px (PageHeader). Read through useSyncExternalStore on
+ * the same media query the CSS uses, so the two never disagree; the server
+ * snapshot is irrelevant to markup (the menu is closed on the server) and
+ * only decides which way the first client render leans.
+ */
+const WIDE = "(min-width: 40rem)";
+function subscribeWide(onChange: () => void): () => void {
+  const mq = window.matchMedia(WIDE);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+const getWide = () => window.matchMedia(WIDE).matches;
+const getWideOnServer = () => true;
 
 /**
  * The portal, rendered by a component so it can be an AnimatePresence child
@@ -85,6 +107,7 @@ export function UserMenu({
 }) {
   const t = useTranslations("common");
   const reduceMotion = useReducedMotion();
+  const wide = useSyncExternalStore(subscribeWide, getWide, getWideOnServer);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const [initialFocus, setInitialFocus] = useState<"first" | "last">("first");
@@ -259,6 +282,16 @@ export function UserMenu({
                   <IconUser className="flex-none text-[var(--text-secondary)]" />
                   {t("profile")}
                 </Link>
+                {/* The phone overflow: the bar's language and theme controls,
+                    as rows, only where the bar has hidden them (see WIDE). A
+                    press closes the menu and returns focus to the chip, like
+                    Profile; the same three groups as the desktop menu. */}
+                {!wide && (
+                  <>
+                    <LocaleSwitcher variant="menuitem" onActivate={() => close()} />
+                    <ThemeToggle variant="menuitem" onActivate={() => close()} />
+                  </>
+                )}
                 <TourReplayButton />
                 <MenuSeparator />
                 <LogoutButton variant="menuitem" />

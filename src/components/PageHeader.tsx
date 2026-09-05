@@ -49,11 +49,21 @@ interface PageHeaderProps {
  * not sticky. 12 px above and below (§3.2): the 26 px title line alone would
  * make that 50; the 32 px `md` controls in the trailing group make the bar
  * 56 + hairline, measured 57 -- Apple's own toolbar proportion of 12 pt of air
- * around a control. On a phone the controls grow to 44 and the bar to 69.
+ * around a control.
  *
- * Below `sm` the meta drops under the title and the chrome stays on the
- * title's row, because a search button that jumps below the fold is not a
- * search button.
+ * BELOW `sm` THE TITLE DOES NOT YIELD (APPLE_REF §3.1, HIG/toolbars: on a
+ * narrow window secondary controls collapse into an overflow; §3.2 "essential
+ * information gets space"). Four 44 px controls on the title's row left the
+ * `h1` 146 px of a 390 px phone -- "10303_WorkMo…" for a project name, and
+ * every meta line clipped (measured; production gave the title 358). So the
+ * title block is `basis-full` below `sm`: it takes the whole 358 px row, the
+ * meta drops under it, and the chrome WRAPS to a row of its own beneath,
+ * right-aligned -- the same DOM node, moved by flex-wrap, not a second copy.
+ * The chrome itself is two 44 px targets there, not four: `TopBarChrome`
+ * hides the language and theme buttons below `sm` and `UserMenu` offers them
+ * as menu items instead (the overflow). Search stays as its one icon and the
+ * chip stays the /profile entry. The bar is 118 px on a phone with a meta
+ * line (was 69, with a title nobody could read); 57 at `sm` and up, as before.
  *
  * ONE chrome instance, always -- rendered here inside the title row so it
  * stays pinned right at every width even when `actions` wraps to its own
@@ -71,9 +81,11 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <header className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--topbar)] px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:px-6">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2.5">
-          <h1 className="min-w-0 truncate t-title-2 sm:t-title text-[var(--text-primary)]">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+        <div className="flex min-w-0 basis-full flex-col gap-0.5 sm:basis-auto sm:flex-row sm:items-baseline sm:gap-2.5">
+          {/* `title` so a name that still overruns 358 px is reachable in full
+              (§8 #17: end truncation + title is the house form). */}
+          <h1 title={title} className="min-w-0 truncate t-title-2 sm:t-title text-[var(--text-primary)]">
             {title}
           </h1>
           {/* Gives way three times faster than the title when the row is

@@ -44,6 +44,8 @@
     "signingOut": "Signing out…",
     "profile": "Profile",
     "accountMenu": "Account menu — {name}",
+    "themeToDark": "Switch to dark theme",
+    "themeToLight": "Switch to light theme",
     "error": {
       "title": "This page couldn't load",
       "description": "The data behind this screen failed to load. This is usually temporary — trying again often resolves it. If it keeps happening, the reference below helps trace the cause.",

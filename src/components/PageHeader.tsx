@@ -63,7 +63,18 @@ interface PageHeaderProps {
  * hides the language and theme buttons below `sm` and `UserMenu` offers them
  * as menu items instead (the overflow). Search stays as its one icon and the
  * chip stays the /profile entry. The bar is 118 px on a phone with a meta
- * line (was 69, with a title nobody could read); 57 at `sm` and up, as before.
+ * line (was 69, with a title nobody could read).
+ *
+ * FROM `sm` UP THE BAR IS ONE ROW, ALWAYS: the title row is `sm:flex-nowrap`.
+ * With wrapping left on above `sm`, a title + meta + chrome that overran the
+ * row did not shrink -- flex breaks the line before it shrinks anything -- so
+ * the chrome dropped under the title and the bar grew to 95 px (measured on
+ * /projects/41 at 640, 768, 1024 and 1280, and on /dashboard/management at
+ * 640-1024), while the title on its own line STILL truncated (457 of 520 px
+ * at 1024). Now the title block shares the row with the chrome and shrinks
+ * (`min-w-0`, shrink 1; the meta at shrink 3 gives way first), so a long
+ * name truncates in place and the bar holds its 57 px at every width from
+ * `sm` up. Below `sm` the fold above is unchanged.
  *
  * ONE chrome instance, always -- rendered here inside the title row so it
  * stays pinned right at every width even when `actions` wraps to its own
@@ -81,7 +92,7 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <header className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--topbar)] px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:px-6">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:flex-nowrap">
         <div className="flex min-w-0 basis-full flex-col gap-0.5 sm:basis-auto sm:flex-row sm:items-baseline sm:gap-2.5">
           {/* `title` so a name that still overruns 358 px is reachable in full
               (§8 #17: end truncation + title is the house form). */}

@@ -82,8 +82,17 @@ async function compile(src, out, rewrites = {}) {
 }
 
 const transformFile = await compile("src/lib/time-transform.ts", "time-transform.cjs");
+// TimeTotalsStrip imports @/lib/locale-format since c55de64 (2026-09-03). That
+// commit taught check-time-page-render.mjs the alias and missed this file, so the
+// component require below died with "Cannot find module '@/lib/locale-format'"
+// on every night-shift run from 2026-09-03T22:03 -- ten in a row -- before a single
+// render assertion ran. A crash, not a verdict, and only the nightly channel ran
+// this gate, so nobody saw it. Compiled for real, as page-render does: a stub would
+// test nothing.
+const formatFile = await compile("src/lib/locale-format.ts", "locale-format.cjs");
 const alias = {
   "@/lib/time-transform": posix(transformFile),
+  "@/lib/locale-format": posix(formatFile),
   "@/lib/database.types": posix(transformFile), // types only; erased at compile time
 };
 

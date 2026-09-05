@@ -127,9 +127,42 @@
    * 2.070 and genuinely carries the elevation.
    */
   --shadow-glass: 0 4px 10px rgba(0, 0, 0, 0.4), 0 18px 44px -14px rgba(0, 0, 0, 0.7);
+  /*
+   * ELEVATION IN DARK = LIGHTER, ONE STEP PER LAYER (APPLE_REF §2.3 #2, §4.2).
+   *
+   *   --page            #121418   the ground
+   *   --surface         #1a1e24   cards, tables, panels       1.10 above --page
+   *   --surface-raised  #20262e   popovers, menus, tooltips,
+   *                               dialogs                     1.10 above --surface,
+   *                                                           1.21 above --page
+   *   --surface-hover   #232933   the hover fill on any of the three
+   *
+   * --surface-2 (#14171c) is DARKER than --surface and therefore means
+   * RECESSED: the Segmented track, input wells, code, disabled fills. It is
+   * never a nested panel -- a darker card inside a lighter one inverts the
+   * system (and Card.tsx bans nesting anyway).
+   *
+   * Measured for --surface-raised: every text token clears the floor on it
+   * (primary 13.72, secondary 8.39, muted 6.78, faint 5.47, accent 7.69, good
+   * 7.01, critical 6.56, warning 6.61). --surface-hover sits only 1.04 above it
+   * by fill, so a hovered menu item also moves its text to --text-primary --
+   * the pairing every hover state in the app already uses -- and the raised
+   * layer always ships --shadow-raised plus a --border-strong rim (1.46 against
+   * it). In light the raised surface is white like --surface and lifts by
+   * shadow alone (2.42 against the scrimmed page), which is the light theme's
+   * mechanism everywhere (see --shadow-glass).
+   */
   --surface: #1a1e24;
   --surface-2: #14171c;
   --surface-hover: #232933;
+  --surface-raised: #20262e;
+  /*
+   * Zebra stripe, for crosstabs wider than ~8 columns only (APPLE_REF §8 #15).
+   * White at 0.025 over --surface: 1.07 against it, deliberately under the
+   * 1.14 of --surface-hover so a stripe reads as a reading guide and never as
+   * a row state. Off by default; a table opts in.
+   */
+  --row-alt: #202429;
   --border: #262c35;
   --border-strong: #364050;
 
@@ -137,13 +170,22 @@
   --text-secondary: #bcc1c4;
   --text-muted: #a7aeb3;
   /*
-   * 4.70:1 on --surface, up from #8f979d's 3.69:1.
+   * THE FOURTH RUNG. Apple's label ladder has four visibly distinct levels
+   * (APPLE_REF §2.3 #1, §8 #6); this token was #a3abb1, which sat 1.04:1 from
+   * --text-muted -- two names, one appearance, a ladder with a missing rung.
    *
-   * The old value passed against --page (4.49) and failed against --surface,
-   * which is where it is actually used: every KPI caption, every table column
-   * header, every "n/a" sits on a card. Measured, not eyeballed.
+   * #949ca2 is one visible step below muted (1.24:1 between them, the same
+   * step as secondary -> muted) and still caption ink, not a watermark:
+   * 6.00:1 on --surface, 6.62 on --page, 5.25 on --surface-hover, 5.35 on
+   * --surface-accent, 5.47 on --surface-raised, 6.89 on --sidebar. The floor
+   * for this token is 5.5 on --surface and 4.5 wherever the pointer can put it
+   * (a hovered row); the gate measures both, in both themes.
+   *
+   * The comment this replaces quoted "4.70:1 on --surface" for #a3abb1; against
+   * the committed surface it measured 7.18. The surfaces were darkened after
+   * the comment was written -- recompute before trusting any ratio here.
    */
-  --text-faint: #a3abb1;
+  --text-faint: #949ca2;
 
   /*
    * Divider inside cards and tables.
@@ -155,10 +197,24 @@
    */
   --divider: #21262e;
 
+  /*
+   * ONE TINT, TWO MEANINGS AND NO OTHERS (APPLE_REF §2.3 #5, §8 #5). On operate
+   * pages --accent means INTERACTIVE (links, the one primary button, the focus
+   * ring) and CURRENT (nav pill, chosen segment, current page, active sort).
+   * It is not a status colour -- healthy is --good -- and not decoration: KPI
+   * figures are --text-primary, and teal sits on a figure only inside the one
+   * hero-tone card. Sidebar icons stay currentColor grey at rest.
+   */
   --accent: #91c2b7;
   --accent-hover: #a8d0c6;
   --accent-contrast: #1c2427;
   --accent-wash: rgba(145, 194, 183, 0.14);
+  /*
+   * The keyboard focus ring, named so the increased-contrast block below can
+   * widen it without re-stating the colour. An alias on purpose: the ring IS
+   * the accent's "interactive" meaning, not a fifth colour.
+   */
+  --focus-ring: var(--accent);
 
   /*
    * Motion curve. The browser's built-in `ease-out` is too weak to read as
@@ -187,6 +243,11 @@
    * --chart-hue keeps the deeper green: it fills bars and areas, where the
    * relevant floor is 3:1 for large blocks, and the darker tone reads better
    * as a fill than as text.
+   *
+   * --good is the HEALTHY status colour. burnColor, the portfolio donut, the
+   * budget and contract bars, the sync dot and a DONE task all say healthy
+   * with it; none of them may use --accent, which means interactive/current
+   * (APPLE_REF §8 #5). Status is never colour alone: icon + text + colour.
    */
   --good: #4cc3a6;
   --good-wash: rgba(76, 195, 166, 0.14);
@@ -257,6 +318,16 @@
    */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px -6px rgba(0, 0, 0, 0.5);
   --shadow-raised: 0 2px 4px rgba(0, 0, 0, 0.34), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  /*
+   * The dialog / sheet backdrop (M5 in APPLE_REF §4.2). Black at 0.5 lands
+   * --page on #090a0c; --surface-raised then separates 1.30 from the dimmed
+   * ground, and on dark that lift is the fill plus the rim (a shadow over this
+   * ground only reaches ~1.05). The light value is the page ink at 0.35 rather
+   * than black, so the dimmed page stays a warm grey (#a3a7ab) and the white
+   * dialog separates 2.42 from it by shadow. Applied through `.scrim` below,
+   * which owns the blur and its three fallbacks.
+   */
+  --scrim: rgba(0, 0, 0, 0.5);
 
   /*
    * The tinted "hero" panel -- the one card per page carrying the primary
@@ -373,24 +444,55 @@
   --surface: #ffffff;
   --surface-2: #f2f4f5;
   --surface-hover: #e9edee;
+  /* White like --surface: light separation is capped (white on --page is only
+     1.14), so the raised layer lifts by --shadow-raised, not by fill. */
+  --surface-raised: #ffffff;
+  /* 1.06 against white -- a guide, not a state (see the dark note). */
+  --row-alt: #f7f8f9;
   --border: #d5dade;
   --border-strong: #bfc7cc;
   --divider: #e2e6e9;
 
   --text-primary: #1d2429;
   --text-secondary: #3f4a51;
-  --text-muted: #55616a;
+  /*
+   * The light ladder had the same missing rung as dark (muted #55616a vs faint
+   * #5d6a72: 1.14 apart). Faint already sits at the 5.5 floor (5.57 on white,
+   * 4.88 on --page, 4.72 on --surface-hover, 4.53 on --surface-accent), so the
+   * room is on the muted side: #4f5b64 is one step DARKER -- 6.97 on --surface,
+   * 6.10 on --page, 5.91 on --surface-hover, 5.67 on --surface-accent -- and
+   * puts 1.25 between muted and faint. The ladder now steps 1.73 / 1.30 / 1.25
+   * from primary down.
+   */
+  --text-muted: #4f5b64;
   --text-faint: #5d6a72;
 
-  --accent: #1f7a67;
+  /*
+   * #1c7360, from #1f7a67. The old value cleared 4.5 on white (5.20) and on
+   * --page (4.55) and FAILED on --surface-hover at 4.41 -- which is exactly
+   * where a link sits while the pointer is on its row. One step darker clears
+   * every surface a link can sit on: 5.72 on --surface, 5.01 on --page, 4.85 on
+   * --surface-hover, 4.65 on --surface-accent, 4.61 on --sidebar; white on it
+   * (the primary button) is 5.72. --accent-hover stays #17604f, 1.30 from it.
+   */
+  --accent: #1c7360;
   --accent-hover: #17604f;
   --accent-contrast: #ffffff;
-  --accent-wash: rgba(31, 122, 103, 0.12);
+  --accent-wash: rgba(28, 115, 96, 0.12);
+  --focus-ring: var(--accent);
 
   --chart-hue: #2b8f77;
 
-  --good: #1f7a67;
-  --good-wash: rgba(31, 122, 103, 0.12);
+  /*
+   * #15733a, from #1f7a67 -- which was BYTE-IDENTICAL to this theme's --accent,
+   * so "healthy" and "link" were one colour with two meanings (APPLE_REF §8
+   * #5). A green rather than the teal: 5.92 on --surface, 5.18 on --page, 5.02
+   * on --surface-hover, 4.81 on --surface-accent. It has no luminance room to
+   * step away from the accent (both must clear 4.5 on white), so the hue is
+   * the separation -- and status is never colour alone (icon + text).
+   */
+  --good: #15733a;
+  --good-wash: rgba(21, 115, 58, 0.12);
   --critical: #b5432c;
   --critical-wash: rgba(181, 67, 44, 0.1);
   --warning: #8a6116;
@@ -398,12 +500,75 @@
 
   --shadow-card: 0 1px 2px rgba(23, 32, 38, 0.06), 0 4px 12px -6px rgba(23, 32, 38, 0.12);
   --shadow-raised: 0 2px 4px rgba(23, 32, 38, 0.08), 0 12px 28px -12px rgba(23, 32, 38, 0.2);
+  --scrim: rgba(23, 32, 38, 0.35);
 
   --surface-accent: #dcebe6;
   --surface-accent-border: #b8d4cb;
   --hero-gradient: linear-gradient(160deg, #e6f2ed 0%, #dcebe6 48%, #d0e3dc 100%);
 
   --topbar: #e4e7ea;
+}
+
+/*
+ * INCREASED CONTRAST (APPLE_REF §2.3 #4, §2.6, §8 #24).
+ *
+ * Apple ships every custom colour as a light / dark / increased-contrast set;
+ * this is the third member, for both themes. The pattern is Apple's own: in
+ * dark the variant is LIGHTER, in light it is DARKER. Every text token here
+ * clears 7:1 on --surface, --page and --surface-hover (measured beside each
+ * value: surface / page / hover); borders go one step up the existing ladder;
+ * washes go from 0.12-0.14 to 0.22 so a tinted chip has an edge of its own;
+ * the focus ring widens to 3px; the frosted mobile bar goes solid with a rim
+ * that reads as a drawn outline (see .surface-translucent below).
+ *
+ * Every token set in :root here is set again in [data-theme="light"], and in
+ * that order: the two selectors share specificity, so the light block must
+ * come second to win when the attribute is present.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --foreground: #ffffff;
+    --text-primary: #ffffff; /* 16.73 / 18.44 / 14.62 */
+    --text-secondary: #d5dadd; /* 11.87 / 13.08 / 10.37 */
+    --text-muted: #c2c8cc; /* 9.90 / 10.91 / 8.65 */
+    --text-faint: #b4bbc0; /* 8.61 / 9.49 / 7.53 */
+    --accent: #a8d0c6; /* 9.96 / 10.98 / 8.70 */
+    --accent-hover: #bfe0d8;
+    --accent-wash: rgba(168, 208, 198, 0.22);
+    --good: #6fd4bc; /* 9.42 / 10.38 / 8.23 */
+    --good-wash: rgba(111, 212, 188, 0.22);
+    --critical: #f6b3a2; /* 9.47 / 10.44 / 8.28 */
+    --critical-wash: rgba(246, 179, 162, 0.22);
+    --warning: #e6b866; /* 9.09 / 10.02 / 7.95 */
+    --warning-wash: rgba(230, 184, 102, 0.22);
+    --divider: #262c35;
+    --border: #364050; /* 1.60 vs --surface, was 1.19 */
+    --border-strong: #4a5566; /* 2.22 vs --surface, was 1.60 */
+    --glass-edge: rgba(255, 255, 255, 0.5); /* 6.60 vs --page */
+  }
+  [data-theme="light"] {
+    --foreground: #000000;
+    --text-primary: #000000; /* 21.00 / 18.38 / 17.81 */
+    --text-secondary: #26313a; /* 13.27 / 11.61 / 11.25 */
+    --text-muted: #3a464f; /* 9.68 / 8.48 / 8.21 */
+    --text-faint: #3f4b54; /* 8.95 / 7.84 / 7.59 */
+    --accent: #12503f; /* 9.35 / 8.19 / 7.93 */
+    --accent-hover: #0d4234;
+    --accent-wash: rgba(18, 80, 63, 0.22);
+    --good: #0e552a; /* 8.93 / 7.82 / 7.58 */
+    --good-wash: rgba(14, 85, 42, 0.22);
+    --critical: #86301e; /* 8.55 / 7.49 / 7.26 */
+    --critical-wash: rgba(134, 48, 30, 0.22);
+    --warning: #5f420d; /* 9.24 / 8.09 / 7.84 */
+    --warning-wash: rgba(95, 66, 13, 0.22);
+    --divider: #d5dade;
+    --border: #bfc7cc; /* 1.71 vs white, was 1.41 */
+    --border-strong: #9aa5ad; /* 2.51 vs white, was 1.71 */
+    --glass-edge: rgba(0, 0, 0, 0.3);
+  }
+  :focus-visible {
+    outline-width: 3px;
+  }
 }
 
 @theme inline {
@@ -463,9 +628,11 @@ body {
   }
 }
 
-/* Keyboard focus must stay visible everywhere -- accessibility, not optional. */
+/* Keyboard focus must stay visible everywhere -- accessibility, not optional.
+   --focus-ring, not --accent, so the increased-contrast block can widen the
+   ring in one place; it resolves to the accent in both themes. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -806,6 +973,57 @@ body {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+/*
+ * Increased contrast: the same solid pane (apple-design §14: "near-solid
+ * backgrounds with a defined, contrasting border"). The rim is --glass-edge,
+ * which the prefers-contrast block above lifts to 0.5 on dark -- 6.60 against
+ * --page, the "drawn outline" the frosted default deliberately avoids and this
+ * setting deliberately asks for.
+ */
+@media (prefers-contrast: more) {
+  .surface-translucent {
+    background-color: var(--glass-solid);
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/*
+ * .scrim — the M5 material behind DrillDialog and the mobile sheet.
+ *
+ * One class, so the dim and its blur have one fallback path: no backdrop-filter
+ * support, reduced transparency and increased contrast each get the flat
+ * --scrim with no blur. The blur is 4px: enough to take the edge off text
+ * behind a modal, not enough to read as a second frosted surface (glass on
+ * glass is banned -- APPLE_REF §4.2 rule 1). "Dim to focus, separate to keep
+ * flow": a modal gets this; a non-blocking panel gets none.
+ */
+.scrim {
+  background-color: var(--scrim);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .scrim {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .scrim {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/*
+ * White-ground images on the dark theme (APPLE_REF §2.3 #8; Apple: "Soften the
+ * color of white backgrounds"). A logo or screenshot exported on #ffffff is the
+ * brightest thing on a #121418 page by a wide margin; 0.92 takes it to the
+ * --text-primary level (#ebebeb) without tinting it. Light theme: untouched.
+ */
+:root:not([data-theme="light"]) img.on-dark {
+  filter: brightness(0.92);
 }
 
 .viz-root {

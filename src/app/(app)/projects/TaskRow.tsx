@@ -24,7 +24,7 @@ const STATUS_KEY: Record<TaskStatus, string> = {
 };
 
 const STATUS_CLASS: Record<TaskStatus, string> = {
-  DONE: "text-[var(--accent)]",
+  DONE: "text-[var(--good)]",
   "OVER 33%": "text-[var(--critical)]",
   "IN PROGRESS": "text-[var(--warning)]",
   "NOT STARTED": "text-[var(--text-faint)]",

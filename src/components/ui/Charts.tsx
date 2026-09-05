@@ -135,7 +135,7 @@ export function AreaTrend({
           because content appearing on hover must not reflow the chart. */}
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex justify-end px-1">
         <span
-          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--text-primary)] shadow-lg transition-opacity duration-100 ${
+          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
             hot ? "opacity-100" : "opacity-0"
           }`}
           aria-hidden
@@ -578,7 +578,7 @@ export function BarTrend({
     <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex justify-end px-1">
         <span
-          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--text-primary)] shadow-lg transition-opacity duration-100 ${
+          className={`rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-1 font-mono text-[10px] tabular-nums text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
             hot ? "opacity-100" : "opacity-0"
           }`}
           aria-hidden
@@ -765,7 +765,7 @@ function PinnedReadout({ text }: { text: string | null }) {
   return (
     <span
       aria-hidden
-      className={`pointer-events-none absolute right-0 top-0 z-10 max-w-full truncate rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10px] leading-[14px] tabular-nums text-[var(--text-primary)] shadow-lg transition-opacity duration-100 ${
+      className={`pointer-events-none absolute right-0 top-0 z-10 max-w-full truncate rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-0.5 font-mono text-[10px] leading-[14px] tabular-nums text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
         text ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -1624,7 +1624,7 @@ export function Sparkline({
           to reserve, and floating never reflows. */}
       <span className="pointer-events-none absolute bottom-full right-0 z-10 mb-1" aria-hidden>
         <span
-          className={`block whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10px] leading-[14px] tabular-nums text-[var(--text-primary)] shadow-lg transition-opacity duration-100 ${
+          className={`block whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 py-0.5 font-mono text-[10px] leading-[14px] tabular-nums text-[var(--text-primary)] card-elev-raised transition-opacity duration-100 ${
             hot ? "opacity-100" : "opacity-0"
           }`}
         >

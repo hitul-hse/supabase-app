@@ -444,22 +444,223 @@ const PAGE = tokenOf("page");
 const SURFACE = tokenOf("surface");
 check("--page and --surface resolve", Boolean(PAGE && SURFACE), `${PAGE} / ${SURFACE}`);
 
-// --surface is the load-bearing background here: the previous values were tuned
-// against --page and failed on every card, which is where they actually live.
-for (const name of ["text-primary", "text-secondary", "text-muted", "text-faint", "accent", "good", "critical", "warning"]) {
-  const hex = tokenOf(name);
-  if (!hex) {
-    check(`--${name} is defined`, false);
-    continue;
-  }
-  const onSurface = ratio(hex, SURFACE);
-  const onPage = ratio(hex, PAGE);
+/*
+ * Extended 2026-09-05 (docs/APPLE-DESIGN-REFERENCE.md §2.2, §2.3, §2.6):
+ *
+ *   - every text token is measured on --page, --surface, --surface-hover AND
+ *     --surface-raised. --surface-hover is where a link or a caption sits while
+ *     the pointer is on its row; the light --accent cleared --page and
+ *     --surface and measured 4.41 there -- the quiet version of R3 again.
+ *   - the light block is parsed separately. tokenOf() reads the FIRST match,
+ *     which is :root, so a light-theme regression was invisible to this gate.
+ *   - the ladder must have four rungs: --text-muted vs --text-faint >= 1.2 (they
+ *     were 1.04 apart in dark) and --text-faint >= 5.5 on --surface.
+ *   - --surface-raised is LIGHTER than --surface in dark (elevation = lighter,
+ *     one step per layer) and --surface-2 stays DARKER (recessed).
+ *   - --good and --accent are different colours in both themes (light had them
+ *     byte-identical: one colour, two meanings).
+ *   - the prefers-contrast: more variant set holds >= 7:1 for every text token.
+ *   - every colour token in :root exists in [data-theme="light"], and every
+ *     token in the light block exists in :root. Geometry and motion tokens
+ *     (radius, widths, easings) are theme-independent and live in :root only.
+ */
+const blockAfter = (from, selector, close = "\n}") => {
+  const start = globals.indexOf(`${selector} {`, from);
+  if (start < 0) return "";
+  const end = globals.indexOf(close, start);
+  return end < 0 ? "" : globals.slice(start, end);
+};
+const tokensIn = (block) =>
+  Object.fromEntries(
+    [...block.matchAll(/^\s*(--[a-z0-9-]+):\s*([^;]+);/gm)].map((m) => [m[1], m[2].trim()]),
+  );
+const DARK = tokensIn(blockAfter(0, ":root"));
+const LIGHT = tokensIn(blockAfter(0, '[data-theme="light"]'));
+const icStart = globals.indexOf("@media (prefers-contrast: more) {");
+const IC_DARK = icStart < 0 ? {} : tokensIn(blockAfter(icStart, ":root", "\n  }"));
+const IC_LIGHT = icStart < 0 ? {} : tokensIn(blockAfter(icStart, '[data-theme="light"]', "\n  }"));
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+check(
+  "both theme blocks parse",
+  Object.keys(DARK).length > 20 && Object.keys(LIGHT).length > 20,
+  `${Object.keys(DARK).length} dark / ${Object.keys(LIGHT).length} light tokens`,
+);
+
+const TEXT_TOKENS = ["--text-primary", "--text-secondary", "--text-muted", "--text-faint", "--accent", "--good", "--critical", "--warning"];
+const GROUNDS = ["--page", "--surface", "--surface-hover", "--surface-raised"];
+const fmtRatios = (pairs) => pairs.map(([g, r]) => `${g.slice(2)} ${r.toFixed(2)}`).join(", ");
+
+for (const [theme, T] of [["dark", DARK], ["light", LIGHT]]) {
+  const grounds = GROUNDS.filter((g) => HEX.test(T[g] ?? ""));
   check(
-    `--${name} meets 4.5:1 on BOTH --page and --surface`,
-    onSurface >= 4.5 && onPage >= 4.5,
-    `surface ${onSurface.toFixed(2)}:1, page ${onPage.toFixed(2)}:1`,
+    `${theme}: the four grounds resolve to hex`,
+    grounds.length === GROUNDS.length,
+    GROUNDS.map((g) => `${g}=${T[g] ?? "missing"}`).join(" "),
+  );
+  for (const name of TEXT_TOKENS) {
+    const hex = T[name];
+    if (!HEX.test(hex ?? "")) {
+      check(`${theme}: ${name} is a hex token`, false, String(hex));
+      continue;
+    }
+    const measured = grounds.map((g) => [g, ratio(hex, T[g])]).sort((a, b) => a[1] - b[1]);
+    check(
+      `${theme}: ${name} meets 4.5:1 on page, surface, surface-hover and surface-raised`,
+      measured.every(([, r]) => r >= 4.5),
+      fmtRatios(measured),
+    );
+  }
+  // Four rungs, each a visible step.
+  if ([T["--text-muted"], T["--text-faint"], T["--surface"]].every((v) => HEX.test(v ?? ""))) {
+    const step = ratio(T["--text-muted"], T["--text-faint"]);
+    check(`${theme}: --text-faint is a visible step below --text-muted (>= 1.2)`, step >= 1.2, `${step.toFixed(2)}:1 between them`);
+    const faintOnSurface = ratio(T["--text-faint"], T["--surface"]);
+    check(`${theme}: --text-faint is caption ink, not a watermark (>= 5.5 on --surface)`, faintOnSurface >= 5.5, `${faintOnSurface.toFixed(2)}:1`);
+  }
+  // One colour never means two things.
+  check(
+    `${theme}: --good and --accent are different colours`,
+    HEX.test(T["--good"] ?? "") && HEX.test(T["--accent"] ?? "") && T["--good"].toLowerCase() !== T["--accent"].toLowerCase(),
+    `${T["--good"]} vs ${T["--accent"]}`,
+  );
+  // The increased-contrast set: Apple's third variant, >= 7:1 everywhere text sits.
+  const IC = theme === "dark" ? IC_DARK : IC_LIGHT;
+  for (const name of TEXT_TOKENS) {
+    const hex = IC[name];
+    if (!HEX.test(hex ?? "")) {
+      check(`${theme} increased-contrast: ${name} is defined`, false, String(hex));
+      continue;
+    }
+    const measured = ["--page", "--surface", "--surface-hover"]
+      .filter((g) => HEX.test(T[g] ?? ""))
+      .map((g) => [g, ratio(hex, T[g])])
+      .sort((a, b) => a[1] - b[1]);
+    check(
+      `${theme} increased-contrast: ${name} meets 7:1 on page, surface and surface-hover`,
+      measured.every(([, r]) => r >= 7),
+      fmtRatios(measured),
+    );
+  }
+}
+
+// Elevation runs one way in dark: lighter as it rises. --surface-2 is the
+// recessed layer and must stay below --surface; --surface-raised sits above it.
+if ([DARK["--surface"], DARK["--surface-raised"], DARK["--surface-2"]].every((v) => HEX.test(v ?? ""))) {
+  const lift = ratio(DARK["--surface-raised"], DARK["--surface"]);
+  check(
+    "dark: --surface-raised is LIGHTER than --surface by >= 1.08",
+    luminance(DARK["--surface-raised"]) > luminance(DARK["--surface"]) && lift >= 1.08,
+    `${DARK["--surface-raised"]} vs ${DARK["--surface"]} = ${lift.toFixed(3)}`,
+  );
+  check(
+    "dark: --surface-2 stays DARKER than --surface (recessed, never a nested card)",
+    luminance(DARK["--surface-2"]) < luminance(DARK["--surface"]),
+    `${DARK["--surface-2"]} vs ${DARK["--surface"]}`,
   );
 }
+for (const name of ["--surface-raised", "--row-alt", "--scrim", "--focus-ring"]) {
+  check(`${name} exists in both themes`, Boolean(DARK[name]) && Boolean(LIGHT[name]), `dark ${DARK[name] ?? "missing"} / light ${LIGHT[name] ?? "missing"}`);
+}
+
+const isColour = (v) => /#[0-9a-fA-F]{3,8}|rgba?\(|gradient\(|var\(--(accent|good|warning|critical)/.test(v);
+const darkColours = Object.keys(DARK).filter((n) => isColour(DARK[n]));
+const missingInLight = darkColours.filter((n) => !(n in LIGHT));
+const missingInDark = Object.keys(LIGHT).filter((n) => !(n in DARK));
+check(
+  'every colour token in :root exists in [data-theme="light"]',
+  missingInLight.length === 0,
+  missingInLight.join(", ") || `${darkColours.length} colour tokens`,
+);
+check("the light block names no token :root lacks", missingInDark.length === 0, missingInDark.join(", "));
+const missingInIC = Object.keys(IC_DARK).filter((n) => !(n in IC_LIGHT)).concat(Object.keys(IC_LIGHT).filter((n) => !(n in IC_DARK)));
+check(
+  "the increased-contrast block sets the same tokens for both themes",
+  icStart >= 0 && missingInIC.length === 0,
+  missingInIC.join(", ") || `${Object.keys(IC_DARK).length} tokens each`,
+);
+
+// ---------------------------------------------------------------------------
+// 5b. One colour never means two things — asserted where the meaning is chosen
+// ---------------------------------------------------------------------------
+/*
+ * --accent is interactive/current; --good is healthy (APPLE_REF §8 #5). Six
+ * sites chose "healthy" and every one of them said it in the accent: the burn
+ * bars, the portfolio donut, the budget bar, the sync dot, a DONE task. Each is
+ * asserted at the line where the choice is made, not by a file-wide grep --
+ * a file-wide "no --accent" would forbid the links beside them.
+ */
+const healthySites = [
+  ["src/app/(app)/projects/ProjectPanels.tsx", /export function burnColor[\s\S]*?\n\}/, "burnColor"],
+  ["src/app/(app)/projects/ContractPanel.tsx", /function burnTone[\s\S]*?\n\}/, "ContractPanel burnTone"],
+  ["src/app/(app)/projects/BudgetPanel.tsx", /const barColor[\s\S]*?;/, "BudgetPanel barColor"],
+  ["src/app/(app)/projects/PortfolioCharts.tsx", /label: sliceLabels\.healthy[^}]*\}/, "the healthy donut slice"],
+  ["src/components/SyncBar.tsx", /const colour =[\s\S]*?;/, "the sync dot"],
+  // The class map, not STATUS_KEY's `DONE: "status.done"` two maps above it.
+  ["src/app/(app)/projects/TaskRow.tsx", /DONE:\s*"text-\[[^"]*"/, "a DONE task"],
+];
+for (const [f, re, what] of healthySites) {
+  const m = readStripped(f).match(re);
+  check(
+    `${what} says healthy with --good, never --accent`,
+    !!m && /var\(--good\)/.test(m[0]) && !/var\(--accent\)/.test(m[0]),
+    m ? m[0].replace(/\s+/g, " ").slice(0, 110) : `site not found in ${f}`,
+  );
+}
+check(
+  "ContractPanel carries no hex fallback inside var()",
+  !/var\(--[a-z-]+,\s*#/.test(readStripped("src/app/(app)/projects/ContractPanel.tsx")),
+  "var(--warning, #d99b3d) is a raw hex with a token in front of it",
+);
+const conventions = read("docs/UI-CONVENTIONS.md");
+check(
+  "UI-CONVENTIONS names --good for healthy and reserves --accent for interactive/current",
+  /var\(--good\)`\s+for\s+healthy/.test(conventions) && !/var\(--accent\)`\s+for\s+healthy/.test(conventions),
+);
+
+const navSrc = readStripped("src/components/SidebarNav.tsx");
+check(
+  "nav badges are neutral by default, not an accent chip",
+  !/badgeColor \|\| "var\(--accent\)"/.test(navSrc) && /badgeColor \|\| "var\(--surface-hover\)"/.test(navSrc),
+);
+check("nav badge text is a token, not text-black", !/text-black/.test(navSrc));
+check("the rail tooltip is the raised material", /bg-\[var\(--surface-raised\)\]/.test(navSrc));
+
+// Overlays are M2 (raised): one step lighter than the card layer in dark. A
+// popover on --surface is invisible against the card it opens from; one on
+// --surface-2 is RECESSED, which is elevation upside down.
+for (const [f, what] of [
+  ["src/components/DrillDialog.tsx", "the drill dialog"],
+  ["src/components/ui/Field.tsx", "SearchableSelect's popover"],
+  ["src/app/(app)/projects/CustomerMultiSelect.tsx", "the customer picker's popover"],
+]) {
+  check(`${what} sits on --surface-raised`, /bg-\[var\(--surface-raised\)\]/.test(readStripped(f)));
+}
+check(
+  "chart readouts are raised, not recessed with a literal shadow",
+  !/bg-\[var\(--surface-2\)\][^`"]*shadow-lg/.test(readStripped("src/components/ui/Charts.tsx")),
+);
+
+const drillSrc = readStripped("src/components/DrillDialog.tsx");
+check("the drill dialog backdrop is the .scrim material, not an inline rgba()", /className="scrim /.test(drillSrc) && !/rgba\(/.test(drillSrc));
+const sheetSrc = readStripped("src/components/MobileSidebar.tsx");
+check("the mobile sheet backdrop is the .scrim material, not bg-black", /className=\{`scrim /.test(sheetSrc) && !/bg-black/.test(sheetSrc));
+const cssStripped = stripComments(globals);
+check(
+  ".scrim exists and drops its blur under reduced transparency and increased contrast",
+  /\.scrim\s*\{\s*background-color:\s*var\(--scrim\)/.test(cssStripped) &&
+    /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)\s*\{\s*\.scrim\s*\{[^}]*backdrop-filter:\s*none/.test(cssStripped),
+);
+check(":focus-visible draws the ring in --focus-ring", /:focus-visible\s*\{\s*outline:\s*2px solid var\(--focus-ring\)/.test(cssStripped));
+check("increased contrast widens the focus ring to 3px", /@media \(prefers-contrast: more\)[\s\S]*?:focus-visible\s*\{\s*outline-width:\s*3px/.test(cssStripped));
+check(
+  "the frosted bar goes solid under increased contrast",
+  /@media \(prefers-contrast: more\)\s*\{\s*\.surface-translucent\s*\{[^}]*background-color:\s*var\(--glass-solid\)/.test(cssStripped),
+);
+check(
+  "white-ground images are softened on dark only",
+  /:root:not\(\[data-theme="light"\]\) img\.on-dark\s*\{\s*filter:\s*brightness\(0\.92\)/.test(cssStripped),
+);
 
 // ---------------------------------------------------------------------------
 // 6. R4 — data is reachable without a mouse

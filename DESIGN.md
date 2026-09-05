@@ -12,10 +12,47 @@ safety professionals: confident, data-rich, human.
 ## Color tokens (real brand — extracted from hs-experts.com)
 
 > The token NAMES in this section are the marketing page's (`--bg-0`, `--teal`,
-> `--text-0`). The app shell is authoritative in `src/app/globals.css:130-407`
+> `--text-0`). The app shell is authoritative in `src/app/globals.css`
 > (`--page`, `--surface`, `--accent`, `--text-primary` …), and
 > `check-design-system` enforces those, not these. Same brand, two vocabularies;
 > do not invent a third.
+
+### App-shell colour semantics (globals.css; docs/APPLE-DESIGN-REFERENCE.md §2, §4)
+
+Every token below exists in `:root` (dark) and `[data-theme="light"]`, and the
+gate measures each text token on `--page`, `--surface`, `--surface-hover` and
+`--surface-raised` in BOTH themes. Ratios are WCAG 2.x, dark / light.
+
+**Four label levels** (Apple's label ladder, each rung a visible step):
+`--text-primary` 15.06 / 15.71 on `--surface` → `--text-secondary` 9.21 / 9.09 →
+`--text-muted` 7.45 / 6.97 → `--text-faint` 6.00 / 5.57. Muted-to-faint is
+1.24 / 1.25 (it was 1.04 / 1.14 — two names, one appearance). `--text-faint` is
+caption ink, not a watermark: its floor is 5.5 on `--surface` and 4.5 on
+`--surface-hover` (5.25 / 4.72 measured).
+
+**Backgrounds — elevation in dark is LIGHTER, one step per layer:**
+`--page` < `--surface` (cards, tables; 1.10 above page) < `--surface-raised`
+(popovers, menus, tooltips, dialogs; dark `#20262e`, 1.10 above surface; light
+white + `--shadow-raised`). `--surface-hover` is the hover fill on any of them.
+`--surface-2` is DARKER than `--surface` and means RECESSED — the Segmented
+track, input wells, code, disabled fills — never a nested panel. `--row-alt`
+(1.07 / 1.06 vs surface) is the zebra stripe for > 8-column crosstabs only.
+`--scrim` (black 0.5 / page-ink 0.35) sits behind modals via `.scrim`, which
+drops its blur under reduced transparency and increased contrast.
+
+**One tint:** `--accent` means INTERACTIVE (links, the one primary button,
+`--focus-ring`) and CURRENT (nav pill, chosen segment, current page, active
+sort). Healthy status is `--good` — in light it was byte-identical to the
+accent and is now a distinct green (`#15733a`). KPI figures are
+`--text-primary`; teal on a figure only inside the one hero-tone card. Nav
+badges are neutral (`--surface-hover` + `--text-secondary`). The light accent
+is `#1c7360` so a link on a hovered row clears 4.5 (4.85; `#1f7a67` was 4.41).
+
+**Increased contrast:** `@media (prefers-contrast: more)` overrides every text
+token in both themes to ≥ 7:1 on surface, page and hover (dark lighter, light
+darker — Apple's pattern), lifts borders one step, washes to 0.22, widens the
+focus ring to 3px and makes the frosted mobile bar solid. Dark theme also
+softens white-ground images: `img.on-dark { filter: brightness(.92) }`.
 
 ### Backgrounds
 - `--bg-0`: #0e1517  (deepest surface — near-black with teal undertone)

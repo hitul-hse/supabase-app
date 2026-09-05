@@ -42,12 +42,18 @@ import { fmtInt, fmtNum } from "@/lib/locale-format";
 /** The five tiles of the totals strip, as the keys a caller supplies drills under. */
 export type ProjectTotalsTile = "projects" | "hours" | "billable" | "over" | "noBudget";
 
-/** Red over budget, amber approaching it, green healthy, grey when unbudgeted. */
+/**
+ * Red over budget, amber approaching it, green healthy, grey when unbudgeted.
+ *
+ * Healthy is --good, not --accent. The accent means interactive/current on
+ * operate pages and nothing else; a green burn bar in the same teal as the
+ * links said "healthy" and "clickable" with one colour (APPLE_REF §8 #5).
+ */
 export function burnColor(percent: number | null): string {
   if (percent === null) return "var(--text-faint)";
   if (percent > 100) return "var(--critical)";
   if (percent >= 85) return "var(--warning)";
-  return "var(--accent)";
+  return "var(--good)";
 }
 
 /**
@@ -364,7 +370,7 @@ export function ContributorTable({
             <span className="truncate text-[var(--text-primary)]">{r.memberName}</span>
             <span className="flex shrink-0 gap-4 font-mono text-[11px]">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
-              <span className="w-16 text-right text-[var(--accent)]">
+              <span className="w-16 text-right text-[var(--text-secondary)]">
                 {fmtNum(r.billableHours, locale, 1)} {wording.billableUnit}
               </span>
               <span className="w-16 text-right text-[var(--text-primary)]">

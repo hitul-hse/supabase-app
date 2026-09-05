@@ -442,7 +442,7 @@ export function SearchableSelect({
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-full min-w-[16rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev-raised">
+        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-full min-w-[16rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--surface-raised)] card-elev-raised">
           <div className="border-b border-[var(--divider)] p-2">
             <input
               autoFocus

@@ -171,7 +171,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
             {navTitle(group.title)}
           </div>
 
-          {group.items.map((link, li) => {
+          {group.items.map((link) => {
             const isRoot = link.href === "/";
             const active = isRoot
               ? pathname === "/"
@@ -249,21 +249,28 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                     </span>
 
                     {/*
+                      NEUTRAL by default: --surface-hover fill, --text-secondary
+                      count (8.05:1 dark, 7.71 light). A badge is a count, not a
+                      call to action, and an accent chip on every row that has
+                      one would put the tint on several controls at once
+                      (APPLE_REF §2.3 #5). A count that needs attention passes
+                      badgeColor (--critical-wash) explicitly.
+
                       On an ACTIVE row the badge sits on the filled accent pill,
-                      so it cannot use an accent fill of its own -- the default
-                      badgeColor is --accent, which would be accent-on-accent
-                      (1.0:1, invisible). Active rows get the pill's own
-                      foreground as a solid chip instead.
+                      so it takes the pill's own foreground as a solid chip with
+                      accent text. Neither default fill survives there: the
+                      neutral --surface-hover reads as a hole cut in the pill,
+                      and an accent fill is accent-on-accent (1.0:1).
                     */}
                     {link.badge && (
                       <span
                         className={`flex-none rounded-full px-1.5 py-0.5 font-mono text-[10px] font-semibold group-data-[collapsed=true]/sidebar:hidden ${
-                          active ? "text-[var(--accent)]" : "text-black"
+                          active ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
                         }`}
                         style={{
                           background: active
                             ? "var(--accent-contrast)"
-                            : link.badgeColor || "var(--accent)",
+                            : link.badgeColor || "var(--surface-hover)",
                         }}
                       >
                         {link.badge}
@@ -279,7 +286,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       <span
                         aria-hidden
                         className="absolute right-3.5 top-2 hidden h-1.5 w-1.5 rounded-full ring-2 ring-[var(--sidebar)] group-data-[collapsed=true]/sidebar:block"
-                        style={{ background: link.badgeColor || "var(--accent)" }}
+                        style={{ background: link.badgeColor || "var(--text-secondary)" }}
                       />
                     )}
                   </div>
@@ -289,10 +296,14 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                     already names the link -- announcing both would read the item
                     twice. Rendered only when collapsed, and never on touch
                     (`pointer-fine`), where there is no hover to trigger it.
+
+                    --surface-raised, not --surface: a tooltip is the M2 raised
+                    material, one step lighter than the card layer in dark so
+                    it reads as floating above it (APPLE_REF §4.2).
                   */}
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
+                    className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-1.5 text-[12px] text-[var(--text-primary)] opacity-0 card-elev-raised transition-opacity duration-150 group-hover/item:opacity-100 group-focus-visible/item:opacity-100 pointer-fine:group-data-[collapsed=true]/sidebar:block"
                   >
                     {navLabel(link.label)}
                     {link.badge ? (

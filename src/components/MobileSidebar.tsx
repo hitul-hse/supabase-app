@@ -152,16 +152,18 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
       {/*
         Backdrop. Blurred as well as dimmed, which is the half of "frosted" that
         gets forgotten: the sheet can only read as glass if what is BEHIND it is
-        visibly out of focus. bg-black/40 rather than /60 because the blur is now
-        doing most of the separating, and a heavy scrim over a blur just reads as
-        mud.
+        visibly out of focus. `.scrim` (globals.css) is --scrim at 0.5 on dark
+        and the page ink at 0.35 on light -- lighter than a /60 black because
+        the blur does most of the separating, and a heavy scrim over a blur
+        just reads as mud. The class also drops the blur under reduced
+        transparency and increased contrast, which bg-black/40 could not.
 
         Its opacity is the sheet's position, not a transition of its own: dragging
         the sheet halfway dims the page halfway, and there is no moment where the
         two disagree.
       */}
       <motion.div
-        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-[3px] lg:hidden ${
+        className={`scrim fixed inset-0 z-40 lg:hidden ${
           open ? "" : "pointer-events-none"
         }`}
         style={{ opacity: backdropOpacity }}

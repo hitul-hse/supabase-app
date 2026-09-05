@@ -51,12 +51,12 @@ const SECONDARY = buttonClass("secondary", "sm");
  * the same field.
  */
 
-/** Burn colour, matching the thresholds used elsewhere in the app. */
+/** Burn colour, matching the thresholds used elsewhere in the app (healthy is --good, never --accent). */
 function burnTone(percent: number | null, warnAt: number): string {
   if (percent === null) return "var(--text-secondary)";
   if (percent > 100) return "var(--critical)";
-  if (percent >= warnAt) return "var(--warning, #d99b3d)";
-  return "var(--accent)";
+  if (percent >= warnAt) return "var(--warning)";
+  return "var(--good)";
 }
 
 /** A proportional bar. Over 100% it stays full and turns critical. */
@@ -89,7 +89,7 @@ function Feedback({ result }: { result: ContractActionResult | null }) {
   return (
     <p
       className="mt-2 text-[11px] leading-relaxed"
-      style={{ color: result.ok ? "var(--accent)" : "var(--critical)" }}
+      style={{ color: result.ok ? "var(--good)" : "var(--critical)" }}
       role={result.ok ? "status" : "alert"}
     >
       {result.message}

@@ -40,7 +40,7 @@ export async function SyncBar() {
 
   const colour =
     freshness.status === "ok"
-      ? "var(--accent)"
+      ? "var(--good)"
       : freshness.status === "stale"
         ? "var(--warning)"
         : "var(--critical)";

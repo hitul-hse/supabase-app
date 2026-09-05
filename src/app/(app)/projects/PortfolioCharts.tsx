@@ -76,7 +76,7 @@ export function PortfolioCharts({
   const slices = [
     { label: sliceLabels.over, value: over.length, color: "var(--critical)" },
     { label: sliceLabels.risk, value: risk.length, color: "var(--warning)" },
-    { label: sliceLabels.healthy, value: healthy.length, color: "var(--accent)" },
+    { label: sliceLabels.healthy, value: healthy.length, color: "var(--good)" },
     { label: sliceLabels.nobudget, value: unbudgeted.length, color: "var(--text-faint)" },
   ];
 

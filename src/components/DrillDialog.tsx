@@ -153,8 +153,10 @@ export function DrillDialog({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(10, 14, 15, 0.66)", backdropFilter: "blur(4px)" }}
+      // `.scrim` (globals.css) owns the dim AND the blur, with the no-blur
+      // fallbacks for reduced transparency and increased contrast. It replaces
+      // an inline rgba() that belonged to no token.
+      className="scrim fixed inset-0 z-50 flex items-center justify-center p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -172,7 +174,7 @@ export function DrillDialog({
         animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
         exit={offstage}
         transition={SPRING_UI}
-        className={`card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface)] ${
+        className={`card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface-raised)] ${
           hasSections ? "max-w-2xl" : "max-w-xl"
         }`}
         onClick={(e) => e.stopPropagation()}

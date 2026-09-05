@@ -42,7 +42,7 @@ export async function BudgetPanel({ status }: { status: ProjectBudgetStatusRow |
     ? "var(--critical)"
     : nearLimit
     ? "var(--warning)"
-    : "var(--accent)";
+    : "var(--good)";
 
   return (
     <Card as="section" className="flex flex-col gap-4 p-5">

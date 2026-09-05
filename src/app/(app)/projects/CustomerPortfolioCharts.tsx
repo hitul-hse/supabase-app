@@ -193,7 +193,7 @@ export function CustomerPortfolioCharts({
           qualifier={t("customerCharts.capacity.qualifier")}
           actions={
             <div className="flex items-center gap-3">
-              <LegendDot color="var(--accent)">{t("customerCharts.capacity.delivered")}</LegendDot>
+              <LegendDot color="var(--good)">{t("customerCharts.capacity.delivered")}</LegendDot>
               <LegendDot color="var(--critical)">
                 {t("customerCharts.capacity.overBudget")}
               </LegendDot>
@@ -245,7 +245,7 @@ export function CustomerPortfolioCharts({
                       className="absolute left-0 top-0 h-full rounded-[var(--radius-sm)] transition-colors"
                       style={{
                         width: `${Math.min(100, deliveredPct)}%`,
-                        background: over ? "var(--critical)" : "var(--accent)",
+                        background: over ? "var(--critical)" : "var(--good)",
                         opacity: 0.9,
                       }}
                     />

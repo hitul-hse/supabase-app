@@ -637,6 +637,10 @@ every custom button ("Always include a press state" [Apple: HIG/buttons]).
    subdued" than touch [Apple: HIG/motion].
 8. **Compositor only**: `transform` and `opacity`; bounded `filter` on M4 only; never
    `transition: all`; never animate row height or width [HSE: globals.css; apple-design §11].
+   The one ruled exception is the sidebar collapse (§6.2 "Sidebar collapse ↔ rail"): a
+   `width` transition, because a transform cannot deliver a change of the content
+   column's width; it is guarded by a frame-time measurement, not a property list
+   [HSE: DesktopSidebarShell.tsx].
 9. **Reduce Motion** replaces, it does not merely shorten: "Tightening animation springs…
    Tracking animations directly with people's gestures… Avoiding animating depth changes…
    Replacing transitions in x-, y-, and z-axes with fades… Avoiding animating into and out of

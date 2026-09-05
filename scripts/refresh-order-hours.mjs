@@ -21,20 +21,38 @@
  * for current-term contracts and conservative (over-stated) for renewed
  * ones. The contract period feature is where window-scoped burn lives; this
  * table is the management overview.
+ *
+ * EVERY RUN RECORDS ITSELF (2026-09-05). The bound instant is written to
+ * public.projects.logged_hours_as_of on every linked order, including the ones
+ * with nothing logged, and the entry read is bounded on created_at at the same
+ * instant as started_at. That makes the stored figure re-derivable -- "the
+ * entries that had started and had been imported by as_of" -- which is what
+ * check-order-hours-freshness.mjs now holds it against, instead of the live sum
+ * that no snapshot can ever equal for long. It is also how the gate found that
+ * this script had not run since the 2026-09-02 hand-run: the nightly workflow
+ * step was skipped four nights behind a red parity check, and separately this
+ * file read `.env.local` with a bare readFileSync that ENOENTs on a runner (the
+ * three scripts beside it in the workflow already used lib/gate-env.mjs).
  */
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
+import { loadEnv } from "./lib/gate-env.mjs";
+import { MIGRATION } from "./lib/order-hours-freshness.mjs";
 
 const DRY = process.argv.includes("--dry-run");
 
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-  const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-  if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+// process.env first, .env.local as a local convenience -- the workflow injects
+// secrets and has no file. A writer with no credentials must say so and fail,
+// not skip: a green step that refreshed nothing is the failure this repo keeps
+// producing.
+const env = loadEnv();
+if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("refresh-order-hours: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are not set -- nothing was refreshed");
+  process.exit(1);
 }
-const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
-const timeDb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const timeDb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   db: { schema: "time" }, auth: { persistSession: false },
 });
 
@@ -55,15 +73,17 @@ const page = async (client, table, select, tweak) => {
 const tt = await page(timeDb, "project", "id, hub_project_id", (q) => q.not("hub_project_id", "is", null));
 // One timestamp for the whole run, so every order is bounded at the same
 // instant and a run straddling midnight cannot count a day for some orders
-// and not others. Matches check-order-hours-freshness.mjs, which compares
-// against `started_at <= now()`.
+// and not others. Bounded on BOTH started_at and created_at: an entry
+// imported after this instant belongs to the next run, and the gate
+// re-derives the figure from exactly that definition.
 const AS_OF = new Date().toISOString();
 const entries = await page(timeDb, "entry", "id, project_id, duration_seconds, is_billable", (q) =>
-  q.not("duration_seconds", "is", null).lte("started_at", AS_OF),
+  q.not("duration_seconds", "is", null).lte("started_at", AS_OF).lte("created_at", AS_OF),
 );
 const orders = await page(db, "projects", "id, contract_hours, logged_hours");
 
 const orderByTT = new Map(tt.map((t) => [t.id, t.hub_project_id]));
+const linked = new Set(orderByTT.values());
 // Summed in SECONDS and divided once at the end. Summing per-entry hours
 // accumulated float error and rounded 22.4997 down to 22.4 where the gate's
 // SQL (sum of seconds, then round) says 22.5 -- three orders showed as 0.1 h
@@ -79,13 +99,18 @@ for (const e of entries) {
   sums.set(order, s);
 }
 
-console.log(`orders with hours from links: ${sums.size} (was 24 with >0h)`);
+console.log(`linked orders: ${linked.size}; with hours from links: ${sums.size}`);
 
 let updated = 0;
 const previews = [];
+const seen = new Set();
 for (const o of orders) {
-  const s = sums.get(o.id);
-  if (!s) continue;
+  if (!linked.has(o.id)) continue;
+  seen.add(o.id);
+  // A linked order with no entry yet is a measured zero, and it gets the as_of
+  // like every other: "nothing logged as of Wed 10:12" is a statement, "no row
+  // was touched" is not.
+  const s = sums.get(o.id) ?? { loggedSec: 0, billableSec: 0 };
   const logged = Math.round(s.loggedSec / 360) / 10;
   const billable = Math.round(s.billableSec / 360) / 10;
   const contract = Number(o.contract_hours) || 0;
@@ -103,17 +128,32 @@ for (const o of orders) {
         consumed_percent: consumed,
         remaining_hours: remaining,
         status,
+        logged_hours_as_of: AS_OF,
       })
       .eq("id", o.id);
-    if (error) throw new Error(`${o.id}: ${error.message}`);
+    if (error) {
+      const hint = /logged_hours_as_of/.test(error.message) ? ` -- paste ${MIGRATION} first` : "";
+      throw new Error(`${o.id}: ${error.message}${hint}`);
+    }
     updated += 1;
   }
 }
+
+// A link whose order is not in public.projects cannot be refreshed and should
+// not be silently dropped from the count.
+const dangling = [...linked].filter((id) => !seen.has(id));
 
 previews.sort((a, b) => b.consumed - a.consumed);
 console.log("\nworst after refresh:");
 for (const p of previews.slice(0, 12)) {
   console.log(`  ${String(p.consumed).padStart(5)}%  ${String(p.contract).padStart(6)}h contract  ${String(p.logged).padStart(7)}h logged  ${p.status.padEnd(8)} ${p.id}`);
 }
-console.log(`bounded at ${AS_OF} (planned entries after this instant are not counted)`);
-console.log(DRY ? "\nDRY RUN: nothing written." : `\nupdated ${updated} order rows.`);
+console.log(`bounded at ${AS_OF} (entries started or imported after this instant belong to the next run)`);
+if (dangling.length) console.log(`${dangling.length} link(s) point at no public.projects row and were not refreshed: ${dangling.slice(0, 5).join(", ")}${dangling.length > 5 ? ", ..." : ""}`);
+console.log(DRY
+  ? `\nDRY RUN: nothing written (${previews.length} linked order rows would carry logged_hours_as_of = ${AS_OF}).`
+  : `\nupdated ${updated} of ${previews.length} linked order rows, each stamped logged_hours_as_of = ${AS_OF}.`);
+if (!DRY && updated !== previews.length) {
+  console.error(`refresh-order-hours: ${previews.length - updated} linked order(s) were not written`);
+  process.exit(1);
+}

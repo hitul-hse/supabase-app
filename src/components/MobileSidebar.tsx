@@ -2,15 +2,40 @@
 
 /**
  * MobileSidebar — client shell that owns the open/close state for the mobile
- * slide-in drawer. Renders a hamburger button in the top bar and wraps the
- * sidebar content with a backdrop + slide-in panel. Used exclusively on small
- * screens (hidden on lg+). The actual nav content is passed as children so the
- * server-side Sidebar async component can keep fetching user/role data.
+ * bottom sheet. Renders the title bar, a backdrop and the sheet, and mounts the
+ * tab bar that opens it. Used exclusively on small screens (hidden on lg+). The
+ * actual nav content is passed as children so the server-side Sidebar async
+ * component can keep fetching user/role data.
+ *
+ * THE SHEET IS A REAL DRAG SURFACE NOW. It used to be a CSS
+ * `transition-transform duration-300` with a grab handle painted on top -- a
+ * handle that promised a gesture the sheet could not perform, which the
+ * honest-chrome rule this codebase holds its bell and its badges to does not
+ * allow. So the handle drags: the thumb owns the sheet 1:1 from the moment it
+ * touches the handle strip, the backdrop dims in step with the sheet's
+ * position, and on release the sheet goes where the gesture was HEADING
+ * (velocity projected forward, Apple's decelerationRate arithmetic) rather
+ * than where the finger happened to be. The spring that finishes the move
+ * starts at the release velocity, so there is no seam between dragging and
+ * animating. Critically damped: no bounce on navigation (DESIGN.md).
+ *
+ * Only the handle strip starts a drag (`dragListener={false}` + drag
+ * controls). The nav list below it scrolls, and a sheet that hijacked every
+ * vertical pan would make a long nav unscrollable.
  */
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  animate,
+  motion,
+  useDragControls,
+  useMotionValue,
+  useTransform,
+  type PanInfo,
+} from "framer-motion";
 import { MobileTabBar } from "./MobileTabBar";
 import { BrandMark } from "./BrandMark";
+import { SPRING_UI } from "./animations/springs";
 
 interface MobileSidebarProps {
   children: React.ReactNode;
@@ -18,6 +43,18 @@ interface MobileSidebarProps {
    *  filtered. Resolved server-side in the layout. */
   roleKey?: string | null;
 }
+
+/*
+ * Where a flick would come to rest if nothing stopped it. Apple's projection
+ * from Designing Fluid Interfaces: exponential decay, not the textbook
+ * v²/2a. 0.998 is the normal scroll deceleration rate.
+ */
+function project(velocityPxPerSecond: number, decelerationRate = 0.998): number {
+  return ((velocityPxPerSecond / 1000) * decelerationRate) / (1 - decelerationRate);
+}
+
+/* Before the sheet has been measured it parks well below any phone's edge. */
+const OFFSTAGE = 2000;
 
 /* MobileSidebarToggle (the top-left hamburger) was deleted with the bottom tab
    bar, not merely unmounted: it had one caller, and leaving an exported
@@ -27,6 +64,10 @@ interface MobileSidebarProps {
 
 export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarProps) {
   const [open, setOpen] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(OFFSTAGE);
+  const y = useMotionValue(OFFSTAGE);
+  const dragControls = useDragControls();
 
   // Close on route change (pathname shift detected via popstate / pushstate)
   useEffect(() => {
@@ -44,6 +85,38 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
     }
     return () => { document.body.style.overflow = ""; };
   }, [open]);
+
+  /*
+    The sheet's own height is the closed position (y = height parks its top
+    edge exactly on the bottom of the viewport) and the denominator of the
+    backdrop's dimming. Measured, because 72svh is only known once laid out.
+  */
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    const measure = () => setHeight(el.offsetHeight || OFFSTAGE);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // The backdrop follows the sheet 1:1 -- while dragging, while springing.
+  const backdropOpacity = useTransform(y, [0, height], [1, 0]);
+
+  const onDragEnd = (_e: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
+    const v = info.velocity.y;
+    // Velocity SIGN decides a clear flick; only a slow release falls back to
+    // the projected resting position against the 40% line.
+    const dismiss =
+      v > 200 ? true : v < -200 ? false : y.get() + project(v) > 0.4 * height;
+    if (dismiss) {
+      // The declarative animate below carries the motion value's velocity.
+      setOpen(false);
+    } else {
+      animate(y, 0, { ...SPRING_UI, velocity: v });
+    }
+  };
 
   return (
     <>
@@ -83,14 +156,15 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         doing most of the separating, and a heavy scrim over a blur just reads as
         mud.
 
-        It fades rather than appearing: an opacity step is the one transition
-        that survives being interrupted mid-way, which matters here because the
-        sheet can be dismissed before it has finished opening.
+        Its opacity is the sheet's position, not a transition of its own: dragging
+        the sheet halfway dims the page halfway, and there is no moment where the
+        two disagree.
       */}
-      <div
-        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-[3px] transition-opacity duration-200 lg:hidden ${
-          open ? "opacity-100" : "pointer-events-none opacity-0"
+      <motion.div
+        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-[3px] lg:hidden ${
+          open ? "" : "pointer-events-none"
         }`}
+        style={{ opacity: backdropOpacity }}
         onClick={() => setOpen(false)}
         aria-hidden
       />
@@ -120,13 +194,9 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         rounded. It meets three edges of the screen and has exactly one visible
         boundary, the top -- where the grab handle is.
 
-        IT COVERS THE TAB BAR NOW, deliberately, and that is the standard
+        IT COVERS THE TAB BAR, deliberately, and that is the standard
         behaviour rather than a compromise. The bar is z-30, the sheet z-50.
-        The previous design floated the sheet ABOVE the bar so "More" stayed
-        lit, which is what forced the 84px offset and the detachment in the
-        first place -- a visual cost paid for an indicator nobody needs while
-        the panel it refers to is already open on screen. The backdrop and the
-        close button are the way out, and both are tested below.
+        The backdrop, the close button and the drag are the ways out.
 
         border-t only. A hairline on the left, right and bottom edges of a
         panel that is flush to those edges renders as a stray line against the
@@ -147,28 +217,40 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         honest one. 72% leaves the page visibly alive above the sheet, which is
         what tells you this is a layer and not a new page.
 
-        translate-y-full when closed now genuinely parks it BELOW the viewport,
-        because the sheet is flush to the bottom edge. While it floated 84px up,
-        the same transform left its top edge at y=760 -- invisible but still
-        hit-testable, directly over the pill, silently swallowing every tap
-        aimed at the button that opens it.
+        `y` is the ONE position value: the spring animates it, the drag moves
+        it, the backdrop reads it. Closed = its own height, so its top edge
+        sits on the bottom of the viewport and nothing is left hit-testable
+        over the pill.
       */}
-      <div
+      <motion.div
+        ref={sheetRef}
         data-testid="mobile-sheet"
-        className={`surface-translucent card-elev-raised fixed inset-x-0 bottom-0 z-50 flex max-h-[72svh] flex-col overflow-hidden rounded-t-[28px] border-t border-[var(--glass-edge)] transition-transform duration-300 ease-out lg:hidden ${
-          open ? "translate-y-0" : "pointer-events-none translate-y-full"
+        className={`surface-translucent card-elev-raised fixed inset-x-0 bottom-0 z-50 flex max-h-[72svh] flex-col overflow-hidden rounded-t-[28px] border-t border-[var(--glass-edge)] lg:hidden ${
+          open ? "" : "pointer-events-none"
         }`}
+        style={{ y }}
+        initial={false}
+        animate={{ y: open ? 0 : height }}
+        transition={SPRING_UI}
+        drag="y"
+        dragListener={false}
+        dragControls={dragControls}
+        // Nothing above its resting pose but a soft rubber-band; downward it
+        // follows the thumb all the way, because that is the dismissal.
+        dragConstraints={{ top: 0 }}
+        dragElastic={{ top: 0.08, bottom: 1 }}
+        dragMomentum={false}
+        onDragEnd={onDragEnd}
         /*
           aria-hidden + inert when closed, and pointer-events-none above.
 
-          All three are kept even though the sheet is now flush to the bottom
-          edge and translate-y-full genuinely clears the viewport. Being
-          off-screen is not the same as being out of the accessibility tree: a
-          keyboard or screen-reader user could still tab into a panel that is
-          not visible, land on nine nav links, and have no idea where focus
-          went. inert removes it from the tab order AND the a11y tree;
-          pointer-events-none covers the thumb if the transform is ever
-          interrupted mid-flight.
+          All three are kept even though the sheet is flush to the bottom edge
+          and y = height genuinely clears the viewport. Being off-screen is not
+          the same as being out of the accessibility tree: a keyboard or
+          screen-reader user could still tab into a panel that is not visible,
+          land on nine nav links, and have no idea where focus went. inert
+          removes it from the tab order AND the a11y tree; pointer-events-none
+          covers the thumb if the spring is ever interrupted mid-flight.
         */
         role="dialog"
         aria-modal="true"
@@ -177,13 +259,18 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         inert={!open}
       >
         {/*
-          The grab handle. It is not decoration: it is the affordance that says
-          "this panel came from the bottom edge and goes back there", and every
-          one of the reference shots has one. aria-hidden because it says
-          nothing a screen reader needs -- the close button below is the real,
-          named control.
+          The grab handle, and the strip around it is the drag surface: a full-
+          width, 36px-tall target the thumb can find without looking. It is not
+          decoration any more -- it is the affordance that says "this panel came
+          from the bottom edge and goes back there", and now it does exactly
+          that. aria-hidden because it says nothing a screen reader needs -- the
+          close button below is the real, named control.
         */}
-        <div aria-hidden className="flex justify-center pt-2.5 pb-1">
+        <div
+          aria-hidden
+          className="flex cursor-grab touch-none justify-center pt-2.5 pb-3 active:cursor-grabbing"
+          onPointerDown={(e) => dragControls.start(e)}
+        >
           <div className="h-1 w-9 rounded-full bg-[var(--text-faint)] opacity-40" />
         </div>
         {/*
@@ -195,7 +282,7 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         <button
           onClick={() => setOpen(false)}
           aria-label="Close navigation"
-          className="absolute top-1.5 right-2 flex h-11 w-11 items-center justify-center rounded-full text-[var(--text-faint)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]"
+          className="absolute top-1.5 right-2 flex h-11 w-11 items-center justify-center rounded-full text-[var(--text-faint)] transition-[color,transform] duration-150 hover:text-[var(--text-primary)] active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
             <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -220,7 +307,7 @@ export function MobileSidebarDrawer({ children, roleKey = null }: MobileSidebarP
         >
           {children}
         </div>
-      </div>
+      </motion.div>
 
       {/*
         The bottom tab bar. Rendered here rather than in the layout because the

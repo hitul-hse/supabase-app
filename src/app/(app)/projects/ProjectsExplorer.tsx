@@ -15,18 +15,25 @@
  *
  * WHY CLIENT-SIDE. The server already sends all 334 rows to compute the totals
  * strip, so every re-derivation here is a fold over data in hand — instant, no
- * round trip. The filter lives in component state (not the URL) because a
- * customer multi-select over dozens of names is awkward as a query string and
- * the page is not one people deep-link into a specific slice of; the date-less
- * portfolio has no other URL state to preserve.
+ * round trip.
+ *
+ * THE FILTER IS IN THE URL (APPLE_REF §8 #16; UI-CONVENTIONS rule 2). It used
+ * to live in component state alone, on the argument that nobody deep-links
+ * into a slice of the portfolio. They do: "the ENERCON projects over budget"
+ * is a link somebody pastes into a chat, and a refresh that dropped the filter
+ * quietly showed a different set of numbers under the same heading. The state
+ * is mirrored through url-state.ts -- `?q=&customer=&facet=&billable=` --
+ * with `history.replaceState`, so it still costs no round trip and the back
+ * button still walks the ledger's pages rather than every chip toggle.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 import { FilterChip, SearchInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
-import { segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
+import { Segmented } from "@/components/ui/Segmented";
+import { useUrlState, type UrlPatch } from "@/components/url-state";
 import type { Drill } from "@/components/DrillDialog";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import {
@@ -53,6 +60,51 @@ import { MobileDisclosure } from "@/components/MobileDisclosure";
  * switching language cannot silently change which rows a chip selects.
  */
 const FACETS: ProjectFacet[] = ["over", "risk", "healthy", "nobudget", "idle"];
+const FACET_SET = new Set<string>(FACETS);
+
+/**
+ * The filter, read out of a query string. Tolerant by contract: a stale
+ * bookmark with a facet that no longer exists degrades to "no facet", never to
+ * an error, and a customer name is taken as-is because the NAME is the key
+ * (see `displayCustomer` below).
+ */
+export function filtersFromParams(params: URLSearchParams): ProjectFilters {
+  const billable = params.get("billable");
+  return {
+    query: params.get("q") ?? "",
+    customers: new Set(params.getAll("customer").filter((c) => c !== "")),
+    facets: new Set(
+      params.getAll("facet").filter((f): f is ProjectFacet => FACET_SET.has(f)),
+    ),
+    billableOnly: billable === "1" ? true : billable === "0" ? false : null,
+  };
+}
+
+/**
+ * The inverse. `page: null` because a filter defines a new list, and page 7 of
+ * the old one is not a page of it (UI-CONVENTIONS rule 2).
+ */
+export function filtersToPatch(f: ProjectFilters): UrlPatch {
+  return {
+    q: f.query,
+    customer: [...f.customers],
+    facet: [...f.facets],
+    billable: f.billableOnly === null ? null : f.billableOnly ? "1" : "0",
+    page: null,
+  };
+}
+
+/** The address of a filter state -- the billable segments are links to these. */
+function hrefFor(f: ProjectFilters): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filtersToPatch(f))) {
+    // The same rule as url-state's writeUrl: an empty string is an unset key.
+    if (typeof value === "string" && value !== "") params.set(key, value);
+    else if (Array.isArray(value)) for (const v of value) if (v !== "") params.append(key, v);
+  }
+  const qs = params.toString();
+  return qs ? `/projects?${qs}` : "/projects";
+}
 
 export function ProjectsExplorer({
   rows,
@@ -69,12 +121,10 @@ export function ProjectsExplorer({
    */
   locale?: string;
 }) {
-  const [filters, setFilters] = useState<ProjectFilters>({
-    query: "",
-    customers: new Set<string>(),
-    facets: new Set<ProjectFacet>(),
-    billableOnly: null,
-  });
+  // Initialised from the URL, mirrored back on every change, re-read on the
+  // back button. Outside the router (the projects gate renders this bare) it
+  // is plain component state starting empty, exactly as before.
+  const [filters, setFilters] = useUrlState<ProjectFilters>(filtersFromParams, filtersToPatch);
 
   // `drill` for the popup chrome the tiles open, `projects` for the page's own
   // words. Both are read here so every derivation below can use them.
@@ -252,21 +302,19 @@ export function ProjectsExplorer({
     };
   }, [filtered, totalHours, billableHours, overBudget, noBudget, t, tp, locale]);
 
-  const toggleFacet = (f: ProjectFacet) =>
-    setFilters((prev) => {
-      const next = new Set(prev.facets);
-      if (next.has(f)) next.delete(f);
-      else next.add(f);
-      return { ...prev, facets: next };
-    });
+  const toggleFacet = (f: ProjectFacet) => {
+    const next = new Set(filters.facets);
+    if (next.has(f)) next.delete(f);
+    else next.add(f);
+    setFilters({ ...filters, facets: next });
+  };
 
-  const toggleCustomer = (name: string) =>
-    setFilters((prev) => {
-      const next = new Set(prev.customers);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return { ...prev, customers: next };
-    });
+  const toggleCustomer = (name: string) => {
+    const next = new Set(filters.customers);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    setFilters({ ...filters, customers: next });
+  };
 
   // The health donut maps to exactly one facet when a single one is active, so
   // it can ring that slice; with several selected it rings none.
@@ -350,7 +398,7 @@ export function ProjectsExplorer({
         <div className="flex flex-wrap items-center gap-2">
           <SearchInput
             value={filters.query}
-            onValueChange={(v) => setFilters((prev) => ({ ...prev, query: v }))}
+            onValueChange={(v) => setFilters({ ...filters, query: v })}
             label={tp("filters.searchLabel")}
             placeholder={tp("filters.searchPlaceholder")}
             className="w-full sm:w-64"
@@ -358,30 +406,27 @@ export function ProjectsExplorer({
           <CustomerMultiSelect
             options={customerOptions}
             selected={filters.customers}
-            onChange={(next) => setFilters((prev) => ({ ...prev, customers: next }))}
+            onChange={(next) => setFilters({ ...filters, customers: next })}
             locale={locale}
             labels={customerLabels}
           />
-          <div role="group" aria-label={tp("filters.billableGroup")} className={segmentedTrackClass}>
-            <BillableToggle
-              on={filters.billableOnly === null}
-              onClick={() => setFilters((prev) => ({ ...prev, billableOnly: null }))}
-            >
-              {tp("filters.all")}
-            </BillableToggle>
-            <BillableToggle
-              on={filters.billableOnly === true}
-              onClick={() => setFilters((prev) => ({ ...prev, billableOnly: true }))}
-            >
-              {tp("filters.billable")}
-            </BillableToggle>
-            <BillableToggle
-              on={filters.billableOnly === false}
-              onClick={() => setFilters((prev) => ({ ...prev, billableOnly: false }))}
-            >
-              {tp("filters.nonBillable")}
-            </BillableToggle>
-          </div>
+          {/*
+            The billable trough is the house Segmented now that its state is in
+            the URL: three nouns as real links (§5.7 "a <button> that only
+            changes a URL param" is the thing to avoid), `aria-current` on the
+            chosen one, and `onSelect` so a plain click re-projects the rows in
+            place rather than round-tripping to the server.
+          */}
+          <Segmented
+            ariaLabel={tp("filters.billableGroup")}
+            current={hrefFor(filters)}
+            options={[
+              { href: hrefFor({ ...filters, billableOnly: null }), label: tp("filters.all") },
+              { href: hrefFor({ ...filters, billableOnly: true }), label: tp("filters.billable") },
+              { href: hrefFor({ ...filters, billableOnly: false }), label: tp("filters.nonBillable") },
+            ]}
+            onSelect={(href) => setFilters(filtersFromParams(new URL(href, "http://x").searchParams))}
+          />
 
           <div className="flex items-center gap-3 sm:ml-auto">
             <span
@@ -479,28 +524,5 @@ export function ProjectsExplorer({
 
       <ProjectsLedger rows={filtered} initialSort={initialSort} locale={locale} />
     </div>
-  );
-}
-
-/**
- * A segment button for the billable trough; hoisted so it keeps focus. It
- * wears the Segmented skin (10px mono, accent pill on a recessed track, press
- * on pointer-down) rather than its own 12px sans dialect, so the one segmented
- * control on this page looks like every other segmented control in the app.
- * A button, not a Segmented link, because the filter is in-memory state.
- */
-function BillableToggle({
-  on,
-  onClick,
-  children,
-}: {
-  on: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button type="button" onClick={onClick} aria-pressed={on} className={segmentedItemClass(on)}>
-      {children}
-    </button>
   );
 }

@@ -449,7 +449,12 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
   const buttonFile = await compile("src/components/ui/Button.tsx", "button.cjs", {
     "next/link": posix(linkStub),
   });
+  // The URL mirror the pager's page and size go through (2026-09-05). Compiled
+  // for real: outside a request `useSearchParams()` is null and it is plain
+  // state; its `next/navigation` resolves from node_modules.
+  const urlStateFile = await compile("src/components/url-state.ts", "url-state.cjs");
   const pagerFile = await compile("src/components/Pager.tsx", "pager.cjs", {
+    "@/components/url-state": posix(urlStateFile),
     "next-intl": posix(intlStub),
     "@/components/ui/Button": posix(buttonFile),
     "@/components/ui/Segmented": posix(segmentedFile),

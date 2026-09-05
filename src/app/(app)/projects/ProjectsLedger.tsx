@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { SortHeader, type SortDirection } from "@/components/ui/Field";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
 import { Pager, usePager } from "@/components/Pager";
+import { useUrlState } from "@/components/url-state";
+import { LEDGER_SORTS, type LedgerSort } from "./project-insights";
 import { AnimatePresence } from "framer-motion";
 import {
   DrillDialog,
@@ -70,17 +72,28 @@ import {
  * the initial state so existing links keep working.
  */
 
-export type LedgerSort = "burn" | "hours" | "recent" | "name" | "budget" | "people";
+/**
+ * Re-exported for the client-side callers (the explorer). The server page
+ * reads the list from project-insights.ts directly: a value re-exported
+ * through this `"use client"` module would reach it as a client reference.
+ */
+export type { LedgerSort };
+
+/** Names sort A-Z first; every measure sorts worst-first (APPLE_REF §5.6 `descFirst`). */
+const defaultDir = (key: LedgerSort): SortDirection => (key === "name" ? "asc" : "desc");
 
 /**
  * How many rows render before the reader has to ask for more.
  *
- * 30 rather than 50: at ~28px a row, 50 rows is still most of two screens, and
- * the point of paging is that the first paint is scannable without scrolling.
- * Anyone who wants the long list is one click from it, and the sort order means
- * the rows that matter are already at the top.
+ * 25, the house default (DESIGN.md §Data tables 2; APPLE_REF §5.6 "page size
+ * 25 default with ALL"): at 28px a row that is ~700px, so the first paint is
+ * the whole answer on a laptop and the pager is the exception. It was 30, a
+ * size the PER PAGE control could not even show as chosen because 30 was not
+ * among its choices. Anyone who wants the long list is one click from it, and
+ * the sort order means the rows that matter are already at the top.
  */
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 25;
+const PAGE_SIZES = [25, 50, 100];
 
 /**
  * How many rows the PHONE shows before asking, within the same page of 30.
@@ -191,8 +204,29 @@ export function ProjectsLedger({
    */
   locale?: string;
 }) {
-  const [sortKey, setSortKey] = useState<LedgerSort>(initialSort);
-  const [sortDir, setSortDir] = useState<SortDirection>(initialSort === "name" ? "asc" : "desc");
+  /*
+   * Sort key and direction live in the URL (`?sort=&dir=`, UI-CONVENTIONS
+   * rule 2) with no round-trip: `initialSort` is the server's reading of the
+   * same `?sort=`, so a shared link opens sorted the way it was sent, and the
+   * columns re-sort in the browser from there. The defaults are absent from
+   * the URL so an untouched ledger keeps a clean one.
+   */
+  const [sort, setSort] = useUrlState<{ key: LedgerSort; dir: SortDirection }>(
+    (params) => {
+      const raw = params.get("sort");
+      const key = LEDGER_SORTS.includes(raw as LedgerSort) ? (raw as LedgerSort) : initialSort;
+      const dir = params.get("dir");
+      return { key, dir: dir === "asc" || dir === "desc" ? dir : defaultDir(key) };
+    },
+    (s) => ({
+      sort: s.key === "burn" ? null : s.key,
+      dir: s.dir === defaultDir(s.key) ? null : s.dir,
+      // A sort defines a new order, and page 7 of the old one is not a page
+      // of it: the pager resets on its key, the URL is cleared here.
+      page: null,
+    }),
+  );
+  const { key: sortKey, dir: sortDir } = sort;
   /** Phone only: has the reader asked for the rest of this page? */
   const [mobileExpanded, setMobileExpanded] = useState(false);
 
@@ -284,7 +318,15 @@ export function ProjectsLedger({
   const sorted = sortRows(rows, sortKey, sortDir);
 
   const tableRef = useRef<HTMLDivElement>(null);
-  const pager = usePager(sorted.length, PAGE_SIZE, `${sortKey}|${sortDir}|${rows.length}`);
+  // `?page=` and `?size=` too, so the back button walks pages and a pasted
+  // link opens on the row it was sent from. `rows.length` in the key: the
+  // explorer's filter defines a new list, and its patch clears `page` for the
+  // same reason this key resets it.
+  const pager = usePager(sorted.length, PAGE_SIZE, `${sortKey}|${sortDir}|${rows.length}`, {
+    page: "page",
+    size: "size",
+    sizes: PAGE_SIZES,
+  });
   const visible = sorted.slice(pager.start, pager.end);
   // Re-collapsing on a sort or page change is deliberate: the point of the cap
   // is that the first paint after any control is one screen.
@@ -294,12 +336,32 @@ export function ProjectsLedger({
   const handleSort = (key: string) => {
     const next = key as LedgerSort;
     if (next === sortKey) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      // Click again reverses [Apple: "re-sort… in the opposite direction"].
+      setSort({ key: next, dir: sortDir === "asc" ? "desc" : "asc" });
     } else {
-      setSortKey(next);
-      setSortDir(next === "name" ? "asc" : "desc");
+      setSort({ key: next, dir: defaultDir(next) });
     }
   };
+
+  /*
+   * The count in the card header as well as the foot (APPLE_REF §5.4
+   * "Placement"; §8 #11): a ledger longer than a screen states the size of
+   * the work before the reader scrolls, and states the SLICE ("1–25 OF 334")
+   * once it is paged, so a page is never mistaken for the whole. The same
+   * `pager` strings the foot uses, so the two lines cannot disagree.
+   */
+  const tpager = useTranslations("pager");
+  const shownFrom = sorted.length === 0 ? 0 : pager.start + 1;
+  const shownTo = Math.min(pager.end, sorted.length);
+  const headerCount =
+    pager.pageCount > 1 && pager.size !== "all"
+      ? tpager("range", {
+          from: shownFrom,
+          to: shownTo,
+          count: sorted.length,
+          noun: tp("ledger.pagerNoun").toUpperCase(),
+        })
+      : tp("ledger.count", { count: fmtInt(rows.length, locale) });
 
   if (rows.length === 0) {
     return (
@@ -315,7 +377,7 @@ export function ProjectsLedger({
             card was the one heading on /projects that did not. */}
         <CardHeader
           title={tp("ledger.title")}
-          qualifier={tp("ledger.count", { count: fmtInt(rows.length, locale) })}
+          qualifier={headerCount}
           className="border-b border-[var(--divider)]"
         />
         {/* Mobile cards — a 7-column grid is unreadable under ~640px. */}
@@ -392,7 +454,9 @@ export function ProjectsLedger({
           {/* One header material for every table: --surface with a --divider
               hairline under it, the same as DataTable's thead. The --surface-2
               band read as a second, recessed panel inside the card. */}
-          <div className="sticky top-0 z-10 grid min-w-[900px] grid-cols-12 gap-3 border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-2">
+          {/* 32px header (APPLE_REF §5.6): `h-8` with the 24px sort targets
+              centred in it, over 28px compact rows. */}
+          <div className="sticky top-0 z-10 grid h-8 min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-1">
             <SortHeader
               label={tp("ledger.columns.project")}
               columnKey="name"
@@ -401,7 +465,9 @@ export function ProjectsLedger({
               onSort={handleSort}
               className="col-span-4"
             />
-            <span className="col-span-2 t-label text-[var(--text-muted)]">
+            {/* Not sortable (a customer is a label, not a measure): the same
+                caption rung as the sortable headers at rest. */}
+            <span className="col-span-2 t-label text-[var(--text-faint)]">
               {tp("ledger.columns.customer")}
             </span>
             <SortHeader
@@ -523,6 +589,7 @@ export function ProjectsLedger({
           total={sorted.length}
           noun={tp("ledger.pagerNoun")}
           anchorRef={tableRef}
+          sizes={PAGE_SIZES}
         />
       </Card>
 

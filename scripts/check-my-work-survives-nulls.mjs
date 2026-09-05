@@ -12,7 +12,9 @@
  *
  * my-work.ts handles the per-row case correctly: numOrNull preserves NULL, the
  * per-project burn is only computed when both figures are known, and the UI
- * renders "—" (or the older "n/a") rather than 0 (CustomerGroup.tsx, MyWorkTables.tsx).
+ * renders "—" rather than 0 (MyWorkTables.tsx; CustomerGroup.tsx, the
+ * per-customer accordion it replaced, was deleted with the tables pass on
+ * 2026-09-05 -- it had been dead code kept alive only by this gate).
  *
  * The subtle part is the AGGREGATES. Lines 628 and 691 sum with `?? 0`, which is
  * the honest-null problem in aggregate form: a total that silently treats
@@ -60,7 +62,7 @@ check("the per-project burn is only computed when BOTH figures are known",
 const stripComments = (src) =>
   src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 
-for (const f of ["src/components/my-work/CustomerGroup.tsx", "src/components/my-work/MyWorkTables.tsx"]) {
+for (const f of ["src/components/my-work/MyWorkTables.tsx"]) {
   const s = stripComments(readFileSync(join(REPO, f), "utf8"));
   // "—" is the house glyph for a missing number (DESIGN.md §Data tables 6,
   // APPLE_REF §8 #26); "n/a" is accepted where a file has not been converted.
@@ -134,13 +136,20 @@ check("it is counted from loggedHours, not from contractHours",
 check("the page-level totals carry it too",
   /measuredProjectCount: rows\.filter\(\(r\) => r\.loggedHours !== null\)\.length/.test(q));
 
-const cg = readFileSync(join(REPO, "src/components/my-work/CustomerGroup.tsx"), "utf8");
-check("CustomerGroup renders the coverage when rows are omitted",
-  /customer\.measuredProjectCount < customer\.projectCount/.test(cg),
+/*
+ * The LIVE customers table (MyWorkTables.tsx). Until 2026-09-05 these three
+ * assertions read CustomerGroup.tsx, an accordion that nothing rendered any
+ * more, so the coverage count had quietly stopped reaching the page: the
+ * customers table's LOGGED cell was a bare figure again. Read the file that
+ * actually renders.
+ */
+const cg = readFileSync(join(REPO, "src/components/my-work/MyWorkTables.tsx"), "utf8");
+check("the customers table renders the coverage when rows are omitted",
+  /r\.measuredProjectCount < r\.projectCount/.test(cg),
   "the count is dead data unless it reaches the page");
 check("and stays silent when every project is measured",
-  /measuredProjectCount < customer\.projectCount \? \(/.test(cg),
-  "a fully-measured customer keeps the clean two-number display");
+  /r\.measuredProjectCount < r\.projectCount \? \(/.test(cg),
+  "a fully-measured customer keeps the clean single-figure cell");
 check("it uses the house --warning token, not an invented one",
   /text-\[var\(--warning\)\]/.test(cg) && !/var\(--warn\)/.test(cg),
   "--warn does not exist in DESIGN.md; --warning does");

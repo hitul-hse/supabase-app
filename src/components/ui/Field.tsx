@@ -93,7 +93,9 @@ export function SearchInput({
         value={value}
         onChange={(e) => onValueChange(e.target.value)}
         placeholder={placeholder}
-        className={`${CONTROL_BASE} w-full py-1.5 pl-8 pr-7`}
+        // 32px (APPLE_REF §3.2 "Inputs"): the 12/15 line plus py-1.5 and the
+        // bezel comes to 29, so the floor does the last 3px.
+        className={`${CONTROL_BASE} min-h-8 w-full py-1.5 pl-8 pr-7`}
       />
       {value !== "" && (
         <button
@@ -181,14 +183,21 @@ export function FilterChip({
       aria-pressed={active}
       title={title}
       className={
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 " +
+        // 24px pill (APPLE_REF §5.7 "Chips"; §3.2): the caption line plus
+        // py-1 and the bezel is 23, `min-h-6` makes it the floor exactly.
+        "inline-flex min-h-6 items-center gap-1.5 rounded-full border px-2.5 py-1 " +
         "t-label " +
         // The press is on pointer-DOWN: CSS :active fires on the down event, so
         // the chip acknowledges the touch before the click ever commits.
         "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] " +
         "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
+        // Selected = FILLED wash + accent bezel + primary text (APPLE_REF
+        // §5.2 "Chip"): the fill is the state, the dot restates it, and the
+        // label stays in the text ladder so the accent does not also have
+        // to carry the words. Outline-only selection reads as disabled on
+        // the dark surface, which is why the wash is not optional.
         (active
-          ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]"
+          ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--text-primary)]"
           : "border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--text-faint)] hover:text-[var(--text-primary)]")
       }
     >
@@ -206,7 +215,13 @@ export function FilterChip({
       />
       {children}
       {count !== undefined && (
-        <span className={active ? "text-[var(--accent)]" : "text-[var(--text-faint)]"}>{count}</span>
+        // A figure is a figure even inside a chip: `fig` (mono 11, tabular),
+        // on its own line-height so it does not lift the 13px caption line.
+        <span
+          className={`fig leading-none ${active ? "text-[var(--text-secondary)]" : "text-[var(--text-faint)]"}`}
+        >
+          {count}
+        </span>
       )}
     </button>
   );
@@ -251,12 +266,17 @@ export function SortHeader({
           : `Sort by ${label}`
       }
       className={
-        "group inline-flex items-center gap-1 t-label " +
+        // `min-h-6`: the caption line alone is 13px, under the 24px target
+        // floor (APPLE_REF §8 #19). Resting colour is `--text-faint`, the same
+        // rung DataTable's headers sit on, so a ledger header and a table
+        // header are one dialect; hover lifts it to primary, the sorted
+        // column wears the accent (CURRENT).
+        "group inline-flex min-h-6 items-center gap-1 t-label " +
         "transition-[color,transform] duration-150 active:translate-y-px " +
         (align === "right" ? "justify-end " : "") +
         (isActive
           ? "text-[var(--accent)] "
-          : "text-[var(--text-muted)] hover:text-[var(--text-primary)] ") +
+          : "text-[var(--text-faint)] hover:text-[var(--text-primary)] ") +
         className
       }
     >

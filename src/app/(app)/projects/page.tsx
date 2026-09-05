@@ -41,12 +41,15 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { getProjectList, type ProjectSort } from "@/lib/queries/projects-live";
 import { getSyncFreshness } from "@/lib/queries/time-dashboard";
 import { FreshnessBanner } from "../time/dashboard/ReportPanels";
-import { type LedgerSort } from "./ProjectsLedger";
+import { LEDGER_SORTS, type LedgerSort } from "./project-insights";
 import { ProjectsExplorer } from "./ProjectsExplorer";
 import { fmtInt, fmtNum } from "@/lib/locale-format";
 
-/** `?sort=` values the ledger accepts as its initial state. */
-const SORT_KEYS: LedgerSort[] = ["burn", "hours", "recent", "name", "budget", "people"];
+/**
+ * `?sort=` values the ledger accepts as its initial state -- the ledger's own
+ * list, from the plain module (project-insights.ts says why not the ledger).
+ */
+const SORT_KEYS: LedgerSort[] = LEDGER_SORTS;
 
 function one(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;

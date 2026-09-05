@@ -27,11 +27,12 @@
  * is a deliberate, labelled choice rather than the default, and it flips back.
  */
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
 import { IconArrowRight } from "@/components/nav-icons";
+import { pageFromParams, pageToParam, useUrlState } from "@/components/url-state";
 
 export type PagerState = {
   /** Zero-based index of the visible page. */
@@ -43,6 +44,7 @@ export type PagerState = {
   end: number;
   pageCount: number;
   setPage: (n: number) => void;
+  /** Also resets to the first page; do not follow it with `setPage(0)`. */
   setSize: (s: number | "all") => void;
   /** Call whenever the underlying result set changes, e.g. on search or sort. */
   reset: () => void;
@@ -55,18 +57,51 @@ export type PagerState = {
  *   filter and sort state joined into a string. Paging resets when it changes, because
  *   leaving the reader on page 7 of a list that just became 3 rows long shows an empty
  *   table, which reads as "no results" and is the bug this parameter exists to prevent.
+ * @param urlKeys Mirror the page and size into `?page=N&size=S` (1-based page, both
+ *   absent at their defaults) with no server round-trip -- UI-CONVENTIONS rule 2, closed
+ *   for the client-paged ledgers through url-state.ts. Omit to keep component state.
+ *   `sizes` must be the same list the Pager renders, so a bookmarked size is one the
+ *   control can show as chosen.
  */
-export function usePager(total: number, defaultSize = 25, resetKey = ""): PagerState {
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState<number | "all">(defaultSize);
+export function usePager(
+  total: number,
+  defaultSize = 25,
+  resetKey = "",
+  urlKeys?: { page: string; size: string; sizes?: number[] },
+): PagerState {
+  /*
+   * The page is stored WITH the reset key it was chosen under. A page picked
+   * under an older key is simply not the current page any more, so the reset
+   * is a derivation rather than a write -- no effect (which would paint one
+   * frame of the wrong page) and no set-state-during-render (which the reset
+   * used to do, and which the URL mirror could not follow, since writing the
+   * history from inside a render is a side effect).
+   *
+   * The URL is not rewritten when the key changes; the caller that changed the
+   * key (a sort, a filter) clears `page` in the same patch it writes for that
+   * change, so the two never disagree for longer than one event.
+   */
+  const [state, setState] = useUrlState<{ page: number; size: number | "all"; key: string }>(
+    (params) => {
+      if (!urlKeys) return { page: 0, size: defaultSize, key: resetKey };
+      const raw = params.get(urlKeys.size);
+      const allowed = urlKeys.sizes ?? [25, 50, 100];
+      const size: number | "all" =
+        raw === "all" ? "all" : allowed.includes(Number(raw)) ? Number(raw) : defaultSize;
+      return { page: pageFromParams(params, urlKeys.page), size, key: resetKey };
+    },
+    (s) =>
+      urlKeys
+        ? {
+            [urlKeys.page]: pageToParam(s.page),
+            [urlKeys.size]: s.size === defaultSize ? null : String(s.size),
+          }
+        : {},
+    { enabled: urlKeys !== undefined },
+  );
 
-  // Derived-state reset during render rather than in an effect: an effect would paint one
-  // frame of the wrong page first.
-  const [lastKey, setLastKey] = useState(resetKey);
-  if (resetKey !== lastKey) {
-    setLastKey(resetKey);
-    setPage(0);
-  }
+  const page = state.key === resetKey ? state.page : 0;
+  const size = state.size;
 
   const perPage = size === "all" ? Math.max(total, 1) : size;
   const pageCount = Math.max(1, Math.ceil(total / perPage));
@@ -75,6 +110,15 @@ export function usePager(total: number, defaultSize = 25, resetKey = ""): PagerS
   const safePage = Math.min(page, pageCount - 1);
   const start = size === "all" ? 0 : safePage * perPage;
   const end = size === "all" ? total : start + perPage;
+
+  // A page step pushes (the back button walks back through pages); a size
+  // change or a reset replaces, so filters do not bury the previous page under
+  // one history entry per click. `setSize` resets the page itself: each setter
+  // writes the whole triple from this render, so a `setPage(0)` after it in
+  // the same handler would put the OLD size back.
+  const setPage = (n: number) =>
+    setState({ page: n, size, key: resetKey }, n > 0 ? "push" : "replace");
+  const setSize = (s: number | "all") => setState({ page: 0, size: s, key: resetKey });
 
   return {
     page: safePage,
@@ -177,7 +221,6 @@ export function Pager({
                 type="button"
                 onClick={() => {
                   setSize(s);
-                  setPage(0);
                   anchorRef?.current?.scrollIntoView({ block: "start", behavior: "auto" });
                 }}
                 aria-pressed={size === s}
@@ -193,6 +236,9 @@ export function Pager({
           <div className="flex items-center gap-1">
             {/* Ghost buttons with a real icon: the same PREV / NEXT DataTable
                 draws, so a reader pages the same way in every table. */}
+            {/* 24px targets (Button `sm`, APPLE_REF §5.4 "controls 24 px
+                min"); disabled dims and never hides, so NEXT does not slide
+                under the cursor on the first page. */}
             <Button
               variant="ghost"
               size="sm"
@@ -204,7 +250,9 @@ export function Pager({
               {t("prev")}
             </Button>
             <span className="px-1 t-label text-[var(--text-faint)]">
-              {page + 1} / {pageCount}
+              {/* The current page in the accent: CURRENT is one of the two
+                  things the accent may mean (UI-CONVENTIONS tokens). */}
+              <span className="text-[var(--accent)]">{page + 1}</span> / {pageCount}
             </span>
             <Button
               variant="ghost"

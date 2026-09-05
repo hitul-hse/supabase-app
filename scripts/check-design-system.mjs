@@ -122,7 +122,7 @@ const KNOWN_FOCUS_DEBT = [
  * ProjectPanels.tsx is on the list for one character: the `12×` entry count in
  * the detail page's contributor and task tables -- a multiplication sign, not
  * an icon. Those two panels are outside this pass; the pin is honest about it.
- * CustomerGroup.tsx is dead code that check-my-work-survives-nulls still reads.
+ * CustomerGroup.tsx (the "▶" of §8 #13) was deleted with the tables pass.
  */
 const KNOWN_EMOJI_DEBT = [
   "src/app/(app)/OverviewFilters.tsx",
@@ -142,7 +142,6 @@ const KNOWN_EMOJI_DEBT = [
   "src/app/(app)/timesheets/TimesheetGrid.tsx",
   "src/app/portal/page.tsx",
   "src/components/factorial/factorial-hours-panel.tsx",
-  "src/components/my-work/CustomerGroup.tsx",
 ];
 
 const KNOWN_DIVIDER_DEBT = [

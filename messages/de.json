@@ -1997,7 +1997,11 @@
     },
     "tables": {
       "projects": "Meine Projekte",
-      "customers": "Meine Kunden"
+      "customers": "Meine Kunden",
+      "coverage": "{measured} VON {total} GEMESSEN",
+      "coverageTitle": "Stunden sind für {measured} von {total} Projekten bekannt; diese Summe ist eine Untergrenze, nicht das Ganze.",
+      "emptyFiltered": "Keine Zeile passt zu Rolle oder Kunde. Oben zurücksetzen.",
+      "emptyCustomers": "Dir sind keine Kunden zugewiesen"
     },
     "empty": {
       "browseProjects": "Alle Projekte ansehen",

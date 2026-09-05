@@ -57,7 +57,11 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const SIZES: Record<Size, string> = {
-  sm: "px-2.5 py-1 t-subhead gap-1.5",
+  // 24px: `t-subhead` 14 plus py-1 is 22, under the WCAG 2.2 / house floor
+  // for a pointer target (APPLE_REF §3.2 "Control heights": "decision raises
+  // `sm` from ~22 to 24"; §5.4 pager controls 24 min). The floor, not more
+  // padding, so the label keeps its optical centre.
+  sm: "px-2.5 py-1 t-subhead gap-1.5 min-h-6",
   // 32px min-height. Not a full 44px: this is a dense desktop tool with tables
   // of hundreds of rows, and the pointer-coarse bump below covers touch.
   md: "px-3 py-1.5 t-callout gap-2 min-h-[32px]",

@@ -210,6 +210,12 @@ module.exports = {
   // here (only the class exports are used), but the module still imports it.
   const segmentedFile = await compile("src/components/ui/Segmented.tsx", "Segmented.cjs", {
       "next/link": posix(linkStub) });
+  // The URL mirror the explorer's filters and the ledger's sort and page go
+  // through (2026-09-05, APPLE_REF §8 #16). Compiled for real: outside a
+  // request `useSearchParams()` returns null and the hook is plain component
+  // state, which is exactly the first paint this gate asserts on. Its
+  // `next/navigation` import resolves from node_modules like framer-motion.
+  const urlStateFile = await compile("src/components/url-state.ts", "url-state.cjs");
   // Added when the mobile work wrapped the explorer's panels in a disclosure.
   // Compiled rather than stubbed: it is small and dependency-free, and a stub
   // would keep this gate green if the real component started throwing.
@@ -234,6 +240,10 @@ module.exports = {
       "@/components/EmptyState": posix(emptyStateFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/Pager": posix(pagerStub),
+      "@/components/url-state": posix(urlStateFile),
+      // The sort-key list moved to the plain insights module (a value from a
+      // "use client" file is a client reference on the server page).
+      "./project-insights": posix(insightsFile),
       // The ledger table is a Card now, so the gate needs the real module here
       // too -- an unmapped alias kills the whole gate rather than one check.
       "@/components/ui/Card": posix(cardFile),
@@ -269,6 +279,7 @@ module.exports = {
       "@/components/ui/Field": posix(fieldFile),
       "@/components/ui/Button": posix(buttonFile),
       "@/components/ui/Segmented": posix(segmentedFile),
+      "@/components/url-state": posix(urlStateFile),
       "@/components/MobileDisclosure": posix(mobileDisclosureFile),
       "@/components/DrillDialog": posix(drillFile),
       "next-intl": posix(intlStub),

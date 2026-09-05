@@ -29,22 +29,29 @@ import type { ComponentProps, ReactNode } from "react";
 /**
  * The SKIN, exported separately from the component.
  *
- * Two controls in this app are segmented by shape but not by URL: the /my-work
- * view switch and the /projects billable trough both flip in-memory filter
- * state, so they are `<button aria-pressed>`s and cannot be `Segmented` (which
- * is links by design, and the design-system gate holds it to that). They wear
- * these classes instead, so a reader meets ONE segmented dialect whether the
- * control navigates or filters.
+ * The page-size choice in DataTable and in the Pager is segmented by shape
+ * but is a `<button aria-pressed>` group: without a URL binding it is pure
+ * component state, and `Segmented` is links by design (the design-system gate
+ * holds it to that). It wears these classes instead, so a reader meets ONE
+ * segmented dialect whether the control navigates or filters. The /my-work
+ * view switch and the /projects billable trough, whose state is in the URL
+ * since 2026-09-05, are real `Segmented`s with `onSelect` (below).
  *
  * `active:scale-[0.97]` is the press: feedback on pointer-down, not on release,
  * and CSS `:active` needs no JavaScript to fire on the down event.
  */
+/*
+ * 28px overall (APPLE_REF §5.2 "Segmented 28 px"): a 24px segment -- the
+ * WCAG 2.2 / house floor for a pointer target (§8 #19) -- inside a 1px inset
+ * and the track's own hairline. The segment used to be 21px tall, under the
+ * floor, and the track 27.
+ */
 export const segmentedTrackClass =
-  "inline-flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-0.5";
+  "inline-flex items-center gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-px";
 
 export function segmentedItemClass(active: boolean): string {
   return (
-    "rounded-full px-2.5 py-1 t-label " +
+    "inline-flex min-h-6 items-center rounded-full px-2.5 py-1 t-label " +
     "transition-[color,background-color,transform] duration-150 active:scale-[0.97] " +
     "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
     (active
@@ -58,12 +65,26 @@ export function Segmented({
   current,
   ariaLabel,
   className = "",
+  onSelect,
 }: {
   options: { href: string; label: string }[];
   /** Matched against `option.href`, not by index -- the caller owns the URL. */
   current: string;
   ariaLabel: string;
   className?: string;
+  /**
+   * Handle a plain left-click IN PLACE instead of navigating.
+   *
+   * For a view that is a re-projection of rows already in the browser (the
+   * /my-work Projects · Customers switch), a router navigation costs a full
+   * server render of the page for nothing. With this set, a plain click is
+   * prevented and handed to the caller, who updates its state and writes the
+   * URL through url-state.ts (no round-trip, back button intact). Everything
+   * else about the anchor stays real: the href is right for copy-link and
+   * open-in-new-tab, modifier clicks and the middle button fall through to
+   * the browser, and Enter fires the same click.
+   */
+  onSelect?: (href: string) => void;
 }) {
   return (
     <div
@@ -82,6 +103,17 @@ export function Segmented({
             aria-current={active ? "true" : undefined}
             data-active={active || undefined}
             className={segmentedItemClass(active)}
+            onClick={
+              onSelect
+                ? (e) => {
+                    // The same modifier test next/link applies before it
+                    // navigates: a new-tab gesture must stay a new tab.
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    e.preventDefault();
+                    onSelect(option.href);
+                  }
+                : undefined
+            }
           >
             {option.label}
           </Link>

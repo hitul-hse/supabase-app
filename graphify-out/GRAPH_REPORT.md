@@ -1,37 +1,37 @@
 # Graph Report - wf_5f9f8066-21a-4  (2026-09-05)
 
 ## Corpus Check
-- 806 files · ~1,492,537 words
+- 809 files · ~1,495,048 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 7111 nodes · 10680 edges · 621 communities (492 shown, 129 thin omitted)
+- 7122 nodes · 10704 edges · 631 communities (503 shown, 128 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 145 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ac6425b3`
+- Built from commit: `7d9cc1f9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - scripts
 - support.js
-- createClient
+- Card.tsx
 - time/actions.ts
 - AuthShell.tsx
 - view.ts
 - check-health-score.mjs
-- ProjectsExplorer.tsx
-- factorial.mjs
+- ProjectsLedger.tsx
+- check-factorial-harvest.mjs
 - my-work.ts
 - dashboard/page.tsx
 - check-mobile-shell.mjs
 - check-time-integration.mjs
 - check-design-system.mjs
-- profile-admin.ts
+- [userId]/page.tsx
 - DataTable.tsx
-- profile/page.tsx
+- profile/actions.ts
 - nav-icons.tsx
 - ContractPanel.tsx
 - HSE Operations Management Dashboard – Architektur
@@ -40,7 +40,7 @@
 - TimesheetGrid.tsx
 - ManagementCustomerPortfolio.tsx
 - overview-live.ts
-- time/page.tsx
+- time.ts
 - check-i18n-system-health.mjs
 - compilerOptions
 - bridge-time-to-hub.mjs
@@ -48,18 +48,18 @@
 - check-operations-role.mjs
 - management-customer-portfolio.ts
 - health-score.ts
-- types.ts
+- hse.ts
 - check-brand-mark.mjs
 - apply-modules.sql
-- users/page.tsx
+- users/actions.ts
 - launch-chromium.mjs
 - audit-permission-catalogue.mjs
 - check-vendor-parity.mjs
 - inventory.mjs
-- Card.tsx
+- Charts.tsx
 - projects/actions.ts
 - data-hygiene.ts
-- drills.ts
+- createClient
 - import-review/page.tsx
 - APPLY-IN-SQL-EDITOR-2.sql
 - check-i18n-management.mjs
@@ -78,19 +78,19 @@
 - team-lead-live.ts
 - projects-live.ts
 - import-masterdata-projects.mjs
-- check-factorial-harvest.mjs
-- ReassignmentPicker.tsx
+- (app)/layout.tsx
+- canReadBudgets
 - data-hygiene/page.tsx
 - time-transform.ts
 - management-multi-service-matrix.ts
 - management-project-risks.ts
 - 20260822130000_create_customer_master_foundation.sql
 - check-data-table-primitive.mjs
-- check-factorial-classifier-schema-agree.mjs
+- sync-factorial-identity.mjs
 - check-people-overview-agree.mjs
 - check-system-health-static.mjs
 - import-project-links.mjs
-- PeopleDirectory.tsx
+- ProjectsExplorer.tsx
 - database.types.ts
 - schema.sql
 - 2. What is actually wrong
@@ -111,13 +111,13 @@
 - reconcile-masterdata.mjs
 - budget-alerts.ts
 - CustomerGroup.tsx
-- TeamLeadExplorer.tsx
+- team-lead/page.tsx
 - check-asana-backlog.mjs
 - check-time-acceptance.mjs
 - link-user-identities.mjs
-- sync-factorial-contracts.mjs
+- system-health/page.tsx
 - check-order-hours-freshness.mjs
-- (app)/page.tsx
+- OverviewHero.tsx
 - InsightPanels.tsx
 - people-live.ts
 - 1. Ranked analyses
@@ -137,11 +137,11 @@
 - check-oauth-success-path.mjs
 - check-team-select.mjs
 - check-factorial-minimisation.mjs
-- Button.tsx
+- ReviewRow.tsx
 - OrgChartView.tsx
 - factorial-hours.ts
 - management-contract-hours.ts
-- budget-visibility.ts
+- management-service-overview.ts
 - Entscheidung
 - User profile section — design
 - check-adr001-rule-discriminates.mjs
@@ -168,7 +168,7 @@
 - dedupe-legal-entities.mjs
 - diagnose-factorial-absence.mjs
 - sync-trackingtime.mjs
-- getDataHygiene
+- auth.ts
 - HSE Hub — Portal Architecture & Design
 - 8.1 Dimensions
 - check-contract-periods.mjs
@@ -202,7 +202,7 @@
 - measure-dashboard-cost.mjs
 - sandbox-seed.mjs
 - verify-identity-links.mjs
-- locale-format.ts
+- ReportFilters.tsx
 - Contract periods, budget warnings, and renewals — design spec
 - people
 - Schema Conventions & Design Decisions
@@ -277,7 +277,7 @@
 - 6. THE IDENTITY PROBLEM
 - The eight mis-named orders are a spreadsheet problem, not an import bug
 - The sandbox workflow: experiment freely, merge deliberately
-- audit-live-db.mjs
+- Button.tsx
 - add-overview-chart-notes.mjs
 - audit-data-inefficiencies.mjs
 - audit-pipeline.mjs
@@ -287,15 +287,15 @@
 - check-dashboard-acceptance.mjs
 - check-data-hygiene-claims.mjs
 - check-economics-scope.mjs
-- check-external-staff-assignable.mjs
+- AnalyticsCharts.tsx
 - check-factorial-contract-migration.mjs
 - check-lint-scope.cjs
 - check-login-redirect.mjs
 - check-oauth-success-path-live.mjs
-- check-page-length.mjs
-- check-parallel-paging.mjs
+- contract-periods.ts
+- TaskBoardView.tsx
 - check-paste-sql.mjs
-- link-icons.tsx
+- portal/page.tsx
 - check-permissions-rls.mjs
 - check-profile-admin.mjs
 - check-projects-admit-unmeasured.mjs
@@ -329,12 +329,12 @@
 - check-live-dashboard.mjs
 - check-my-work-browser-flow.mjs
 - check-my-work-services.mjs
-- check-order-detail-page.mjs
+- add_contract_periods.sql
 - check-project-link-migration.mjs
 - check-records-tabs.mjs
 - check-redirect-allowlist.mjs
 - check-team-analysis-ui.mjs
-- check-theme-and-figures.mjs
+- check-people-filters-live.mjs
 - diagnose-factorial-contract-hours.mjs
 - diagnose-factorial-credential-shape.mjs
 - diagnose-google-error.mjs
@@ -345,6 +345,7 @@
 - run-all-gates.mjs
 - verify-magic-link-flow.mjs
 - Apple design system, applied to the HSE Hub
+- profile.ts
 - ThemeToggle.tsx
 - APPLY-THESE-MIGRATIONS.md
 - 7. Layer 3 — Identity resolution
@@ -368,6 +369,7 @@
 - check-reassignment-migration.mjs
 - check-reassignment-migration-is-needed.mjs
 - check-records-tabs-ui.mjs
+- types.ts
 - check-time-live-ready.mjs
 - check-time-page-data.mjs
 - check-verify-policies-query.mjs
@@ -390,6 +392,7 @@
 - shot-this-year.mjs
 - verify-migrations-applied.mjs
 - verify-policy-gate-fails.mjs
+- factorial-hours-panel.tsx
 - factorial-identity-map.ts
 - time.customer_summary
 - time.project_summary
@@ -411,6 +414,7 @@
 - check-modules-rls.mjs
 - check-no-anonymous-read.mjs
 - check-oauth-diagnosis.mjs
+- check-factorial-auth.mjs
 - check-prod-config.mjs
 - check-rls-behaviour.mjs
 - check-sync-freshness.mjs
@@ -484,7 +488,7 @@
 - verify-timesheet-verdict.mjs
 - verify-worker-claims.mjs
 - check-user-management-ui.mjs
-- getCustomerMasterImportReview
+- check-theme-and-figures.mjs
 - crm.factorial_identity_review
 - add_member_hierarchy_and_team.sql
 - time.member_utilisation
@@ -559,11 +563,16 @@
 - public.projects
 - public.projects
 - time.member
+- OverviewFilters.tsx
 - nav-access.ts
 - 10. The agent roster for the build pass
 - 2. Colour and dark mode
+- BillableRatePanel.tsx
+- TaskRow.tsx
 - read
 - read
+- check-data-hygiene-page.mjs
+- locale-action.ts
 - 1. Typography
 - 3. Layout
 - 9. Sources
@@ -573,6 +582,7 @@
 - darkColours
 - luminance
 - ratioOf
+- seed
 
 ## God Nodes (most connected - your core abstractions)
 1. `scripts` - 236 edges
@@ -587,21 +597,21 @@
 10. `PERMISSIONS` - 29 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `rest()` --indirect_call--> `key()`  [INFERRED]
-  scripts/audit-live-db.mjs → src/lib/factorial/client.ts
-- `render()` --indirect_call--> `UserRow()`  [INFERRED]
-  scripts/check-team-select.mjs → src/app/(app)/admin/users/UserRow.tsx
 - `get()` --indirect_call--> `key()`  [INFERRED]
   scripts/diagnose-null-assignments.mjs → src/lib/factorial/client.ts
+- `rest()` --indirect_call--> `key()`  [INFERRED]
+  scripts/audit-live-db.mjs → src/lib/factorial/client.ts
 - `render()` --indirect_call--> `DataTable()`  [INFERRED]
   scripts/check-data-table-primitive.mjs → src/components/data-table/DataTable.tsx
+- `render()` --indirect_call--> `UserRow()`  [INFERRED]
+  scripts/check-team-select.mjs → src/app/(app)/admin/users/UserRow.tsx
 - `app_user_role_v2()` --reads_from--> `app_user_profile`  [EXTRACTED]
   scripts/eval/reports-module.sql → supabase/schema.sql
 
 ## Import Cycles
 - None detected.
 
-## Communities (621 total, 129 thin omitted)
+## Communities (631 total, 128 thin omitted)
 
 ### Community 0 - "scripts"
 Cohesion: 0.01
@@ -611,33 +621,33 @@ Nodes (236): scripts, apply-modules, apply:my-work-module, apply:project-policy-
 Cohesion: 0.06
 Nodes (75): boot(), bundledBlob(), cdnScriptFor(), collectProps(), compileAttr(), compileTemplate(), contentKey(), createComponentFactory() (+67 more)
 
-### Community 2 - "createClient"
-Cohesion: 0.09
-Nodes (59): AlertsPage(), toggleRolePermission(), AdminRolesPage(), PermissionToggle(), handleToggle(), Props, AdminUserDetailPage(), orNa() (+51 more)
+### Community 2 - "Card.tsx"
+Cohesion: 0.12
+Nodes (35): OPEN, metadata, MyWorkPage(), metadata, provenanceOf(), RolePanel(), EmploymentCard(), metadata (+27 more)
 
 ### Community 3 - "time/actions.ts"
 Cohesion: 0.06
-Nodes (60): already, approaching, atThreshold, belowThreshold, crossing, custom, justOver, msg (+52 more)
+Nodes (64): already, approaching, atThreshold, belowThreshold, crossing, custom, justOver, msg (+56 more)
 
 ### Community 4 - "AuthShell.tsx"
-Cohesion: 0.06
-Nodes (43): ForgotPasswordPage(), LoginForm(), safeRedirect(), SetPasswordForm(), SPRING_MOVE, SPRING_UI, authButtonClass, AuthHeading() (+35 more)
+Cohesion: 0.16
+Nodes (16): ForgotPasswordPage(), LoginForm(), safeRedirect(), SetPasswordForm(), authButtonClass, AuthHeading(), authInputClass, authLabelClass (+8 more)
 
 ### Community 5 - "view.ts"
-Cohesion: 0.09
-Nodes (50): ConsumptionPanel(), ageDrill(), cacheDrill(), connectionsDrill(), profilesDrill(), relationsDrill(), rlsDrill(), runsDrill() (+42 more)
+Cohesion: 0.07
+Nodes (66): ConsumptionPanel(), ageDrill(), cacheDrill(), COMPONENT_HREF, COMPONENT_KEYS, componentName(), compositeDrill(), connectionsDrill() (+58 more)
 
 ### Community 6 - "check-health-score.mjs"
 Cohesion: 0.05
 Nodes (58): agree(), all, capped, check(), composeBad, composeGrid, dbOnlySecurity(), deadlocked (+50 more)
 
-### Community 7 - "ProjectsExplorer.tsx"
-Cohesion: 0.11
-Nodes (37): CustomerPortfolioCharts(), SLICE_COLORS, BurnDonutRow(), PortfolioCharts(), SLICE_FACETS, getProjectHoursDrilldown(), ProjectHoursDrilldown, ProjectHoursRest (+29 more)
+### Community 7 - "ProjectsLedger.tsx"
+Cohesion: 0.09
+Nodes (41): BudgetPanel(), euro(), CustomerPortfolioCharts(), SLICE_COLORS, BurnDonutRow(), PortfolioCharts(), SLICE_FACETS, getProjectHoursDrilldown() (+33 more)
 
-### Community 8 - "factorial.mjs"
-Cohesion: 0.06
-Nodes (37): check(), claimed, members, status(), throws(), today, c, disagree (+29 more)
+### Community 8 - "check-factorial-harvest.mjs"
+Cohesion: 0.04
+Nodes (50): converted, env, monthly, CONTRACT_SYNTHETIC_ROW, contractContradiction, contractKept, contractLeaked, contractSurvivors (+42 more)
 
 ### Community 9 - "my-work.ts"
 Cohesion: 0.16
@@ -645,7 +655,7 @@ Nodes (20): assembleMyWork(), AssignmentRowLite, budgetOrNull(), dueOrNull(), em
 
 ### Community 10 - "dashboard/page.tsx"
 Cohesion: 0.09
-Nodes (51): BAND_COLOUR, Acc, add(), customerDrillData, DrillDatum, projectKey(), projectsByMember(), ranked() (+43 more)
+Nodes (48): CapacityPanel(), Acc, add(), customerDrillData, projectKey(), projectsByMember(), ranked(), tileDrillData() (+40 more)
 
 ### Community 11 - "check-mobile-shell.mjs"
 Cohesion: 0.04
@@ -659,53 +669,53 @@ Nodes (27): dir, require, dir, require, alias, anon, componentAlias, days (+19 m
 Cohesion: 0.04
 Nodes (49): APP_SHELL, authInput, authShell, buttonSrc, card, chartsSrc, chrome, conventions (+41 more)
 
-### Community 14 - "profile-admin.ts"
-Cohesion: 0.10
-Nodes (32): AdminActionResult, adminDeleteEntry(), adminUpdateEntry(), adminUpdateProfile(), adminUpdateWeeklyHours(), authorise(), Authorised, Refused (+24 more)
+### Community 14 - "[userId]/page.tsx"
+Cohesion: 0.11
+Nodes (35): AdminActionResult, adminDeleteEntry(), adminUpdateEntry(), adminUpdateProfile(), adminUpdateWeeklyHours(), authorise(), Authorised, Refused (+27 more)
 
 ### Community 15 - "DataTable.tsx"
-Cohesion: 0.11
-Nodes (31): render(), WHY: the hand-rolled matrix rendered all 37 permissions unpaged, with no, Role, RolePermissionMatrix(), ManagementDataQuality(), cellClass(), cellText(), TeamWorkloadGrid() (+23 more)
+Cohesion: 0.12
+Nodes (29): render(), ManagementDataQuality(), cellClass(), cellText(), TeamWorkloadGrid(), BreakdownTable(), BudgetTable(), EconomicsTable() (+21 more)
 
-### Community 16 - "profile/page.tsx"
-Cohesion: 0.10
-Nodes (30): AppLayout(), changePassword(), EXT, removeAvatar(), updateDisplayName(), updatePreferences(), uploadAvatar(), ALLOWED_AVATAR_TYPES (+22 more)
+### Community 16 - "profile/actions.ts"
+Cohesion: 0.14
+Nodes (21): changePassword(), EXT, removeAvatar(), updateDisplayName(), updatePreferences(), uploadAvatar(), ALLOWED_AVATAR_TYPES, LANDING_PAGES (+13 more)
 
 ### Community 17 - "nav-icons.tsx"
-Cohesion: 0.07
-Nodes (14): metadata, PortalPage(), LogoutButton(), IconArrowsVertical(), IconLogout(), IconProps, IconReplay(), getUserInfo() (+6 more)
+Cohesion: 0.09
+Nodes (11): LogoutButton(), IconLogout(), IconProps, IconReplay(), IconSearch(), IconUser(), TourReplayButton(), menuItemClass (+3 more)
 
 ### Community 18 - "ContractPanel.tsx"
-Cohesion: 0.10
-Nodes (37): ContractWatchlist(), KIND_LABEL, tone(), authorise(), Authorised, ContractActionResult, correctContractPeriod(), explain() (+29 more)
+Cohesion: 0.17
+Nodes (23): authorise(), Authorised, ContractActionResult, correctContractPeriod(), explain(), hours(), isoDate(), percent() (+15 more)
 
 ### Community 19 - "HSE Operations Management Dashboard – Architektur"
 Cohesion: 0.05
 Nodes (40): 1. Ziel und Zweck, 2. Abgrenzung, 3. Aktuelle Module, 4. Datenquellen, 5. KPI-Definitionen, 6. Architekturprinzipien, 7. Offene Datenmodelle, 8. Roadmap (+32 more)
 
 ### Community 20 - "gate-env.mjs"
-Cohesion: 0.06
-Nodes (26): c, env, sql, env, page, querySrc, supabase, env (+18 more)
+Cohesion: 0.05
+Nodes (29): c, env, sql, admin, c, env, src, stefan (+21 more)
 
 ### Community 21 - "system-health.ts"
 Cohesion: 0.08
-Nodes (39): slaFor(), APP_SCHEMAS, attempt(), ConnectionState, ConsumptionPanel, DeployIdentity, EfficiencyPanel, EnvFlag (+31 more)
+Nodes (40): slaFor(), APP_SCHEMAS, attempt(), ConnectionState, ConsumptionPanel, DeployIdentity, EfficiencyPanel, EnvFlag (+32 more)
 
 ### Community 22 - "TimesheetGrid.tsx"
-Cohesion: 0.14
-Nodes (22): check(), eq(), fmt(), rejects, AddEntryState, addTimesheetEntry(), copyLastWeek(), currentPersonId() (+14 more)
+Cohesion: 0.13
+Nodes (24): check(), eq(), fmt(), rejects, AddEntryState, addTimesheetEntry(), copyLastWeek(), currentPersonId() (+16 more)
 
 ### Community 23 - "ManagementCustomerPortfolio.tsx"
-Cohesion: 0.14
-Nodes (21): EmployeeOwnershipOverview(), fmt(), TEXT_KEY, Translate, translateList(), translateText(), ageInDays(), ChangeRequestItem() (+13 more)
+Cohesion: 0.08
+Nodes (36): authorisedWriter(), CandidateLoadState, decideResponsibleChange(), loadReassignmentCandidates(), ManagementChangeActionState, requestResponsibleChange(), STATUS_KEY, TEXT_KEY (+28 more)
 
 ### Community 24 - "overview-live.ts"
-Cohesion: 0.09
-Nodes (35): OverviewFilters(), PRESETS, BudgetPosture, buildTeamOptions(), burnTone(), countRows(), excludeFutureEntries(), fmtHours() (+27 more)
+Cohesion: 0.12
+Nodes (29): BudgetPosture, buildTeamOptions(), burnTone(), countRows(), excludeFutureEntries(), fmtHours(), getBudgetPosture(), getFutureEntryAdjustments() (+21 more)
 
-### Community 25 - "time/page.tsx"
-Cohesion: 0.09
-Nodes (39): RecordsTabKey, RecordsTabs(), parseScopeParam(), parseViewParam(), parseWeekParam(), TimePage(), clock(), EntryRow() (+31 more)
+### Community 25 - "time.ts"
+Cohesion: 0.15
+Nodes (24): parseScopeParam(), parseViewParam(), parseWeekParam(), TimePage(), formatDay(), TimeViewTabs(), currentTimeWeek(), dayBounds() (+16 more)
 
 ### Community 26 - "check-i18n-system-health.mjs"
 Cohesion: 0.05
@@ -725,35 +735,35 @@ Nodes (31): american, BANNED_DE, blank(), byEnglish, de, deBlob, deKeys, DELIBER
 
 ### Community 30 - "check-operations-role.mjs"
 Cohesion: 0.06
-Nodes (24): allowedByList, EMPLOYEE_LIVE_KEYS, employeeKeys, env, EXPECTED_KEYS, EXTRA_MIGRATIONS, grantedKeys, grantsAfter (+16 more)
+Nodes (26): allowedByList, EMPLOYEE_LIVE_KEYS, employeeKeys, env, EXPECTED_KEYS, EXTRA_MIGRATIONS, grantedKeys, grantsAfter (+18 more)
 
 ### Community 31 - "management-customer-portfolio.ts"
-Cohesion: 0.08
-Nodes (36): getPool(), ManagementCustomerEntity, ManagementCustomerMappings, readManagementCustomerMappings(), Assignment, canonicalService(), CLOSED_STATUSES, CustomerPortfolioProject (+28 more)
+Cohesion: 0.14
+Nodes (20): getPool(), ManagementCustomerEntity, ManagementCustomerMappings, readManagementCustomerMappings(), Assignment, canonicalService(), CLOSED_STATUSES, CustomerPortfolioProject (+12 more)
 
 ### Community 32 - "health-score.ts"
-Cohesion: 0.11
-Nodes (33): composeScores(), CompositeScore, computeHealthScore(), consumptionScore(), DOCUMENTED_DB_BUDGET_BYTES, DOCUMENTED_DB_BUDGET_SOURCE, efficiencyScore(), fmt() (+25 more)
+Cohesion: 0.10
+Nodes (36): growthPerDay(), CAP_THRESHOLD, composeScores(), CompositeScore, computeHealthScore(), consumptionScore(), DOCUMENTED_DB_BUDGET_BYTES, DOCUMENTED_DB_BUDGET_SOURCE (+28 more)
 
-### Community 33 - "types.ts"
-Cohesion: 0.05
-Nodes (49): ApprovalResult, approveLeaveRequestAction(), cancelLeaveRequest(), rejectLeaveRequestAction(), requestLeave(), RequestLeaveState, setLeaveRequestStatus(), MyLeavePanel() (+41 more)
+### Community 33 - "hse.ts"
+Cohesion: 0.12
+Nodes (11): getProjectDetail(), getTaskComments(), getTimeProjectBoard(), nestTasks(), LeaveBalanceRow, LeaveRequestRow, OrgChartNode, PersonProfile (+3 more)
 
 ### Community 34 - "check-brand-mark.mjs"
 Cohesion: 0.06
 Nodes (28): AUTH, AUTH_C, authMarks, CSS, CSS_C, dAttrs, froms, heroIdx (+20 more)
 
 ### Community 35 - "apply-modules.sql"
-Cohesion: 0.09
-Nodes (28): time, member_clear_supervisor_source, raw.sync_run, raw.vendor_record, auth.users, time.clear_orphaned_supervisor_source, time.can_view_member(), time.current_member_id() (+20 more)
+Cohesion: 0.21
+Nodes (14): member_clear_supervisor_source, raw.sync_run, raw.vendor_record, auth.users, time.clear_orphaned_supervisor_source, time.can_view_member(), time.current_member_id(), time.customer (+6 more)
 
-### Community 36 - "users/page.tsx"
-Cohesion: 0.10
-Nodes (39): assertCanManageUsers(), changeUserDepartment(), changeUserRole(), deleteUser(), InviteState, inviteUser(), resendInvite(), roleHasPermission() (+31 more)
+### Community 36 - "users/actions.ts"
+Cohesion: 0.15
+Nodes (23): render(), assertCanManageUsers(), changeUserDepartment(), changeUserRole(), deleteUser(), InviteState, inviteUser(), resendInvite() (+15 more)
 
 ### Community 37 - "launch-chromium.mjs"
-Cohesion: 0.08
-Nodes (17): env, EXPECTED, failures, idx, env, admin, anon, cookies (+9 more)
+Cohesion: 0.07
+Nodes (16): env, EXPECTED, failures, idx, env, admin, anon, cookies (+8 more)
 
 ### Community 38 - "audit-permission-catalogue.mjs"
 Cohesion: 0.07
@@ -767,25 +777,25 @@ Nodes (26): admin, env, headers, isVendorRow(), localRows, localSeconds, missing
 Cohesion: 0.10
 Nodes (25): empty, inv, md, records, secrets, buildInventory(), classify(), collectWarnings() (+17 more)
 
-### Community 41 - "Card.tsx"
-Cohesion: 0.06
-Nodes (58): BIG, CARD_WITH_DRILL, CrossIcon(), DrillChip(), FIGURE_TRIGGER, KICKER, Reason(), SECTION_STYLE (+50 more)
+### Community 41 - "Charts.tsx"
+Cohesion: 0.08
+Nodes (23): barMotion(), chartKindListeners, chartKindSubscribe(), DonutSlice, HBarRow, KIND_LABEL, LABEL_COLS, LabelWidth (+15 more)
 
 ### Community 42 - "projects/actions.ts"
-Cohesion: 0.13
-Nodes (23): addComment(), addSubtask(), createSection(), createTask(), CreateTaskState, deleteComment(), deleteTask(), insertTask() (+15 more)
+Cohesion: 0.21
+Nodes (16): addComment(), addSubtask(), createSection(), createTask(), CreateTaskState, deleteComment(), insertTask(), moveTaskToSection() (+8 more)
 
 ### Community 43 - "data-hygiene.ts"
-Cohesion: 0.09
-Nodes (20): AUDIT_PROBES, DataHygiene, DirectRead, DriftRow, FindingKind, HygieneColumn, HygieneOptions, HygienePages (+12 more)
+Cohesion: 0.08
+Nodes (28): AUDIT_PROBES, classifyFault(), DataHygiene, DirectRead, DriftRow, FindingKind, getDataHygiene(), hoursCell() (+20 more)
 
-### Community 44 - "drills.ts"
+### Community 44 - "createClient"
 Cohesion: 0.10
-Nodes (21): COMPONENT_HREF, COMPONENT_KEYS, componentName(), compositeDrill(), KICKER, signed(), subScoreDrill(), T (+13 more)
+Nodes (32): AlertsPage(), FactorialIdentityPage(), toggleRolePermission(), PermissionToggle(), handleToggle(), Props, AdminUsersPage(), AdminUserDetailPage() (+24 more)
 
 ### Community 45 - "import-review/page.tsx"
-Cohesion: 0.12
-Nodes (20): CaseRow(), CustomerMasterImportReviewPage(), display(), dynamic, hrefFor(), Pager(), parseFilter(), priorityTone() (+12 more)
+Cohesion: 0.11
+Nodes (21): CaseRow(), CustomerMasterImportReviewPage(), display(), dynamic, hrefFor(), Pager(), parseFilter(), priorityTone() (+13 more)
 
 ### Community 46 - "APPLY-IN-SQL-EDITOR-2.sql"
 Cohesion: 0.17
@@ -816,8 +826,8 @@ Cohesion: 0.07
 Nodes (19): ackRoles, actions, alertQueries, blockMap, byProject, cols, contracts, list (+11 more)
 
 ### Community 53 - "customer-master-import-review.ts"
-Cohesion: 0.16
-Nodes (25): buildCases(), caseKey(), caseName(), caseType(), CountRow, customerId(), customerNameFor(), documentedResolution() (+17 more)
+Cohesion: 0.15
+Nodes (28): buildCases(), caseKey(), caseName(), caseType(), CountRow, customerId(), customerNameFor(), documentedResolution() (+20 more)
 
 ### Community 54 - "HSE Hub — Design System"
 Cohesion: 0.07
@@ -840,36 +850,36 @@ Cohesion: 0.17
 Nodes (14): opsNav, MOBILE_TAB_HREFS, MobileTab, mobileTabsFor(), SHORT_LABELS, MobileTabBar(), isNavItemVisible(), IconDot() (+6 more)
 
 ### Community 59 - "recheck-dashboard-claims.mjs"
-Cohesion: 0.08
-Nodes (20): admin, corrected, distinctProjects, env, estimatedIds, gates, hasUnattributed, lastRef (+12 more)
+Cohesion: 0.06
+Nodes (24): CASES, env, root, supabase, admin, corrected, distinctProjects, env (+16 more)
 
 ### Community 60 - "team-lead-live.ts"
 Cohesion: 0.13
-Nodes (23): BoardRangeFilter(), PRESETS, isDefaultWindow(), BOARD_WEEKS, BoardCellStatus, BoardPreset, BoardRange, boardRangeForPreset() (+15 more)
+Nodes (24): BoardRangeFilter(), PRESETS, isDefaultWindow(), BOARD_WEEKS, BoardCellStatus, BoardPreset, BoardRange, boardRangeForPreset() (+16 more)
 
 ### Community 61 - "projects-live.ts"
-Cohesion: 0.16
-Nodes (24): canReadBudgets(), allTimeFilters(), burndown(), contributors(), customerPortfolio, CustomerPortfolioRow, customerRankByMonth, CustomerRankSeries (+16 more)
+Cohesion: 0.14
+Nodes (19): allTimeFilters(), burndown(), BurnPoint, contributors(), customerPortfolio, CustomerPortfolioRow, customerRankByMonth, CustomerRankSeries (+11 more)
 
 ### Community 62 - "import-masterdata-projects.mjs"
 Cohesion: 0.09
 Nodes (21): assignmentRows, byOrder, db, DRY, firstName(), ids, ADR-0001, newPeople (+13 more)
 
-### Community 63 - "check-factorial-harvest.mjs"
-Cohesion: 0.10
-Nodes (19): CONTRACT_SYNTHETIC_ROW, contractContradiction, contractKept, contractLeaked, contractSurvivors, contradiction, env, future (+11 more)
+### Community 63 - "(app)/layout.tsx"
+Cohesion: 0.11
+Nodes (23): MotionProvider(), SPRING_MOVE, SPRING_UI, DesktopSidebarShell(), getCardStyle(), getTargetRect(), OnboardingTour(), Rect (+15 more)
 
-### Community 64 - "ReassignmentPicker.tsx"
-Cohesion: 0.14
-Nodes (20): authorisedWriter(), CandidateLoadState, decideResponsibleChange(), loadReassignmentCandidates(), ManagementChangeActionState, requestResponsibleChange(), CandidateRow(), hours() (+12 more)
+### Community 64 - "canReadBudgets"
+Cohesion: 0.18
+Nodes (15): BUDGET_COLUMNS, budgetAwareColumns(), BudgetVisibility, canReadBudgets(), fetchAllProjects(), fetchBudgets(), fetchProject(), num() (+7 more)
 
 ### Community 65 - "data-hygiene/page.tsx"
 Cohesion: 0.11
 Nodes (22): DataHygienePage(), dynamic, KIND_STYLE, Pager(), runtime, SearchParams, SKIPPED, SUBJECT (+14 more)
 
 ### Community 66 - "time-transform.ts"
-Cohesion: 0.14
-Nodes (19): InsightPanels(), weekdayLabels(), label(), labelWithDate(), Tr, TrendChart(), fmtDate(), weekStartFor() (+11 more)
+Cohesion: 0.10
+Nodes (26): InsightPanels(), weekdayLabels(), label(), labelWithDate(), Tr, TrendChart(), clock(), EntryRow() (+18 more)
 
 ### Community 67 - "management-multi-service-matrix.ts"
 Cohesion: 0.14
@@ -887,9 +897,9 @@ Nodes (23): crm.asana_project_reference, crm.corporate_group, crm.corporate_grou
 Cohesion: 0.10
 Nodes (20): barrel, cache, capped, columns, { DataTable, cmpNum, cmpText, DEFAULT_MAX_BODY_HEIGHT }, exported, firstTdFrozen, firstThFrozen (+12 more)
 
-### Community 71 - "check-factorial-classifier-schema-agree.mjs"
-Cohesion: 0.25
-Nodes (6): cases, claimed, members, REPO, seen, sql
+### Community 71 - "sync-factorial-identity.mjs"
+Cohesion: 0.09
+Nodes (19): cases, claimed, members, REPO, seen, sql, status(), classifyEmployee() (+11 more)
 
 ### Community 72 - "check-people-overview-agree.mjs"
 Cohesion: 0.09
@@ -903,9 +913,9 @@ Nodes (20): ALWAYS_RENDERED, concurrentDbCalls, drillsSrc, firstAwait, FIXED_SEC
 Cohesion: 0.09
 Nodes (20): byKind, db, deduped, env, found, ids, KIND_BY_HEADER, kindFor() (+12 more)
 
-### Community 75 - "PeopleDirectory.tsx"
-Cohesion: 0.09
-Nodes (29): bandLabel(), bandOf(), CAPACITY_BANDS, CapacityBand, initialsOf(), PeopleDirectory(), SortKey, sortPeople() (+21 more)
+### Community 75 - "ProjectsExplorer.tsx"
+Cohesion: 0.08
+Nodes (38): bandLabel(), bandOf(), CAPACITY_BANDS, CapacityBand, initialsOf(), PeopleDirectory(), SortKey, sortPeople() (+30 more)
 
 ### Community 76 - "database.types.ts"
 Cohesion: 0.10
@@ -920,8 +930,8 @@ Cohesion: 0.09
 Nodes (21): 1.1 The 8 null-project assignments are correct as they are, 1. Is the masterdata import connected correctly?, 2.1 [FIXED, needs pasting] 54 orders reported themselves as on budget without being measured, 2.2 [NEEDS A DECISION — and it is a SPREADSHEET problem, not an import bug], 2.3 [NEEDS APPLYING] The masterdata people are labelled as seed data, 2.4 [MOSTLY A RULE BUG] The ADR-001 gate reports 3 violations; there are 64, 2.5 [KNOWN, CORRECTLY LEFT ALONE] 2,392 unattributed hours, 2.6 [INFRASTRUCTURE, FIXED] The entire gate suite could not run (+13 more)
 
 ### Community 79 - "check-factorial-identity-baseline.mjs"
-Cohesion: 0.15
-Nodes (13): byEmail, c, claimedPersons, classify(), env, looksLikeMailbox, ADR-0001, mustBe() (+5 more)
+Cohesion: 0.10
+Nodes (19): byEmail, c, claimedPersons, classify(), env, looksLikeMailbox, ADR-0001, mustBe() (+11 more)
 
 ### Community 80 - "check-gates-ci-executable.mjs"
 Cohesion: 0.12
@@ -987,9 +997,9 @@ Nodes (17): acknowledgeAlert(), AlertActionResult, AlertCard(), AlertList(), h()
 Cohesion: 0.19
 Nodes (12): burnClass(), CustomerGroup(), hours(), RoleBadge(), STYLE, STATUS_TONE, StatusBadge(), Tone (+4 more)
 
-### Community 96 - "TeamLeadExplorer.tsx"
-Cohesion: 0.12
-Nodes (24): ApprovalResult, approveAllPending(), approveDecision(), approveTimesheetWeek(), rejectTimesheetWeek(), requireApprover(), setTimesheetWeekStatus(), PendingTimesheetApprovals() (+16 more)
+### Community 96 - "team-lead/page.tsx"
+Cohesion: 0.15
+Nodes (20): ApprovalResult, approveAllPending(), approveDecision(), approveTimesheetWeek(), rejectTimesheetWeek(), requireApprover(), setTimesheetWeekStatus(), TeamLeadPage() (+12 more)
 
 ### Community 97 - "check-asana-backlog.mjs"
 Cohesion: 0.14
@@ -1003,25 +1013,25 @@ Nodes (16): app, cleanup(), cleanupBuild(), customers, entries, monday, PROFILE,
 Cohesion: 0.12
 Nodes (17): APPLY, c, candidates, claimed, creates, env, FORBIDDEN_PERSON_IDS, linkedPersonIds (+9 more)
 
-### Community 100 - "sync-factorial-contracts.mjs"
-Cohesion: 0.12
-Nodes (13): converted, env, monthly, contractWeeklyHours(), projectContract(), argv, COMPANY, db (+5 more)
+### Community 100 - "system-health/page.tsx"
+Cohesion: 0.20
+Nodes (21): BIG, CARD_WITH_DRILL, CrossIcon(), DrillChip(), FIGURE_TRIGGER, KICKER, Reason(), SECTION_STYLE (+13 more)
 
 ### Community 101 - "check-order-hours-freshness.mjs"
 Cohesion: 0.18
 Nodes (9): c, env, failures, nulls, overContractButSilent, overstated, overstatedVsUnbounded, understated (+1 more)
 
-### Community 102 - "(app)/page.tsx"
-Cohesion: 0.12
-Nodes (17): OverviewHero(), isoWeekNumber(), OverviewPage(), thursdayOf(), getWeekDrilldown(), r1(), WeekDrilldown, WeekDrilldownRow (+9 more)
+### Community 102 - "OverviewHero.tsx"
+Cohesion: 0.29
+Nodes (7): OverviewHero(), getWeekDrilldown(), r1(), WeekDrilldown, WeekDrilldownRow, AreaPoint, NO_TEAM
 
 ### Community 103 - "InsightPanels.tsx"
-Cohesion: 0.07
-Nodes (24): NO_CUSTOMER_LABEL, MONDAY_EPOCH, SERIES, chrome, Drill, DrillDialog(), DrillRow, DrillSection (+16 more)
+Cohesion: 0.13
+Nodes (18): BAND_COLOUR, DrillDatum, NO_CUSTOMER_LABEL, MONDAY_EPOCH, SERIES, chrome, Drill, DrillDialog() (+10 more)
 
 ### Community 104 - "people-live.ts"
-Cohesion: 0.16
-Nodes (17): EMPTY_DIRECTORY, getAssignments(), getHubPeople(), getLivePeople(), getMemberMeta(), getRosterCounts(), HubPersonRow, MemberMeta (+9 more)
+Cohesion: 0.11
+Nodes (26): PeopleSection(), getOrgChart(), OrgChartData, OrgMember, OrgNode, SupabaseTyped, timeSchema(), EMPTY_DIRECTORY (+18 more)
 
 ### Community 105 - "1. Ranked analyses"
 Cohesion: 0.11
@@ -1040,8 +1050,8 @@ Cohesion: 0.17
 Nodes (16): customerAgrees(), dangling, db, head(), ADR-0001, norm(), orderCustomers, orderIds (+8 more)
 
 ### Community 109 - "check-view-rls-migration.mjs"
-Cohesion: 0.12
-Nodes (13): check(), seed(), alertVisibility, asUser(), contractPeriods, countAsUser(), fresh(), here (+5 more)
+Cohesion: 0.14
+Nodes (10): alertVisibility, asUser(), contractPeriods, countAsUser(), here, leakTable, migration, overbooking (+2 more)
 
 ### Community 110 - "check-order-project-matching.mjs"
 Cohesion: 0.11
@@ -1060,8 +1070,8 @@ Cohesion: 0.12
 Nodes (13): admin, env, evSeconds(), extra, extraSeconds, headers, missing, missingSeconds (+5 more)
 
 ### Community 114 - "health-history.ts"
-Cohesion: 0.17
-Nodes (15): asSample(), defaultSamplesPath(), describeSamplesPath(), Growth, GROWTH_MIN_SPAN_HOURS, HealthHistory, HealthSample, HealthSampleNumericField (+7 more)
+Cohesion: 0.14
+Nodes (17): SystemHealthPage(), asSample(), defaultSamplesPath(), describeSamplesPath(), Growth, GROWTH_MIN_SPAN_HOURS, HealthHistory, HealthSample (+9 more)
 
 ### Community 115 - "Project Risk Resolution Actions"
 Cohesion: 0.12
@@ -1084,32 +1094,32 @@ Cohesion: 0.18
 Nodes (15): accessTokenFor(), app, arriveFromProvider(), arriveFromProviderStable(), b64(), build, cleanup(), currentUser (+7 more)
 
 ### Community 120 - "check-team-select.mjs"
-Cohesion: 0.11
-Nodes (14): actionsStub, dir, editable, legacyOptions, legacyRow, React, readOnly, readOnlyLegacy (+6 more)
+Cohesion: 0.12
+Nodes (13): actionsStub, dir, editable, legacyOptions, legacyRow, React, readOnly, readOnlyLegacy (+5 more)
 
 ### Community 121 - "check-factorial-minimisation.mjs"
 Cohesion: 0.12
 Nodes (16): allowedExports, componentContent, content, errors, foundExports, foundPersonFields, foundPresenceFields, foundTeamFields (+8 more)
 
-### Community 122 - "Button.tsx"
-Cohesion: 0.15
-Nodes (19): assertCanDecide(), createPersonAndLink(), DecisionState, excludeRow(), resolveToPerson(), MACHINE_STATUSES, withDb(), FactorialIdentityPage() (+11 more)
+### Community 122 - "ReviewRow.tsx"
+Cohesion: 0.25
+Nodes (13): assertCanDecide(), createPersonAndLink(), DecisionState, excludeRow(), resolveToPerson(), MACHINE_STATUSES, withDb(), idle (+5 more)
 
 ### Community 123 - "OrgChartView.tsx"
-Cohesion: 0.19
-Nodes (13): initialsOf(), NodeRow(), OrgChartView(), PeopleSection(), getOrgChart(), OrgChartData, OrgMember, OrgNode (+5 more)
+Cohesion: 0.16
+Nodes (20): assertCanEditPeople(), OrgEditState, setMemberDetails(), setSupervisor(), timeSchema(), wouldCreateCycle(), initialsOf(), NodeRow() (+12 more)
 
 ### Community 124 - "factorial-hours.ts"
-Cohesion: 0.19
-Nodes (16): dataOf(), FactorialPerson, FactorialPresence, FactorialTeam, FactorialUnavailableError, fetchFactorialPeople(), fetchFactorialPresence(), fetchFactorialTeams() (+8 more)
+Cohesion: 0.22
+Nodes (14): dataOf(), FactorialPerson, FactorialPresence, FactorialTeam, FactorialUnavailableError, fetchFactorialPeople(), fetchFactorialPresence(), fetchFactorialTeams() (+6 more)
 
 ### Community 125 - "management-contract-hours.ts"
-Cohesion: 0.14
-Nodes (19): ALL_SERVICES, ANNUAL_PLAN_HOURS, canonicalService(), emptyCells(), getManagementContractHours(), ManagementContractHours, ManagementPerson, ManagementProject (+11 more)
+Cohesion: 0.09
+Nodes (32): ALL_SERVICES, ANNUAL_PLAN_HOURS, canonicalService(), emptyCells(), getManagementContractHours(), ManagementPerson, ManagementProject, ManagementRow (+24 more)
 
-### Community 126 - "budget-visibility.ts"
-Cohesion: 0.11
-Nodes (18): BUDGET_COLUMNS, BudgetVisibility, AssignmentRow, canonicalService(), getManagementServiceOverview(), isOpen(), numberOrZero(), ProjectOrderRow (+10 more)
+### Community 126 - "management-service-overview.ts"
+Cohesion: 0.17
+Nodes (16): AssignmentRow, canonicalService(), getManagementServiceOverview(), isOpen(), numberOrZero(), ProjectOrderRow, ProjectRow, projectsSelect() (+8 more)
 
 ### Community 127 - "Entscheidung"
 Cohesion: 0.12
@@ -1215,9 +1225,9 @@ Nodes (13): call(), current, dateFields, droppedKeys, env, fetchAll(), future, p
 Cohesion: 0.14
 Nodes (7): args, DRY_RUN, ENV, FULL, NO_LINK, SINCE_LAST, YEAR
 
-### Community 153 - "getDataHygiene"
-Cohesion: 0.22
-Nodes (8): classifyFault(), getDataHygiene(), hoursCell(), lexwareOf(), norm(), readDirect(), readSupport(), schema()
+### Community 153 - "auth.ts"
+Cohesion: 0.11
+Nodes (23): AdminRolesPage(), WHY: the hand-rolled matrix rendered all 37 permissions unpaged, with no, Role, RolePermissionMatrix(), isoWeekNumber(), OverviewPage(), thursdayOf(), AppPermission (+15 more)
 
 ### Community 154 - "HSE Hub — Portal Architecture & Design"
 Cohesion: 0.15
@@ -1248,16 +1258,16 @@ Cohesion: 0.18
 Nodes (11): APPLY, authUsers, db, ENV, memberEmails, norm(), personIdByUser, plan (+3 more)
 
 ### Community 161 - "ManagementMatrix.tsx"
-Cohesion: 0.13
-Nodes (18): BrokenCoverPanel(), kindKey, STATUS_KEY, Drill, DrillRow, fmt(), ManagementDrilldown(), fmt() (+10 more)
+Cohesion: 0.11
+Nodes (21): BrokenCoverPanel(), kindKey, EmployeeOwnershipOverview(), fmt(), Drill, DrillRow, fmt(), ManagementDrilldown() (+13 more)
 
 ### Community 162 - "video/page.tsx"
 Cohesion: 0.17
 Nodes (7): CONNECTORS, Feature, FEATURES, Stat, StatCard(), STATS, useCountUp()
 
 ### Community 163 - "MyWorkTables.tsx"
-Cohesion: 0.21
-Nodes (11): hours(), MyWorkTables(), rank(), statusTone(), View, LINK_DESTINATION, LINK_LABEL, LINK_ORDER (+3 more)
+Cohesion: 0.11
+Nodes (14): IconProps, LINK_ICON, hours(), MyWorkTables(), rank(), statusTone(), View, LINK_DESTINATION (+6 more)
 
 ### Community 164 - "management-data-quality.ts"
 Cohesion: 0.22
@@ -1351,9 +1361,9 @@ Nodes (10): between(), CUSTOMERS, db, entryRows, env, MEMBERS, pick(), projectRo
 Cohesion: 0.17
 Nodes (8): blind, c, env, INSPECT, now, POLICY, rows, SAVE
 
-### Community 187 - "locale-format.ts"
-Cohesion: 0.07
-Nodes (40): setBillableRate(), SetBillableRateResult, BillableRatePanel(), handleSubmit(), BudgetPanel(), euro(), BurnChart(), BurnChartWording (+32 more)
+### Community 187 - "ReportFilters.tsx"
+Cohesion: 0.17
+Nodes (10): BUCKET_OPTIONS, Dimension, DIMENSIONS, GROUP_OPTIONS, MultiSelect(), Option, PARAM, ReportFilters() (+2 more)
 
 ### Community 188 - "Contract periods, budget warnings, and renewals — design spec"
 Cohesion: 0.18
@@ -1412,8 +1422,8 @@ Cohesion: 0.18
 Nodes (7): allMeasured, cg, partial, q, REPO, rows, summed
 
 ### Community 202 - "check-org-chart-edit.mjs"
-Cohesion: 0.18
-Nodes (6): admin, anon, cookies, env, errors, subordinate
+Cohesion: 0.17
+Nodes (7): admin, anon, cookies, env, errors, subordinate, time
 
 ### Community 203 - "check-profile-actions.mjs"
 Cohesion: 0.20
@@ -1464,8 +1474,8 @@ Cohesion: 0.20
 Nodes (9): Before anything else: uncommitted work does not travel, Deliberately not transferred, Moving this project to a new PC, On the new PC, On the old PC, Three things that fail silently, Verified, What already travels with `git clone` (+1 more)
 
 ### Community 215 - "key"
-Cohesion: 0.22
-Nodes (5): REQUIRED_GRANTS, ROUTES, env, rest(), key()
+Cohesion: 0.13
+Nodes (9): counts, env, findings, rest(), REQUIRED_GRANTS, ROUTES, env, rest() (+1 more)
 
 ### Community 216 - "check-agent-references.cjs"
 Cohesion: 0.20
@@ -1492,8 +1502,8 @@ Cohesion: 0.24
 Nodes (8): actionable(), cases, m, re, REPO, src, throttled(), verdict()
 
 ### Community 222 - "n"
-Cohesion: 0.33
-Nodes (4): env, H, n(), token
+Cohesion: 0.20
+Nodes (5): env, env, H, n(), token
 
 ### Community 223 - "check-org-chart.mjs"
 Cohesion: 0.20
@@ -1647,9 +1657,9 @@ Nodes (7): Recommended fix, in order, The eight mis-named orders are a spreadshe
 Cohesion: 0.25
 Nodes (7): Getting work back into the hub portal, Security: what a sandbox may never contain, Seeding realistic data without production credentials, Setting up a sandbox (once), The sandbox workflow: experiment freely, merge deliberately, The three rules that matter, What the main repo owes the sandbox
 
-### Community 262 - "audit-live-db.mjs"
-Cohesion: 0.33
-Nodes (4): counts, env, findings, rest()
+### Community 262 - "Button.tsx"
+Cohesion: 0.13
+Nodes (17): ApprovalResult, approveLeaveRequestAction(), cancelLeaveRequest(), rejectLeaveRequestAction(), requestLeave(), RequestLeaveState, setLeaveRequestStatus(), MyLeavePanel() (+9 more)
 
 ### Community 263 - "add-overview-chart-notes.mjs"
 Cohesion: 0.25
@@ -1683,9 +1693,9 @@ Nodes (4): outcome(), by, CASES, ADR-0001
 Cohesion: 0.25
 Nodes (3): callAt, pageSrc, unattributed
 
-### Community 272 - "check-external-staff-assignable.mjs"
-Cohesion: 0.25
-Nodes (6): admin, c, env, src, stefan, ui
+### Community 272 - "AnalyticsCharts.tsx"
+Cohesion: 0.13
+Nodes (13): h(), TeamDeepAnalysis(), BumpSeries, DivergingBars(), DivergingItem, HeatCell, HeatmapMatrix(), LineSeries (+5 more)
 
 ### Community 273 - "check-factorial-contract-migration.mjs"
 Cohesion: 0.25
@@ -1703,21 +1713,21 @@ Nodes (6): fn, hostile, naive(), naiveLeaks, safeRedirect, src
 Cohesion: 0.25
 Nodes (4): admin, app, env, stamp
 
-### Community 277 - "check-page-length.mjs"
-Cohesion: 0.25
-Nodes (4): admin, anon, cookies, env
+### Community 277 - "contract-periods.ts"
+Cohesion: 0.19
+Nodes (14): ContractWatchlist(), KIND_LABEL, tone(), ContractAttentionKind, ContractAttentionRow, ContractPeriodRow, EXPIRY_HORIZON_DAYS, getActiveContractPeriod() (+6 more)
 
-### Community 278 - "check-parallel-paging.mjs"
-Cohesion: 0.25
-Nodes (4): CASES, env, root, supabase
+### Community 278 - "TaskBoardView.tsx"
+Cohesion: 0.22
+Nodes (12): deleteTask(), AddTaskForm(), TaskBoardView(), TaskCard(), TaskListView(), TaskRow(), TasksSection(), usePager() (+4 more)
 
 ### Community 279 - "check-paste-sql.mjs"
 Cohesion: 0.25
 Nodes (3): overbooking, paste, schema
 
-### Community 280 - "link-icons.tsx"
+### Community 280 - "portal/page.tsx"
 Cohesion: 0.20
-Nodes (3): IconProps, LINK_ICON, MyLink
+Nodes (12): metadata, PortalPage(), BrandMark(), BrandMarkProps, PIECES, MobileSidebarDrawer(), MobileSidebarProps, project() (+4 more)
 
 ### Community 281 - "check-permissions-rls.mjs"
 Cohesion: 0.29
@@ -1851,6 +1861,10 @@ Nodes (4): env, jar, needles, roleWords
 Cohesion: 0.29
 Nodes (5): page, q, REPO, summary, tables
 
+### Community 314 - "add_contract_periods.sql"
+Cohesion: 0.17
+Nodes (13): contract_period_no_overlap, contract_period_touch, auth, auth.users, time.entry, time.project, time.active_contract_period(), time.assert_no_contract_period_overlap() (+5 more)
+
 ### Community 315 - "check-project-link-migration.mjs"
 Cohesion: 0.29
 Nodes (5): colNames, kindDef, REPO, sql, visible
@@ -1867,9 +1881,9 @@ Nodes (5): cases, env, failures, SITE, URL_BASE
 Cohesion: 0.38
 Nodes (5): admin, cookiesFor(), env, pageText(), wait()
 
-### Community 319 - "check-theme-and-figures.mjs"
-Cohesion: 0.12
-Nodes (10): admin, anon, cookies, env, errors, admin, anon, cookies (+2 more)
+### Community 319 - "check-people-filters-live.mjs"
+Cohesion: 0.25
+Nodes (5): admin, anon, cookies, env, errors
 
 ### Community 321 - "diagnose-factorial-contract-hours.mjs"
 Cohesion: 0.29
@@ -1910,6 +1924,10 @@ Nodes (5): env, H, hasCode, hasHashTokens, token
 ### Community 330 - "Apple design system, applied to the HSE Hub"
 Cohesion: 0.22
 Nodes (8): 0. The stance: Apple's SYSTEM on HSE's FACE, 7.1 SF Symbols is platform-only, 7.2 What the Hub uses: `src/components/nav-icons.tsx` [HSE], 7. Iconography, 8. Conflicts resolved, Apple design system, applied to the HSE Hub, Canonical token vocabulary [decision, resolves C10], How to read the tags
+
+### Community 331 - "profile.ts"
+Cohesion: 0.20
+Nodes (10): AppLayout(), IconPanelCollapse(), IconPanelExpand(), getUserInfo(), Sidebar(), SidebarToggle(), TopBarChrome(), effectiveNameOf() (+2 more)
 
 ### Community 332 - "ThemeToggle.tsx"
 Cohesion: 0.43
@@ -1982,6 +2000,10 @@ Nodes (4): c, env, KNOWN_TEST_ACCOUNTS, SEED_MOCKUPS
 ### Community 353 - "check-reassignment-migration-is-needed.mjs"
 Cohesion: 0.33
 Nodes (3): fnBodies, original, REPO
+
+### Community 355 - "types.ts"
+Cohesion: 0.14
+Nodes (13): BillableTrend, BillableTrendPoint, ExecutiveMetricRow, PersonAssignmentRow, PersonQualificationRow, PersonRow, PersonWeekMetricsRow, ProjectRow (+5 more)
 
 ### Community 356 - "check-time-live-ready.mjs"
 Cohesion: 0.33
@@ -2071,6 +2093,10 @@ Nodes (4): byKey, db, NEEDED, timeDb
 Cohesion: 0.33
 Nodes (3): final, original, originalHash
 
+### Community 378 - "factorial-hours-panel.tsx"
+Cohesion: 0.22
+Nodes (7): FactorialHoursPanel(), h(), MATCH_LABEL, MATCH_TITLE, ADR-0001, FactorialHoursReport, PersonComparison
+
 ### Community 379 - "factorial-identity-map.ts"
 Cohesion: 0.47
 Nodes (5): EMPTY(), FactorialIdentityMap, getPool(), readFactorialIdentityMap(), ADR-0001
@@ -2142,6 +2168,10 @@ Nodes (3): as(), byCmd, modulesFor()
 ### Community 399 - "check-no-anonymous-read.mjs"
 Cohesion: 0.40
 Nodes (3): c, ENV, REPO
+
+### Community 401 - "check-factorial-auth.mjs"
+Cohesion: 0.25
+Nodes (4): env, failures, fileEnv, REQUIRED_SCOPES
 
 ### Community 402 - "check-prod-config.mjs"
 Cohesion: 0.40
@@ -2251,9 +2281,9 @@ Nodes (3): needsServer, REQUIREMENTS, results
 Cohesion: 0.25
 Nodes (5): admin, anon, cookies, env, errors
 
-### Community 479 - "getCustomerMasterImportReview"
-Cohesion: 0.50
-Nodes (4): getCustomerMasterImportReview(), getPool(), isBillingOnlyRecord(), matchesFilter()
+### Community 479 - "check-theme-and-figures.mjs"
+Cohesion: 0.29
+Nodes (5): admin, anon, cookies, env, errors
 
 ### Community 480 - "crm.factorial_identity_review"
 Cohesion: 0.50
@@ -2279,9 +2309,13 @@ Nodes (3): grantExtra, grantMissing, pair()
 Cohesion: 0.67
 Nodes (3): contrast(), lum1(), relL()
 
+### Community 611 - "OverviewFilters.tsx"
+Cohesion: 0.29
+Nodes (6): OverviewFilters(), PRESETS, OverviewPreset, OverviewRange, OverviewTeamCoverage, OverviewTeamOption
+
 ### Community 612 - "nav-access.ts"
-Cohesion: 0.36
-Nodes (7): isRestrictedRole(), isRouteAllowedForRole(), NavItemLike, own(), ROLE_HOME, ROLE_ROUTE_ALLOWLIST, roleHome()
+Cohesion: 0.53
+Nodes (5): isRestrictedRole(), isRouteAllowedForRole(), NavItemLike, own(), roleHome()
 
 ### Community 613 - "10. The agent roster for the build pass"
 Cohesion: 0.29
@@ -2291,6 +2325,14 @@ Nodes (7): 10.1 `.claude/agents/apple-typographer.md`, 10.2 `.claude/agents/dark
 Cohesion: 0.29
 Nodes (7): 2.1 Apple's semantic roles → house tokens, 2.2 Findings from measuring the ladder [measured], 2.3 Decisions [decision], 2.4 Apple's published system colours (reference only — not the Hub's palette) [Apple: HIG/color, updated 2025-06-09], 2.5 The tinted wash and selection, 2.6 Tokens to ADD (colour engineer owns; both themes; each with a measured comment), 2. Colour and dark mode
 
+### Community 615 - "BillableRatePanel.tsx"
+Cohesion: 0.38
+Nodes (5): setBillableRate(), SetBillableRateResult, BillableRatePanel(), handleSubmit(), BillableValueRow
+
+### Community 616 - "TaskRow.tsx"
+Cohesion: 0.29
+Nodes (5): STATUS_CLASS, STATUS_KEY, TASK_STATUSES, TaskStatus, ProjectTaskRow
+
 ### Community 617 - "read"
 Cohesion: 0.53
 Nodes (6): emojiFiles, goldFiles, hardDivider, read(), readStripped(), stripComments()
@@ -2298,6 +2340,14 @@ Nodes (6): emojiFiles, goldFiles, hardDivider, read(), readStripped(), stripComm
 ### Community 618 - "read"
 Cohesion: 0.40
 Nodes (6): freshDb(), parseNavItems(), permissionConstants(), read(), seedProfiles(), stripComments()
+
+### Community 619 - "check-data-hygiene-page.mjs"
+Cohesion: 0.33
+Nodes (4): env, page, querySrc, supabase
+
+### Community 620 - "locale-action.ts"
+Cohesion: 0.60
+Nodes (3): setLocale(), LocaleSwitcher(), LOCALE_COOKIE
 
 ### Community 621 - "1. Typography"
 Cohesion: 0.50
@@ -2319,25 +2369,29 @@ Nodes (3): 4.1 What Apple states, 4.2 The Hub's material vocabulary [decision], 
 Cohesion: 0.67
 Nodes (3): 6.1 The physics [HSE: `.claude/skills/apple-design/SKILL.md` §1–§11, §14; Apple: WWDC18 803, WWDC23 10158, HIG/motion, HIG/accessibility], 6.2 Concrete values per interaction [decision; Motion/Framer `type: "spring"` unless stated], 6. Motion
 
+### Community 630 - "seed"
+Cohesion: 0.67
+Nodes (3): check(), seed(), fresh()
+
 ## Knowledge Gaps
-- **3575 isolated node(s):** `supabase`, `public.netflix_users`, `platform.health_sample`, `eslintConfig`, `withNextIntl` (+3570 more)
+- **3576 isolated node(s):** `supabase`, `public.netflix_users`, `platform.health_sample`, `eslintConfig`, `withNextIntl` (+3571 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **129 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **128 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `loadEnv()` connect `gate-env.mjs` to `check-adr001-rule-discriminates.mjs`, `factorial.mjs`, `check-management-people-complete.mjs`, `check-external-staff-assignable.mjs`, `check-projects-admit-unmeasured.mjs`, `check-operations-role.mjs`, `launch-chromium.mjs`, `check-data-hygiene-audit-findings.mjs`, `check-replacement-coverage.mjs`, `check-charts-ui.mjs`, `check-data-hygiene-disclosure.mjs`, `check-team-analysis-ui.mjs`, `check-factorial-harvest.mjs`, `check-theme-and-figures.mjs`, `import-project-links.mjs`, `check-factorial-identity-baseline.mjs`, `check-offboarding.mjs`, `check-factorial-freshness.mjs`, `sync-factorial-contracts.mjs`, `check-order-hours-freshness.mjs`, `check-anon-grants.mjs`, `check-order-project-matching.mjs`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
+- **Why does `loadEnv()` connect `gate-env.mjs` to `check-adr001-rule-discriminates.mjs`, `check-factorial-harvest.mjs`, `check-management-people-complete.mjs`, `check-factorial-auth.mjs`, `check-projects-admit-unmeasured.mjs`, `check-operations-role.mjs`, `check-data-hygiene-audit-findings.mjs`, `check-replacement-coverage.mjs`, `check-charts-ui.mjs`, `check-data-hygiene-disclosure.mjs`, `check-team-analysis-ui.mjs`, `sync-factorial-identity.mjs`, `import-project-links.mjs`, `check-factorial-identity-baseline.mjs`, `check-offboarding.mjs`, `check-factorial-freshness.mjs`, `check-theme-and-figures.mjs`, `check-order-hours-freshness.mjs`, `check-data-hygiene-page.mjs`, `check-anon-grants.mjs`, `check-order-project-matching.mjs`?**
+  _High betweenness centrality (0.035) - this node is a cross-community bridge._
 - **Why does `label()` connect `time-transform.ts` to `check-time-acceptance.mjs`, `check-table-scroll-budget.mjs`, `measure-latency-variance.mjs`, `audit-runtime-errors.mjs`, `check-time-integration.mjs`, `check-dashboard-acceptance.mjs`, `check-sso-providers.mjs`, `check-oauth-success-path-live.mjs`, `import-masterdata-projects.mjs`?**
-  _High betweenness centrality (0.028) - this node is a cross-community bridge._
-- **Why does `Database` connect `database.types.ts` to `createClient`, `AuthShell.tsx`, `time-dashboard.ts`, `dashboard/page.tsx`, `profile-admin.ts`, `ContractPanel.tsx`, `overview-live.ts`, `time/page.tsx`, `management-customer-portfolio.ts`, `ManagementMatrix.tsx`, `types.ts`, `management-data-quality.ts`, `users/page.tsx`, `data-hygiene.ts`, `team-lead-live.ts`, `projects-live.ts`, `ReassignmentPicker.tsx`, `management-multi-service-matrix.ts`, `management-project-risks.ts`, `budget-alerts.ts`, `people-live.ts`, `OrgChartView.tsx`, `factorial-hours.ts`, `management-contract-hours.ts`, `budget-visibility.ts`?**
-  _High betweenness centrality (0.013) - this node is a cross-community bridge._
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Why does `Database` connect `database.types.ts` to `Card.tsx`, `AuthShell.tsx`, `time-dashboard.ts`, `dashboard/page.tsx`, `[userId]/page.tsx`, `contract-periods.ts`, `overview-live.ts`, `time.ts`, `management-customer-portfolio.ts`, `ManagementMatrix.tsx`, `management-data-quality.ts`, `data-hygiene.ts`, `createClient`, `team-lead-live.ts`, `projects-live.ts`, `canReadBudgets`, `management-multi-service-matrix.ts`, `management-project-risks.ts`, `budget-alerts.ts`, `types.ts`, `people-live.ts`, `factorial-hours.ts`, `management-contract-hours.ts`, `management-service-overview.ts`?**
+  _High betweenness centrality (0.012) - this node is a cross-community bridge._
 - **What connects `supabase`, `public.netflix_users`, `platform.health_sample` to the rest of the system?**
-  _3575 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _3576 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `scripts` be split into smaller, more focused modules?**
   _Cohesion score 0.00847457627118644 - nodes in this community are weakly interconnected._
 - **Should `support.js` be split into smaller, more focused modules?**
   _Cohesion score 0.060678962844159315 - nodes in this community are weakly interconnected._
-- **Should `createClient` be split into smaller, more focused modules?**
-  _Cohesion score 0.089920658242727 - nodes in this community are weakly interconnected._
+- **Should `Card.tsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.11656746031746032 - nodes in this community are weakly interconnected._

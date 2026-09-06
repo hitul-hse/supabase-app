@@ -563,7 +563,7 @@ export function ProjectsLedger({
                   aria-haspopup="dialog"
                   aria-label={t("open", { title: p.name })}
                   data-drill-trigger={`ledger-hours-${p.id}`}
-                  className="col-span-1 cursor-pointer text-right fig text-[var(--text-primary)] underline-offset-4 transition-[color,transform] duration-150 hover:text-[var(--accent)] hover:underline active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                  className="col-span-1 cursor-pointer text-right fig text-[var(--text-primary)] underline-offset-4 control-motion hover:text-[var(--accent)] hover:underline active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 >
                   {fmtNum(p.actualHours, locale, 1)}
                 </button>

@@ -598,7 +598,7 @@ export function DataTable<T>({
                             // 13px-tall button is under the 24px floor (§8
                             // #19; WCAG 2.2). The row's padding does not count
                             // towards the target -- only the button's box does.
-                            className={`inline-flex min-h-6 items-center gap-1 transition-[color,transform] duration-150 hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+                            className={`inline-flex min-h-6 items-center gap-1 control-motion hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                               c.align === "right" ? "flex-row-reverse" : ""
                             }`}
                           >

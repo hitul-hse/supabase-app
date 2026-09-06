@@ -236,7 +236,7 @@ export function SidebarNav({ roleKey }: { roleKey: string | null }) {
                       A filled pill states the same thing once, at both widths,
                       with nothing to special-case.
                     */
-                    className={`relative flex h-8 items-center gap-2.5 overflow-hidden rounded-[var(--radius-sm)] px-3 t-callout transition-[color,background-color,transform] duration-150 active:translate-y-px group-data-[collapsed=true]/sidebar:gap-0 ${
+                    className={`relative flex h-8 items-center gap-2.5 overflow-hidden rounded-[var(--radius-sm)] px-3 t-callout control-motion active:translate-y-px group-data-[collapsed=true]/sidebar:gap-0 ${
                       active
                         ? "bg-[var(--accent)] font-medium text-[var(--accent-contrast)]"
                         : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"

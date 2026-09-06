@@ -154,6 +154,18 @@ module.exports = { __esModule: true, useTranslations: (namespace) => createTrans
   // node_modules (the temp dir sits inside it) and renders its initial pose
   // through renderToStaticMarkup like any other component.
   const springsFile = await compile("src/components/animations/springs.ts", "springs.cjs");
+  // The two shared overlay shells the dialog and the pickers now delegate to:
+  // ModalShell owns the scrim, the dialog spring, the focus trap and the
+  // scroll lock; PopoverPanel owns a dropdown's arrival and departure. Both
+  // are compiled for real rather than stubbed -- they are small, and a stub
+  // would keep this gate green if the real one started throwing during a
+  // server render (which is exactly what `renderToStaticMarkup` does here).
+  const modalShellFile = await compile("src/components/ui/ModalShell.tsx", "ModalShell.cjs", {
+    "@/components/animations/springs": posix(springsFile),
+  });
+  const popoverFile = await compile("src/components/ui/Popover.tsx", "Popover.cjs", {
+    "@/components/animations/springs": posix(springsFile),
+  });
   const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
   const drillFile = await compile("src/components/DrillDialog.tsx", "DrillDialog.cjs", {
@@ -162,6 +174,7 @@ module.exports = { __esModule: true, useTranslations: (namespace) => createTrans
     "next/link": posix(linkStub),
     "@/components/ui/Button": posix(buttonFile),
     "@/components/animations/springs": posix(springsFile),
+    "@/components/ui/ModalShell": posix(modalShellFile),
   });
   // The ledger's LOGGED popup asks the server; outside a request the action is
   // never called (the dialog opens on click), so an unresolvable stub is enough.
@@ -205,7 +218,7 @@ module.exports = {
   const iconsFile = await compile("src/components/nav-icons.tsx", "nav-icons.cjs");
   const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub),
-      "../nav-icons": posix(iconsFile) });
+      "../nav-icons": posix(iconsFile), "./Popover": posix(popoverFile) });
   // The segmented skin the billable trough wears. Its Link is never rendered
   // here (only the class exports are used), but the module still imports it.
   const segmentedFile = await compile("src/components/ui/Segmented.tsx", "Segmented.cjs", {
@@ -265,6 +278,7 @@ module.exports = {
     // The select's caret, tick and key caps come from the shared sets now.
     "@/components/ui/Field": posix(fieldFile),
     "@/components/nav-icons": posix(iconsFile),
+    "@/components/ui/Popover": posix(popoverFile),
   });
   const explorer = require(
     await compile("src/app/(app)/projects/ProjectsExplorer.tsx", "ProjectsExplorer.cjs", {

@@ -49,7 +49,7 @@ export function SidebarToggle() {
         rows' do. Above Apple's 28 × 28 desktop default for an icon-only
         control (APPLE_REF §3.2) in both dimensions that matter.
       */
-      className="group/toggle relative hidden h-8 w-10 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-faint)] transition-[color,background-color,transform] duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:flex"
+      className="group/toggle relative hidden h-8 w-10 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-faint)] control-motion hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] lg:flex"
     >
       {collapsed ? <IconPanelExpand /> : <IconPanelCollapse />}
 

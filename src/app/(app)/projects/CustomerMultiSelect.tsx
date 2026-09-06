@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fmtNum } from "@/lib/locale-format";
 import { KeyboardHint } from "@/components/ui/Field";
+import { PopoverPanel } from "@/components/ui/Popover";
 import { IconCaret, IconCheck } from "@/components/nav-icons";
 
 /** Every word this control draws, resolved by the caller in the request locale. */
@@ -128,7 +129,7 @@ export function CustomerMultiSelect({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex min-w-[9rem] max-w-[15rem] items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left t-callout transition-[color,border-color,transform] duration-150 active:scale-[0.97] ${
+        className={`flex min-w-[9rem] max-w-[15rem] items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left t-callout control-motion active:scale-[0.97] ${
           selected.size
             ? "border-[var(--accent)] text-[var(--text-primary)]"
             : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -145,94 +146,98 @@ export function CustomerMultiSelect({
         />
       </button>
 
-      {open && (
-        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--surface-raised)] card-elev-raised">
-          <div className="border-b border-[var(--divider)] p-2">
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setCursor(0);
-              }}
-              onKeyDown={onKeyDown}
-              role="combobox"
-              aria-expanded
-              aria-controls="customer-options"
-              aria-autocomplete="list"
-              placeholder={labels.searchPlaceholder}
-              className="w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--page)] px-2.5 py-1 t-callout text-[var(--text-primary)] transition-colors placeholder-[var(--text-muted)] focus:border-[var(--accent)]"
-            />
-            <p className="mt-1 flex items-center justify-between t-subhead text-[var(--text-faint)]">
-              <span>{labels.counts(filtered.length, options.length, selected.size)}</span>
-              <KeyboardHint />
+      {/* APPLE_REF §6.2 "Popover": grows from the trigger's top-left on
+          SPRING_POPOVER, leaves in a 120 ms fade along the same path. */}
+      <PopoverPanel
+        open={open}
+        origin="top left"
+        className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--surface-raised)] card-elev-raised"
+      >
+        <div className="border-b border-[var(--divider)] p-2">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setCursor(0);
+            }}
+            onKeyDown={onKeyDown}
+            role="combobox"
+            aria-expanded
+            aria-controls="customer-options"
+            aria-autocomplete="list"
+            placeholder={labels.searchPlaceholder}
+            className="w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--page)] px-2.5 py-1 t-callout text-[var(--text-primary)] transition-colors placeholder-[var(--text-muted)] focus:border-[var(--accent)]"
+          />
+          <p className="mt-1 flex items-center justify-between t-subhead text-[var(--text-faint)]">
+            <span>{labels.counts(filtered.length, options.length, selected.size)}</span>
+            <KeyboardHint />
+          </p>
+        </div>
+
+        <div
+          ref={listRef}
+          id="customer-options"
+          role="listbox"
+          aria-label={labels.listLabel}
+          aria-multiselectable
+          className="flex-1 overflow-y-auto"
+        >
+          {filtered.length === 0 ? (
+            <p className="px-3 py-4 text-center t-subhead text-[var(--text-faint)]">
+              {labels.noMatch(query.trim())}
             </p>
-          </div>
-
-          <div
-            ref={listRef}
-            id="customer-options"
-            role="listbox"
-            aria-label={labels.listLabel}
-            aria-multiselectable
-            className="flex-1 overflow-y-auto"
-          >
-            {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center t-subhead text-[var(--text-faint)]">
-                {labels.noMatch(query.trim())}
-              </p>
-            ) : (
-              filtered.map((o, i) => {
-                const on = selected.has(o.name);
-                const hot = i === cursor;
-                return (
-                  <button
-                    key={o.name}
-                    type="button"
-                    role="option"
-                    data-option
-                    aria-selected={on}
-                    onMouseEnter={() => setCursor(i)}
-                    onClick={() => toggle(o.name)}
-                    className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left t-callout transition-colors active:translate-y-px ${
-                      hot ? "bg-[var(--surface-hover)]" : ""
-                    } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span
-                        aria-hidden
-                        className={`flex h-3.5 w-3.5 flex-none items-center justify-center rounded-[var(--radius-sm)] border transition-colors ${
-                          on
-                            ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                            : "border-[var(--border-strong)]"
-                        }`}
-                      >
-                        {on && <IconCheck className="h-2.5 w-2.5" />}
-                      </span>
-                      <span className="truncate">{labels.displayName(o.name)}</span>
+          ) : (
+            filtered.map((o, i) => {
+              const on = selected.has(o.name);
+              const hot = i === cursor;
+              return (
+                <button
+                  key={o.name}
+                  type="button"
+                  role="option"
+                  data-option
+                  aria-selected={on}
+                  onMouseEnter={() => setCursor(i)}
+                  onClick={() => toggle(o.name)}
+                  className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left t-callout transition-colors active:translate-y-px ${
+                    hot ? "bg-[var(--surface-hover)]" : ""
+                  } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      aria-hidden
+                      className={`flex h-3.5 w-3.5 flex-none items-center justify-center rounded-[var(--radius-sm)] border transition-colors ${
+                        on
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                          : "border-[var(--border-strong)]"
+                      }`}
+                    >
+                      {on && <IconCheck className="h-2.5 w-2.5" />}
                     </span>
-                    <span className="flex-none fig text-[var(--text-faint)]">
-                      {fmtNum(o.hours, locale, 0)}h
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          {selected.size > 0 && (
-            <div className="flex items-center justify-end border-t border-[var(--divider)] px-3 py-1.5">
-              <button
-                type="button"
-                onClick={() => onChange(new Set())}
-                className="t-subhead text-[var(--text-secondary)] transition-[color,transform] duration-150 hover:text-[var(--text-primary)] active:translate-y-px"
-              >
-                {labels.clear(selected.size)}
-              </button>
-            </div>
+                    <span className="truncate">{labels.displayName(o.name)}</span>
+                  </span>
+                  <span className="flex-none fig text-[var(--text-faint)]">
+                    {fmtNum(o.hours, locale, 0)}h
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
-      )}
+
+        {selected.size > 0 && (
+          <div className="flex items-center justify-end border-t border-[var(--divider)] px-3 py-1.5">
+            <button
+              type="button"
+              onClick={() => onChange(new Set())}
+              className="t-subhead text-[var(--text-secondary)] control-motion hover:text-[var(--text-primary)] active:translate-y-px"
+            >
+              {labels.clear(selected.size)}
+            </button>
+          </div>
+        )}
+      </PopoverPanel>
     </div>
   );
 }

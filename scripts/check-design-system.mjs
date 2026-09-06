@@ -640,8 +640,42 @@ check(
   !/bg-\[var\(--surface-2\)\][^`"]*shadow-lg/.test(readStripped("src/components/ui/Charts.tsx")),
 );
 
-const drillSrc = readStripped("src/components/DrillDialog.tsx");
-check("the drill dialog backdrop is the .scrim material, not an inline rgba()", /className="scrim /.test(drillSrc) && !/rgba\(/.test(drillSrc));
+/*
+ * THE DIALOG BACKDROP, now asserted at its owner and at every consumer.
+ *
+ * The scrim, the panel spring, the focus trap and the scroll lock moved out of
+ * DrillDialog into ui/ModalShell.tsx, which the drill dialog, the Overview
+ * hero's week drill-down and the Management matrix's drill-down all render.
+ * So the check follows the code AND gets wider: `.scrim` is asserted where it
+ * now lives, the inline-rgba ban is asserted on all four files (it used to
+ * cover one), and each dialog must go through the shell rather than paint its
+ * own backdrop -- which is exactly how the two hand-rolled dialogs came to be
+ * carrying `rgba(10, 14, 15, 0.66)` plus a 4 px backdrop-filter that had
+ * already been measured as halving this animation's frame rate.
+ */
+const shellSrc = readStripped("src/components/ui/ModalShell.tsx");
+check("the dialog shell's backdrop is the .scrim material", /className="scrim /.test(shellSrc));
+for (const [f, what] of [
+  ["src/components/ui/ModalShell.tsx", "the dialog shell"],
+  ["src/components/DrillDialog.tsx", "the drill dialog"],
+  ["src/app/(app)/OverviewHero.tsx", "the Overview week drill-down"],
+  ["src/app/(app)/dashboard/management/ManagementDrilldown.tsx", "the Management drill-down"],
+]) {
+  const src = readStripped(f);
+  check(`${what} paints no inline rgba() backdrop`, !/rgba\(/.test(src), f);
+}
+for (const [f, what] of [
+  ["src/components/DrillDialog.tsx", "the drill dialog"],
+  ["src/app/(app)/OverviewHero.tsx", "the Overview week drill-down"],
+  ["src/app/(app)/dashboard/management/ManagementDrilldown.tsx", "the Management drill-down"],
+]) {
+  const src = readStripped(f);
+  check(
+    `${what} opens through ModalShell, not a hand-rolled overlay`,
+    /<ModalShell/.test(src) && !/aria-modal="true"/.test(src),
+    f,
+  );
+}
 const sheetSrc = readStripped("src/components/MobileSidebar.tsx");
 check("the mobile sheet backdrop is the .scrim material, not bg-black", /className=\{`scrim /.test(sheetSrc) && !/bg-black/.test(sheetSrc));
 const cssStripped = stripComments(globals);
@@ -1135,6 +1169,81 @@ for (const f of new Set(ROLE_ONLY)) {
   const prose = src.match(/\bleading-(?:relaxed|loose)\b/g) ?? [];
   check(`${name} keeps prose leading off UI text`, prose.length === 0, [...new Set(prose)].join(", "));
 }
+
+// ---------------------------------------------------------------------------
+// 12. The motion vocabulary (APPLE_REF §6.2)
+// ---------------------------------------------------------------------------
+/*
+ * `control-motion` is the one control transition: hover tint 150 ms, press
+ * 100 ms. Two things about it are load-bearing and were both wrong before it
+ * existed, so both are asserted here rather than trusted:
+ *
+ *  1. It must name `translate`, `scale` and `rotate` beside `transform`.
+ *     Tailwind 4 compiles `active:translate-y-px` to the INDIVIDUAL
+ *     `translate` property, so a transition list that names only `transform`
+ *     animates nothing -- measured: `getComputedStyle(el).transform` reads
+ *     `none` while a button is held down. Every hand-rolled
+ *     `transition-[color,background-color,transform]` in the app had that bug.
+ *  2. It must carry BOTH durations; one `duration-150` cannot express a
+ *     150 ms tint and a 100 ms press.
+ */
+check("globals.css defines the control-motion utility", /@utility control-motion \{/.test(cssStripped));
+const controlMotion = (/@utility control-motion \{([\s\S]*?)\n\}/.exec(cssStripped) ?? [, ""])[1];
+for (const prop of ["transform", "translate", "scale", "rotate"]) {
+  check(
+    `control-motion transitions ${prop} (a Tailwind 4 press is not "transform")`,
+    new RegExp(`\\b${prop}\\b`).test(controlMotion),
+  );
+}
+check(
+  "control-motion carries BOTH durations: 150 ms tint, 100 ms press",
+  /transition-duration:[^;]*150ms[^;]*100ms/.test(controlMotion),
+);
+check("the Button primitive wears control-motion", /control-motion/.test(buttonSrc));
+check(
+  "Button cancels its hover legs when disabled (a dead control gives no feedback)",
+  (buttonSrc.match(/disabled:hover:/g) ?? []).length >= 4,
+  `${(buttonSrc.match(/disabled:hover:/g) ?? []).length} disabled:hover: rule(s)`,
+);
+
+/*
+ * `.disclose` is the second ruled exception to the compositor-only rule (the
+ * sidebar's `width` is the first): a disclosure IS a change of extent. Its
+ * licence is conditional on the reduced-motion branch, because the global
+ * `transition-duration: 0.01ms` override does NOT reach a transition DELAY,
+ * and the class uses one to keep a collapsing panel painted while it shrinks.
+ */
+check(".disclose exists as the one disclosure vocabulary", /\.disclose\s*\{/.test(cssStripped));
+check(
+  ".disclose removes the movement under reduced motion, not just its duration",
+  /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]{0,400}?\.disclose[\s\S]{0,300}?transition:\s*none/.test(cssStripped),
+);
+check(
+  "a shut .disclose is not a tab stop (visibility, not merely zero height)",
+  /\.disclose > \*\s*\{[\s\S]*?visibility:\s*hidden/.test(cssStripped),
+);
+check(
+  "the theme switch eases the page, and only the page",
+  /background-color 200ms ease,\s*\n?\s*color 200ms ease/.test(cssStripped),
+);
+
+/*
+ * No `transition: all` anywhere in the shell -- it animates properties nobody
+ * chose, including layout ones (APPLE_REF §6.1 #8). Four of the five files
+ * that carried it are fixed outright: the role-permission toggle wears
+ * `control-motion`, the password bar names `transition-colors`, the /video
+ * hover names `width`, and the diverging analytics bar lost its transition
+ * entirely (it animated `left` and `width` on a FILTER re-render, which §6.2
+ * says must not animate at all).
+ *
+ * The fifth is pinned rather than fixed because /time/dashboard was under an
+ * in-flight regression fix by another agent during this pass; editing it would
+ * have clobbered that work. Same ratchet rule as the debt lists above:
+ * existing tolerated, new ones fail.
+ */
+const KNOWN_TRANSITION_ALL_DEBT = ["src/app/(app)/time/dashboard/CapacityPanel.tsx"];
+const transitionAll = TSX.filter((f) => /transition-all|transition:\s*all/.test(readStripped(f)));
+ratchet("transition-all", transitionAll, KNOWN_TRANSITION_ALL_DEBT);
 
 const seg = readStripped("src/components/ui/Segmented.tsx");
 check("Segmented options are links, not buttons", /<Link/.test(seg) && !/<button/.test(seg.split("export function IconButton")[0]));

@@ -115,7 +115,7 @@ function FeatureCard({ f, index, visible }: { f: Feature; index: number; visible
         <p className="text-sm leading-relaxed text-slate-400">{f.desc}</p>
       </div>
       <div
-        className="absolute bottom-0 left-0 h-0.5 w-0 transition-all duration-500 group-hover:w-full"
+        className="absolute bottom-0 left-0 h-0.5 w-0 transition-[width] duration-500 group-hover:w-full"
         style={{ background: `linear-gradient(90deg, ${f.accent}, transparent)` }}
       />
     </motion.div>

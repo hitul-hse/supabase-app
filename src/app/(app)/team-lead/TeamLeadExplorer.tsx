@@ -46,6 +46,7 @@ import { TeamDeepAnalysis } from "./TeamDeepAnalysis";
 import { TeamLeadCharts } from "./TeamLeadCharts";
 import { TeamLeadBoard } from "./TeamLeadBoard";
 import { MobileDisclosure } from "@/components/MobileDisclosure";
+import { PopoverPanel } from "@/components/ui/Popover";
 
 /** The key an unassigned row filters under. Distinct from any real team key. */
 const NO_TEAM = "__none__";
@@ -164,104 +165,108 @@ function PeopleSelect({
         </span>
       </button>
 
-      {open && (
-        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev-raised">
-          <div className="border-b border-[var(--border)] p-2">
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setCursor(0);
-              }}
-              onKeyDown={onKeyDown}
-              role="combobox"
-              aria-expanded
-              aria-controls="teamlead-people-options"
-              aria-autocomplete="list"
-              placeholder="Search people…"
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-            />
-            <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
-              <span>
-                {filtered.length.toLocaleString("en-GB")}
-                {filtered.length !== options.length
-                  ? ` of ${options.length.toLocaleString("en-GB")}`
-                  : ""}{" "}
-                {options.length === 1 ? "person" : "people"}
-                {selected.length > 0 ? ` · ${selected.length} selected` : ""}
-              </span>
-              <span aria-hidden>↑↓ move · ⏎ pick · esc close</span>
-            </p>
-          </div>
-
-          <div
-            ref={listRef}
-            id="teamlead-people-options"
-            role="listbox"
-            aria-label="People"
-            aria-multiselectable
-            className="flex-1 overflow-y-auto"
-          >
-            {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
-                No people match “{query.trim()}”
-              </p>
-            ) : (
-              filtered.map((o, i) => {
-                const on = selected.includes(o.id);
-                const hot = i === cursor;
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    role="option"
-                    data-option
-                    aria-selected={on}
-                    onMouseEnter={() => setCursor(i)}
-                    onClick={() => toggle(o.id)}
-                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-[12px] transition-colors ${
-                      hot ? "bg-[var(--surface-hover)]" : ""
-                    } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
-                  >
-                    <span
-                      aria-hidden
-                      className={`mt-[3px] flex h-3 w-3 flex-none items-center justify-center border ${
-                        on
-                          ? "border-[var(--accent)] bg-[var(--accent)]"
-                          : "border-[var(--border)]"
-                      }`}
-                    >
-                      {on ? (
-                        <svg
-                          width="8"
-                          height="8"
-                          viewBox="0 0 10 10"
-                          fill="none"
-                          stroke="var(--accent-contrast)"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M1.5 5.5 4 8l4.5-6" />
-                        </svg>
-                      ) : null}
-                    </span>
-                    <span className="flex flex-col leading-tight">
-                      <span className="truncate">{o.name}</span>
-                      {o.hint ? (
-                        <span className="font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)]">
-                          {o.hint}
-                        </span>
-                      ) : null}
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
+      {/* APPLE_REF 6.2 "Popover": grows from the trigger's top-left on
+          SPRING_POPOVER, leaves in a 120 ms fade along the same path. */}
+      <PopoverPanel
+        open={open}
+        origin="top left"
+        className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev-raised"
+      >
+        <div className="border-b border-[var(--border)] p-2">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setCursor(0);
+            }}
+            onKeyDown={onKeyDown}
+            role="combobox"
+            aria-expanded
+            aria-controls="teamlead-people-options"
+            aria-autocomplete="list"
+            placeholder="Search people…"
+            className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+          />
+          <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
+            <span>
+              {filtered.length.toLocaleString("en-GB")}
+              {filtered.length !== options.length
+                ? ` of ${options.length.toLocaleString("en-GB")}`
+                : ""}{" "}
+              {options.length === 1 ? "person" : "people"}
+              {selected.length > 0 ? ` · ${selected.length} selected` : ""}
+            </span>
+            <span aria-hidden>↑↓ move · ⏎ pick · esc close</span>
+          </p>
         </div>
-      )}
+
+        <div
+          ref={listRef}
+          id="teamlead-people-options"
+          role="listbox"
+          aria-label="People"
+          aria-multiselectable
+          className="flex-1 overflow-y-auto"
+        >
+          {filtered.length === 0 ? (
+            <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
+              No people match “{query.trim()}”
+            </p>
+          ) : (
+            filtered.map((o, i) => {
+              const on = selected.includes(o.id);
+              const hot = i === cursor;
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  role="option"
+                  data-option
+                  aria-selected={on}
+                  onMouseEnter={() => setCursor(i)}
+                  onClick={() => toggle(o.id)}
+                  className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-[12px] transition-colors ${
+                    hot ? "bg-[var(--surface-hover)]" : ""
+                  } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
+                >
+                  <span
+                    aria-hidden
+                    className={`mt-[3px] flex h-3 w-3 flex-none items-center justify-center border ${
+                      on
+                        ? "border-[var(--accent)] bg-[var(--accent)]"
+                        : "border-[var(--border)]"
+                    }`}
+                  >
+                    {on ? (
+                      <svg
+                        width="8"
+                        height="8"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                        stroke="var(--accent-contrast)"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M1.5 5.5 4 8l4.5-6" />
+                      </svg>
+                    ) : null}
+                  </span>
+                  <span className="flex flex-col leading-tight">
+                    <span className="truncate">{o.name}</span>
+                    {o.hint ? (
+                      <span className="font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)]">
+                        {o.hint}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </PopoverPanel>
     </div>
   );
 }

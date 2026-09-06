@@ -335,8 +335,16 @@ export function DivergingBars({
             <div className="relative h-4 flex-1">
               {/* Centre axis */}
               <span className="absolute left-1/2 top-0 h-full w-px bg-[var(--border-strong)]" />
+              {/*
+                NO transition. This bar is positioned with `left` and sized
+                with `width` -- both layout -- and the only thing that changes
+                either is a filter or a range re-render, which APPLE_REF §6.2
+                says must not animate ("Sort / page / filter re-render: rows
+                swap in place, no entrance"). `transition-all` animated them
+                anyway, which is the banned property AND the banned moment.
+              */}
               <span
-                className="absolute top-[2px] h-3 rounded-[2px] transition-all"
+                className="absolute top-[2px] h-3 rounded-[2px]"
                 style={{
                   background: positive ? "var(--good)" : "var(--critical)",
                   opacity: 0.85,

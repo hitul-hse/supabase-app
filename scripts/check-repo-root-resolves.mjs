@@ -43,6 +43,18 @@ check("REPO_ROOT names a directory holding this repo's package.json",
   existsSync(`${REPO_ROOT}/package.json`) && existsSync(`${REPO_ROOT}/scripts/lib/repo-root.mjs`),
   REPO_ROOT);
 
+/*
+ * The specific shape an over-climb produces. "/" holds no package.json on any
+ * machine this runs on, so the assertion above already covers it -- but it
+ * covers it as "package.json missing", which reads like a broken checkout. Name
+ * the real cause separately, because the failure is otherwise diagnosed wrong:
+ * a root of "/" still looks absolute, still starts with a separator, and in a
+ * deep checkout an over-climb lands on a real directory and hides completely.
+ */
+check("REPO_ROOT is not the filesystem root",
+  REPO_ROOT !== "" && REPO_ROOT !== "/" && !/^[A-Za-z]:\/?$/.test(REPO_ROOT),
+  `got ${JSON.stringify(REPO_ROOT)} — the derivation climbed past the checkout`);
+
 check("REPO_ROOT carries no trailing separator",
   !/[\\/]$/.test(REPO_ROOT),
   `a trailing separator silently breaks the f.replace(\`\${REPO_ROOT}/\`, "") idiom — got ${JSON.stringify(REPO_ROOT)}`);
@@ -99,10 +111,21 @@ check(`all ${users.length - 1} consumer(s) import REPO_ROOT from the shared help
  * Some static targets legitimately do not exist yet: screenshots and snapshots
  * a script WRITES. Recognised by extension and by the tmp-/dot prefix the repo
  * already gitignores, so a new one needs no registration here.
+ *
+ * .env.local is the other kind of legitimate absence, and getting it wrong is
+ * what made this gate red on CI while green on every developer machine. It is
+ * gitignored, it is absent on every runner ON PURPOSE -- ci.yml says the live
+ * credentials "must NOT be added" -- and scripts/lib/gate-env.mjs exists
+ * precisely so a gate treats it as optional and SKIPs. Requiring it to exist
+ * asserted the opposite of the repo's own doctrine, and it passed locally only
+ * because a developer checkout always has one. What this gate is entitled to
+ * check is that the PATH is built from a real root, which the assertions above
+ * settle; whether the file happens to be present is the caller's business.
  */
 const STATIC_PATH = /\$\{REPO_ROOT\}(\/[A-Za-z0-9._\-/()[\] ]*)`/g;
 const WRITTEN = /\.(png|jpg|jpeg|json|sql|md|txt)$/;
 const OUTPUT_HINT = /^(tmp-|\.)/;
+const OPTIONAL_AT_RUNTIME = new Set(["/.env.local"]);
 
 const built = [];
 for (const rel of users) {
@@ -111,7 +134,7 @@ for (const rel of users) {
     for (const m of line.matchAll(STATIC_PATH)) {
       const suffix = m[1];
       if (!suffix || suffix === "/") continue;
-      built.push({ rel, suffix });
+      built.push({ rel, suffix, optional: OPTIONAL_AT_RUNTIME.has(suffix) });
     }
   }
 }
@@ -121,12 +144,18 @@ check(`all ${built.length} static \${REPO_ROOT} path(s) stay inside the repo`,
   escaped.length === 0,
   escaped.map((e) => `${e.rel}: ${e.suffix}`).join("\n        "));
 
-const absent = built.filter(({ suffix }) => !existsSync(`${REPO_ROOT}${suffix}`)
+const absent = built.filter(({ suffix, optional }) => !optional
+  && !existsSync(`${REPO_ROOT}${suffix}`)
   && !(WRITTEN.test(suffix) && OUTPUT_HINT.test(suffix.split("/").pop() ?? "")));
 
-check(`every static \${REPO_ROOT} path that names an INPUT file resolves to a real file`,
+const optionalCount = built.filter((b) => b.optional).length;
+check(`every static \${REPO_ROOT} path that names a COMMITTED input resolves to a real file`
+  + ` (${built.length - optionalCount} checked, ${optionalCount} runtime-optional)`,
   absent.length === 0,
-  absent.map((e) => `${e.rel} -> ${e.suffix}`).join("\n        "));
+  // Absolute, not just the suffix: a reviewer reading "-> /.env.local" cannot
+  // tell a bad root from a missing file, and that ambiguity already cost one
+  // wrong diagnosis of this very gate.
+  absent.map((e) => `${e.rel} builds ${REPO_ROOT}${e.suffix}`).join("\n        "));
 
 console.log(failures === 0
   ? `\nThe repo root is derived from the tree, not from a machine. ${users.length - 1} script(s) checked.`

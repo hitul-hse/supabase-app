@@ -11,9 +11,11 @@
  * be caught by exercising the happy path.
  */
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };

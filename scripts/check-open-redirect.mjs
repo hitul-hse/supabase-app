@@ -23,7 +23,9 @@ const HOSTILE = [
 ];
 
 let failed = 0;
+import { record } from "./lib/gate-result.mjs";
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
   if (!ok) failed++;
 };

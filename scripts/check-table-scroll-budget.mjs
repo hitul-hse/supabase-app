@@ -67,6 +67,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 // Repo root resolved from this file, so these paths work on any machine and
 // from any working directory. They were previously hardcoded to a drive-letter path,
@@ -79,7 +80,7 @@ const ENV_PATH = join(REPO, ".env.local");
 /* ── skip path: no credentials, nothing to measure ─────────────────────── */
 if (!existsSync(".env.local") && !existsSync(ENV_PATH)) {
   console.log("SKIP: no .env.local, so no session can be minted for these authed routes");
-  process.exit(0);
+  notRunInChain();
 }
 
 const env = Object.fromEntries(
@@ -94,7 +95,7 @@ const env = Object.fromEntries(
 
 if (!env.SUPABASE_SERVICE_ROLE_KEY || !env.NEXT_PUBLIC_SUPABASE_URL) {
   console.log("SKIP: no service-role key in .env.local, so no session can be minted");
-  process.exit(0);
+  notRunInChain();
 }
 
 let launchChromium;
@@ -102,7 +103,7 @@ try {
   ({ launchChromium } = await import("./lib/launch-chromium.mjs"));
 } catch {
   console.log("SKIP: playwright is not installed in this environment");
-  process.exit(0);
+  notRunInChain();
 }
 
 const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
@@ -234,6 +235,7 @@ const ROUTES = [
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -256,7 +258,7 @@ const linkBody = await gen.json();
 const hashed = linkBody?.properties?.hashed_token ?? linkBody?.hashed_token;
 if (!hashed) {
   console.log(`SKIP: could not mint a magic link for ${EMAIL} (${gen.status})`);
-  process.exit(0);
+  notRunInChain();
 }
 
 const browser = await launchChromium();

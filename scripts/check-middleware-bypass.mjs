@@ -11,6 +11,7 @@
 // fix in check-auth-gates.mjs.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { record } from "./lib/gate-result.mjs";
 
 /**
  * Every page under src/app/(app), the authenticated route group.
@@ -76,6 +77,7 @@ for (const path of protectedRoutes) {
         body,
       );
 
+    record(!leaked);
     if (leaked) {
       console.log(`FAIL ${path} [${payload}] -> 200 LEAKED PROTECTED CONTENT`);
       failed = true;

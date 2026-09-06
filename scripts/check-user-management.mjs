@@ -25,6 +25,7 @@ import { createClient } from "@supabase/supabase-js";
 // Next's bundled swc, not a top-level @swc/core: that package is not a direct
 // dependency, and check-admin-user-writes.mjs compiles this same module this way.
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 await loadBindings();
 
@@ -36,7 +37,7 @@ if (existsSync(".env.local")) {
     if (m && env[m[1]] === undefined) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
   }
 }
-if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); process.exit(0); }
+if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); notRunInChain(); }
 
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -44,6 +45,7 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };

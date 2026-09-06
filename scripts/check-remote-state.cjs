@@ -1,6 +1,7 @@
 // Confirms the fixes are actually present in the pushed remote tree
 // (origin/master), read straight out of git rather than from the working copy.
 const { execFileSync } = require("node:child_process");
+const { record } = require("./lib/gate-result.mjs");
 
 const show = (path) =>
   execFileSync("git", ["show", `origin/master:${path}`], { encoding: "utf8" });
@@ -105,6 +106,7 @@ const checks = [
 
 let failed = 0;
 for (const c of checks) {
+  record(c.ok);
   console.log(`${c.ok ? "PASS" : "FAIL"}: ${c.name}`);
   if (!c.ok) failed++;
 }

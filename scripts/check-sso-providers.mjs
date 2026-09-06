@@ -15,10 +15,11 @@
  * red over a missing secret.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 if (!existsSync(".env.local")) {
   console.log("SKIP: no .env.local — nothing to probe");
-  process.exit(0);
+  notRun();
 }
 
 const env = readFileSync(".env.local", "utf8");
@@ -29,13 +30,14 @@ const siteUrl = get("NEXT_PUBLIC_SITE_URL");
 
 if (!url || !anon) {
   console.log("SKIP: no Supabase URL/key in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 console.log(`live project: ${url}\n`);
 
 let notReady = 0;
 const report = (ok, name, detail = "") => {
+  record(ok);
   console.log(`${ok ? "ENABLED  " : "NOT SET  "} ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) notReady++;
 };

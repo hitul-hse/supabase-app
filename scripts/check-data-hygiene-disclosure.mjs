@@ -45,6 +45,7 @@
 
 import { launchChromium } from "./lib/launch-chromium.mjs";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 // The guard has to sit above the browser launch. The only skip path used to be
@@ -53,12 +54,13 @@ const env = loadEnv();
 // crashed, and it took the whole `npm run test:db` chain down with it.
 if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(0);
+  notRunInChain();
 }
 
 const SITE = process.env.SITE ?? "http://localhost:3100";
 let failures = 0;
 const ok = (pass, label, detail = "") => {
+  record(pass);
   console.log(`${pass ? "PASS" : "FAIL"}: ${label}`);
   if (!pass) { if (detail) console.log(`        ${detail}`); failures += 1; }
 };
@@ -136,7 +138,7 @@ try {
   const phone = await openPage(browser, 390, 844);
   if (!phone) {
     console.log("SKIP: could not mint a login link");
-    process.exit(0);
+    notRunInChain();
   }
   ok(phone.path === "/data-hygiene", `phone reached the page (on ${phone.path})`,
     "not signed in, so every measurement below would be of the login page");

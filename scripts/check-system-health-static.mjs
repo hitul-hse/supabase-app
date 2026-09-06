@@ -37,9 +37,11 @@
  * gates that call other gates hide which one actually failed.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };

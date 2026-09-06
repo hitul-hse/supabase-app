@@ -34,6 +34,7 @@
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { chainFiles, CI_CHAINS } from "./lib/script-files.mjs";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 /*
  * SCOPE, AND WHY IT WIDENED ON 2026-09-06
@@ -135,4 +136,5 @@ if (offenders.length) {
   console.log("PASS: no gate or committed config hardcodes a developer-specific absolute path.");
 }
 
+record(offenders.length === 0);
 process.exit(offenders.length ? 1 : 0);

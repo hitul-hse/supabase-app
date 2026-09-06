@@ -44,6 +44,7 @@
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
+import { record } from "./lib/gate-result.mjs";
 
 const require = createRequire(import.meta.url);
 const { parse } = require("@formatjs/icu-messageformat-parser");
@@ -55,6 +56,7 @@ const FILES = readdirSync(DIR).filter((f) => /\.(tsx?|mts)$/.test(f)).sort();
 
 let failures = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
 };

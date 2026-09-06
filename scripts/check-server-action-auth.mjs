@@ -27,16 +27,18 @@
 import fs, { existsSync, rmSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
 
 if (!existsSync("src/app/(app)/time/actions.ts")) {
   console.log("SKIP: no time actions to probe");
-  process.exit(0);
+  notRun();
 }
 
 const PORT = 54341;

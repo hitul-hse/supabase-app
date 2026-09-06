@@ -10,6 +10,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { record } from "./lib/gate-result.mjs";
 
 // Repo root resolved from this file, so these paths work on any machine and
 // from any working directory. They were previously hardcoded to a drive-letter path,
@@ -20,7 +21,7 @@ const REPO = fileURLToPath(new URL("..", import.meta.url));
 const src = readFileSync(join(REPO, "scripts/check-user-management.mjs"), "utf8");
 
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };
 
 // The predicate, lifted verbatim from the gate so they cannot drift silently.
 const m = /const throttled = \/([^/]+)\/i\.test\(/.exec(src);

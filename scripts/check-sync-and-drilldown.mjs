@@ -14,9 +14,11 @@
 // each produces a confidently wrong dashboard rather than an error.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { record } from "./lib/gate-result.mjs";
 
 let failures = 0;
 function check(label, ok, detail) {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
 }

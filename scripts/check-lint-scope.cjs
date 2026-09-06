@@ -26,9 +26,11 @@
 // It deliberately does NOT run eslint (that costs ~90s and CI already runs it
 // as its own job). It is a static agreement check between two config files.
 const fs = require("node:fs");
+const { record } = require("./lib/gate-result.mjs");
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (ok) {
     console.log(`PASS | ${name}`);
   } else {

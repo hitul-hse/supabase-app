@@ -23,11 +23,13 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { record } from "./lib/gate-result.mjs";
 
 const require_ = createRequire(pathToFileURL(resolvePath("scripts/_x.cjs")));
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   if (!ok) failed = true;
   console.log(`${ok ? "PASS" : "FAIL"} | ${label}${!ok && detail ? `\n       ${detail}` : ""}`);
 };

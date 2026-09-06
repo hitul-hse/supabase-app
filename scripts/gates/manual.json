@@ -145,6 +145,62 @@
       "why": "Reads NEXT_PUBLIC_SUPABASE_URL out of the DEPLOYED client bundle to prove production points at the project we backfilled. Fetches public assets from the live site; there is no deployment to read during a pull request.",
       "requires": [".env.local", "the deployed site"],
       "run": "node scripts/check-prod-config.mjs [site-url]"
+    },
+    {
+      "file": "scripts/check-remote-state.cjs",
+      "why": "Reads every file it asserts on out of origin/master with `git show`, so it proves the fixes reached the PUSHED tree rather than the working copy. actions/checkout fetches a single commit and no origin/master remote-tracking ref, so on a runner every `git show origin/master:...` raises rather than answering; deepening the checkout just to run it would make CI slower to tell us something a push already settles.",
+      "requires": ["a full git clone with an origin/master remote-tracking ref"],
+      "run": "node scripts/check-remote-state.cjs"
+    }
+  ],
+  "diagnosticsReadme": [
+    "SCRIPTS NAMED check-* THAT ARE NOT GATES.",
+    "",
+    "Every other scripts/**/check-*.[cm]js must emit `RESULT pass= fail= notrun=`",
+    "from real counts, because a gate that exits 0 having asserted nothing is",
+    "indistinguishable from one that passed -- the failure that let a pull request",
+    "be opened on a crashed check-time-integration.mjs on 2026-09-04.",
+    "",
+    "The files below are exempt because they report an explanation rather than a",
+    "verdict: they answer a question a human asked once, print what they found, and",
+    "have no pass or fail state to count. Exempting them is honest; renaming them",
+    "out of check-* would be honester, and is the right fix when someone next",
+    "touches one.",
+    "",
+    "THIS IS NOT A SUPPRESSION LIST, and check-gates-runnable-on-ci.mjs does not",
+    "take the exemption on trust: a registered file that prints PASS or FAIL is a",
+    "gate hiding here, and fails the audit. So the only way to park a real gate in",
+    "this list is to first stop it reporting a verdict, which is not something that",
+    "happens by accident."
+  ],
+  "diagnostics": [
+    {
+      "file": "scripts/check-google-client-manageable.mjs",
+      "why": "Answers 'can an agent add the OAuth redirect URI without a human?' and concludes no, because Google exposes no API for it. The output is the reasoning; there is no state of the world that would make it pass or fail."
+    },
+    {
+      "file": "scripts/check-my-work-as-mathias.mjs",
+      "why": "Prints what one named person's My Work page resolves to -- customer counts, responsibility split, department coverage -- so a human can compare it against what he says he owns. No expected value exists to assert against."
+    },
+    {
+      "file": "scripts/check-my-work-browser-flow.mjs",
+      "why": "Fetches the deployed My Work page and prints which customer names and role labels appear in the HTML, dumping a slice when they do not. A reconnaissance dump for diagnosing a rendering complaint, not a threshold."
+    },
+    {
+      "file": "scripts/check-prod-config.mjs",
+      "why": "Explains why production's hours differ from this checkout's: which database it reads, whether the backfill reached it, and what the numbers should become after a deploy. A situation report whose conclusion changes with every deploy."
+    },
+    {
+      "file": "scripts/check-trackingtime-parity.mjs",
+      "why": "Reconciles our hours against TrackingTime's and attributes the gap to calendar time, missing imports and stale rows. The gap is a quantity to explain, not a bound to assert; a non-zero difference is expected and normal."
+    },
+    {
+      "file": "scripts/check-view-fix-impact.mjs",
+      "why": "Prints per-role row counts across four views under set_config'd JWT claims, so the effect of a proposed view change can be read before it is applied. Exploratory: the counts ARE the output."
+    },
+    {
+      "file": "scripts/gates/check-factorial-mutations.mjs",
+      "why": "Documents one aggregation line (cur.minutes += minutes) and the silent data loss a mutation to it would cause, naming which real gate would catch it. Prose about a risk, deliberately not a test of it."
     }
   ]
 }

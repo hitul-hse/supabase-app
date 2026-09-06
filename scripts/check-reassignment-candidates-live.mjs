@@ -14,6 +14,7 @@ import { createRequire } from "node:module";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 // Guarded: on a CI runner there is no .env.local and the secrets already
 // arrive as environment variables. The unguarded read threw ENOENT here before
@@ -71,7 +72,7 @@ const { getReassignmentCandidates } = require(modFile);
 // like a broken gate instead of an absent secret.
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: no Supabase credentials, so there is no live database to check");
-  process.exit(0);
+  notRunInChain();
 }
 
 const supabase = createClient(
@@ -82,6 +83,7 @@ const supabase = createClient(
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

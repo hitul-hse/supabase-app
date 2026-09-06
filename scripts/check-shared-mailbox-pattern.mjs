@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import pg from "pg";
 import { SHARED_MAILBOX_RE, normaliseEmail } from "./lib/factorial.mjs";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 // The pattern as it stood in the baseline script before the refactor (f685516).
 const ORIGINAL = /^(info|jobs|office|kontakt|kontact|mail|hello|admin|noreply|no-reply)@/i;
@@ -37,7 +38,7 @@ const { rows } = await c.query(`
 await c.end();
 
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
 
 const disagree = [];
 for (const r of rows) {

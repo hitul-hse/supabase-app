@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 if (existsSync(".env.local")) {
   for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -20,7 +21,7 @@ if (existsSync(".env.local")) {
 }
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.SUPABASE_DB_URL) {
   console.log("SKIP: no Supabase credentials, so there is no live database to check");
-  process.exit(0);
+  notRun();
 }
 
 await loadBindings();
@@ -40,6 +41,7 @@ const { getBrokenCover } = require2(modFile);
 
 let failed = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? " ok  " : "FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed += 1;
 };

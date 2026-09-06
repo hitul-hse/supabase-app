@@ -6,6 +6,7 @@
  */
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
+import { record } from "./lib/gate-result.mjs";
 
 /*
  * Both artefacts are tested: the migration file and the paste file the user
@@ -17,6 +18,7 @@ const PASTE = "supabase/APPLY-IN-SQL-EDITOR-3.sql";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 };

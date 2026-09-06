@@ -13,6 +13,7 @@
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -25,6 +26,7 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -37,7 +39,7 @@ const { data: members } = await admin
 
 // Rency Sebastian has 1081h and was provisioned in this run.
 const subject = members.find((m) => /Rency/.test(m.display_name));
-if (!subject) { console.log("SKIP: expected member not found"); process.exit(0); }
+if (!subject) { console.log("SKIP: expected member not found"); notRun(); }
 
 const { data: profile } = await admin
   .from("app_user_profile").select("role_key, person_id, is_active").eq("user_id", subject.user_id).maybeSingle();

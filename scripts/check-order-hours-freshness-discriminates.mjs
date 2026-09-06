@@ -31,6 +31,7 @@ import { PGlite } from "@electric-sql/pglite";
 import {
   COLUMN_EXISTS_SQL, ORDER_HOURS_SQL, LAST_SYNC_SQL, classify, MAX_AGE_HOURS, EPSILON,
 } from "./lib/order-hours-freshness.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const sql = readFileSync(join(here, "..", "supabase", "migrations", "20260905130000_order_hours_carry_their_as_of.sql"), "utf8");
@@ -38,6 +39,7 @@ const db = await new PGlite();
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

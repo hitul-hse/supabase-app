@@ -24,9 +24,11 @@
 import { loadEnv } from "./lib/gate-env.mjs";
 import { contractWeeklyHours } from "./lib/factorial.mjs";
 import pg from "pg";
+import { record } from "./lib/gate-result.mjs";
 
 let failed = 0;
 const check = (ok, label, detail = "") => {
+  record(ok);
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed += 1;
 };

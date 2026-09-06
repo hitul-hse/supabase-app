@@ -7,6 +7,7 @@
 // and route probes genuinely work with dummy Supabase credentials.
 import { execSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const DUMMY = {
   NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
@@ -19,8 +20,10 @@ const step = (name, fn) => {
   try {
     fn();
     console.log("PASS");
+    record(true);
   } catch (err) {
     console.log("FAIL");
+    record(false);
     console.log(`    ${String(err.message || err).split("\n").slice(0, 4).join("\n    ")}`);
     failed++;
   }

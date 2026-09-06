@@ -31,6 +31,7 @@
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
 import fs, { existsSync, rmSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 // `next build` appends its dist dir's type paths to tsconfig.json's "include".
 // With a probe distDir that pollutes the SHARED config with entries naming a
@@ -53,6 +54,7 @@ process.on("exit", restoreTsconfig);
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };

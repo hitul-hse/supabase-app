@@ -22,12 +22,14 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { record } from "../lib/gate-result.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SOURCE = readFileSync(join(HERE, "run.mjs"), "utf8");
 
 let failed = false;
 function check(label, condition, detail = "") {
+  record(condition);
   const ok = Boolean(condition);
   if (!ok) failed = true;
   console.log(`${ok ? "PASS" : "FAIL"} | ${label}${!ok && detail ? `\n       ${detail}` : ""}`);

@@ -76,10 +76,11 @@
  * nothing instead.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 if (!existsSync(".env.local")) {
   console.log("SKIP: no .env.local");
-  process.exit(0);
+  notRun();
 }
 const env = readFileSync(".env.local", "utf8");
 const get = (k) => (env.match(new RegExp(`^${k}=(.+)$`, "m")) || [])[1]?.trim();
@@ -89,7 +90,7 @@ const service = get("SUPABASE_SERVICE_ROLE_KEY");
 
 if (!url || !anon) {
   console.log("SKIP: need NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  process.exit(0);
+  notRun();
 }
 if (!service) {
   console.log(
@@ -99,11 +100,12 @@ if (!service) {
       "      back to a weaker probe that would look green either way -- it\n" +
       "      SKIPs and says so, rather than silently proving nothing.",
   );
-  process.exit(0);
+  notRun();
 }
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
 };

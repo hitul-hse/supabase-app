@@ -41,9 +41,11 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` \u2014 ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -51,7 +53,7 @@ const check = (name, ok, detail = "") => {
 const ENV_PATH = `${REPO_ROOT}/.env.local`;
 if (!existsSync(ENV_PATH)) {
   console.log("SKIP: no .env.local \u2014 this gate observes the live project only.");
-  process.exit(0);
+  notRun();
 }
 
 const env = Object.fromEntries(
@@ -61,7 +63,7 @@ const env = Object.fromEntries(
 
 if (!env.SUPABASE_DB_URL) {
   console.log("SKIP: SUPABASE_DB_URL not set.");
-  process.exit(0);
+  notRun();
 }
 
 // Accounts that are deliberately not real humans. Keep this list tiny and

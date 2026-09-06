@@ -29,6 +29,7 @@
  *    allow-list into a deny-list.
  */
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 /** Block comments then line comments -- in that order, so a `//` inside a
  * `/* ... *\/` block isn't left dangling after the block is removed. */
@@ -43,6 +44,7 @@ const constants = stripComments(rawConstants);
 
 let failures = 0;
 const check = (ok, label) => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
   if (!ok) failures++;
 };

@@ -29,6 +29,7 @@
  *      renders n/a, never 0.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const DIR = "src/app/(app)/dashboard/management/";
 const MIGRATED = [
@@ -57,6 +58,7 @@ const QUERY_MODULES = [
 
 let failures = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
 };

@@ -4,6 +4,7 @@
 // as check-leave-requests-rls.mjs.
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const db = await new PGlite();
 
@@ -54,6 +55,7 @@ await db.exec(`
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
   if (!ok) failed = true;
 };

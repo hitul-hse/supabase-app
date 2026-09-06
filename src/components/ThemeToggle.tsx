@@ -155,7 +155,7 @@ export function ThemeToggle({
       // 32 px on desktop (above Apple's 28 icon-only default), 44 on coarse
       // pointers -- the same bump the search IconButtonLink beside it gets.
       // `hidden` below `sm`: the phone's overflow is the menu item above.
-      className="hidden h-8 w-8 flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-[color,background-color,border-color,transform] duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px sm:flex pointer-coarse:h-11 pointer-coarse:w-11"
+      className="hidden h-8 w-8 flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] control-motion hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px sm:flex pointer-coarse:h-11 pointer-coarse:w-11"
     >
       {/* Neutral dot until mounted, so SSR and the first client render agree. */}
       {theme === null ? (

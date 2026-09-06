@@ -233,7 +233,7 @@ export function UserMenu({
         data-testid="topbar-user"
         onClick={() => (open ? close() : openMenu("first"))}
         onKeyDown={onTriggerKeyDown}
-        className="flex h-8 flex-none items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] pl-1 pr-1 transition-[color,background-color,border-color,transform] duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] active:translate-y-px aria-expanded:border-[var(--border-strong)] aria-expanded:bg-[var(--surface-hover)] sm:pr-3 pointer-coarse:h-11 pointer-coarse:min-w-11 pointer-coarse:justify-center"
+        className="flex h-8 flex-none items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] pl-1 pr-1 control-motion hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] active:translate-y-px aria-expanded:border-[var(--border-strong)] aria-expanded:bg-[var(--surface-hover)] sm:pr-3 pointer-coarse:h-11 pointer-coarse:min-w-11 pointer-coarse:justify-center"
       >
         <Avatar name={name} src={avatarUrl} size={24} />
         <span className="hidden min-w-0 flex-col sm:flex">

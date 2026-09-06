@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { IconArrowsVertical, IconCaret } from "../nav-icons";
+import { PopoverPanel } from "./Popover";
 
 /**
  * Form-control and filter vocabulary for the app shell: search boxes, selects,
@@ -189,7 +190,7 @@ export function FilterChip({
         "t-label " +
         // The press is on pointer-DOWN: CSS :active fires on the down event, so
         // the chip acknowledges the touch before the click ever commits.
-        "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] " +
+        "control-motion active:scale-[0.97] " +
         "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
         // Selected = FILLED wash + accent bezel + primary text (APPLE_REF
         // §5.2 "Chip"): the fill is the state, the dot restates it, and the
@@ -272,7 +273,7 @@ export function SortHeader({
         // header are one dialect; hover lifts it to primary, the sorted
         // column wears the accent (CURRENT).
         "group inline-flex min-h-6 items-center gap-1 t-label " +
-        "transition-[color,transform] duration-150 active:translate-y-px " +
+        "control-motion active:translate-y-px " +
         (align === "right" ? "justify-end " : "") +
         (isActive
           ? "text-[var(--accent)] "
@@ -444,7 +445,7 @@ export function SearchableSelect({
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left t-callout transition-[color,border-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left t-callout control-motion active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
           current && (!allowEmpty || value !== allowEmpty.value)
             ? "border-[var(--accent)] text-[var(--text-primary)]"
             : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -461,93 +462,101 @@ export function SearchableSelect({
         />
       </button>
 
-      {open && (
-        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-full min-w-[16rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--surface-raised)] card-elev-raised">
-          <div className="border-b border-[var(--divider)] p-2">
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                // Re-aim at the first match: Enter after typing must pick what
-                // is visibly first, not whatever sat at the old index.
-                setCursor(0);
-              }}
-              onKeyDown={onKeyDown}
-              role="combobox"
-              aria-expanded
-              aria-controls={listId}
-              aria-autocomplete="list"
-              placeholder={`Search ${label.toLowerCase()}…`}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 t-callout text-[var(--text-primary)] focus:border-[var(--accent)]"
-            />
-            {/* The count line: a list that scrolls past the fold must never
-                look complete when it is not. */}
-            <p className="mt-1 flex items-center justify-between t-subhead text-[var(--text-faint)]">
-              <span>
-                {filtered.length.toLocaleString("en-GB")}
-                {filtered.length !== all.length
-                  ? ` of ${all.length.toLocaleString("en-GB")}`
-                  : ""}{" "}
-                {all.length === 1 ? "option" : "options"}
-              </span>
-              <KeyboardHint />
-            </p>
-          </div>
-
-          <div
-            ref={listRef}
-            id={listId}
-            role="listbox"
-            aria-label={label}
-            className="flex-1 overflow-y-auto"
-          >
-            {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center t-subhead text-[var(--text-faint)]">
-                No {label.toLowerCase()} matches “{query.trim()}”
-              </p>
-            ) : (
-              filtered.map((o, i) => {
-                const on = o.value === value;
-                const hot = i === cursor;
-                return (
-                  <button
-                    key={o.value}
-                    type="button"
-                    role="option"
-                    data-option
-                    aria-selected={on}
-                    // Hovering moves the keyboard cursor too, so the mouse and
-                    // the keyboard never disagree about which row Enter hits.
-                    onMouseEnter={() => setCursor(i)}
-                    onClick={() => pick(o.value)}
-                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left t-callout transition-colors ${
-                      hot ? "bg-[var(--surface-hover)]" : ""
-                    } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
-                  >
-                    {/* A dot, not a check glyph: constant footprint, and the
-                        icon-set rule bans Unicode glyphs standing in for icons. */}
-                    <span
-                      aria-hidden
-                      className={`mt-[5px] h-1.5 w-1.5 flex-none rounded-full ${
-                        on ? "bg-[var(--accent)]" : "bg-transparent"
-                      }`}
-                    />
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate">{o.name}</span>
-                      {o.hint && (
-                        <span className="truncate t-subhead text-[var(--text-faint)]">
-                          {o.hint}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
+      {/*
+        The panel grows out of its trigger's top-left corner on SPRING_POPOVER
+        and leaves in a 120 ms fade along the same path (APPLE_REF §6.2
+        "Popover / menu / dropdown"; PopoverPanel owns the numbers). It used
+        to appear and vanish in one frame each.
+      */}
+      <PopoverPanel
+        open={open}
+        origin="top left"
+        className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-full min-w-[16rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--surface-raised)] card-elev-raised"
+      >
+        <div className="border-b border-[var(--divider)] p-2">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              // Re-aim at the first match: Enter after typing must pick what
+              // is visibly first, not whatever sat at the old index.
+              setCursor(0);
+            }}
+            onKeyDown={onKeyDown}
+            role="combobox"
+            aria-expanded
+            aria-controls={listId}
+            aria-autocomplete="list"
+            placeholder={`Search ${label.toLowerCase()}…`}
+            className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 t-callout text-[var(--text-primary)] focus:border-[var(--accent)]"
+          />
+          {/* The count line: a list that scrolls past the fold must never
+              look complete when it is not. */}
+          <p className="mt-1 flex items-center justify-between t-subhead text-[var(--text-faint)]">
+            <span>
+              {filtered.length.toLocaleString("en-GB")}
+              {filtered.length !== all.length
+                ? ` of ${all.length.toLocaleString("en-GB")}`
+                : ""}{" "}
+              {all.length === 1 ? "option" : "options"}
+            </span>
+            <KeyboardHint />
+          </p>
         </div>
-      )}
+
+        <div
+          ref={listRef}
+          id={listId}
+          role="listbox"
+          aria-label={label}
+          className="flex-1 overflow-y-auto"
+        >
+          {filtered.length === 0 ? (
+            <p className="px-3 py-4 text-center t-subhead text-[var(--text-faint)]">
+              No {label.toLowerCase()} matches “{query.trim()}”
+            </p>
+          ) : (
+            filtered.map((o, i) => {
+              const on = o.value === value;
+              const hot = i === cursor;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="option"
+                  data-option
+                  aria-selected={on}
+                  // Hovering moves the keyboard cursor too, so the mouse and
+                  // the keyboard never disagree about which row Enter hits.
+                  onMouseEnter={() => setCursor(i)}
+                  onClick={() => pick(o.value)}
+                  className={`flex w-full items-start gap-2 px-3 py-1.5 text-left t-callout transition-colors ${
+                    hot ? "bg-[var(--surface-hover)]" : ""
+                  } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
+                >
+                  {/* A dot, not a check glyph: constant footprint, and the
+                      icon-set rule bans Unicode glyphs standing in for icons. */}
+                  <span
+                    aria-hidden
+                    className={`mt-[5px] h-1.5 w-1.5 flex-none rounded-full ${
+                      on ? "bg-[var(--accent)]" : "bg-transparent"
+                    }`}
+                  />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate">{o.name}</span>
+                    {o.hint && (
+                      <span className="truncate t-subhead text-[var(--text-faint)]">
+                        {o.hint}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </PopoverPanel>
     </div>
   );
 }

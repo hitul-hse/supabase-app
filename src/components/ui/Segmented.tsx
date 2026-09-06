@@ -38,7 +38,19 @@ import type { ComponentProps, ReactNode } from "react";
  * since 2026-09-05, are real `Segmented`s with `onSelect` (below).
  *
  * `active:scale-[0.97]` is the press: feedback on pointer-down, not on release,
- * and CSS `:active` needs no JavaScript to fire on the down event.
+ * and CSS `:active` needs no JavaScript to fire on the down event. It rides
+ * `control-motion` (globals.css), so the press is 100 ms and the pill's fill
+ * is 150 ms — APPLE_REF §6.2 rows 1 and "Segmented / tab change".
+ *
+ * THE PILL DOES NOT SLIDE, and that is a decision rather than an omission.
+ * A shared-element pill (framer `layoutId`) is the obvious flourish here and
+ * §6.2 rules it out by name: "Segmented / tab change | CSS | pill background
+ * 150 ms; content swaps without transition | Apple: frequent interaction, no
+ * motion" (§6.1 #7: "avoid adding motion to UI interactions that occur
+ * frequently"). Every Segmented in this app also changes a URL, so the slide
+ * would be racing a server render it cannot stay in step with — the pill would
+ * arrive before the numbers under it. The fill crossing 150 ms is the whole
+ * feedback, and it is enough because the label is already legible.
  */
 /*
  * 28px overall (APPLE_REF §5.2 "Segmented 28 px"): a 24px segment -- the
@@ -52,7 +64,7 @@ export const segmentedTrackClass =
 export function segmentedItemClass(active: boolean): string {
   return (
     "inline-flex min-h-6 items-center rounded-full px-2.5 py-1 t-label " +
-    "transition-[color,background-color,transform] duration-150 active:scale-[0.97] " +
+    "control-motion active:scale-[0.97] " +
     "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
     (active
       ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
@@ -150,7 +162,7 @@ export function IconButton({
       type={rest.type ?? "button"}
       aria-label={label}
       title={label}
-      className={`inline-flex h-8 w-8 flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px pointer-coarse:h-11 pointer-coarse:w-11 ${className}`}
+      className={`inline-flex h-8 w-8 flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] control-motion hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px pointer-coarse:h-11 pointer-coarse:w-11 ${className}`}
     >
       {children}
     </button>
@@ -173,7 +185,7 @@ export function IconButtonLink({
       {...rest}
       aria-label={label}
       title={label}
-      className={`inline-flex h-8 w-8 flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px pointer-coarse:h-11 pointer-coarse:w-11 ${className}`}
+      className={`inline-flex h-8 w-8 flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] control-motion hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] active:translate-y-px pointer-coarse:h-11 pointer-coarse:w-11 ${className}`}
     >
       {children}
     </Link>

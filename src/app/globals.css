@@ -600,6 +600,28 @@
 body {
   background: var(--page);
   color: var(--text-primary);
+
+  /*
+   * THE THEME SWITCH (APPLE_REF §6.2 "Theme switch": background-color/color
+   * 200 ms ease on `body` only — "avoid the brightness jump").
+   *
+   * Two named properties, never `all`, and only on this element: `transition`
+   * is not an inherited property, so nothing below body picks this up and the
+   * thousands of `transition-colors` controls keep their own 150 ms. The
+   * effect is that flipping dark ↔ light eases the largest area on screen
+   * instead of strobing it, while every card, row and label still swaps
+   * instantly — which is what stops the switch reading as a page reload.
+   *
+   * `ease`, not `--ease-out`: this is a cross-fade of two resting states, not
+   * an arrival, and the house out-curve's long tail leaves the page looking
+   * washed for a quarter of a second.
+   *
+   * Reduce Motion: the global block below collapses it to 0.01 ms, which is
+   * §6.2's stated value ("none") for this row.
+   */
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
 }
 
 /*
@@ -1258,6 +1280,12 @@ body {
  *                  the delay capped at the sixth child
  *   .bar-grow      a horizontal bar draws itself from zero
  *
+ * Plus two pieces of INTERACTION feedback, which are not entrances and are
+ * therefore kept under Reduce Motion where the three moves above are removed:
+ *
+ *   control-motion the one control transition — hover tint 150ms, press 100ms
+ *   .disclose      a panel opens and shuts, height and opacity together
+ *
  * All of it is CSS keyframes on load, not scroll-triggered JS: these pages are
  * server components and the motion is predetermined, which is the same
  * reasoning brand-mark-assemble documents above. Durations sit under 500ms so
@@ -1321,6 +1349,164 @@ body {
 .bar-grow {
   transform-origin: left center;
   animation: bar-grow 0.7s var(--ease-settle) 0.25s both;
+}
+
+/*
+ * ── control-motion ───────────────────────────────────────────────────────
+ * The one transition every button, chip, segment, nav row and icon control
+ * wears. It exists because APPLE_REF §6.2 gives a control TWO different
+ * numbers and a single `duration-150` cannot carry both:
+ *
+ *   Hover tint (rows, nav, ghost buttons)  transition-colors  150 ms
+ *   Press feedback (buttons, tiles, chips) translate/scale    100 ms ease-out
+ *
+ * Before this, `transition-[color,background-color,transform] duration-150`
+ * was copied into ~15 files and ran the press at 150 ms, and Button.tsx —
+ * the primitive the other fourteen were meant to defer to — had
+ * `transition-colors` only, so its `active:translate-y-px` had no transition
+ * at all and the release SNAPPED back. Both are wrong in the same direction:
+ * a press must be the fastest thing on the surface (§6.1 #1 "respond on
+ * pointer-down… everything needs to respond instantly"), and a tint must be
+ * slow enough to read as a wash rather than a flash.
+ *
+ * Named properties, never `all` (§6.1 #8). `box-shadow` and `opacity` are in
+ * the list because the focus/press treatments of some controls use them; they
+ * ride the tint's 150 ms, not the press's 100.
+ *
+ * `translate`, `scale` AND `rotate` are in the list beside `transform`, and
+ * that is not belt-and-braces — it is the whole reason the press used to be
+ * instant. Tailwind 4 does NOT compile `translate-y-px` or `scale-[0.97]` to
+ * `transform`; it emits the INDIVIDUAL transform properties
+ * (`translate: var(--tw-translate-x) var(--tw-translate-y)` — read off the
+ * built stylesheet, not assumed). So the nine hand-rolled
+ * `transition-[color,background-color,transform] duration-150 active:
+ * translate-y-px` signatures this utility replaced were transitioning a
+ * property nothing on the element ever set, and every press in the app
+ * snapped on both edges. Measured before the fix: `getComputedStyle(row)
+ * .transform` reads `none` while the button is held down. Tailwind's own
+ * `transition-transform` lists all four for exactly this reason.
+ *
+ * A UTILITY, not a plain class, so it takes variants and so it sorts before
+ * the single-property utilities — a call site can still override one leg with
+ * `duration-*` where it genuinely differs.
+ *
+ * Reduce Motion: KEPT, on purpose. §6.2's reduced-motion column says "keep"
+ * for both rows: this is feedback about an action the person is taking, not
+ * motion imposed on them. The global block below still collapses the
+ * durations to 0.01 ms, so the states change without a visible travel — which
+ * is the correct reading of "remove the movement, keep the feedback".
+ */
+@utility control-motion {
+  transition-property:
+    color, background-color, border-color, box-shadow, opacity,
+    transform, translate, scale, rotate;
+  transition-timing-function: var(--ease-out);
+  /* Positional: the first five are the tint (150 ms), the last four are the
+     press (100 ms). */
+  transition-duration: 150ms, 150ms, 150ms, 150ms, 150ms, 100ms, 100ms, 100ms, 100ms;
+}
+
+/*
+ * ── .disclose ────────────────────────────────────────────────────────────
+ * A panel that opens and shuts in place: height AND opacity together, so it
+ * never jumps and never fades into a hole.
+ *
+ * `grid-template-rows: 0fr → 1fr`, not `height: 0 → auto`, because the
+ * content's height is not known to CSS and `auto` is not an animatable
+ * length. The grid row IS animatable and resolves to the content's own
+ * height, so nothing has to be measured in JavaScript and the markup stays
+ * server-rendered — which is what lets `MobileDisclosure` keep its
+ * media-query gate (open on desktop, collapsed on a phone) with no hydration
+ * branch at all.
+ *
+ * A LAYOUT PROPERTY, KNOWINGLY, and the second ruled exception beside the
+ * sidebar's `width` (§6.1 #8, §6.2 "Sidebar collapse ↔ rail"). A disclosure
+ * IS a change of extent and a transform cannot deliver one: scaleY would
+ * squash the text, and a translate would slide the content out of a box that
+ * is still occupying the page. §6.2 sets the guard for the sidebar as a
+ * MEASUREMENT rather than a property list, and the same guard applies here:
+ * max frame under 32 ms during the move. It is used on ONE panel at a time
+ * (a phone disclosure, an accordion row), never on a table of rows — §6.1
+ * #8's actual target — and never on a sort, page or filter re-render.
+ *
+ * 220 ms on --ease-out: the same number and the same curve as the sidebar
+ * collapse, because it is the same gesture (a pane changing extent under a
+ * deliberate toggle) and the house has one answer for it. Well inside the
+ * 150–300 ms "routine transition" band.
+ *
+ * The inner element carries the clipping (`overflow: hidden` + `min-height:
+ * 0`, without which a grid item refuses to shrink below its content) and the
+ * opacity leg. The content fades over 150 ms — shorter than the height, so it
+ * is legible before the box finishes settling and never readable while the
+ * box is still tiny.
+ *
+ * SHUT MEANS SHUT, not merely zero-height. A collapsed grid row still holds
+ * focusable descendants, so without this a keyboard user tabs into an
+ * invisible panel and focus disappears. `visibility: hidden` takes it out of
+ * the tab order AND the accessibility tree; its transition is a zero-length
+ * one DELAYED to the end of the height move, which is the standard way to
+ * keep an element painted while it shrinks and drop it the instant it is
+ * gone. (`display: none` cannot be used — it is what makes the height
+ * unanimatable in the first place.)
+ */
+.disclose {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms var(--ease-settle);
+}
+.disclose[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.disclose > * {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 150ms var(--ease-out),
+    visibility 0s linear 220ms;
+}
+.disclose[data-open="true"] > * {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 150ms var(--ease-out),
+    visibility 0s linear 0s;
+}
+/*
+ * Above `sm` the disclosure does not exist: MobileDisclosure's content is
+ * `sm:block` at every width and its trigger is `sm:hidden`, so at 1440px this
+ * wrapper must be a plain, unclipped, fully-open box with no transition to
+ * interrupt. `.disclose-sm` is the opt-in for that; `.disclose` alone (the
+ * accordion case) collapses at every width.
+ */
+@media (min-width: 40rem) {
+  /* Doubled class so the specificity matches `.disclose[data-open="true"]`
+     and the reset wins on source order rather than by accident. */
+  .disclose.disclose-sm {
+    display: block;
+    transition: none;
+  }
+  .disclose.disclose-sm > * {
+    overflow: visible;
+    opacity: 1;
+    visibility: visible;
+    transition: none;
+  }
+}
+/*
+ * Reduce Motion: the panel opens and shuts INSTANTLY, with no height travel
+ * and no fade — "replaces, it does not merely shorten" (§6.1 #9). The global
+ * block below collapses the durations, but not the 220 ms visibility DELAY
+ * (a delay is not a duration), which would leave a shut panel painted for a
+ * fifth of a second; zeroing it here is what makes the collapse instant.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .disclose,
+  .disclose > *,
+  .disclose[data-open="true"] > * {
+    transition: none;
+  }
 }
 
 /*

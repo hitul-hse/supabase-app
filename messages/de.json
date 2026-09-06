@@ -25,7 +25,11 @@
   },
   "common": {
     "logOut": "Abmelden",
-    "switchLanguage": "Language: English",
+    "language": {
+      "label": "Sprache",
+      "current": "Sprache: {language}",
+      "choose": "Sprache wählen"
+    },
     "notAvailable": "k. A.",
     "sync": {
       "label": "SYNC",

@@ -25,7 +25,11 @@
   },
   "common": {
     "logOut": "Log out",
-    "switchLanguage": "Sprache: Deutsch",
+    "language": {
+      "label": "Language",
+      "current": "Language: {language}",
+      "choose": "Choose language"
+    },
     "notAvailable": "n/a",
     "sync": {
       "label": "SYNC",

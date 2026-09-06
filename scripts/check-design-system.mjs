@@ -1104,6 +1104,24 @@ const ROLE_ONLY = SCALE_OWNED.filter((f) => f !== "src/app/(app)/page.tsx").conc
   "src/app/(app)/projects/TaskRow.tsx",
   "src/app/(app)/projects/TaskBoardView.tsx",
   "src/app/(app)/projects/TaskListView.tsx",
+  // The unauthenticated segment. It was the one surface the design pass never
+  // reached — it still set type with `text-[26px]`, `text-[9px]` and
+  // `font-bold` while every page behind it had moved to the roles — and it was
+  // invisible here because this list is curated. Adding it is what stops that
+  // happening a second time on the one screen every user meets first.
+  //
+  // `AuthShell.tsx` is deliberately NOT in this list: `authInputClass` carries
+  // one measured `text-base`, because iOS Safari force-zooms the page when a
+  // focused input is under 16px and no role in the scale is 16px. Everything
+  // else in that file is a role. Putting it in would either fail honestly or
+  // need a carve-out written into this gate, and a gate with a carve-out for
+  // one file is how the next exception gets in.
+  "src/app/auth/login/page.tsx",
+  "src/app/auth/forgot-password/page.tsx",
+  "src/app/auth/set-password/page.tsx",
+  "src/components/locale/LocaleSwitcher.tsx",
+  "src/components/OAuthButtons.tsx",
+  "src/components/BiometricSignIn.tsx",
 ]);
 for (const f of new Set(ROLE_ONLY)) {
   const src = readStripped(f);

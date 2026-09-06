@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
           <AuthNotice tone="success">
             If an account exists for {email}, a reset link is on its way.
           </AuthNotice>
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="t-body t-loose text-[var(--text-secondary)]">
             The link works once and expires.{" "}
             <Link href="/auth/login" className="text-[var(--accent)] hover:underline">
               Back to log in
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
         </>
       ) : (
         <>
-          <p className="mb-6 text-sm text-[var(--text-secondary)]">
+          <p className="mb-6 t-body t-loose text-[var(--text-secondary)]">
             Enter your work email and we&apos;ll send you a link to choose a new
             password.
           </p>
@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
           </form>
 
           <div className="mt-6 border-t border-[var(--border)] pt-6">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="t-body t-loose text-[var(--text-secondary)]">
               <Link href="/auth/login" className="text-[var(--accent)] hover:underline">
                 Back to log in
               </Link>

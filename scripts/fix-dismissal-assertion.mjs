@@ -5,8 +5,9 @@
 // Reuse the same behavioural rule the open/closed check now uses, so the two
 // cannot drift apart again.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/scripts/check-mobile-sheet.mjs";
+const path = `${REPO_ROOT}/scripts/check-mobile-sheet.mjs`;
 let src = readFileSync(path, "utf8");
 
 src = src.replace(

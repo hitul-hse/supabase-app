@@ -9,9 +9,10 @@
 // READ-ONLY.
 import { readFileSync, existsSync } from "node:fs";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -37,17 +38,17 @@ const { rows: [roles] } = await c.query(`
 step("responsibility is queryable", "DONE", `${roles.resp} responsible, ${roles.repl} replacement rows`);
 
 // 2. The query layer files exist and are gated.
-const q1 = existsSync("C:/Supabase/src/lib/queries/order-detail.ts");
-const q2 = existsSync("C:/Supabase/src/lib/queries/reassignment-candidates.ts");
+const q1 = existsSync(`${REPO_ROOT}/src/lib/queries/order-detail.ts`);
+const q2 = existsSync(`${REPO_ROOT}/src/lib/queries/reassignment-candidates.ts`);
 step("order detail query layer", q1 ? "DONE" : "MISSING", "src/lib/queries/order-detail.ts, 13 live assertions");
 step("capacity query layer", q2 ? "DONE" : "MISSING", "src/lib/queries/reassignment-candidates.ts, fan-out guarded");
 
 // 3. THE GAP: is there a page a user can actually open?
-const detailPage = existsSync("C:/Supabase/src/app/(app)/orders/[id]/page.tsx");
+const detailPage = existsSync(`${REPO_ROOT}/src/app/(app)/orders/[id]/page.tsx`);
 step("order detail PAGE (clickable)", detailPage ? "DONE" : "IN PROGRESS", "src/app/(app)/orders/[id]/page.tsx");
 
 // Is the capacity data wired into any component?
-const portfolio = readFileSync("C:/Supabase/src/app/(app)/dashboard/management/ManagementCustomerPortfolio.tsx", "utf8");
+const portfolio = readFileSync(`${REPO_ROOT}/src/app/(app)/dashboard/management/ManagementCustomerPortfolio.tsx`, "utf8");
 const wired = /getReassignmentCandidates|CandidateLoad/.test(portfolio);
 step("capacity picker wired into the UI", wired ? "DONE" : "IN PROGRESS",
   wired ? "ManagementCustomerPortfolio reads the candidate load" : "ResponsibleEditor is still a bare name dropdown");

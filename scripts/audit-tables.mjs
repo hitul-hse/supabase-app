@@ -4,8 +4,9 @@
 // past, and that is what we need to find rather than guess at.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const ROOT = "C:/Supabase/src";
+const ROOT = `${REPO_ROOT}/src`;
 
 const walk = (dir) => {
   const out = [];

@@ -6,11 +6,12 @@
 // Run every gate independently and report the true state.
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 // A UTF-8 BOM on package.json is invisible to npm but fatal to JSON.parse, which
 // silently killed this whole runner (and with it every gate) until 26 Aug 2026.
 // Strip it on read so a text editor saving with a BOM cannot disable the suite.
-const pkg = JSON.parse(readFileSync("C:/Supabase/package.json", "utf8").replace(/^\uFEFF/, ""));
+const pkg = JSON.parse(readFileSync(`${REPO_ROOT}/package.json`, "utf8").replace(/^\uFEFF/, ""));
 const chain = pkg.scripts["test:db"];
 
 // The chain is "npm run a && npm run b && ..."
@@ -19,7 +20,7 @@ console.log(`test:db chains ${names.length} gates; running each independently\n`
 
 const run = (name) => new Promise((resolve) => {
   const t0 = Date.now();
-  const p = spawn("npm", ["run", name], { cwd: "C:/Supabase", shell: true });
+  const p = spawn("npm", ["run", name], { cwd: REPO_ROOT, shell: true });
   let out = "";
   p.stdout.on("data", (d) => (out += d));
   p.stderr.on("data", (d) => (out += d));

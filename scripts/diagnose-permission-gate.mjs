@@ -5,9 +5,10 @@
 // filtered view against the full code list and will fail forever.
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -34,7 +35,7 @@ for (const r of pol.rows) console.log(`   ${r.polname}: ${r.q}`);
 
 // What does the code file actually declare? The gate greps for "x:y" strings,
 // which will also match anything else shaped like that.
-const src = readFileSync("C:/Supabase/src/lib/permissions.ts", "utf8");
+const src = readFileSync(`${REPO_ROOT}/src/lib/permissions.ts`, "utf8");
 const codeKeys = [...src.matchAll(/"([a-z]+:[a-z_:]+)"/g)].map((m) => m[1]);
 console.log(`\ncode keys matched by the gate's regex: ${codeKeys.length} (${new Set(codeKeys).size} unique)`);
 

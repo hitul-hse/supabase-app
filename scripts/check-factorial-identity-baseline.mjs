@@ -29,7 +29,7 @@ import { classifyEmployee, normaliseEmail, SHARED_MAILBOX_RE } from "./lib/facto
 
 /*
  * Env comes from process.env first, then the repo's .env.local -- the shared
- * loader every other gate uses. This file used to read C:/Supabase/.env.local,
+ * loader every other gate uses. This file used to read a drive-letter .env.local,
  * an absolute Windows path from the machine it was written on, which meant the
  * gate could only ever run there: on WSL or CI it crashed with ENOENT before
  * printing a word. A gate that needs live credentials SKIPS without them; it

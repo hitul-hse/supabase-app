@@ -7,7 +7,7 @@
  * could not work on CI:
  *
  *   const env = {}; readFileSync(".env.local")            -> ENOENT on a runner
- *   readFileSync("C:/Supabase/.env.local")                -> a Windows-only
+ *   readFileSync("<drive>:/repo/.env.local")              -> a Windows-only
  *                                                            absolute path that
  *                                                            can never exist on
  *                                                            the Linux runner

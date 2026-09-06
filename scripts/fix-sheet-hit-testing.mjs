@@ -13,10 +13,11 @@
 // the bar rather than flush to the bottom. The assertion was measuring the old
 // design, so it failed for the right reason and must be re-expressed.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 // 1. Make the closed sheet inert.
 {
-  const path = "C:/Supabase/src/components/MobileSidebar.tsx";
+  const path = `${REPO_ROOT}/src/components/MobileSidebar.tsx`;
   let src = readFileSync(path, "utf8");
 
   const OLD = "          open ? \"translate-y-0\" : \"translate-y-full\"\n        }`}";
@@ -60,7 +61,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 // 2. Re-express the stale assertion.
 {
-  const path = "C:/Supabase/scripts/check-mobile-sheet.mjs";
+  const path = `${REPO_ROOT}/scripts/check-mobile-sheet.mjs`;
   let src = readFileSync(path, "utf8");
   src = src.replace(
     'check("sheet is off-screen when closed", closed && closed.top >= closed.vh - 2, closed ? `top=${closed.top} vh=${closed.vh}` : "");',

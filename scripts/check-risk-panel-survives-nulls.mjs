@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Repo root resolved from this file, so these paths work on any machine and
-// from any working directory. They were previously hardcoded to C:/Supabase,
+// from any working directory. They were previously hardcoded to a drive-letter path,
 // which existed on exactly one developer's laptop and nowhere else.
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 

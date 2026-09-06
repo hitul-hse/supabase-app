@@ -3,8 +3,9 @@
 // the sidebar, top bar and requireProfile still each ask who is signed in - but
 // a comment that names a deleted component reads as stale and gets distrusted.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/src/lib/queries/request-cache.ts";
+const path = `${REPO_ROOT}/src/lib/queries/request-cache.ts`;
 let src = readFileSync(path, "utf8");
 
 const before = src;

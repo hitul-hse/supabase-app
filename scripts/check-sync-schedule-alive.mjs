@@ -50,7 +50,7 @@ import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
 
 // The workflow file below is read relative to the repo, like every other gate.
-// This used to read C:/Supabase/.env.local, a path that exists on exactly one
+// This used to read a drive-letter .env.local, a path that exists on exactly one
 // Windows machine, so on any other checkout the gate died with ENOENT before
 // checking anything -- which check-no-absolute-paths did not catch because
 // this gate is not in the CI list it scans.

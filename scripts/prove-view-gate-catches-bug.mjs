@@ -5,9 +5,10 @@
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -15,7 +16,7 @@ const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUn
 await c.connect();
 
 const runGate = () => {
-  const r = spawnSync("node", ["scripts/check-views-admit-unknown.mjs"], { cwd: "C:/Supabase", encoding: "utf8" });
+  const r = spawnSync("node", ["scripts/check-views-admit-unknown.mjs"], { cwd: REPO_ROOT, encoding: "utf8" });
   return { code: r.status, out: (r.stdout ?? "") + (r.stderr ?? "") };
 };
 
@@ -39,7 +40,7 @@ with (security_invoker = true) as
   group by p.id, p.name, p.budget_hours, p.budget_fee_eur, p.budget_alert_percent, p.billable_rate_eur;
 `;
 
-const FIXED = readFileSync("C:/Supabase/supabase/migrations/20260825090000_views_say_unknown_not_zero.sql", "utf8");
+const FIXED = readFileSync(`${REPO_ROOT}/supabase/migrations/20260825090000_views_say_unknown_not_zero.sql`, "utf8");
 
 console.log("=== 1. reinstating the pre-fix definition (coalesce to zero) ===");
 await c.query(OLD);

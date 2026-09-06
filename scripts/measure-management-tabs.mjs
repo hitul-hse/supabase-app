@@ -2,9 +2,10 @@
 // navigating to its URL rather than clicking. This is the real per-tab shape.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -62,7 +63,7 @@ for (const [slug, label] of TABS) {
   for (const t of m.tables) {
     console.log(`    ${(t.title || "(untitled)").padEnd(46)} ${String(t.rows).padStart(4)} ${String(t.cols).padStart(4)} ${String(t.px).padStart(5)}  ${t.wide ? " Y " : " . "}   ${t.sticky ? "Y" : "."}`);
   }
-  await page.screenshot({ path: `C:/Supabase/tmp-mtab-${slug}.png`, fullPage: true });
+  await page.screenshot({ path: `${REPO_ROOT}/tmp-mtab-${slug}.png`, fullPage: true });
 }
 
 await browser.close();

@@ -1,8 +1,9 @@
 // Insert the two Overview ChartNotes by line number, which avoids fighting the
 // file's indentation with literal-string matching. CRLF-safe.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/src/app/(app)/page.tsx";
+const path = `${REPO_ROOT}/src/app/(app)/page.tsx`;
 const src = readFileSync(path, "utf8");
 const eol = src.includes("\r\n") ? "\r\n" : "\n";
 const lines = src.split(/\r?\n/);

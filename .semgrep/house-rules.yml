@@ -15,6 +15,12 @@
 #                                      # the exact counts, plus the negatives
 #
 # SCOPE
+# Every glob is written `**/`-prefixed. Semgrep warns on CI that an unprefixed
+# `scripts/**` "will soon be interpreted as `/scripts/**`" under Semgrepignore
+# v2 -- i.e. anchored at the scan root. That change would silently narrow both
+# rules the day semgrep updates, and a rule that quietly stops matching is the
+# failure this whole PR exists to prevent. `**/` pins today's meaning.
+#
 # The `paths.exclude` blocks below keep the vendored agent-skill trees out.
 # Those are five copies of third-party markdown that this repo does not write
 # and cannot edit; eslint.config.mjs excludes them for the same reason, and
@@ -40,20 +46,20 @@ rules:
     pattern-regex: \bpkill\b[^\n]*?(?:\s-{1,2}[a-zA-Z0-9-]*f\b|\s--full\b)
     paths:
       include:
-        - "scripts/**"
-        - "src/**"
-        - ".github/workflows/**"
-        - "*.sh"
-        - "docs/**"
+        - "**/scripts/**"
+        - "**/src/**"
+        - "**/.github/workflows/**"
+        - "**/*.sh"
+        - "**/docs/**"
       exclude:
         # Vendored third-party agent skills: not ours, not editable by us.
-        - ".claude/**"
-        - ".agents/**"
-        - ".github/skills/**"
-        - ".v3code/**"
-        - "agent/skills/**"
-        - "node_modules/**"
-        - "scripts/fixtures/**"
+        - "**/.claude/**"
+        - "**/.agents/**"
+        - "**/.github/skills/**"
+        - "**/.v3code/**"
+        - "**/agent/skills/**"
+        - "**/node_modules/**"
+        - "**/scripts/fixtures/**"
 
   # ────────────────────────────────────────────────────────────────────────
   - id: house-no-silent-stderr-redirect
@@ -71,14 +77,14 @@ rules:
     pattern-regex: 2>\s*/dev/null(?![^\n]*\|\|)
     paths:
       include:
-        - "scripts/**"
-        - ".github/workflows/**"
-        - "*.sh"
+        - "**/scripts/**"
+        - "**/.github/workflows/**"
+        - "**/*.sh"
       exclude:
-        - ".claude/**"
-        - ".agents/**"
-        - ".github/skills/**"
-        - ".v3code/**"
-        - "agent/skills/**"
-        - "node_modules/**"
-        - "scripts/fixtures/**"
+        - "**/.claude/**"
+        - "**/.agents/**"
+        - "**/.github/skills/**"
+        - "**/.v3code/**"
+        - "**/agent/skills/**"
+        - "**/node_modules/**"
+        - "**/scripts/fixtures/**"

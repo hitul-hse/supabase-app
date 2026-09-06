@@ -1693,8 +1693,25 @@
         "logged": "ERFASST",
         "consumed": "VERBRAUCH",
         "people": "MITARBEITER",
-        "last": "ZULETZT"
-      }
+        "last": "ZULETZT",
+        "code": "CODE",
+        "billable": "ABRECHENBAR",
+        "hours": "STUNDEN",
+        "burn": "VERBRAUCH",
+        "status": "STATUS"
+      },
+      "billable": {
+        "yes": "Abrechenbar",
+        "no": "Nicht abrechenbar"
+      },
+      "status": {
+        "over": "Über Budget",
+        "risk": "Gefährdet",
+        "healthy": "Im Rahmen",
+        "nobudget": "Kein Budget"
+      },
+      "csvTitle": "Diese Projekte als CSV laden — mit dem aktuellen Filter und der aktuellen Sortierung",
+      "pagerNav": "Seiten des Projektregisters"
     },
     "health": {
       "title": "Portfolio-Gesundheit",
@@ -1969,7 +1986,9 @@
     "prev": "ZURÜCK",
     "next": "WEITER",
     "srAll": "Alle {count, number} {noun} werden angezeigt",
-    "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}"
+    "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}",
+    "pageOf": "SEITE {page, number} VON {pages, number}",
+    "goToPage": "Seite {page, number}"
   },
   "dataTable": {
     "noRows": "keine Zeilen",

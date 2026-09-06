@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/EmptyState";
 import { SortHeader, type SortDirection } from "@/components/ui/Field";
 import type { ProjectListRow } from "@/lib/queries/projects-live";
-import { Pager, usePager } from "@/components/Pager";
+import { usePager } from "@/components/Pager";
 import { useUrlState } from "@/components/url-state";
 import { LEDGER_SORTS, type LedgerSort } from "./project-insights";
 import { AnimatePresence } from "framer-motion";
@@ -21,8 +21,13 @@ import { secondsToHours } from "@/lib/time-transform";
 import { fmtHours, fmtInt, fmtNum, fmtPct } from "@/lib/locale-format";
 // Imported, never redefined. Two copies of the burn thresholds is how the list
 // and the detail page end up disagreeing about whether a project is "at risk".
-import { burnColor } from "./ProjectPanels";
+import { burnColor, projectStatus } from "./ProjectPanels";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { Meter } from "@/components/ui/Meter";
+import { StatusDot } from "@/components/ui/StatusDot";
+import { NumberedPager } from "@/components/NumberedPager";
+import { Button } from "@/components/ui/Button";
+import { segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
 import {
   getProjectHoursDrilldown,
   type ProjectHoursRest,
@@ -92,6 +97,23 @@ const defaultDir = (key: LedgerSort): SortDirection => (key === "name" ? "asc" :
  * among its choices. Anyone who wants the long list is one click from it, and
  * the sort order means the rows that matter are already at the top.
  */
+/**
+ * The ledger's eight columns, as one template both the sticky header and every
+ * row read.
+ *
+ * A named constant rather than `grid-cols-12` with a `col-span-*` per cell: the
+ * twelve-column form made every width a fraction of twelve that had to be
+ * re-derived when a column was added, and the header and the rows each carried
+ * their own copy of that arithmetic. These are the measures the design draws,
+ * with the two prose columns free to take the slack (`minmax`) and the six
+ * token columns fixed at what their content needs.
+ *
+ * Total at the fixed columns: 140 + 88 + 72 + 72 + 148 + 108 = 628, plus 12px
+ * gaps, against 1,148 of card at 1440 — so CUSTOMER and PROJECT share ~430.
+ */
+const LEDGER_GRID =
+  "grid-cols-[minmax(7rem,1.2fr)_minmax(9rem,2fr)_8.5rem_8.25rem_4.5rem_4.5rem_9rem_7rem]";
+
 const PAGE_SIZE = 25;
 const PAGE_SIZES = [25, 50, 100];
 
@@ -367,6 +389,61 @@ export function ProjectsLedger({
    * `pager` strings the foot uses, so the two lines cannot disagree.
    */
   const tpager = useTranslations("pager");
+
+  /**
+   * Export exactly what is on screen: the same filter and the same sort, all
+   * pages of it.
+   *
+   * The ledger had no export at all, so answering "send me the overruns" meant
+   * a screenshot. The columns are the eight the table draws, in the order it
+   * draws them, so the file and the screenshot beside it reconcile. BOM and
+   * CRLF because the only spreadsheet this is ever opened in is Excel on a
+   * German locale, which mangles umlauts without them — the same reason
+   * DataTable's export does it.
+   */
+  const downloadCsv = () => {
+    const cell = (v: string | number | null) => {
+      const str = v === null ? "" : String(v);
+      return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const header = [
+      tp("ledger.columns.customer"),
+      tp("ledger.columns.project"),
+      tp("ledger.columns.code"),
+      tp("ledger.columns.billable"),
+      tp("ledger.columns.hours"),
+      tp("ledger.columns.budget"),
+      tp("ledger.columns.burn"),
+      tp("ledger.columns.status"),
+    ];
+    const lines = [
+      header.map(cell).join(","),
+      ...sorted.map((p) =>
+        [
+          p.customerName,
+          p.name,
+          p.code,
+          p.isBillable ? tp("ledger.billable.yes") : tp("ledger.billable.no"),
+          p.actualHours,
+          // Empty, never 0: "no budget set" and "a budget of zero" are
+          // different facts and a spreadsheet cannot tell them apart later.
+          p.estimatedHours && p.estimatedHours > 0 ? p.estimatedHours : null,
+          p.burnPercent,
+          tp(`ledger.status.${projectStatus(p.burnPercent).key}`),
+        ]
+          .map(cell)
+          .join(","),
+      ),
+    ];
+    const url = URL.createObjectURL(
+      new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "projects-ledger.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   const shownFrom = sorted.length === 0 ? 0 : pager.start + 1;
   const shownTo = Math.min(pager.end, sorted.length);
   const headerCount =
@@ -395,6 +472,40 @@ export function ProjectsLedger({
           title={tp("ledger.title")}
           qualifier={headerCount}
           className="border-b border-[var(--divider)]"
+          actions={
+            /*
+              Page size and CSV in the HEADER, beside the count they qualify,
+              and the numbered pager alone in the foot. They were all three in
+              the foot, which put the control that changes how much you are
+              looking at below the thing it changes and one scroll away from the
+              count that states it (APPLE_REF §5.6 "Anatomy": card header ->
+              toolbar; §5.4 "Placement").
+            */
+            <div className="hidden items-center gap-1.5 sm:flex">
+              <div role="group" aria-label={tpager("perPage")} className={segmentedTrackClass}>
+                {[...PAGE_SIZES, "all" as const].map((size) => (
+                  <button
+                    key={String(size)}
+                    type="button"
+                    onClick={() => pager.setSize(size)}
+                    aria-pressed={pager.size === size}
+                    className={segmentedItemClass(pager.size === size)}
+                  >
+                    {size === "all" ? tpager("all") : size}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={downloadCsv}
+                title={tp("ledger.csvTitle")}
+                className="font-mono"
+              >
+                CSV
+              </Button>
+            </div>
+          }
         />
         {/* Mobile cards — a 7-column grid is unreadable under ~640px. */}
         <div className="flex flex-col divide-y divide-[var(--divider)] sm:hidden">
@@ -419,15 +530,13 @@ export function ProjectsLedger({
               <span className="t-subhead text-[var(--text-muted)]">
                 {p.customerName ?? tp("ledger.noCustomer")}
               </span>
-              <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
-                    background: burnColor(p.burnPercent),
-                  }}
-                />
-              </div>
+              {/* The same meter as the desktop row: fixed 0–100, and an empty
+                  track rather than a zero-width fill when there is no budget. */}
+              <Meter percent={p.burnPercent} color={burnColor(p.burnPercent)} />
+              {/* The word, on the phone too. §8 #5 is not a desktop rule. */}
+              <StatusDot tone={projectStatus(p.burnPercent).tone}>
+                {tp(`ledger.status.${projectStatus(p.burnPercent).key}`)}
+              </StatusDot>
               <div className="flex gap-3 fig text-[var(--text-secondary)]">
                 <span>{tp("ledger.loggedH", { hours: fmtNum(p.actualHours, locale, 1) })}</span>
                 <span>
@@ -469,23 +578,41 @@ export function ProjectsLedger({
         <div ref={tableRef} className="hidden sm:block">
           {/* One header material for every table: --surface with a --divider
               hairline under it, the same as DataTable's thead. The --surface-2
-              band read as a second, recessed panel inside the card. */}
+              band read as a second, recessed panel inside the card. OPAQUE, and
+              that is the point (APPLE_REF §8 #4): a translucent header over
+              moving digits is a measured incident, not a taste. */}
           {/* 32px header (APPLE_REF §5.6): `h-8` with the 24px sort targets
               centred in it, over 28px compact rows. */}
-          <div className="sticky top-0 z-10 grid h-8 min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-1">
+          <div
+            className={`sticky top-0 z-10 grid h-8 ${LEDGER_GRID} min-w-[63rem] items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1`}
+          >
+            {/* Not sortable (a customer is a label, not a measure): the same
+                caption rung as the sortable headers at rest. */}
+            <span className="t-label text-[var(--text-faint)]">
+              {tp("ledger.columns.customer")}
+            </span>
             <SortHeader
               label={tp("ledger.columns.project")}
               columnKey="name"
               activeKey={sortKey}
               direction={sortDir}
               onSort={handleSort}
-              className="col-span-4"
             />
-            {/* Not sortable (a customer is a label, not a measure): the same
-                caption rung as the sortable headers at rest. */}
-            <span className="col-span-2 t-label text-[var(--text-faint)]">
-              {tp("ledger.columns.customer")}
+            <span className="t-label text-[var(--text-faint)]">
+              {tp("ledger.columns.code")}
             </span>
+            <span className="t-label text-[var(--text-faint)]">
+              {tp("ledger.columns.billable")}
+            </span>
+            <SortHeader
+              label={tp("ledger.columns.hours")}
+              columnKey="hours"
+              activeKey={sortKey}
+              direction={sortDir}
+              onSort={handleSort}
+              align="right"
+              className="justify-end"
+            />
             <SortHeader
               label={tp("ledger.columns.budget")}
               columnKey="budget"
@@ -493,65 +620,46 @@ export function ProjectsLedger({
               direction={sortDir}
               onSort={handleSort}
               align="right"
-              className="col-span-1 justify-end"
+              className="justify-end"
             />
             <SortHeader
-              label={tp("ledger.columns.logged")}
-              columnKey="hours"
-              activeKey={sortKey}
-              direction={sortDir}
-              onSort={handleSort}
-              align="right"
-              className="col-span-1 justify-end"
-            />
-            <SortHeader
-              label={tp("ledger.columns.consumed")}
+              label={tp("ledger.columns.burn")}
               columnKey="burn"
               activeKey={sortKey}
               direction={sortDir}
               onSort={handleSort}
-              className="col-span-2"
             />
-            <SortHeader
-              label={tp("ledger.columns.people")}
-              columnKey="people"
-              activeKey={sortKey}
-              direction={sortDir}
-              onSort={handleSort}
-              align="right"
-              className="col-span-1 justify-end"
-            />
-            <SortHeader
-              label={tp("ledger.columns.last")}
-              columnKey="recent"
-              activeKey={sortKey}
-              direction={sortDir}
-              onSort={handleSort}
-              align="right"
-              className="col-span-1 justify-end"
-            />
+            <span className="t-label text-[var(--text-faint)]">
+              {tp("ledger.columns.status")}
+            </span>
           </div>
 
-          {visible.map((p) => (
+          {visible.map((p) => {
+            const status = projectStatus(p.burnPercent);
+            return (
             <div
               key={p.id}
               data-ledger-row
-              className="grid min-w-[900px] grid-cols-12 items-center gap-3 border-b border-[var(--divider)] px-3 py-1.5 t-callout transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]"
+              className={`grid ${LEDGER_GRID} min-w-[63rem] items-center gap-3 border-b border-[var(--divider)] px-3 py-1.5 t-callout transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]`}
             >
+              <span className="truncate text-[var(--text-secondary)]" title={p.customerName ?? ""}>
+                {p.customerName ?? "—"}
+              </span>
               <Link
                 href={`/projects/${p.id}`}
-                className="col-span-4 truncate font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
+                className="truncate font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
                 title={p.name}
               >
                 {p.name}
               </Link>
-              <span className="col-span-2 truncate text-[var(--text-secondary)]" title={p.customerName ?? ""}>
-                {p.customerName ?? "—"}
+              {/* The code in a column of its own (APPLE_REF §8 #17): the web has
+                  no middle-ellipsis, so an identifier that cannot be shortened
+                  gets width instead of being buried under the name. */}
+              <span className="truncate fig text-[var(--text-secondary)]" title={p.code ?? ""}>
+                {p.code ?? "—"}
               </span>
-              <span className="col-span-1 text-right fig text-[var(--text-secondary)]">
-                {p.estimatedHours && p.estimatedHours > 0
-                  ? fmtNum(p.estimatedHours, locale, 1)
-                  : "—"}
+              <span className="truncate text-[var(--text-secondary)]" title={p.isBillable ? tp("ledger.billable.yes") : tp("ledger.billable.no")}>
+                {p.isBillable ? tp("ledger.billable.yes") : tp("ledger.billable.no")}
               </span>
               {/* Tappable only when there is something behind it: a zero
                   stays plain text, because an empty popup is a promise the
@@ -563,49 +671,83 @@ export function ProjectsLedger({
                   aria-haspopup="dialog"
                   aria-label={t("open", { title: p.name })}
                   data-drill-trigger={`ledger-hours-${p.id}`}
-                  className="col-span-1 cursor-pointer text-right fig text-[var(--text-primary)] underline-offset-4 control-motion hover:text-[var(--accent)] hover:underline active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+                  className="cursor-pointer text-right fig text-[var(--text-primary)] underline-offset-4 control-motion hover:text-[var(--accent)] hover:underline active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
                 >
                   {fmtNum(p.actualHours, locale, 1)}
                 </button>
               ) : (
-                <span className="col-span-1 text-right fig text-[var(--text-primary)]">
+                <span className="text-right fig text-[var(--text-primary)]">
                   {fmtNum(p.actualHours, locale, 1)}
                 </span>
               )}
-              <div className="col-span-2 flex items-center gap-2">
-                {/* A meter is rounded-full, like StatTile's and the drill rows'. */}
-                <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--border)]">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${Math.min(p.burnPercent ?? 0, 100)}%`,
-                      background: burnColor(p.burnPercent),
-                    }}
-                  />
-                </div>
+              <span className="text-right fig text-[var(--text-secondary)]">
+                {p.estimatedHours && p.estimatedHours > 0
+                  ? fmtNum(p.estimatedHours, locale, 1)
+                  : "—"}
+              </span>
+              <div className="flex items-center gap-2">
+                {/* Fixed 0–100 scale (APPLE_REF §5.3, Apple's own charts rule):
+                    139 % is a FULL bar with the overshoot stated beside it, not
+                    a bar that overflows its track or rescales its neighbours.
+                    A null budget draws the empty track and no fill. */}
+                <Meter
+                  percent={p.burnPercent}
+                  color={burnColor(p.burnPercent)}
+                  className="flex-1"
+                />
                 <span
-                  className="w-11 text-right fig font-medium"
+                  className="w-11 shrink-0 text-right fig font-medium"
                   style={{ color: burnColor(p.burnPercent) }}
                 >
-                  {p.burnPercent === null ? tc("notAvailable") : fmtPct(p.burnPercent, locale)}
+                  {p.burnPercent === null ? "—" : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>
-              <span className="col-span-1 text-right fig text-[var(--text-secondary)]">
-                {p.memberCount || "—"}
-              </span>
-              <span className="col-span-1 text-right fig text-[var(--text-faint)]">
-                {p.lastActivity ?? tp("ledger.never")}
-              </span>
+              {/*
+                THE FIX THIS SCREEN EXISTS FOR. The posture was carried by the
+                colour of the bar and the number and by nothing else, which §8 #5
+                and UI-CONVENTIONS forbid in the same words: a dot AND the word.
+              */}
+              <StatusDot tone={status.tone}>{tp(`ledger.status.${status.key}`)}</StatusDot>
             </div>
-          ))}
+            );
+          })}
         </div>
 
-        <Pager
-          state={pager}
-          total={sorted.length}
-          noun={tp("ledger.pagerNoun")}
-          anchorRef={tableRef}
-          sizes={PAGE_SIZES}
+        {/*
+          The house pager at the foot of the BOUNDED CARD, not of the window
+          (APPLE_REF §3.2 "Bottom of the window", §5.4 "Placement"): first, last,
+          a one-step window, an elided middle, and PREV dimmed rather than hidden
+          so NEXT never slides under the cursor between clicks.
+
+          Shared with the two server-rendered queues through `NumberedPager` —
+          the elided-window arithmetic used to exist twice as an unexported
+          `function Pager`, and this would have been the third copy. The page
+          size and CSV moved up into the card header, where the count they
+          qualify already is.
+        */}
+        <NumberedPager
+          page={pager.page + 1}
+          pageCount={pager.pageCount}
+          countLine={
+            <span>
+              {headerCount}
+              {pager.pageCount > 1
+                ? ` · ${tpager("pageOf", { page: pager.page + 1, pages: pager.pageCount })}`
+                : ""}
+            </span>
+          }
+          navLabel={tp("ledger.pagerNav")}
+          labels={{
+            prev: tpager("prev"),
+            next: tpager("next"),
+            pageLabel: (n) => tpager("goToPage", { page: n }),
+          }}
+          onSelect={(n) => {
+            pager.setPage(n - 1);
+            // Back to the top of the TABLE, not of the document: the reader
+            // asked for the next page of rows, not to be moved off the card.
+            tableRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+          }}
         />
       </Card>
 

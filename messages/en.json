@@ -1693,8 +1693,25 @@
         "logged": "LOGGED",
         "consumed": "CONSUMED",
         "people": "PEOPLE",
-        "last": "LAST"
-      }
+        "last": "LAST",
+        "code": "CODE",
+        "billable": "BILLABLE",
+        "hours": "HOURS",
+        "burn": "BURN",
+        "status": "STATUS"
+      },
+      "billable": {
+        "yes": "Billable",
+        "no": "Non-billable"
+      },
+      "status": {
+        "over": "Over budget",
+        "risk": "At risk",
+        "healthy": "Healthy",
+        "nobudget": "No budget"
+      },
+      "csvTitle": "Download these projects as CSV, with the current filter and sort applied",
+      "pagerNav": "Project ledger pages"
     },
     "health": {
       "title": "Portfolio health",
@@ -1969,7 +1986,9 @@
     "prev": "PREV",
     "next": "NEXT",
     "srAll": "Showing all {count, number} {noun}",
-    "srRange": "Showing {from, number} to {to, number} of {count, number} {noun}, page {page, number} of {pages, number}"
+    "srRange": "Showing {from, number} to {to, number} of {count, number} {noun}, page {page, number} of {pages, number}",
+    "pageOf": "PAGE {page, number} OF {pages, number}",
+    "goToPage": "Page {page, number}"
   },
   "dataTable": {
     "noRows": "no rows",

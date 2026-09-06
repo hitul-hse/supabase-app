@@ -91,7 +91,22 @@ export function NumberedPager({
     "font-mono text-[10px] tabular-nums tracking-[0.06em] control-motion " +
     "pointer-coarse:min-h-11 pointer-coarse:px-3";
 
-  const control = (n: number, label: string, disabled: boolean, current = false) => {
+  /**
+   * `named` is the accessible name, and PREV/NEXT deliberately do not get one.
+   *
+   * An `aria-label` REPLACES the visible text as the accessible name, so
+   * labelling the NEXT control "Page 2" left a button that reads NEXT and
+   * announces "Page 2" — WCAG 2.5.3 asks the accessible name to contain the
+   * visible label, and a voice-control user saying "click next" would find
+   * nothing. The numbered controls keep theirs, where "Page 2" contains "2".
+   */
+  const control = (
+    n: number,
+    label: string,
+    disabled: boolean,
+    current = false,
+    named = true,
+  ) => {
     if (disabled) {
       return (
         <span
@@ -108,7 +123,7 @@ export function NumberedPager({
       : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]";
     const shared = {
       "aria-current": current ? ("page" as const) : undefined,
-      "aria-label": labels.pageLabel(n),
+      "aria-label": named ? labels.pageLabel(n) : undefined,
       className: `${base} ${skin}`,
     };
     return hrefFor ? (
@@ -133,7 +148,7 @@ export function NumberedPager({
           is noise, and the count line above already says the list is whole. */}
       {pageCount > 1 && (
       <nav aria-label={navLabel} className="flex flex-wrap items-center gap-1">
-        {control(page - 1, labels.prev, page <= 1)}
+        {control(page - 1, labels.prev, page <= 1, false, false)}
         {windowed.map((n, i) =>
           n === "gap" ? (
             <span key={`gap-${i}`} aria-hidden="true" className="px-1 t-label text-[var(--text-faint)]">
@@ -143,7 +158,7 @@ export function NumberedPager({
             control(n, String(n), false, n === page)
           ),
         )}
-        {control(page + 1, labels.next, page >= pageCount)}
+        {control(page + 1, labels.next, page >= pageCount, false, false)}
       </nav>
       )}
     </div>

@@ -275,18 +275,28 @@ export function AuthNotice({ tone, children }: { tone: "error" | "success"; chil
 //
 // 2. `min-h-11` (44px). The measured height was 37.3px, under both Apple's and
 //    WCAG 2.5.8's minimum target, on the one form nobody can skip.
-// 3. The bezel is `--border-strong` and the type is the `t-callout` role from
-//    `sm` up, which is what Field.tsx's CONTROL_BASE gives every input INSIDE
-//    the app (APPLE_REF §3.2 "Inputs: 32 px, `t-callout`, bezel
+// 3. The bezel is `--border-strong`, which is what Field.tsx's CONTROL_BASE
+//    gives every input INSIDE the app (APPLE_REF §3.2 "Inputs: bezel
 //    `--border-strong`"). The well stays `--surface` rather than CONTROL_BASE's
 //    `--page`, because this panel IS `--page`: a page-coloured input on a
 //    page-coloured panel is a bezel with nothing inside it.
 //
-//    `text-base` below `sm` is the ONE deliberate departure from the role scale
-//    on this page, for rule 1 above, and it is why AuthShell is not yet in the
-//    design gate's ROLE_ONLY list.
+// THE TWO SIZES ARE BOTH MEASURED RULES, and neither is a role.
+//
+// This class briefly read `sm:t-callout`, on the reasoning that §3.2 sizes an
+// in-app input at `t-callout`. But `t-callout` is 12px, so that quietly took
+// the desktop sign-in form from 14px to 12px — a design change smuggled in
+// under a mobile fix, which is the exact pairing rule 1 exists to protect
+// (check-brand-mark: "16px is a mobile fix, not a design change"). `t-callout`
+// is right for a ledger row with fifty siblings; it is not right for the two
+// fields on the one screen everybody types into. Back to 14px from `sm` up,
+// which is what shipped before.
+//
+// So this class carries two raw sizes on purpose, and that is why AuthShell is
+// NOT in the design gate's ROLE_ONLY list: both are measurements the role scale
+// has no entry for.
 export const authInputClass =
-  "w-full min-h-11 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:t-callout";
+  "w-full min-h-11 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:text-sm";
 
 /**
  * The submit on every auth page is now the house `primary` button, composed

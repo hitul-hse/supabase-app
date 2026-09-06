@@ -26,6 +26,7 @@
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
 import fs, { existsSync, rmSync } from "node:fs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 /**
  * tsconfig.json is rewritten by `next build`: it appends the dist dir's own type
@@ -55,13 +56,14 @@ process.on("exit", restoreTsconfig);
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
 
 if (!existsSync(".next")) {
   console.log("SKIP: no production build — run `npm run build` first");
-  process.exit(0);
+  notRun();
 }
 
 // NEXT_PUBLIC_* are compile-time constants, not runtime configuration.

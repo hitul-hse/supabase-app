@@ -12,9 +12,11 @@
 // an explicit unit or clock notation. These cases are pinned because a first
 // pass at this file did copy Clockify and was wrong for exactly this reason.
 import { parseDuration, formatDuration } from "../src/lib/duration.ts";
+import { record } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
   if (!ok) failed = true;
 };

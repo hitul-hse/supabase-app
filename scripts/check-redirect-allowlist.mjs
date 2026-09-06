@@ -31,6 +31,7 @@
  * Run: npm run check:redirect-allowlist
  */
 import { readFileSync } from "node:fs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -40,7 +41,7 @@ for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
 const URL_BASE = env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 if (!URL_BASE) {
   console.log("SKIP: no NEXT_PUBLIC_SUPABASE_URL in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 const SITE = (process.argv[2] ?? "https://hseportal.hs-experts.com").replace(/\/$/, "");
@@ -104,6 +105,7 @@ for (const { requested, expect } of cases) {
 
   const outcome = same ? "honoured" : "substituted";
   const ok = outcome === expect;
+  record(ok);
   if (expect === "substituted" && ok) controlHeld = true;
   if (!ok) failures.push({ requested, why: `expected ${expect}, got ${outcome}` });
 
@@ -113,6 +115,7 @@ for (const { requested, expect } of cases) {
 
 console.log("");
 if (!controlHeld) {
+  record(false);
   console.log("NEGATIVE CONTROL FAILED: a bogus redirect target was NOT substituted.");
   console.log("Either the allowlist is genuinely wide open -- an open redirect, and a real");
   console.log("problem -- or this probe is no longer reading the value Supabase honours.");
@@ -122,6 +125,7 @@ if (!controlHeld) {
 
 console.log("Negative control held: a bogus target IS replaced by the bare Site URL, so the");
 console.log("rows above reflect a real allowlist decision rather than an echo of the request.");
+record(true);
 
 if (failures.length === 0) {
   console.log("\nEvery callback the app uses is allowlisted. Nothing to change under");

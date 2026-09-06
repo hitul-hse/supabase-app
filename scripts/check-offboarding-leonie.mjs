@@ -55,6 +55,7 @@ import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 const read = (...p) => readFileSync(join(REPO, ...p), "utf8");
@@ -82,6 +83,7 @@ const DEPARTED = [
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? `\n        ${detail}` : ""}`);
   if (!ok) failures += 1;
   return ok;

@@ -25,6 +25,7 @@
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -40,11 +41,12 @@ const SITE = (process.argv[2] ?? "https://hseportal.hs-experts.com").replace(/\/
 
 if (!URL_BASE || !ANON || !SERVICE) {
   console.log("SKIP: need Supabase URL, anon key and service-role key in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed++;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -111,7 +113,7 @@ const { data: profiles } = await admin
   .limit(1);
 if (!profiles?.length) {
   console.log("SKIP: no active exec to render as");
-  process.exit(0);
+  notRun();
 }
 const { data: userRes } = await admin.auth.admin.getUserById(profiles[0].user_id);
 const email = userRes?.user?.email;
@@ -124,7 +126,7 @@ const { data: verified } = await anonClient.auth.verifyOtp({
 const session = verified?.session;
 if (!session) {
   console.log("SKIP: could not mint an exec session");
-  process.exit(0);
+  notRun();
 }
 console.log(`  rendering as: ${email}\n`);
 

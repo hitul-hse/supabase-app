@@ -3,6 +3,7 @@
 // directly and a stale backup nearly left a corrupted policy name behind.
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const orig = readFileSync("supabase/schema.sql", "utf8");
 
@@ -59,12 +60,14 @@ await db.close();
 console.log(`created from broken copy: ${rows.length}`);
 
 const tracksFile = rows.length === declaredBroken;
+record(tracksFile);
 console.log(
   `\n${tracksFile ? "PASS" : "FAIL"}: the check tracks what the file declares (${declaredBroken}), not a hardcoded 24`,
 );
 
 // And prove it still catches a genuine mismatch: claim one more than exists.
 const wouldCatch = rows.length !== declaredOrig;
+record(wouldCatch);
 console.log(
   `${wouldCatch ? "PASS" : "FAIL"}: a real mismatch (${rows.length} vs the old hardcoded ${declaredOrig}) is still detected`,
 );

@@ -20,6 +20,7 @@ import { readFileSync } from "node:fs";
 import { loadEnv } from "./lib/gate-env.mjs";
 import pg from "pg";
 import xlsx from "xlsx";
+import { record } from "./lib/gate-result.mjs";
 
 /*
  * The masterdata workbook is an EXTERNAL input, not a repo file, so unlike every
@@ -104,6 +105,7 @@ for (const sheetName of ORDER_SHEETS) {
 
 const failures = [];
 const check = (ok, label, detail) => {
+  record(ok);
   console.log(`${ok ? "  ok  " : " FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures.push(label);
 };

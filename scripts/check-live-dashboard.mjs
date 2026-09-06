@@ -19,6 +19,7 @@
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -31,11 +32,12 @@ const SERVICE = env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 if (!URL_BASE || !SERVICE || !ANON) {
   console.log("SKIP: no live credentials in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -47,7 +49,7 @@ const admin = createClient(URL_BASE, SERVICE, { auth: { persistSession: false } 
 const probe = await admin.schema("time").from("entry").select("id", { count: "exact" }).limit(1);
 if (probe.error) {
   console.log(`SKIP: the time schema is not reachable — ${probe.error.message}`);
-  process.exit(0);
+  notRun();
 }
 const liveEntries = probe.count ?? 0;
 const projectCount = (await admin.schema("time").from("project").select("id", { count: "exact" }).limit(1)).count ?? 0;
@@ -70,14 +72,14 @@ const { data: profiles, error: pErr } = await admin
 
 if (pErr || !profiles?.length) {
   console.log(`SKIP: no active exec profile to sign in as — ${pErr?.message ?? "none found"}`);
-  process.exit(0);
+  notRun();
 }
 const userId = profiles[0].user_id;
 const { data: userRes } = await admin.auth.admin.getUserById(userId);
 const email = userRes?.user?.email;
 if (!email) {
   console.log("SKIP: the exec profile has no email to sign in with");
-  process.exit(0);
+  notRun();
 }
 console.log(`signing in as ${email.replace(/(.{2}).*(@.*)/, "$1***$2")} (exec)`);
 
@@ -90,7 +92,7 @@ const { data: link, error: lErr } = await admin.auth.admin.generateLink({
 });
 if (lErr || !link?.properties?.hashed_token) {
   console.log(`SKIP: could not mint a session — ${lErr?.message}`);
-  process.exit(0);
+  notRun();
 }
 
 const anonClient = createClient(URL_BASE, ANON, { auth: { persistSession: false } });
@@ -100,7 +102,7 @@ const { data: verified, error: vErr } = await anonClient.auth.verifyOtp({
 });
 if (vErr || !verified?.session) {
   console.log(`SKIP: could not verify the session — ${vErr?.message}`);
-  process.exit(0);
+  notRun();
 }
 const session = verified.session;
 

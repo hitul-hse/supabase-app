@@ -3,6 +3,7 @@
 // ambiguous (that ambiguity is the original vulnerability).
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const EMP = "33333333-3333-3333-3333-333333333333";
 const AMB = "55555555-5555-5555-5555-555555555555";
@@ -59,6 +60,7 @@ async function projectsFor(uid) {
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
   if (!ok) failed = true;
 };

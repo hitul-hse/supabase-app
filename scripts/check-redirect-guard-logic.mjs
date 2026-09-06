@@ -15,6 +15,7 @@
 // guard's behaviour rather than a copy of it -- and a silent loosening of the
 // real function fails here instead of passing against a stale mirror.
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const src = readFileSync("src/app/auth/callback/route.ts", "utf8");
 
@@ -67,6 +68,7 @@ const HOSTILE = [
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
   if (!ok) failed++;
 };

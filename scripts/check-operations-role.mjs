@@ -62,6 +62,7 @@ import {
   isRouteAllowedForRole,
   roleHome,
 } from "../src/components/nav-access.ts";
+import { record } from "./lib/gate-result.mjs";
 
 const ROLE = "operations";
 const MIGRATION = "supabase/migrations/20260904120000_operations_role.sql";
@@ -106,6 +107,7 @@ if (BREAK === "nav") {
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 };

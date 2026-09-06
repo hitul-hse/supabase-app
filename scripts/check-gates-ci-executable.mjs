@@ -28,6 +28,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { chainFiles, CI_CHAINS } from "./lib/script-files.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 // Needed to reproduce each gate\u0027s real invocation flags.
 const pkgScripts = JSON.parse(readFileSync("package.json", "utf8")).scripts;
@@ -141,4 +142,6 @@ if (crashed.length) {
 
 try { rmSync(dir, { recursive: true, force: true }); } catch { /* leave the temp dir */ }
 
+fine.forEach(() => record(true));
+crashed.forEach(() => record(false));
 process.exit(crashed.length ? 1 : 0);

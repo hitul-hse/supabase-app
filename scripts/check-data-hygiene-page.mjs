@@ -47,15 +47,17 @@
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(0);
+  notRunInChain();
 }
 
 let failures = 0;
 const ok = (pass, label, detail = "") => {
+  record(pass);
   console.log(`${pass ? "PASS" : "FAIL"}: ${label}`);
   if (!pass) { if (detail) console.log(`        ${detail}`); failures += 1; }
 };

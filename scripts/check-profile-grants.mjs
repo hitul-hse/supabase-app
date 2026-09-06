@@ -25,6 +25,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = { ...process.env };
 if (existsSync(".env.local")) {
@@ -36,7 +37,7 @@ if (existsSync(".env.local")) {
 }
 if (!env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: no service-role key");
-  process.exit(0);
+  notRunInChain();
 }
 
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -45,6 +46,7 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -88,7 +90,7 @@ const { data: created, error: createErr } = await admin.auth.admin.createUser({
 });
 if (createErr) {
   console.log(`SKIP: could not create a probe account -- ${createErr.message}`);
-  process.exit(0);
+  notRunInChain();
 }
 await admin.from("app_user_profile").insert({
   user_id: created.user.id,
@@ -116,7 +118,7 @@ try {
     .maybeSingle();
   if (!execProfile) {
     console.log("SKIP: no active exec to sign in as");
-    process.exit(0);
+    notRunInChain();
   }
 
   // ── 1. An exec's own session can write a profile ────────────────────────

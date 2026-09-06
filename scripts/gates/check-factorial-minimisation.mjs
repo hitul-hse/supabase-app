@@ -2,6 +2,7 @@
 
 import fs from "fs";
 import path from "path";
+import { record } from "../lib/gate-result.mjs";
 
 /**
  * ENFORCES MINIMISATION PRINCIPLE (GDPR Art. 5(1)(c))
@@ -110,6 +111,7 @@ if (!pageContent.includes("await requirePermission(")) {
   errors.push("❌ requirePermission() is not awaited — the redirect never happens");
 }
 
+record(errors.length === 0);
 if (errors.length > 0) {
   console.error("MINIMISATION GATE FAILED\n");
   console.error(errors.join("\n"));

@@ -24,9 +24,11 @@
  */
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   // Detail on failure only: a PASS line that also prints the thing it ruled out
   // reads like a finding, and this suite has enough real ones.
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${!ok && detail ? `\n        ${detail}` : ""}`);

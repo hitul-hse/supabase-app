@@ -25,9 +25,11 @@ import {
   isoWeekStart,
   isoWeekNumber,
 } from "../src/lib/time-transform.ts";
+import { record } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   if (!ok) failed = true;
   console.log(`${ok ? "PASS" : "FAIL"} | ${label}${!ok && detail ? `\n       ${detail}` : ""}`);
 };

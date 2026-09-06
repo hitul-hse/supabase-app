@@ -14,6 +14,7 @@
 // Skips cleanly with exit 0 when there are no credentials, so it can sit in a
 // pipeline that also runs on forks and pull requests without failing them.
 import { readFileSync, existsSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const STALE_AFTER_HOURS = 24;
 const MISSING_AFTER_HOURS = 24 * 7;
@@ -82,6 +83,7 @@ const lastOk = runs.find((r) => r.status === "ok" && r.finished_at);
 
 if (!lastOk) {
   console.log("\nSYNC FRESHNESS: no SUCCESSFUL run on record — the dashboard is a manual snapshot");
+  record(false);
   process.exit(1);
 }
 
@@ -106,4 +108,6 @@ console.log(`\nSYNC FRESHNESS: ${label}`);
 // (`!(handle->flags & UV_HANDLE_CLOSING)`) and the process dies with
 // 0xC0000409 instead of the status set here -- observed on this exact script.
 // Setting the code and letting the loop drain reports the real result.
+record(label === "OK");
+record(failedSince === 0);
 process.exitCode = label === "OK" && failedSince === 0 ? 0 : 1;

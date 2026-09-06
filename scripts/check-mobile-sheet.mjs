@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const env = Object.fromEntries(
   readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
@@ -26,6 +27,7 @@ const mint = async () => {
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };

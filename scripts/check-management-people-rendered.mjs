@@ -13,6 +13,7 @@
 import { readFileSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const env = Object.fromEntries(
   readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
@@ -59,6 +60,7 @@ console.log(`rendered ${text.length} chars\n`);
 const failures = [];
 for (const name of EXPECTED) {
   const present = text.includes(name);
+  record(present);
   console.log(`  ${present ? "ok  " : "MISS"} ${name}`);
   if (!present) failures.push(name);
 }

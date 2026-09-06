@@ -81,6 +81,7 @@ import {
   listRepoSecrets,
   REGISTRY_ENV,
 } from "./lib/secret-parity.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 // The same literal as scripts/set-sync-secrets.mjs. Written out rather than
 // derived from `git remote`, so a fork or a renamed remote cannot silently
@@ -161,6 +162,7 @@ const failures = [];
 let asserted = 0;
 
 const check = (ok, label, detail) => {
+  record(ok);
   asserted += 1;
   console.log(`${ok ? "  ok  " : " FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures.push(label);

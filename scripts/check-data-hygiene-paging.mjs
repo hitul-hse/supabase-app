@@ -39,7 +39,9 @@
  */
 
 let failures = 0;
+import { record } from "./lib/gate-result.mjs";
 const ok = (pass, label, detail = "") => {
+  record(pass);
   console.log(`${pass ? "PASS" : "FAIL"}: ${label}`);
   if (!pass) { if (detail) console.log(`        ${detail}`); failures += 1; }
 };

@@ -15,6 +15,7 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const env = Object.fromEntries(
   readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
@@ -27,6 +28,7 @@ await c.connect();
 let failures = 0;
 const expect = (label, actual, shouldBeNonZero) => {
   const ok = shouldBeNonZero ? Number(actual) > 0 : Number(actual) === 0;
+  record(ok);
   console.log(`${ok ? "  ok  " : " FAIL "} ${label} — got ${actual}`);
   if (!ok) failures += 1;
 };

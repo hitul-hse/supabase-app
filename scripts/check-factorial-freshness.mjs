@@ -34,6 +34,7 @@
 
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 // Daily schedule + margin for a missed run and a slow runner. A single skipped
 // night is normal GitHub Actions behaviour (the scheduler drops jobs under
@@ -56,7 +57,7 @@ const env = loadEnv();
 // reads like a broken gate rather than an absent credential.
 if (!env.SUPABASE_DB_URL) {
   console.log("SKIP: no SUPABASE_DB_URL, so there is no live database to check");
-  process.exit(0);
+  notRun();
 }
 
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
@@ -64,6 +65,7 @@ await c.connect();
 
 const failures = [];
 const check = (ok, label, detail) => {
+  record(ok);
   console.log(`${ok ? "  ok  " : " FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures.push(label);
 };

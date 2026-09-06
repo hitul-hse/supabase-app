@@ -43,6 +43,7 @@
 import pg from "pg";
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 const ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -50,11 +51,12 @@ const canReview = Boolean(env.REVIEW_EMAIL && env.REVIEW_PW && ANON);
 const canService = Boolean(env.SUPABASE_SERVICE_ROLE_KEY);
 if (!env.SUPABASE_DB_URL || !env.NEXT_PUBLIC_SUPABASE_URL || !(canReview || canService)) {
   console.log("SKIP: need SUPABASE_DB_URL, NEXT_PUBLIC_SUPABASE_URL and either REVIEW_EMAIL+REVIEW_PW (with the anon key) or SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(0);
+  notRunInChain();
 }
 
 let failures = 0;
 const ok = (pass, label, detail = "") => {
+  record(pass);
   console.log(`${pass ? "PASS" : "FAIL"}: ${label}`);
   if (!pass) { if (detail) console.log(`        ${detail}`); failures += 1; }
 };

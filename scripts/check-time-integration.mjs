@@ -28,6 +28,7 @@
 import { readFileSync, mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 // The credential check has to happen BEFORE react/next are imported. With those
 // as static imports the module graph is resolved first, so running without them
@@ -36,7 +37,7 @@ import { createRequire } from "node:module";
 // running this in a bare directory.
 if (!existsSync(".env.local")) {
   console.log("SKIP: no .env.local — nothing to probe");
-  process.exit(0);
+  notRun();
 }
 
 const env = readFileSync(".env.local", "utf8");
@@ -46,7 +47,7 @@ const anon = get("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
 if (!url || !anon) {
   console.log("SKIP: no Supabase URL/key in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 const { createElement: h } = await import("react");
@@ -55,6 +56,7 @@ const { loadBindings, transform } = await import("next/dist/build/swc/index.js")
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };

@@ -33,6 +33,7 @@
  */
 import { readFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -41,13 +42,14 @@ for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
 }
 if (!env.NEXT_PUBLIC_SUPABASE_URL) {
   console.log("SKIP: no Supabase credentials");
-  process.exit(0);
+  notRun();
 }
 const REF = new URL(env.NEXT_PUBLIC_SUPABASE_URL).hostname.split(".")[0];
 const EXPECTED_CALLBACK = `https://${REF}.supabase.co/auth/v1/callback`;
 
 let failed = false;
 const check = (label, ok, detail) => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? `\n        ${detail}` : ""}`);
   if (!ok) failed = true;
 };

@@ -13,10 +13,11 @@
  * experimenting on 231 live rows.
  */
 import { PGlite } from "@electric-sql/pglite";
+import { record } from "./lib/gate-result.mjs";
 
 const db = await new PGlite();
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
 
 await db.exec(`
   create table public.projects (

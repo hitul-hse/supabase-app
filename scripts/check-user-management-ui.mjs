@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -21,13 +22,14 @@ for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
   if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
 }
 const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
-if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); process.exit(0); }
+if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); notRun(); }
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -36,7 +38,7 @@ const probeEmail = `ui.usermgmt.${Date.now()}@example.invalid`;
 const { data: probe, error: createErr } = await admin.auth.admin.createUser({
   email: probeEmail, email_confirm: false,
 });
-if (createErr) { console.log(`SKIP: ${createErr.message}`); process.exit(0); }
+if (createErr) { console.log(`SKIP: ${createErr.message}`); notRun(); }
 await admin.from("app_user_profile").insert({
   user_id: probe.user.id, role_key: "employee", department: null, is_active: true,
 });

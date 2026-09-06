@@ -21,6 +21,7 @@ import { loadBindings, transform } from "next/dist/build/swc/index.js";
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { record } from "./lib/gate-result.mjs";
 
 await loadBindings();
 
@@ -56,6 +57,7 @@ const mod = req(await compile("src/lib/queries/org-chart-live.ts", "org-chart-li
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };

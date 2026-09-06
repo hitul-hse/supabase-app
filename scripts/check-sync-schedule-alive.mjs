@@ -48,6 +48,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 // The workflow file below is read relative to the repo, like every other gate.
 // This used to read a drive-letter .env.local, a path that exists on exactly one
@@ -74,6 +75,7 @@ await c.connect();
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
+  record(ok);
   console.log(`${ok ? "  ok  " : " FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

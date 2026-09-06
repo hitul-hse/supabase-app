@@ -7,6 +7,7 @@
 // paths, function names - and verifies it per agent. That is the difference
 // between "the repo matches some claims" and "this prompt is accurate".
 const fs = require("node:fs");
+const { record } = require("./lib/gate-result.mjs");
 const path = require("node:path");
 
 const DIR = ".claude/agents";
@@ -99,6 +100,7 @@ for (const file of fs.readdirSync(DIR).filter(isAgentFile)) {
 
   results[agent] = { checked, problems };
   const ok = problems.length === 0;
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${agent.padEnd(10)} ${checked} concrete references verified`);
   for (const p of problems) console.log(`        - ${p}`);
   if (!ok) failed++;

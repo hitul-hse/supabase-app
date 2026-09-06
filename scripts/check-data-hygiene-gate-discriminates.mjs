@@ -18,6 +18,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { record } from "./lib/gate-result.mjs";
 
 const PAGE = "src/app/(app)/data-hygiene/page.tsx";
 const QUERY = "src/lib/queries/data-hygiene.ts";
@@ -237,6 +238,7 @@ for (const m of MUTATIONS) {
     : original.includes(m.from.replace(/\n/g, "\r\n")) ? m.from.replace(/\n/g, "\r\n") : null;
 
   if (!needle) {
+    record(false);
     console.log(`FAIL: mutation anchor not found in ${m.file} — ${m.why}`);
     console.log(`        looked for: ${JSON.stringify(m.from.slice(0, 70))}`);
     failures += 1;
@@ -254,6 +256,7 @@ for (const m of MUTATIONS) {
     const byFixture = FIXTURE_GATES.some((g) => runGate(g).exit !== 0);
     const byLive = liveSkips ? false : runGate("live").exit !== 0;
     const caught = byFixture || byLive;
+    record(caught);
     console.log(`${caught ? "PASS" : "FAIL"}: caught by ${
       [byFixture && "fixture", byLive && "live"].filter(Boolean).join(" + ") || "NOTHING"
     } — ${m.why}`);
@@ -267,6 +270,7 @@ for (const m of MUTATIONS) {
 const cleanFixture = FIXTURE_GATES.some((g) => runGate(g).exit !== 0) ? 1 : 0;
 const cleanLive = liveSkips ? 0 : runGate("live").exit;
 const cleanExit = cleanFixture || cleanLive;
+record(cleanExit === 0);
 console.log(`${cleanExit === 0 ? "PASS" : "FAIL"}: every mutation reverted, gates green again`);
 if (cleanExit !== 0) failures += 1;
 

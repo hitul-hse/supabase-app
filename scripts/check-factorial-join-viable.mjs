@@ -20,6 +20,7 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const env = Object.fromEntries(
   readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
@@ -81,6 +82,7 @@ const fetchAll = async (resource) => {
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

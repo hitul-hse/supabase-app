@@ -9,11 +9,13 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { record } from "./lib/gate-result.mjs";
 
 const CSV = "docs/asana/hse-platform-backlog.csv";
 let failures = 0;
 
 function check(label, condition, detail = "") {
+  record(condition);
   if (condition) {
     console.log(`PASS  ${label}`);
   } else {

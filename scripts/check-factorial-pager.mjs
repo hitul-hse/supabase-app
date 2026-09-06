@@ -16,9 +16,10 @@ import {
   buildUrl, fetchAllPages, classifyEmployee, normaliseEmail,
   SHARED_MAILBOX_RE, boundedAtToday,
 } from "./lib/factorial.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };
 
 const throws = async (label, fn, matcher) => {
   try {

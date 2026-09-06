@@ -28,10 +28,11 @@
  */
 import { existsSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 if (!existsSync(".next")) {
   console.log("SKIP: no production build — run `npm run build` first");
-  process.exit(0);
+  notRun();
 }
 
 const BASE = process.env.SSO_UI_BASE ?? "http://localhost:3000";
@@ -50,11 +51,12 @@ for (let i = 0; i < 10; i++) {
 }
 if (!reachable) {
   console.log(`SKIP: nothing serving ${BASE} — start it with \`npm run start\``);
-  process.exit(0);
+  notRun();
 }
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };

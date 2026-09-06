@@ -29,6 +29,7 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from "no
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 await loadBindings();
 
@@ -50,7 +51,7 @@ if (existsSync(".env.local")) {
 }
 if (!env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: no service-role key");
-  process.exit(0);
+  notRunInChain();
 }
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -58,6 +59,7 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -135,7 +137,7 @@ const probeEmail = `admin.write.probe.${Date.now()}@example.invalid`;
 const { data: created, error: createErr } = await admin.auth.admin.createUser({
   email: probeEmail, email_confirm: false,
 });
-if (createErr) { console.log(`SKIP: could not create a probe account -- ${createErr.message}`); process.exit(0); }
+if (createErr) { console.log(`SKIP: could not create a probe account -- ${createErr.message}`); notRunInChain(); }
 await admin.from("app_user_profile").insert({
   user_id: created.user.id, role_key: "employee", department: null, is_active: true,
 });

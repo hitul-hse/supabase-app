@@ -31,6 +31,7 @@ import {
   CONTRACT_FORBIDDEN_FIELDS,
   projectContract,
 } from "./lib/factorial.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 /*
  * The 54 field names of employees_employee, snapshotted from the OpenAPI spec
@@ -59,6 +60,7 @@ const SPEC_FIELDS = [
 
 let failed = 0;
 const check = (ok, label, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`  ${ok ? "ok  " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
 };

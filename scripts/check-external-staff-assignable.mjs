@@ -21,15 +21,17 @@ import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY || !env.SUPABASE_DB_URL) {
   console.log("SKIP: no credentials, so there is no live database to check");
-  process.exit(0);
+  notRunInChain();
 }
 
 let failed = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? " ok  " : "FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed += 1;
 };

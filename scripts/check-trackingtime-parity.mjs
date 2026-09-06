@@ -29,6 +29,7 @@
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -44,11 +45,11 @@ const {
 
 if (!URL_BASE || !SERVICE) {
   console.log("SKIP: no Supabase credentials");
-  process.exit(0);
+  notRun();
 }
 if (!TT_AUTH || !TT_ACCOUNT) {
   console.log("SKIP: no TRACKINGTIME_AUTH / TRACKINGTIME_ACCOUNT_ID in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 const admin = createClient(URL_BASE, SERVICE, { auth: { persistSession: false } });

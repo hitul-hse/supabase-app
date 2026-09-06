@@ -24,21 +24,50 @@
 // happened for more than two expected cycles, say so and name the likely cause,
 // because "run it manually" is a workaround rather than a fix.
 //
+// WHO RUNS IT, AND WHY A MISSING CREDENTIAL IS A FAIL HERE
+// --------------------------------------------------------
+// Found 2026-09-06, nine days after the incident above: nothing ran this gate.
+// It was a package.json script and no workflow named it, and its credential
+// guard read `.env.local` from the working directory and exited 0 with
+// "skipped" when the file was absent -- which it always is on a runner. So had
+// anyone wired it into CI it would have printed one line, gone green, and
+// proved nothing: the exact "existsSync guard, but ignoring process.env"
+// shape that scripts/lib/gate-env.mjs was written to retire. A gate whose
+// whole purpose is to notice silence cannot itself be silent when unattended.
+// It now loads credentials the way every sibling does (process.env first,
+// .env.local as a local convenience) and runs on its own schedule in
+// .github/workflows/check-sync-schedule-alive.yml -- its own trigger, because
+// a step inside sync-trackingtime.yml can never report that workflow not
+// starting. And unlike the siblings it does NOT skip when SUPABASE_DB_URL is
+// missing: they sit in chains that also run on forks and pull requests without
+// secrets, where a SKIP is honest; this one runs only where the secret is
+// meant to be present, so its absence is a misconfiguration that would
+// otherwise hide a dead scheduler behind a green run. It fails, and says why.
+//
 // READ-ONLY.
 import { readFileSync, existsSync } from "node:fs";
 import pg from "pg";
+import { loadEnv } from "./lib/gate-env.mjs";
 
-// Relative to the repo, like every other gate. This used to read
-// C:/Supabase/.env.local, a path that exists on exactly one Windows machine,
-// so on any other checkout the gate died with ENOENT before checking anything
-// -- which check-no-absolute-paths did not catch because this gate is not in
-// the CI list it scans.
-const ENV_FILE = existsSync(".env.local") ? ".env.local" : null;
-if (!ENV_FILE) { console.log("SYNC SCHEDULE: skipped — no .env.local in the working directory"); process.exit(0); }
-const env = Object.fromEntries(
-  readFileSync(ENV_FILE, "utf8").split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
+// The workflow file below is read relative to the repo, like every other gate.
+// This used to read C:/Supabase/.env.local, a path that exists on exactly one
+// Windows machine, so on any other checkout the gate died with ENOENT before
+// checking anything -- which check-no-absolute-paths did not catch because
+// this gate is not in the CI list it scans.
+const env = loadEnv();
+
+// Checked BEFORE pg sees the connection string: given undefined, pg dials
+// localhost:5432 and dies with ECONNREFUSED, which reads like a broken gate
+// rather than an absent credential.
+if (!env.SUPABASE_DB_URL) {
+  console.log("check-sync-schedule-alive: SUPABASE_DB_URL is not set.");
+  console.log("  This gate watches an unattended schedule and must not go quiet when");
+  console.log("  unattended itself, so a missing credential is a FAIL, not a skip.");
+  console.log("  On CI add SUPABASE_DB_URL as a repository secret (the session pooler");
+  console.log("  url); locally put it in .env.local.");
+  console.log("\nFAIL (1)");
+  process.exit(1);
+}
 
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
 await c.connect();

@@ -122,16 +122,34 @@ export function NumberedPager({
       ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]"
       : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]";
     const shared = {
-      "aria-current": current ? ("page" as const) : undefined,
       "aria-label": named ? labels.pageLabel(n) : undefined,
       className: `${base} ${skin}`,
     };
+    /*
+      `aria-current` is written out on each element rather than folded into the
+      spread above. It is the one attribute that makes a row of anchors
+      announce as anything other than N identical links, three gates read for
+      it literally, and a mutation test flips it to prove they still catch its
+      loss -- all of which is served by having it visible at the call site.
+    */
     return hrefFor ? (
-      <Link key={`${label}-${n}`} href={hrefFor(n)} scroll={false} {...shared}>
+      <Link
+        key={`${label}-${n}`}
+        href={hrefFor(n)}
+        scroll={false}
+        aria-current={current ? "page" : undefined}
+        {...shared}
+      >
         {label}
       </Link>
     ) : (
-      <button key={`${label}-${n}`} type="button" onClick={() => onSelect?.(n)} {...shared}>
+      <button
+        key={`${label}-${n}`}
+        type="button"
+        onClick={() => onSelect?.(n)}
+        aria-current={current ? "page" : undefined}
+        {...shared}
+      >
         {label}
       </button>
     );

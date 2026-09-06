@@ -167,7 +167,7 @@
       "status": {
         "overCapacity": "Über Kapazität",
         "low": "Niedrig",
-        "onTrack": "Im Rahmen",
+        "onTrack": "Im Plan",
         "noActivity": "Keine Aktivität",
         "notMeasured": "Nicht messbar"
       },
@@ -229,7 +229,7 @@
         "project": "PROJEKT",
         "customer": "KUNDE",
         "burn": "VERBRAUCH",
-        "over": "DARÜBER"
+        "over": "ÜBER"
       },
       "hours": "{hours} h",
       "qualifier": "SCHLECHTESTE ZUERST",
@@ -1711,7 +1711,7 @@
       "status": {
         "over": "Über Budget",
         "risk": "Gefährdet",
-        "healthy": "Im Rahmen",
+        "healthy": "Gesund",
         "nobudget": "Kein Budget"
       },
       "csvTitle": "Diese Projekte als CSV laden — mit dem aktuellen Filter und der aktuellen Sortierung",

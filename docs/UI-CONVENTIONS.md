@@ -47,8 +47,13 @@ hierarchy, generous whitespace), not their marketing aesthetics.
 ## The house tokens, for any new list UI
 
 - numbers: `font-mono tabular-nums`, hours to 1 decimal, percent as integers
-- severity colours: `var(--critical)`, `var(--warning, #d99b3d)`,
-  `var(--accent)` for healthy/active, never hardcoded hex
+- status colours: `var(--critical)`, `var(--warning)`, `var(--good)` for
+  healthy, `var(--text-faint)` for unmeasured; never a hardcoded hex and never
+  a fallback literal (`var(--warning, #d99b3d)` was one)
+- `var(--accent)` means INTERACTIVE or CURRENT only: links, the one primary
+  button, the focus ring, the current nav item / segment / page / sort. It is
+  never a status colour and never decoration on a figure (docs/APPLE-DESIGN-
+  REFERENCE.md §2.3 #5, §8 #5). Status is never colour alone: icon + text
 - labels: `font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]`
 - no emoji or unicode glyphs in app-shell files (check-design-system enforces
   this); use inline SVG

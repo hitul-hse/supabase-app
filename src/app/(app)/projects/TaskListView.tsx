@@ -48,7 +48,7 @@ export function TaskListView({
     <div className="overflow-x-auto">
       <div
         ref={listRef}
-        className="grid min-w-[420px] grid-cols-12 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]"
+        className="grid min-w-[420px] grid-cols-12 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 t-label text-[var(--text-faint)]"
       >
         <span className="col-span-4">{t("columns.task")}</span>
         <span className="col-span-2 text-right">{t("columns.estimate")}</span>

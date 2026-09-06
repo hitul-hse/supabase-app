@@ -313,6 +313,14 @@ const app = spawn("npx", ["next", "start", "--port", String(APP_PORT)], {
   env: { ...stubEnv, NEXT_ACCEPTANCE_DIST: REBUILD ? DIST : ".next" },
   shell: true,
   stdio: "pipe",
+  // Its own process group on POSIX, so cleanup can kill the TREE. Under a
+  // shell the listener is a grandchild (sh -> npm -> next-server); killing the
+  // wrapper alone left next-server on the port after every run on Linux, and
+  // the next run then drove that orphan -- serving a build whose dist this
+  // cleanup had already deleted, so nothing hydrated and every control read
+  // as dead (measured 2026-09-05: three consecutive runs, all against a
+  // leaked server from the run before).
+  detached: process.platform !== "win32",
 });
 
 let appLog = "";
@@ -327,8 +335,9 @@ const cleanup = () => {
   try {
     if (process.platform === "win32" && app.pid) {
       spawnSync("taskkill", ["/PID", String(app.pid), "/T", "/F"], { stdio: "ignore" });
-    } else {
-      app.kill("SIGKILL");
+    } else if (app.pid) {
+      // Negative pid: the whole process group, grandchild included.
+      process.kill(-app.pid, "SIGKILL");
     }
   } catch { /* already gone */ }
   try { server.close(); } catch { /* already closed */ }

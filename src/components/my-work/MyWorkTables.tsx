@@ -61,9 +61,15 @@
  * The width those three freed is what pays for five link columns instead of
  * one -- see the block that builds them.
  */
-import { useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { DataTable, cmpNum, cmpText, type Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/Button";
+import { FilterChip } from "@/components/ui/Field";
+import { Pill, Segmented } from "@/components/ui/Segmented";
+import { IconCross } from "@/components/nav-icons";
+import { useUrlState, type UrlPatch } from "@/components/url-state";
 import {
   LINK_DESTINATION,
   LINK_LABEL,
@@ -77,9 +83,9 @@ import {
 import { LINK_ICON } from "./link-icons";
 import { RoleBadge } from "./RoleBadge";
 
-/** `n/a` rather than 0: an unrecorded figure and a real zero are different facts. */
+/** `—` rather than 0: an unrecorded figure and a real zero are different facts. */
 function hours(n: number | null): string {
-  if (n === null) return "n/a";
+  if (n === null) return "—";
   return n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 }
 
@@ -92,6 +98,45 @@ function statusTone(status: string): "critical" | "warning" | "neutral" {
 const rank = (r: MyRole) => ROLE_ORDER.indexOf(r);
 
 type View = "projects" | "customers";
+
+/**
+ * Everything the controls above the tables decide, and all of it in the URL
+ * (`?view=&role=&customer=`; UI-CONVENTIONS rule 2, APPLE_REF §5.2 "a
+ * URL-bearing tab view"). The defaults are absent so a fresh /my-work has a
+ * clean address, and a stale value degrades to the default rather than
+ * throwing: a role that no longer exists is "all", a view that is not
+ * "customers" is projects.
+ */
+type Controls = { view: View; role: MyRole | "all"; customer: string | null };
+
+function controlsFromParams(params: URLSearchParams): Controls {
+  const role = params.get("role");
+  return {
+    view: params.get("view") === "customers" ? "customers" : "projects",
+    role: ROLE_ORDER.includes(role as MyRole) ? (role as MyRole) : "all",
+    customer: params.get("customer") || null,
+  };
+}
+
+function controlsToPatch(c: Controls): UrlPatch {
+  return {
+    view: c.view === "projects" ? null : c.view,
+    role: c.role === "all" ? null : c.role,
+    customer: c.customer,
+    // A view or filter change defines a new list; its first page is page 1.
+    page: null,
+  };
+}
+
+/** The address of a view, with the current role and customer kept. */
+function hrefFor(c: Controls): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(controlsToPatch(c))) {
+    if (typeof value === "string" && value !== "") params.set(key, value);
+  }
+  const qs = params.toString();
+  return qs ? `/my-work?${qs}` : "/my-work";
+}
 
 export function MyWorkTables({
   projects,
@@ -120,15 +165,32 @@ export function MyWorkTables({
   /** The hours caveat, rendered under the table it applies to. */
   footnote?: React.ReactNode;
 }) {
-  const [view, setView] = useState<View>("projects");
-  const [role, setRole] = useState<MyRole | "all">("all");
-  /**
-   * Drill-down from the customers table into the projects table. Held here
-   * rather than inside DataTable's search box because it is an exact match on a
-   * customer name, not a substring: "Techspace EIS GmbH" must not also select
-   * "Techspace BER GmbH".
+  // The chrome this component adds around the two tables -- the view switch,
+  // the role filter, the clear control and the table titles -- reads from the
+  // catalogue. Column headers and hints keep their English literals: several
+  // are pinned by check-my-work-services.mjs, and moving the rest is its own
+  // change with that gate.
+  const t = useTranslations("myWork");
+  /*
+   * View, role filter and the customer drill-down, mirrored into the URL with
+   * no server round-trip (url-state.ts). The view switch pushes a history
+   * entry -- it is a tab, and back should return to the other tab -- while a
+   * filter replaces, so ten chip clicks do not bury the previous page.
+   *
+   * The customer drill-down is an exact match on a customer name, not a
+   * substring, which is why it is not DataTable's search box: "Techspace EIS
+   * GmbH" must not also select "Techspace BER GmbH".
    */
-  const [customer, setCustomer] = useState<string | null>(null);
+  const [controls, setControls] = useUrlState<Controls>(controlsFromParams, controlsToPatch);
+  const { view, role, customer } = controls;
+  const setView = (v: View) => setControls({ ...controls, view: v }, "push");
+  const setRole = (r: MyRole | "all") => setControls({ ...controls, role: r });
+  const setCustomer = (c: string | null) => setControls({ ...controls, customer: c });
+  /** Drill from a customer row into its projects: one change, one URL write. */
+  const drillInto = useCallback(
+    (c: string) => setControls({ ...controls, customer: c, view: "projects" }, "push"),
+    [controls, setControls],
+  );
 
   const filteredProjects = useMemo(
     () =>
@@ -186,10 +248,7 @@ export function MyWorkTables({
         cell: (r) => (
           <button
             type="button"
-            onClick={() => {
-              setCustomer(r.customer);
-              setView("projects");
-            }}
+            onClick={() => drillInto(r.customer)}
             title={`Show only ${r.customer}`}
             /*
              * max-w-[12rem], NOT max-w-full, and this single class is worth 94px
@@ -216,7 +275,7 @@ export function MyWorkTables({
              * empty space. It stays a cap: at 1920 min-content is 1069 against
              * 1550 available. The full name is in the tooltip either way.
              */
-            className="block max-w-[12rem] truncate text-left text-[12px] text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline 2xl:max-w-[18rem]"
+            className="block max-w-[12rem] truncate text-left t-callout text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline 2xl:max-w-[18rem]"
           >
             {r.customer}
           </button>
@@ -254,10 +313,10 @@ export function MyWorkTables({
               costs a mid-word split on a narrow screen and buys 45px; the
               alternative was scrolling the whole table sideways.
             */}
-            <span className="[overflow-wrap:anywhere] text-[12px] text-[var(--text-primary)]">
+            <span className="[overflow-wrap:anywhere] t-callout t-tight text-[var(--text-primary)]">
               {r.name}
             </span>
-            <span className="font-mono text-[10px] text-[var(--text-faint)]">
+            <span className="fig t-tight text-[var(--text-faint)]">
               {r.code}
               {/* The masterdata order number ONLY when it differs from the code:
                   the live import set order_no to the project id itself, so
@@ -303,10 +362,10 @@ export function MyWorkTables({
         search: (r) => r.services.join(" "),
         csv: (r) => r.services.join(" / "),
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+          <span className="fig text-[var(--text-secondary)]">
             {/* No time.project row at all for this project (9 of 54 on live
-                data) -- honest n/a, never a blank cell or a guessed service. */}
-            {r.services.length > 0 ? r.services.join(" · ") : "n/a"}
+                data) -- honest "—", never a blank cell or a guessed service. */}
+            {r.services.length > 0 ? r.services.join(" · ") : "—"}
           </span>
         ),
       },
@@ -328,8 +387,8 @@ export function MyWorkTables({
           // column was rendering "2026-04-" over "19", which reads as two
           // fields. Its min-content rises from 52px to 82px, which the width
           // budget can afford; a date split across two lines it cannot.
-          <span className="whitespace-nowrap font-mono text-[11px] text-[var(--text-muted)]">
-            {r.dueDate ?? "n/a"}
+          <span className="whitespace-nowrap fig text-[var(--text-muted)]">
+            {r.dueDate ?? "—"}
           </span>
         ),
       },
@@ -350,7 +409,7 @@ export function MyWorkTables({
         title: "Hours your own assignment row carries for this project",
         csv: (r) => r.myLoggedHours ?? "",
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-faint)]">
+          <span className="fig text-[var(--text-faint)]">
             {hours(r.myLoggedHours)}
           </span>
         ),
@@ -472,7 +531,7 @@ export function MyWorkTables({
     }
 
     return cols;
-  }, [showMyHours]);
+  }, [showMyHours, drillInto]);
 
   const customerColumns: Column<MyCustomer>[] = useMemo(() => {
     const cols: Column<MyCustomer>[] = [
@@ -496,12 +555,9 @@ export function MyWorkTables({
           <div className="flex min-w-0 max-w-[18rem] flex-col gap-0.5">
             <button
               type="button"
-              onClick={() => {
-                setCustomer(r.customer);
-                setView("projects");
-              }}
+              onClick={() => drillInto(r.customer)}
               title={`Show this customer's ${r.projectCount} project${r.projectCount === 1 ? "" : "s"}`}
-              className="block truncate text-left text-[12px] text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
+              className="block truncate text-left t-callout text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
             >
               {r.customer}
             </button>
@@ -509,14 +565,14 @@ export function MyWorkTables({
                 "GEPLAHN-T GmbH" are one legal entity, and folding them silently
                 leaves a customer count nobody can reconcile. */}
             {r.aliases.length > 0 ? (
-              <span className="truncate font-mono text-[10px] text-[var(--text-faint)]">
+              <span className="truncate t-label text-[var(--text-faint)]">
                 booked as {r.aliases.join(" · ")}
               </span>
             ) : null}
             {r.entityId === null ? (
               <span
                 title="Not linked to a canonical legal entity, so this row is keyed on the free-text name"
-                className="font-mono text-[10px] text-[var(--text-faint)]"
+                className="t-label text-[var(--text-faint)]"
               >
                 UNLINKED
               </span>
@@ -546,12 +602,12 @@ export function MyWorkTables({
             .join(" / "),
         cell: (r) => (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+            <span className="fig text-[var(--text-secondary)]">
               {r.projectCount}
             </span>
             {ROLE_ORDER.filter((x) => r.roleCounts[x] > 0).map((x) => (
               <span key={x} className="flex flex-none items-center gap-1">
-                <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                <span className="fig text-[var(--text-muted)]">
                   {r.roleCounts[x]}
                 </span>
                 <RoleBadge role={x} />
@@ -572,17 +628,12 @@ export function MyWorkTables({
         csv: (r) => r.services.join(" / "),
         cell: (r) => (
           <div className="flex flex-wrap items-center gap-1">
+            {/* A service tag is a status-shaped token, so it wears the Pill:
+                rounded-full is "a choice or a status" in the radius vocabulary. */}
             {r.services.length > 0 ? (
-              r.services.map((s) => (
-                <span
-                  key={s}
-                  className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
-                >
-                  {s}
-                </span>
-              ))
+              r.services.map((s) => <Pill key={s}>{s}</Pill>)
             ) : (
-              <span className="font-mono text-[11px] text-[var(--text-faint)]">n/a</span>
+              <span className="fig text-[var(--text-faint)]">—</span>
             )}
           </div>
         ),
@@ -595,8 +646,26 @@ export function MyWorkTables({
         title: "Team hours logged across your projects for this customer",
         csv: (r) => r.loggedHours,
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-            {hours(r.loggedHours)}
+          // A two-line cell where the total is a FLOOR: the figure over its
+          // coverage, in the warning colour, the way DESIGN.md rule 7 and
+          // APPLE_REF §5.9 "Partial" ask for it. `loggedHours` sums with
+          // `?? 0`, so once the honest-nulls migration nulls an unmeasured
+          // project, "80" over 2 of 4 measured is the truth and a bare "80"
+          // is a plausible wrong number. Silent when every project is
+          // measured, so a clean row stays one figure.
+          <span className="flex flex-col items-end">
+            <span className="fig text-[var(--text-secondary)]">{hours(r.loggedHours)}</span>
+            {r.measuredProjectCount < r.projectCount ? (
+              <span
+                className="t-label text-[var(--warning)]"
+                title={t("tables.coverageTitle", {
+                  measured: r.measuredProjectCount,
+                  total: r.projectCount,
+                })}
+              >
+                {t("tables.coverage", { measured: r.measuredProjectCount, total: r.projectCount })}
+              </span>
+            ) : null}
           </span>
         ),
       },
@@ -610,7 +679,7 @@ export function MyWorkTables({
           : "Contracted hours summed across your projects for this customer",
         csv: (r) => r.contractHours ?? "",
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-muted)]">
+          <span className="fig text-[var(--text-muted)]">
             {/* 0 summed contract hours across the group means no budget was set
                 on any of them, which is not a budget of zero -- and null means
                 the reader may not see it, which is neither. */}
@@ -633,7 +702,7 @@ export function MyWorkTables({
         title: "Hours your own assignment rows carry for this customer",
         csv: (r) => r.myLoggedHours,
         cell: (r) => (
-          <span className="font-mono text-[11px] text-[var(--text-faint)]">
+          <span className="fig text-[var(--text-faint)]">
             {hours(r.myLoggedHours)}
           </span>
         ),
@@ -641,12 +710,12 @@ export function MyWorkTables({
     }
 
     return cols;
-  }, [showMyHours, budgetsWithheld]);
+  }, [showMyHours, budgetsWithheld, drillInto, t]);
 
   const roleChips: { value: MyRole | "all"; label: string; count: number }[] = [
     {
       value: "all",
-      label: "ALL",
+      label: t("filters.all"),
       count: ROLE_ORDER.reduce((s, r) => s + roleCounts[r], 0),
     },
     ...ROLE_ORDER.map((r) => ({ value: r, label: ROLE_LABEL[r], count: roleCounts[r] })),
@@ -662,84 +731,70 @@ export function MyWorkTables({
         click; the view switch decides whether the answer is counted per project
         or per customer.
       */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex overflow-hidden border border-[var(--border)]">
-          {(
-            [
-              { v: "projects" as View, label: "PROJECTS", n: projects.length },
-              { v: "customers" as View, label: "CUSTOMERS", n: customers.length },
-            ]
-          ).map((t) => (
-            <button
-              key={t.v}
-              type="button"
-              onClick={() => setView(t.v)}
-              aria-pressed={view === t.v}
-              title={
-                t.v === "projects"
-                  ? "One row per project, with its customer beside it"
-                  : "One row per customer, with your projects and hour totals for it"
-              }
-              className={`px-2.5 py-1 font-mono text-[10px] tracking-[0.08em] transition-colors ${
-                view === t.v
-                  ? "bg-[var(--surface-hover)] text-[var(--text-primary)]"
-                  : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              {t.label} <span className="text-[var(--text-muted)]">{t.n}</span>
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {/*
+          The view switch is the house Segmented -- real links carrying
+          `aria-current`, nouns only (APPLE_REF §5.2, §8 #10) -- so the URL is
+          the tab: copy-link and open-in-new-tab work, and back returns to the
+          other view. `onSelect` handles a plain click in place, because the
+          other view is a re-projection of rows already here and a server
+          round-trip per click would be a regression. The counts that used to
+          sit in the segments are stated where they belong: in the tiles above
+          and in each table's own header line.
+        */}
+        <Segmented
+          ariaLabel={t("views.label")}
+          current={hrefFor(controls)}
+          options={[
+            { href: hrefFor({ ...controls, view: "projects" }), label: t("views.projects") },
+            { href: hrefFor({ ...controls, view: "customers" }), label: t("views.customers") },
+          ]}
+          onSelect={(href) => setView(controlsFromParams(new URL(href, "http://x").searchParams).view)}
+        />
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-            MY ROLE
+          <span className="t-label text-[var(--text-faint)]">
+            {t("filters.role")}
           </span>
-          {roleChips.map((c) => {
-            const active = role === c.value;
-            return (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => setRole(c.value)}
-                aria-pressed={active}
-                title={
-                  c.value === "all"
-                    ? "Every project you have any claim on"
-                    : `Only the ${c.count} where you are ${c.label.toLowerCase()}`
-                }
-                className={`flex items-center gap-1.5 border px-2 py-1 font-mono text-[10px] transition-colors ${
-                  active
-                    ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--text-primary)]"
-                    : "border-[var(--border)] text-[var(--text-faint)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                {c.value === "all" ? (
-                  <span className="tracking-[0.08em]">ALL</span>
-                ) : (
-                  <RoleBadge role={c.value} />
-                )}
-                <span className="text-[var(--text-muted)]">{c.count}</span>
-              </button>
-            );
-          })}
+          {/*
+            FilterChip, the house filter: one chip per rung with its count, the
+            same control the /projects and /people filter rows use. The chip
+            used to wrap a RoleBadge -- a pill inside a square chip -- so the
+            filter and the row badge were the same token at two sizes. The
+            badge stays in the rows, where it IS the information; the chip is
+            a filter and looks like one.
+          */}
+          {roleChips.map((c) => (
+            <FilterChip
+              key={c.value}
+              active={role === c.value}
+              onToggle={() => setRole(c.value)}
+              count={c.count}
+              title={
+                c.value === "all"
+                  ? "Every project you have any claim on"
+                  : `Only the ${c.count} where you are ${c.label.toLowerCase()}`
+              }
+            >
+              {c.label}
+            </FilterChip>
+          ))}
         </div>
 
         {/* The drill-down is stated and reversible. A silently filtered table
             whose control is elsewhere is how a reader concludes rows are
-            missing. */}
+            missing. A ghost button with the icon-set cross, not a chip with a
+            typographic ×. */}
         {activeCustomer ? (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setCustomer(null)}
-            className="flex items-center gap-1.5 border border-[var(--accent)] bg-[var(--accent-wash)] px-2 py-1 font-mono text-[10px] text-[var(--text-primary)] transition-colors hover:border-[var(--critical)]"
-            title="Clear the customer filter"
+            title={t("filters.clearCustomer")}
           >
+            <IconCross className="h-3.5 w-3.5" />
             <span className="max-w-[16rem] truncate">{activeCustomer}</span>
-            <span aria-hidden className="text-[var(--text-muted)]">
-              ×
-            </span>
-          </button>
+          </Button>
         ) : null}
       </div>
 
@@ -748,7 +803,7 @@ export function MyWorkTables({
           rows={filteredProjects}
           columns={projectColumns}
           rowKey={(r) => r.id}
-          title="MY PROJECTS"
+          title={t("tables.projects")}
           hint={
             role === "all" && activeCustomer === null
               ? "strongest claim first"
@@ -760,7 +815,17 @@ export function MyWorkTables({
           initialDesc
           exportName="my-work-projects"
           searchPlaceholder="Search projects…"
-          emptyText="No projects are assigned to you."
+          // The in-table empty line says WHY (APPLE_REF §5.6, §5.9): an
+          // empty table under a role or customer filter is the filter's
+          // doing, and "no projects are assigned to you" would be a lie to
+          // someone with 54 of them.
+          emptyText={
+            role !== "all" || activeCustomer !== null
+              ? t("tables.emptyFiltered")
+              : t("empty.none.title")
+          }
+          // Page and size in the URL (`?page=&size=`) with no round-trip.
+          urlKeys={{ page: "page", size: "size" }}
           // Bounded body: the rows scroll inside the card so the filter above
           // and the footnote below stay reachable, and the page does not grow.
           maxBodyHeight
@@ -788,7 +853,7 @@ export function MyWorkTables({
           rows={filteredCustomers}
           columns={customerColumns}
           rowKey={(r) => r.entityId ?? `text:${r.customer}`}
-          title="MY CUSTOMERS"
+          title={t("tables.customers")}
           hint={
             role === "all"
               ? "customers you lead first"
@@ -798,7 +863,8 @@ export function MyWorkTables({
           initialDesc
           exportName="my-work-customers"
           searchPlaceholder="Search customers…"
-          emptyText="No customers are assigned to you."
+          emptyText={role !== "all" ? t("tables.emptyFiltered") : t("tables.emptyCustomers")}
+          urlKeys={{ page: "page", size: "size" }}
           maxBodyHeight
           freezeFirstColumn
           footnote={footnote}

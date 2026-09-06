@@ -39,7 +39,20 @@
       "rows": "{count} ROWS"
     },
     "show": "SHOW",
-    "hide": "HIDE"
+    "hide": "HIDE",
+    "replayTour": "Replay tour",
+    "signingOut": "Signing out…",
+    "profile": "Profile",
+    "accountMenu": "Account menu — {name}",
+    "themeToDark": "Switch to dark theme",
+    "themeToLight": "Switch to light theme",
+    "error": {
+      "title": "This page couldn't load",
+      "description": "The data behind this screen failed to load. This is usually temporary — trying again often resolves it. If it keeps happening, the reference below helps trace the cause.",
+      "tryAgain": "Try again",
+      "backToOverview": "Back to Overview",
+      "ref": "REF {digest}"
+    }
   },
   "overview": {
     "title": "Overview",
@@ -203,8 +216,8 @@
     "fetching": "Fetching…",
     "nothingLogged": "Nothing logged.",
     "page": "PAGE {page} / {count}",
-    "back": "← BACK",
-    "next": "NEXT →",
+    "back": "BACK",
+    "next": "NEXT",
     "noProject": "(no project)",
     "noCustomer": "(no customer)",
     "noTask": "(no task)",
@@ -1550,19 +1563,19 @@
     "truncated": "This portfolio exceeds the reporting ceiling, so the hours below cover only the most recent entries. Totals per project may be understated.",
     "empty": {
       "title": "No projects yet",
-      "description": "Nothing has been imported from TrackingTime yet. The nightly sync populates this list; you can also run it manually with `npm run sync:trackingtime`."
+      "description": "Nothing has been imported from TrackingTime yet. The nightly sync fills this list; `npm run sync:trackingtime` runs it by hand."
     },
     "noAccess": {
       "title": "You don't have access to the project portfolio",
-      "description": "Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is visible under Time. An administrator can grant wider access under Role Permissions.",
-      "action": "Go to Time →"
+      "description": "Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is under Time.",
+      "action": "Go to Time"
     },
     "filters": {
       "searchLabel": "Search projects by name, customer or code",
       "searchPlaceholder": "Search projects…",
-      "all": "All",
-      "billable": "Billable",
-      "nonBillable": "Non-bill.",
+      "all": "ALL",
+      "billable": "BILLABLE",
+      "nonBillable": "NON-BILLABLE",
       "clear": "Clear",
       "countAll": "{count} PROJECTS",
       "countOf": "{shown} OF {total}",
@@ -1572,7 +1585,8 @@
         "healthy": "HEALTHY",
         "nobudget": "NO BUDGET",
         "idle": "NO ACTIVITY"
-      }
+      },
+      "billableGroup": "Billing filter"
     },
     "customer": {
       "label": "CUSTOMER",
@@ -1628,7 +1642,7 @@
       }
     },
     "ledger": {
-      "title": "PROJECT LEDGER",
+      "title": "Project ledger",
       "count": "{count} PROJECTS",
       "empty": {
         "title": "No projects match",
@@ -1715,7 +1729,7 @@
       },
       "meta": "{customer}{code} · {entries} ENTRIES",
       "noCustomer": "NO CUSTOMER",
-      "allProjects": "← All projects",
+      "allProjects": "All projects",
       "pills": {
         "archived": "ARCHIVED",
         "billable": "BILLABLE",
@@ -1922,8 +1936,8 @@
     "range": "{from, number}–{to, number} OF {count, number} {noun}",
     "perPage": "PER PAGE",
     "all": "ALL",
-    "prev": "← PREV",
-    "next": "NEXT →",
+    "prev": "PREV",
+    "next": "NEXT",
     "srAll": "Showing all {count, number} {noun}",
     "srRange": "Showing {from, number} to {to, number} of {count, number} {noun}, page {page, number} of {pages, number}"
   },
@@ -1938,6 +1952,74 @@
     "rowsPerPage": "{count, number} rows per page",
     "all": "ALL",
     "csvTitle": "Download these rows as CSV, with the current filter and sort applied",
-    "empty": "Nothing to show."
+    "empty": "Nothing to show.",
+    "searchLabel": "Search {title}",
+    "rowsPerPageGroup": "Rows per page",
+    "noMatch": "No row matches “{query}”.",
+    "clearTheSearch": "Clear the search",
+    "prev": "PREV",
+    "next": "NEXT"
+  },
+  "myWork": {
+    "header": {
+      "linkedTo": "LINKED TO {name}"
+    },
+    "summary": {
+      "led": {
+        "label": "CUSTOMERS I LEAD",
+        "hint": "responsible or owner"
+      },
+      "customers": {
+        "label": "CUSTOMERS TOTAL",
+        "hint": "canonical entities"
+      },
+      "projects": {
+        "label": "MY PROJECTS",
+        "hint": "on any rung"
+      },
+      "hours": {
+        "label": "HOURS · TEAM",
+        "hint": "all people"
+      },
+      "services": {
+        "label": "SERVICES KNOWN",
+        "hintAll": "of your projects ({source})",
+        "hintOf": "of {total} projects ({source})"
+      }
+    },
+    "views": {
+      "label": "View",
+      "projects": "PROJECTS",
+      "customers": "CUSTOMERS"
+    },
+    "filters": {
+      "role": "MY ROLE",
+      "all": "ALL",
+      "clearCustomer": "Clear the customer filter"
+    },
+    "tables": {
+      "projects": "My projects",
+      "customers": "My customers",
+      "coverage": "{measured} OF {total} MEASURED",
+      "coverageTitle": "Hours are known for {measured} of {total} projects, so this total is a floor, not the whole.",
+      "emptyFiltered": "No rows match this role or customer filter. Clear it above.",
+      "emptyCustomers": "No customers are assigned to you"
+    },
+    "empty": {
+      "browseProjects": "Browse all projects",
+      "reload": "Reload",
+      "unlinked": {
+        "title": "Your account isn't linked to a person record yet",
+        "description": "Work is attributed through a person record, and this account has none yet. An administrator can link one under Users & Roles."
+      },
+      "loadFailed": {
+        "title": "Your work couldn't be loaded",
+        "description": "The projects query failed, so nothing is shown rather than a partial list. Reload; if it persists, an administrator can check the logs."
+      },
+      "none": {
+        "title": "No projects are assigned to you",
+        "description": "Nothing names {name} as responsible, owner, replacement or assignee yet. Once a project lead assigns you, it appears here."
+      }
+    }
   }
 }

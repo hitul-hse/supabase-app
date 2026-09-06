@@ -21,6 +21,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fmtNum } from "@/lib/locale-format";
+import { KeyboardHint } from "@/components/ui/Field";
+import { IconCaret, IconCheck } from "@/components/nav-icons";
 
 /** Every word this control draws, resolved by the caller in the request locale. */
 export type CustomerSelectLabels = {
@@ -126,26 +128,26 @@ export function CustomerMultiSelect({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex min-w-[9rem] max-w-[15rem] items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] transition-colors ${
+        className={`flex min-w-[9rem] max-w-[15rem] items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left t-callout transition-[color,border-color,transform] duration-150 active:scale-[0.97] ${
           selected.size
             ? "border-[var(--accent)] text-[var(--text-primary)]"
             : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         }`}
       >
-        <span className="flex flex-col leading-tight">
-          <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
+        <span className="flex min-w-0 flex-col">
+          <span className="t-label text-[var(--text-faint)]">
             {labels.field}
           </span>
           <span className="truncate">{summary}</span>
         </span>
-        <span aria-hidden className="text-[9px] text-[var(--text-faint)]">
-          ▼
-        </span>
+        <IconCaret
+          className={`flex-none text-[var(--text-faint)] transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev-raised">
-          <div className="border-b border-[var(--border)] p-2">
+        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-[19rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--surface-raised)] card-elev-raised">
+          <div className="border-b border-[var(--divider)] p-2">
             <input
               autoFocus
               value={query}
@@ -159,11 +161,11 @@ export function CustomerMultiSelect({
               aria-controls="customer-options"
               aria-autocomplete="list"
               placeholder={labels.searchPlaceholder}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              className="w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--page)] px-2.5 py-1 t-callout text-[var(--text-primary)] transition-colors placeholder-[var(--text-muted)] focus:border-[var(--accent)]"
             />
-            <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
+            <p className="mt-1 flex items-center justify-between t-subhead text-[var(--text-faint)]">
               <span>{labels.counts(filtered.length, options.length, selected.size)}</span>
-              <span aria-hidden>↑↓ ⏎ esc</span>
+              <KeyboardHint />
             </p>
           </div>
 
@@ -176,7 +178,7 @@ export function CustomerMultiSelect({
             className="flex-1 overflow-y-auto"
           >
             {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
+              <p className="px-3 py-4 text-center t-subhead text-[var(--text-faint)]">
                 {labels.noMatch(query.trim())}
               </p>
             ) : (
@@ -192,28 +194,24 @@ export function CustomerMultiSelect({
                     aria-selected={on}
                     onMouseEnter={() => setCursor(i)}
                     onClick={() => toggle(o.name)}
-                    className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[12px] transition-colors ${
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left t-callout transition-colors active:translate-y-px ${
                       hot ? "bg-[var(--surface-hover)]" : ""
                     } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <span
                         aria-hidden
-                        className={`flex h-3 w-3 flex-none items-center justify-center border ${
+                        className={`flex h-3.5 w-3.5 flex-none items-center justify-center rounded-[var(--radius-sm)] border transition-colors ${
                           on
-                            ? "border-[var(--accent)] bg-[var(--accent)]"
-                            : "border-[var(--border)]"
+                            ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                            : "border-[var(--border-strong)]"
                         }`}
                       >
-                        {on && (
-                          <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="var(--accent-contrast)" strokeWidth="2">
-                            <path d="M1.5 5.5 4 8l4.5-6" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
+                        {on && <IconCheck className="h-2.5 w-2.5" />}
                       </span>
                       <span className="truncate">{labels.displayName(o.name)}</span>
                     </span>
-                    <span className="flex-none font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
+                    <span className="flex-none fig text-[var(--text-faint)]">
                       {fmtNum(o.hours, locale, 0)}h
                     </span>
                   </button>
@@ -223,11 +221,11 @@ export function CustomerMultiSelect({
           </div>
 
           {selected.size > 0 && (
-            <div className="flex items-center justify-end border-t border-[var(--border)] px-3 py-1.5">
+            <div className="flex items-center justify-end border-t border-[var(--divider)] px-3 py-1.5">
               <button
                 type="button"
                 onClick={() => onChange(new Set())}
-                className="text-[11px] text-[var(--text-secondary)] transition-colors hover:text-[var(--critical)]"
+                className="t-subhead text-[var(--text-secondary)] transition-[color,transform] duration-150 hover:text-[var(--text-primary)] active:translate-y-px"
               >
                 {labels.clear(selected.size)}
               </button>

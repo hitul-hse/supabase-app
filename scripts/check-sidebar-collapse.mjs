@@ -469,10 +469,13 @@ try {
     "state not exposed to assistive tech",
   );
 
-  // The shell must reflect collapse in its own markup.
+  // The shell must reflect collapse in its own markup. It animates on the
+  // shared spring constants now, so that module is compiled and rewritten too.
+  const springsFile = await compile("src/components/animations/springs.ts", "springs.cjs");
   const shellFile = await compile(SHELL_PATH, "shell.cjs", {
     "./SidebarCollapseContext": posix(ctxFile),
     "./sidebar-collapse-shared": posix(sharedFile),
+    "./animations/springs": posix(springsFile),
   });
   const { DesktopSidebarShell } = require(shellFile);
 

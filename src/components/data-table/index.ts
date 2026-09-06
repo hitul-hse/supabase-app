@@ -9,5 +9,6 @@ export {
   DEFAULT_MAX_BODY_HEIGHT,
   type Align,
   type Column,
+  type Density,
   type PageSize,
 } from "./DataTable";

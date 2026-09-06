@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
+import { IconArrowsVertical, IconCaret } from "../nav-icons";
 
 /**
  * Form-control and filter vocabulary for the app shell: search boxes, selects,
@@ -26,13 +27,39 @@ import type { ComponentProps, ReactNode } from "react";
 
 const CONTROL_BASE =
   "rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--page)] " +
-  "text-[12px] text-[var(--text-primary)] placeholder-[var(--text-muted)] " +
+  "t-callout text-[var(--text-primary)] placeholder-[var(--text-muted)] " +
   "transition-colors duration-150 " +
   "hover:border-[var(--text-faint)] " +
   // No `focus:outline-none` — the global :focus-visible ring is the whole
   // keyboard-accessibility story and removing it here would be invisible.
   "focus:border-[var(--accent)] " +
   "disabled:cursor-not-allowed disabled:text-[var(--text-faint)] disabled:hover:border-[var(--border-strong)]";
+
+/**
+ * The same skin for a caller that renders its own <input>. DataTable does: its
+ * search box keeps a visually-hidden <label> that the primitive's aria-label
+ * form would replace. One exported class, so the two boxes cannot drift.
+ */
+export const controlClass = CONTROL_BASE;
+
+/**
+ * The key caps drawn under a searchable list: arrows move, Enter picks, Esc
+ * closes. Key NAMES, not prose -- they read the same on a German keyboard --
+ * and aria-hidden, because the listbox semantics already carry the grammar.
+ */
+export function KeyboardHint({ className = "" }: { className?: string }) {
+  const cap =
+    "inline-flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] px-1 t-label text-[var(--text-faint)]";
+  return (
+    <span aria-hidden className={`inline-flex items-center gap-1 ${className}`}>
+      <span className={cap}>
+        <IconArrowsVertical className="h-3 w-3" />
+      </span>
+      <span className={cap}>Enter</span>
+      <span className={cap}>Esc</span>
+    </span>
+  );
+}
 
 export function SearchInput({
   value,
@@ -66,7 +93,9 @@ export function SearchInput({
         value={value}
         onChange={(e) => onValueChange(e.target.value)}
         placeholder={placeholder}
-        className={`${CONTROL_BASE} w-full py-1.5 pl-8 pr-7`}
+        // 32px (APPLE_REF §3.2 "Inputs"): the 12/15 line plus py-1.5 and the
+        // bezel comes to 29, so the floor does the last 3px.
+        className={`${CONTROL_BASE} min-h-8 w-full py-1.5 pl-8 pr-7`}
       />
       {value !== "" && (
         <button
@@ -138,23 +167,37 @@ export function FilterChip({
   onToggle,
   children,
   count,
+  title,
 }: {
   active: boolean;
   onToggle: () => void;
   children: ReactNode;
   count?: number;
+  /** A one-line definition of what the chip selects, for mouse users. */
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={active}
+      title={title}
       className={
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 " +
-        "font-mono text-[10px] tracking-[0.06em] transition-colors duration-150 " +
+        // 24px pill (APPLE_REF §5.7 "Chips"; §3.2): the caption line plus
+        // py-1 and the bezel is 23, `min-h-6` makes it the floor exactly.
+        "inline-flex min-h-6 items-center gap-1.5 rounded-full border px-2.5 py-1 " +
+        "t-label " +
+        // The press is on pointer-DOWN: CSS :active fires on the down event, so
+        // the chip acknowledges the touch before the click ever commits.
+        "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] " +
         "pointer-coarse:min-h-[36px] pointer-coarse:px-3.5 " +
+        // Selected = FILLED wash + accent bezel + primary text (APPLE_REF
+        // §5.2 "Chip"): the fill is the state, the dot restates it, and the
+        // label stays in the text ladder so the accent does not also have
+        // to carry the words. Outline-only selection reads as disabled on
+        // the dark surface, which is why the wash is not optional.
         (active
-          ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]"
+          ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--text-primary)]"
           : "border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--text-faint)] hover:text-[var(--text-primary)]")
       }
     >
@@ -172,7 +215,13 @@ export function FilterChip({
       />
       {children}
       {count !== undefined && (
-        <span className={active ? "text-[var(--accent)]" : "text-[var(--text-faint)]"}>{count}</span>
+        // A figure is a figure even inside a chip: `fig` (mono 11, tabular),
+        // on its own line-height so it does not lift the 13px caption line.
+        <span
+          className={`fig leading-none ${active ? "text-[var(--text-secondary)]" : "text-[var(--text-faint)]"}`}
+        >
+          {count}
+        </span>
       )}
     </button>
   );
@@ -217,12 +266,17 @@ export function SortHeader({
           : `Sort by ${label}`
       }
       className={
-        "group inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.1em] " +
-        "transition-colors duration-150 " +
+        // `min-h-6`: the caption line alone is 13px, under the 24px target
+        // floor (APPLE_REF §8 #19). Resting colour is `--text-faint`, the same
+        // rung DataTable's headers sit on, so a ledger header and a table
+        // header are one dialect; hover lifts it to primary, the sorted
+        // column wears the accent (CURRENT).
+        "group inline-flex min-h-6 items-center gap-1 t-label " +
+        "transition-[color,transform] duration-150 active:translate-y-px " +
         (align === "right" ? "justify-end " : "") +
         (isActive
           ? "text-[var(--accent)] "
-          : "text-[var(--text-muted)] hover:text-[var(--text-primary)] ") +
+          : "text-[var(--text-faint)] hover:text-[var(--text-primary)] ") +
         className
       }
     >
@@ -390,25 +444,25 @@ export function SearchableSelect({
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-left t-callout transition-[color,border-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
           current && (!allowEmpty || value !== allowEmpty.value)
             ? "border-[var(--accent)] text-[var(--text-primary)]"
             : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         }`}
       >
-        <span className="flex min-w-0 flex-col leading-tight">
-          <span className="font-mono text-[9px] tracking-[0.12em] text-[var(--text-faint)]">
+        <span className="flex min-w-0 flex-col">
+          <span className="t-label text-[var(--text-faint)]">
             {label.toUpperCase()}
           </span>
           <span className="truncate">{current ? current.name : placeholder}</span>
         </span>
-        <span aria-hidden className="text-[9px] text-[var(--text-faint)]">
-          ▼
-        </span>
+        <IconCaret
+          className={`flex-none text-[var(--text-faint)] transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-full min-w-[16rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev-raised">
+        <div className="absolute left-0 z-30 mt-1 flex max-h-[19rem] w-full min-w-[16rem] flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--surface-raised)] card-elev-raised">
           <div className="border-b border-[var(--divider)] p-2">
             <input
               autoFocus
@@ -425,11 +479,11 @@ export function SearchableSelect({
               aria-controls={listId}
               aria-autocomplete="list"
               placeholder={`Search ${label.toLowerCase()}…`}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-primary)] focus:border-[var(--accent)]"
+              className="w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 t-callout text-[var(--text-primary)] focus:border-[var(--accent)]"
             />
             {/* The count line: a list that scrolls past the fold must never
                 look complete when it is not. */}
-            <p className="mt-1 flex items-center justify-between text-[10px] text-[var(--text-faint)]">
+            <p className="mt-1 flex items-center justify-between t-subhead text-[var(--text-faint)]">
               <span>
                 {filtered.length.toLocaleString("en-GB")}
                 {filtered.length !== all.length
@@ -437,7 +491,7 @@ export function SearchableSelect({
                   : ""}{" "}
                 {all.length === 1 ? "option" : "options"}
               </span>
-              <span aria-hidden>↑↓ move · ⏎ pick · esc close</span>
+              <KeyboardHint />
             </p>
           </div>
 
@@ -449,7 +503,7 @@ export function SearchableSelect({
             className="flex-1 overflow-y-auto"
           >
             {filtered.length === 0 ? (
-              <p className="px-3 py-4 text-center text-[11px] text-[var(--text-faint)]">
+              <p className="px-3 py-4 text-center t-subhead text-[var(--text-faint)]">
                 No {label.toLowerCase()} matches “{query.trim()}”
               </p>
             ) : (
@@ -467,7 +521,7 @@ export function SearchableSelect({
                     // the keyboard never disagree about which row Enter hits.
                     onMouseEnter={() => setCursor(i)}
                     onClick={() => pick(o.value)}
-                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left text-[12px] transition-colors ${
+                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left t-callout transition-colors ${
                       hot ? "bg-[var(--surface-hover)]" : ""
                     } ${on ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
                   >
@@ -479,10 +533,10 @@ export function SearchableSelect({
                         on ? "bg-[var(--accent)]" : "bg-transparent"
                       }`}
                     />
-                    <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="flex min-w-0 flex-col">
                       <span className="truncate">{o.name}</span>
                       {o.hint && (
-                        <span className="truncate text-[10px] text-[var(--text-faint)]">
+                        <span className="truncate t-subhead text-[var(--text-faint)]">
                           {o.hint}
                         </span>
                       )}

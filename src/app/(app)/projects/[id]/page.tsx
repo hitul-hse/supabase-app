@@ -38,6 +38,8 @@ import { getProjectContractPeriods } from "@/lib/queries/contract-periods";
 import { permissionKeyExists } from "@/lib/queries/budget-alerts";
 import { ContractPanel } from "../ContractPanel";
 import { StatTile } from "@/components/ui/Card";
+import { ButtonLink } from "@/components/ui/Button";
+import { IconArrowRight } from "@/components/nav-icons";
 import { Pill } from "@/components/ui/Segmented";
 import { fmtInt, fmtNum } from "@/lib/locale-format";
 
@@ -73,9 +75,10 @@ export default async function ProjectDetailPage({
               title={t("detail.noAccess.title")}
               description={t("detail.noAccess.description")}
               action={
-                <Link href="/time" className="text-[12px] font-medium text-[var(--accent)] hover:underline">
+                <ButtonLink href="/time" variant="secondary" size="sm">
                   {t("noAccess.action")}
-                </Link>
+                  <IconArrowRight className="h-3.5 w-3.5" />
+                </ButtonLink>
               }
             />
           </div>
@@ -197,16 +200,14 @@ export default async function ProjectDetailPage({
             entries: fmtInt(totals.entryCount, locale),
           })}
           actions={
-            <Link
-              href="/projects"
-              className="rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
-            >
+            <ButtonLink href="/projects" variant="secondary" size="sm">
+              <IconArrowRight className="h-3.5 w-3.5 rotate-180" />
               {t("detail.allProjects")}
-            </Link>
+            </ButtonLink>
           }
         />
 
-        <div className="flex flex-col gap-5 page-shell">
+        <div className="flex flex-col gap-4 page-shell">
           <div className="flex flex-wrap gap-2">
             {project.isArchived && <Pill>{t("detail.pills.archived")}</Pill>}
             <Pill>
@@ -215,7 +216,9 @@ export default async function ProjectDetailPage({
             {project.serviceName && <Pill>{project.serviceName.toUpperCase()}</Pill>}
             {totals.firstEntry && (
               <Pill>
-                {totals.firstEntry} → {totals.lastEntry}
+                {totals.firstEntry}
+                <IconArrowRight className="h-3 w-3" />
+                {totals.lastEntry}
               </Pill>
             )}
           </div>
@@ -241,7 +244,7 @@ export default async function ProjectDetailPage({
           </div>
 
           {truncated && (
-            <p className="card-elev rounded-[var(--radius-card)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 text-[12px] text-[var(--critical)]">
+            <p className="rounded-[var(--radius)] border border-[var(--critical)] bg-[var(--surface)] px-4 py-2.5 t-callout text-[var(--critical)]">
               {t("detail.truncated")}
             </p>
           )}
@@ -269,7 +272,7 @@ export default async function ProjectDetailPage({
             }}
           />
 
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-2">
             <ContributorTable
               rows={contributors}
               locale={locale}
@@ -300,7 +303,7 @@ export default async function ProjectDetailPage({
               only thing hidden -- the board itself stays visible, because
               "you may not edit this" and "there is nothing here" are different
               statements and rendering the second for the first is a lie. */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
             <TasksSection
               parent={{ field: "time_project_id", id: project.id }}
               tasks={board.tasks}
@@ -314,7 +317,7 @@ export default async function ProjectDetailPage({
           {/* The bridge back to the filtered report. Everything here is
               all-time and unfiltered on purpose; the dashboard is where you
               narrow by date, member or billability. */}
-          <p className="text-[11px] text-[var(--text-faint)]">
+          <p className="t-subhead text-[var(--text-faint)]">
             {t.rich("detail.footnote", {
               link: (chunks) => (
                 <Link

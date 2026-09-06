@@ -58,8 +58,8 @@ check(
 );
 
 check(
-  "the live table renders an uncovered project as n/a, never a blank cell",
-  /r\.services\.length > 0 \? r\.services\.join\(" · "\) : "n\/a"/.test(tables),
+  "the live table renders an uncovered project as —, never a blank cell",
+  /r\.services\.length > 0 \? r\.services\.join\(" · "\) : "(?:—|n\/a)"/.test(tables),
 );
 
 /* --------------------------------------------------------- the label is honest */

@@ -120,3 +120,11 @@ docs/discovery/
 tmp-*
 .local/
 .context-bridge/bjoern-files/
+
+# The motion stage's frame-evidence build (scripts/lib/launch-chromium.mjs traces
+# against `next start` of a production dist). Its own distDir so the shared
+# .next is never disturbed, and ignored because Tailwind v4 scans every
+# un-ignored file: an
+# un-ignored dist put binary chunk bytes into the generated CSS and broke every
+# dev page with "Parsing CSS source code failed" (measured 2026-09-05).
+.next-motion/

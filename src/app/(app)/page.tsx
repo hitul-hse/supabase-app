@@ -5,7 +5,6 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader, ChartNote, StatTile } from "@/components/ui/Card";
 import { Donut, Gauge, LegendDot } from "@/components/ui/Charts";
 import { Pill } from "@/components/ui/Segmented";
-import { TopBarChrome } from "@/components/TopBarChrome";
 import { IconWarning, IconArrowRight } from "@/components/nav-icons";
 import { SyncBar } from "@/components/SyncBar";
 import { MobileDisclosure } from "@/components/MobileDisclosure";
@@ -223,7 +222,6 @@ export default async function OverviewPage({
           projects: counts.activeProjects,
           customers: counts.customers,
         })}
-        chrome={<TopBarChrome />}
         actions={
           <ButtonLink variant="primary" href="/time/dashboard">
             {t("header.fullDashboard")}

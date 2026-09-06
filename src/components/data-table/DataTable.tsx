@@ -27,8 +27,22 @@
  */
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { controlClass } from "@/components/ui/Field";
+import { segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
+import { IconArrowRight, IconCaret, IconCross } from "@/components/nav-icons";
+import { pageFromParams, pageToParam, useUrlState } from "@/components/url-state";
 
 export type Align = "left" | "right";
+
+/**
+ * Row pitch (APPLE_REF §3.2 "Row heights", §5.6 "Sizes"): standard 32 for the
+ * house default and worked queues, compact 28 for ledgers people scan in
+ * 25-50s, comfortable 40 for touch lists. The height is set on the ROW as a
+ * floor rather than through padding, so a cell that holds a 24px icon target
+ * or a two-line name grows the row instead of fighting the padding for it.
+ */
+export type Density = "standard" | "compact" | "comfortable";
 
 export type Column<T> = {
   /** Stable id, used for the sort key in state. */
@@ -118,10 +132,54 @@ type Props<T> = {
    * exactly as before: a 70vh scroller appears by itself past 25 visible rows.
    */
   maxBodyHeight?: string | number | true;
+  /** Row pitch; see `Density`. Standard unless the caller is a ledger or a touch list. */
+  density?: Density;
+  /**
+   * Zebra stripes through `--row-alt`. OFF by default -- a 1.07 stripe on the
+   * dark surface is noise under eight columns -- and ON by itself past eight,
+   * which is the wide-crosstab case Apple names ("help people track row values
+   * across columns, especially in a wide table") and the house agreed to
+   * (APPLE_REF §5.6 "Zebra", §8 #15). Pass a boolean to overrule either way.
+   */
+  zebra?: boolean;
+  /**
+   * The `rowKey` of the CURRENT row: the one a sticky detail panel describes,
+   * or the item a shared URL selects. It gets the persistent selection look
+   * (`--accent-wash` fill + 2px `--accent` left rule, APPLE_REF §5.6 "Row
+   * current", §2.5) and `aria-current`. Only meaningful where such a panel or
+   * selection exists; a ledger whose rows navigate away has no current row.
+   */
+  currentKey?: string | number | null;
+  /**
+   * Mirror page and page size into the URL under these query keys, with no
+   * server round-trip (see url-state.ts). UI-CONVENTIONS rule 2: a shared
+   * link, a refresh and the back button must all land on the same rows. Omit
+   * for a table that is one of several on a page and has no key of its own --
+   * component state is the documented deviation for those (APPLE_REF §5.4).
+   */
+  urlKeys?: { page: string; size: string };
 };
 
 /** The house cap for an opted-in bounded body: roughly 60% of the viewport. */
 export const DEFAULT_MAX_BODY_HEIGHT = "60vh";
+
+/** The row floor per density: `h-*` on the `<tr>`, which a table treats as a minimum. */
+const ROW_HEIGHT: Record<Density, string> = {
+  compact: "h-7",
+  standard: "h-8",
+  comfortable: "h-10",
+};
+
+/**
+ * Cell text per density. Compact and standard rows are `t-callout` 12px (the
+ * ledger step; APPLE_REF §5.3 "not 12.5"); the comfortable touch row reads at
+ * `t-body` 13px. Numerics inside a cell are the caller's `fig` span either way.
+ */
+const CELL_TEXT: Record<Density, string> = {
+  compact: "t-callout",
+  standard: "t-callout",
+  comfortable: "t-body",
+};
 
 const PAGE_SIZES = [25, 50, 100, "all"] as const;
 export type PageSize = (typeof PAGE_SIZES)[number];
@@ -169,12 +227,49 @@ export function DataTable<T>({
   summary,
   freezeFirstColumn = false,
   maxBodyHeight,
+  density = "standard",
+  zebra,
+  currentKey = null,
+  urlKeys,
 }: Props<T>) {
   const [sortKey, setSortKey] = useState<string | null>(initialSort ?? null);
   const [desc, setDesc] = useState(initialDesc);
   const [query, setQuery] = useState("");
-  const [pageSize, setPageSize] = useState<PageSize>(defaultPageSize);
-  const [page, setPage] = useState(0);
+  /*
+   * Page and size together, because they are one fact about the URL ("which
+   * rows are on screen") and a size change always resets the page. Without
+   * `urlKeys` this is ordinary component state; with them the same state is
+   * mirrored to `?page=N&size=S` (1-based page, absent when default) and
+   * re-read on the back button.
+   */
+  const [paging, setPaging] = useUrlState<{ page: number; size: PageSize }>(
+    (params) => {
+      if (!urlKeys) return { page: 0, size: defaultPageSize };
+      const raw = params.get(urlKeys.size);
+      const size = (PAGE_SIZES as readonly (string | number)[]).includes(
+        raw === "all" ? "all" : Number(raw),
+      )
+        ? ((raw === "all" ? "all" : Number(raw)) as PageSize)
+        : defaultPageSize;
+      return { page: pageFromParams(params, urlKeys.page), size };
+    },
+    (s) =>
+      urlKeys
+        ? {
+            [urlKeys.page]: pageToParam(s.page),
+            [urlKeys.size]: s.size === defaultPageSize ? null : String(s.size),
+          }
+        : {},
+    { enabled: urlKeys !== undefined },
+  );
+  const { page, size: pageSize } = paging;
+  // Moving to another page is a step the back button should undo, so it
+  // pushes; a size change or a reset to the first page replaces. Each setter
+  // writes the WHOLE pair from this render's `paging`, so two of them in one
+  // handler would let the second overwrite the first with a stale half --
+  // `setPageSize` therefore resets the page itself and is called alone.
+  const setPage = (n: number) => setPaging({ ...paging, page: n }, n > 0 ? "push" : "replace");
+  const setPageSize = (s: PageSize) => setPaging({ page: 0, size: s });
   const [open, setOpen] = useState(defaultOpen);
   const searchId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -296,30 +391,62 @@ export function DataTable<T>({
   const frozenCell = (index: number, isHeader: boolean) =>
     freezeFirstColumn && index === 0
       ? `sticky left-0 ${isHeader ? "z-20" : "z-10"} bg-[var(--surface)] ${
-          isHeader ? "" : "group-hover:bg-[var(--surface-hover)]"
+          isHeader
+            ? ""
+            : // The pinned cell repaints every row state the row itself
+              // carries, or the stripe and the selection would stop at the
+              // frozen edge. The current-row wash is translucent, so it is
+              // layered as a gradient OVER the opaque surface rather than
+              // replacing it -- an alpha fill would let the columns sliding
+              // underneath show through.
+              "group-hover:bg-[var(--surface-hover)] group-data-[alt]:bg-[var(--row-alt)] group-data-[alt]:group-hover:bg-[var(--surface-hover)] group-data-[current]:bg-[linear-gradient(var(--accent-wash),var(--accent-wash))] group-data-[current]:group-hover:bg-[var(--surface)]"
         } after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-[var(--border)]`
       : "";
 
+  /*
+   * Zebra past eight columns unless the caller says otherwise (see the prop).
+   * A current row is never striped: the wash IS its fill, and two fills on one
+   * row would read as two states.
+   */
+  const striped = zebra ?? columns.length > 8;
+
+  /**
+   * The row's states, all as attribute variants on the `<tr>` so a cell can
+   * follow them with `group-data-*`:
+   *   rest     -> --surface, --divider rule
+   *   hover    -> --surface-hover tint, 150 ms, tint only (no lift, no scale)
+   *   alt      -> --row-alt stripe (wide crosstabs only)
+   *   current  -> --accent-wash + a 2px --accent left rule; hover keeps the
+   *               wash rather than stacking a second fill (APPLE_REF §2.5)
+   * The stacked `data-[x]:hover:` variants outrank the bare `hover:` by
+   * specificity, which is what makes the precedence deterministic instead of a
+   * property of Tailwind's stylesheet order.
+   */
+  const rowClass = `group ${ROW_HEIGHT[density]} border-b border-[var(--divider)] transition-colors duration-150 last:border-0 hover:bg-[var(--surface-hover)] data-[alt]:bg-[var(--row-alt)] data-[alt]:hover:bg-[var(--surface-hover)] data-[current]:bg-[var(--accent-wash)] data-[current]:hover:bg-[var(--accent-wash)] data-[current]:shadow-[inset_2px_0_0_var(--accent)]`;
+
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] card-elev">
+      {/*
+        CardHeader geometry, not a bespoke 10px mono kicker: a table is a panel
+        with a heading, and the heading dialect is the one every other card on
+        the page uses -- 13/600 sans title, 10px mono qualifier beside it. The
+        controls on the right are what keep this from BEING a CardHeader.
+      */}
       <header className="flex flex-col gap-2 border-b border-[var(--divider)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
         {(() => {
           const heading = (
             <>
-              <h2 className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
+              <h2 className="flex items-center gap-1.5 t-title-3 text-[var(--text-primary)]">
                 {collapsible && (
-                  <span
-                    aria-hidden
-                    className={`mr-1.5 inline-block text-[8px] text-[var(--text-faint)] transition-transform ${
-                      open ? "rotate-90" : ""
+                  <IconCaret
+                    className={`flex-none text-[var(--text-faint)] transition-transform duration-150 ${
+                      open ? "" : "-rotate-90"
                     }`}
-                  >
-                    ▶
-                  </span>
+                  />
                 )}
                 {title}
               </h2>
-              <span className="text-[10px] leading-tight text-[var(--text-faint)]">
+              <span className="t-label text-[var(--text-faint)]">
                 {/* The row count is stated whether open or shut. A collapsed
                     panel must never look like an absent one. */}
                 {open ? showing : (summary ?? showing)}
@@ -339,7 +466,7 @@ export function DataTable<T>({
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
-              className="flex min-w-0 flex-col gap-0.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              className="flex min-w-0 flex-col gap-0.5 rounded-[var(--radius-sm)] text-left transition-transform duration-100 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
             >
               {heading}
             </button>
@@ -354,8 +481,11 @@ export function DataTable<T>({
         <div className={`flex flex-none flex-wrap items-center gap-1.5 ${open ? "" : "hidden"}`}>
           {searchable.length > 0 && (
             <div className="relative">
+              {/* A real <label>, visually hidden, rather than the SearchInput
+                  primitive's aria-label form: the label is what the table's
+                  gate reads, and the skin is shared through controlClass. */}
               <label className="sr-only" htmlFor={searchId}>
-                Search {title.toLowerCase()}
+                {t("searchLabel", { title: title.toLowerCase() })}
               </label>
               <input
                 id={searchId}
@@ -365,7 +495,10 @@ export function DataTable<T>({
                   setPage(0);
                 }}
                 placeholder={searchPlaceholder ?? t("searchPlaceholder")}
-                className="w-[9.5rem] border border-[var(--border)] bg-[var(--page)] py-1 pl-2 pr-6 text-[11px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-faint)] focus:border-[var(--accent)] sm:w-[12rem]"
+                // No `outline-none`: the global :focus-visible ring is the
+                // keyboard story, and controlClass already tints the border.
+                // 32px like every input (APPLE_REF §3.2 "Inputs", §5.6 toolbar).
+                className={`${controlClass} min-h-8 w-[9.5rem] py-1.5 pl-2.5 pr-7 sm:w-[12rem]`}
               />
               {query && (
                 <button
@@ -375,30 +508,24 @@ export function DataTable<T>({
                     setPage(0);
                   }}
                   aria-label={t("clearSearch")}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-[11px] text-[var(--text-faint)] hover:text-[var(--critical)]"
+                  className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
                 >
-                  ×
+                  <IconCross className="h-3 w-3" />
                 </button>
               )}
             </div>
           )}
 
-          <div className="flex overflow-hidden border border-[var(--border)]">
+          {/* Page sizes wear the segmented skin: a choice among a few, one lit. */}
+          <div role="group" aria-label={t("rowsPerPageGroup")} className={segmentedTrackClass}>
             {PAGE_SIZES.map((s) => (
               <button
                 key={String(s)}
                 type="button"
-                onClick={() => {
-                  setPageSize(s);
-                  setPage(0);
-                }}
+                onClick={() => setPageSize(s)}
                 aria-pressed={pageSize === s}
                 title={s === "all" ? t("showEveryRow") : t("rowsPerPage", { count: s })}
-                className={`px-1.5 py-1 font-mono text-[10px] transition-colors ${
-                  pageSize === s
-                    ? "bg-[var(--surface-hover)] text-[var(--text-primary)]"
-                    : "text-[var(--text-faint)] hover:text-[var(--text-primary)]"
-                }`}
+                className={segmentedItemClass(pageSize === s)}
               >
                 {s === "all" ? t("all") : s}
               </button>
@@ -406,29 +533,24 @@ export function DataTable<T>({
           </div>
 
           {exportName !== undefined && total > 0 && (
-            <button
-              type="button"
-              onClick={download}
-              title={t("csvTitle")}
-              className="border border-[var(--border)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-            >
+            <Button variant="ghost" size="sm" onClick={download} title={t("csvTitle")} className="font-mono">
               CSV
-            </button>
+            </Button>
           )}
         </div>
       </header>
 
       {!open ? null : rows.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">{emptyText ?? t("empty")}</p>
+        <p className="px-4 py-6 text-center t-subhead text-[var(--text-faint)]">{emptyText ?? t("empty")}</p>
       ) : total === 0 ? (
-        <p className="px-4 py-6 text-center text-[11px] text-[var(--text-faint)]">
-          No row matches “{query.trim()}”.{" "}
+        <p className="px-4 py-6 text-center t-subhead text-[var(--text-faint)]">
+          {t("noMatch", { query: query.trim() })}{" "}
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="text-[var(--accent)] underline-offset-2 hover:underline"
+            className="text-[var(--accent)] underline-offset-2 transition-transform duration-100 hover:underline active:translate-y-px"
           >
-            Clear the search
+            {t("clearTheSearch")}
           </button>
         </p>
       ) : (
@@ -445,7 +567,10 @@ export function DataTable<T>({
                 // Sticky so the column meaning survives scrolling a long table.
                 // Opaque background, because a translucent header over scrolling
                 // numbers is unreadable.
-                className="sticky top-0 z-10 bg-[var(--surface)] shadow-[0_1px_0_var(--border)]"
+                // The hairline is a shadow because border-collapse eats a
+                // sticky thead's own border; --divider, not --border, because
+                // it separates rows inside ONE surface (Card.tsx's two-tier rule).
+                className="sticky top-0 z-10 bg-[var(--surface)] shadow-[0_1px_0_var(--divider)]"
               >
                 <tr>
                   {columns.map((c, i) => {
@@ -456,7 +581,11 @@ export function DataTable<T>({
                         key={c.key}
                         scope="col"
                         aria-sort={active ? (desc ? "descending" : "ascending") : "none"}
-                        className={`whitespace-nowrap ${c.compact ? "px-2" : "px-4"} py-2 font-mono text-[10px] font-medium tracking-[0.1em] ${
+                        // 32px header (APPLE_REF §5.6 "header 32"): `h-8` is
+                        // the floor and the 24px sort target plus `py-1` is
+                        // exactly that -- a table cell ADDS its padding to
+                        // its content, so more padding here would be 36.
+                        className={`h-8 whitespace-nowrap ${c.compact ? "px-2" : "px-4"} py-1 t-label ${
                           c.align === "right" ? "text-right" : "text-left"
                         } ${active ? "text-[var(--accent)]" : "text-[var(--text-faint)]"} ${frozenCell(i, true)} ${c.className ?? ""}`}
                       >
@@ -465,17 +594,24 @@ export function DataTable<T>({
                             type="button"
                             onClick={() => onSort(c)}
                             title={c.title ?? `Sort by ${c.header.toLowerCase()}`}
-                            className={`inline-flex items-center gap-1 transition-colors hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+                            // `min-h-6`: the caption's own line is 13px, and a
+                            // 13px-tall button is under the 24px floor (§8
+                            // #19; WCAG 2.2). The row's padding does not count
+                            // towards the target -- only the button's box does.
+                            className={`inline-flex min-h-6 items-center gap-1 transition-[color,transform] duration-150 hover:text-[var(--text-primary)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                               c.align === "right" ? "flex-row-reverse" : ""
                             }`}
                           >
                             <span>{c.header}</span>
                             {/* The inactive marker is rendered too, at low
                                 opacity, so the column's width does not jump
-                                when the sort moves to it. */}
-                            <span aria-hidden className={active ? "" : "opacity-25"}>
-                              {active ? (desc ? "▼" : "▲") : "▾"}
-                            </span>
+                                when the sort moves to it. Same caret as
+                                SortHeader: descending points down. */}
+                            <IconCaret
+                              className={`flex-none transition-transform duration-150 ${
+                                active ? (desc ? "" : "rotate-180") : "opacity-25"
+                              }`}
+                            />
                           </button>
                         ) : (
                           <span title={c.title}>{c.header}</span>
@@ -486,57 +622,86 @@ export function DataTable<T>({
                 </tr>
               </thead>
               <tbody>
-                {visible.map((r) => (
-                  <tr
-                    key={rowKey(r)}
-                    className="group border-b border-[var(--divider)] transition-colors last:border-0 hover:bg-[var(--surface-hover)]"
-                  >
-                    {columns.map((c, i) => (
-                      <td
-                        key={c.key}
-                        className={`${c.compact ? "px-2" : "px-4"} py-2 text-[12px] ${
-                          c.align === "right" ? "text-right" : "text-left"
-                        } ${frozenCell(i, false)} ${c.className ?? ""}`}
-                      >
-                        {c.cell(r)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {visible.map((r, index) => {
+                  const key = rowKey(r);
+                  const current = currentKey !== null && key === currentKey;
+                  return (
+                    <tr
+                      key={key}
+                      className={rowClass}
+                      data-alt={striped && !current && index % 2 === 1 ? "" : undefined}
+                      data-current={current ? "" : undefined}
+                      aria-current={current ? "true" : undefined}
+                    >
+                      {columns.map((c, i) => (
+                        <td
+                          key={c.key}
+                          // `py-0.5`, and the ROW's `h-*` sets the pitch. A
+                          // table cell adds its padding to its content, so
+                          // 32 has to hold the tallest ordinary cell plus the
+                          // padding: a 24px icon target, a badge, or the
+                          // two-line name-over-code cell (13 + 2 + 12 = 27)
+                          // all come to 32 with 4px, and to 35-36 with 8px --
+                          // measured on /my-work, where every row carries the
+                          // two-line cell. Short content is centred by the
+                          // cell, so the padding is a guard, not the spacing.
+                          className={`${c.compact ? "px-2" : "px-4"} py-0.5 ${CELL_TEXT[density]} ${
+                            c.align === "right" ? "text-right" : "text-left"
+                          } ${frozenCell(i, false)} ${c.className ?? ""}`}
+                        >
+                          {c.cell(r)}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {(pageCount > 1 || footnote) && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--divider)] px-4 py-1.5">
-              <span className="text-[10px] text-[var(--text-faint)]">{footnote}</span>
+              {/* Prose, so it is set in the sans face at 11px with real leading,
+                  not as a 10px mono label -- a sentence is not a column header. */}
+              <span className="t-subhead text-[var(--text-faint)]">{footnote}</span>
               {pageCount > 1 && (
                 <div className="flex items-center gap-1">
-                  <button
-                    type="button"
+                  {/* 24px ghost buttons (Button `sm`); disabled dims to
+                      opacity-35 and never hides -- Apple dims unavailable
+                      menu items, and a pager whose PREV vanishes on page 1
+                      shifts NEXT under the cursor (APPLE_REF §5.4). */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
-                      setPage((p) => Math.max(0, p - 1));
+                      setPage(Math.max(0, safePage - 1));
                       scrollRef.current?.scrollTo({ top: 0 });
                     }}
                     disabled={safePage === 0}
-                    className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text-secondary)]"
+                    className="font-mono tracking-[0.06em] disabled:opacity-35"
                   >
-                    ← PREV
-                  </button>
-                  <span className="px-1 font-mono text-[10px] tabular-nums text-[var(--text-faint)]">
-                    {safePage + 1} / {pageCount}
+                    <IconArrowRight className="h-3.5 w-3.5 rotate-180" />
+                    {t("prev")}
+                  </Button>
+                  <span className="px-1 t-label text-[var(--text-faint)]">
+                    {/* The current page is the one accent-coloured figure in
+                        the foot: accent means CURRENT here, as on the sort
+                        column and the segment (UI-CONVENTIONS tokens). */}
+                    <span className="text-[var(--accent)]">{safePage + 1}</span> / {pageCount}
                   </span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
-                      setPage((p) => Math.min(pageCount - 1, p + 1));
+                      setPage(Math.min(pageCount - 1, safePage + 1));
                       scrollRef.current?.scrollTo({ top: 0 });
                     }}
                     disabled={safePage >= pageCount - 1}
-                    className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text-secondary)]"
+                    className="font-mono tracking-[0.06em] disabled:opacity-35"
                   >
-                    NEXT →
-                  </button>
+                    {t("next")}
+                    <IconArrowRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               )}
             </div>

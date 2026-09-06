@@ -251,7 +251,7 @@ export function MobileTabBar({
                   min-h-[44px] not [56px]: the bar's own p-1.5 adds 12px, so the
                   bar stays 56px+ overall while each target is a clean 44.
                 */
-                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-full px-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-full px-3 transition-[color,background-color,transform] duration-150 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
                   active
                     ? "bg-[var(--accent-hover)] text-[var(--accent-contrast)]"
                     : "text-[var(--glass-text)]"
@@ -275,7 +275,7 @@ export function MobileTabBar({
                   icon, not informational.
                 */}
                 {active ? (
-                  <span className="truncate text-[12px] font-medium leading-none tracking-[0.01em]">
+                  <span className="truncate t-callout font-medium leading-none">
                     {tab.short}
                   </span>
                 ) : null}
@@ -296,7 +296,7 @@ export function MobileTabBar({
             aria-expanded={moreOpen}
             aria-haspopup="dialog"
             aria-label="More navigation"
-            className={`flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full px-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+            className={`flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full px-3 transition-[color,background-color,transform] duration-150 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
               moreActive
                 ? "bg-[var(--accent-hover)] text-[var(--accent-contrast)]"
                 : "text-[var(--glass-text)]"
@@ -304,7 +304,7 @@ export function MobileTabBar({
           >
             <IconMore className="h-[20px] w-[20px] flex-none" />
             {moreActive ? (
-              <span className="truncate text-[12px] font-medium leading-none tracking-[0.01em]">
+              <span className="truncate t-callout font-medium leading-none">
                 More
               </span>
             ) : null}

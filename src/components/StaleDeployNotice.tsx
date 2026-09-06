@@ -90,10 +90,10 @@ export function StaleDeployNotice() {
       style={{ background: "var(--warning-wash)" }}
     >
       <div className="flex flex-col">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">
+        <span className="t-headline text-[var(--text-primary)]">
           A new version of the Hub was deployed while this page was open
         </span>
-        <span className="text-[12px] text-[var(--text-secondary)]">
+        <span className="t-callout text-[var(--text-secondary)]">
           Your last change was not saved, because this tab was still talking to the
           previous version. Reload and repeat it — nothing else is affected.
         </span>
@@ -101,7 +101,7 @@ export function StaleDeployNotice() {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]"
+        className="border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-1.5 t-callout font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]"
       >
         Reload now
       </button>

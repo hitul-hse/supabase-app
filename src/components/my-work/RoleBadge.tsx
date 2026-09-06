@@ -23,14 +23,14 @@ const STYLE: Record<MyRole, { className: string; title: string; label: string }>
   responsible: {
     label: "RESPONSIBLE",
     className:
-      "bg-[var(--accent)] font-semibold text-[var(--accent-contrast)]",
+      "bg-[var(--accent)] text-[var(--accent-contrast)]",
     title:
       "The masterdata names you as the responsible lead for this project (project_responsibility.role = 'responsible')",
   },
   owner: {
     label: "OWNER",
     className:
-      "border border-[var(--accent)] font-semibold text-[var(--accent)]",
+      "border border-[var(--accent)] text-[var(--accent)]",
     title: "You are recorded as this project's owner (projects.owner_person_id)",
   },
   replacement: {
@@ -51,7 +51,7 @@ export function RoleBadge({ role }: { role: MyRole }) {
   return (
     <span
       title={s.title}
-      className={`inline-flex flex-none items-center rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.08em] ${s.className}`}
+      className={`inline-flex flex-none items-center rounded-full px-2 py-0.5 t-label ${s.className}`}
     >
       {s.label}
     </span>

@@ -19,7 +19,7 @@ export function AddTaskForm({ parent }: { parent: BoardParent }) {
           required
           disabled={isPending}
           placeholder={t("addName")}
-          className="min-w-[160px] flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+          className="min-w-[160px] flex-1 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
         <input
           name="owner"
@@ -27,7 +27,7 @@ export function AddTaskForm({ parent }: { parent: BoardParent }) {
           required
           disabled={isPending}
           placeholder={t("addOwner")}
-          className="w-28 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+          className="w-28 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
         <input
           name="estimate_hours"
@@ -36,18 +36,18 @@ export function AddTaskForm({ parent }: { parent: BoardParent }) {
           step="0.5"
           disabled={isPending}
           placeholder={t("addEstimate")}
-          className="w-20 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 text-[12.5px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+          className="w-20 border border-[var(--border)] bg-[var(--page)] px-2.5 py-1.5 t-callout text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={isPending}
-          className="bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] disabled:opacity-50"
+          className="bg-[var(--accent)] px-3 py-1.5 t-callout font-medium text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] disabled:opacity-50"
         >
           {isPending ? t("adding") : t("add")}
         </button>
       </div>
       {state.status === "error" && (
-        <p className="text-[11.5px] text-[var(--critical)]">{state.message}</p>
+        <p className="t-subhead text-[var(--critical)]">{state.message}</p>
       )}
     </form>
   );

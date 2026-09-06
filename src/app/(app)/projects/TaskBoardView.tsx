@@ -39,9 +39,9 @@ function TaskCard({
     // COLUMN stays a plain container: Card-in-Card is banned, and a board is
     // columns of cards, not cards of cards.
     <Card as="article" className="flex flex-col gap-2 p-3 transition-colors hover:border-[var(--border-strong)]">
-      <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{task.name}</span>
+      <span className="t-callout font-medium text-[var(--text-primary)]">{task.name}</span>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10.5px]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 t-label">
         <span className="text-[var(--text-muted)]">{task.owner || t("unassigned")}</span>
         <span className="text-[var(--text-secondary)]">
           {fmtNum(task.logged_hours, locale, 1)}/{fmtNum(task.estimate_hours, locale, 1)}h
@@ -67,7 +67,7 @@ function TaskCard({
             defaultValue={task.section_id ?? ""}
             onChange={(e) => e.currentTarget.form?.requestSubmit()}
             aria-label={t("moveLabel", { name: task.name })}
-            className="max-w-[130px] bg-transparent font-mono text-[9.5px] text-[var(--text-muted)] outline-none transition-colors hover:text-[var(--text-primary)]"
+            className="max-w-[130px] bg-transparent t-label text-[var(--text-muted)] outline-none transition-colors hover:text-[var(--text-primary)]"
           >
             <option value="" className="bg-[var(--surface)] text-[var(--text-primary)]">
               {t("moveToUnfiled")}
@@ -108,10 +108,10 @@ function AddSectionForm({ parent }: { parent: BoardParent }) {
         required
         disabled={isPending}
         placeholder={t("newColumn")}
-        className="border border-dashed border-[var(--border-strong)] bg-transparent px-2.5 py-1.5 text-[11.5px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
+        className="border border-dashed border-[var(--border-strong)] bg-transparent px-2.5 py-1.5 t-callout text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] disabled:opacity-50"
       />
       {state.status === "error" && (
-        <span className="text-[10.5px] text-[var(--critical)]">{state.message}</span>
+        <span className="t-subhead text-[var(--critical)]">{state.message}</span>
       )}
     </form>
   );
@@ -164,11 +164,11 @@ export function TaskBoardView({
           return (
             <section key={key} className="flex w-[220px] flex-none flex-col gap-2">
               <header className="flex items-center justify-between border-b border-[var(--border)] px-1 pb-2">
-                <span className="font-mono text-[10px] font-semibold tracking-[0.05em] text-[var(--text-primary)]">
+                <span className="t-label text-[var(--text-primary)]">
                   {section?.name ?? t("unfiled")}
                 </span>
                 <span
-                  className="font-mono text-[10px]"
+                  className="t-label"
                   style={{
                     color: over
                       ? "var(--critical)"
@@ -192,7 +192,7 @@ export function TaskBoardView({
 
               <div className="flex flex-col gap-2">
                 {colTasks.length === 0 ? (
-                  <p className="px-1 text-[11px] text-[var(--text-faint)]">{t("noTasks")}</p>
+                  <p className="px-1 t-subhead text-[var(--text-faint)]">{t("noTasks")}</p>
                 ) : (
                   colTasks.map((task) => (
                     <TaskCard key={task.id} task={task} sections={sections} locale={locale} />

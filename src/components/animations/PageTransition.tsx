@@ -1,21 +1,17 @@
-"use client";
-/**
- * PageTransition — wraps every app page in a smooth fade+slide-up entry.
- * Drop-in: wrap any page's root element with this component.
- */
-import { motion } from "framer-motion";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
+/**
+ * PageTransition — every app page arrives with the house entrance.
+ *
+ * A server-safe wrapper on the CSS `.rise-in` (globals.css: 0.4s, 8px,
+ * --ease-out, `both`), not a framer component. The framer version cost every
+ * page a client boundary to run a 0.35s tween on `easeOut` -- a fourth
+ * entrance curve beside the three CSS ones -- and carried an `exit` that
+ * nothing ever played, because no AnimatePresence wraps a route here. CSS is
+ * the same entrance as the tiles and the drill rows, it never blocks input
+ * (links are clickable at frame 0), and reduced motion kills it outright
+ * through the media query the rest of the vocabulary already obeys.
+ */
 export default function PageTransition({ children }: { children: ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-      style={{ width: "100%" }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className="rise-in w-full">{children}</div>;
 }

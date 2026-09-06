@@ -1,5 +1,7 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/Button";
+
 /**
  * BiometricSignIn — "Sign in with Face ID / Touch ID / Windows Hello", via a
  * Supabase passkey.
@@ -175,10 +177,13 @@ export function BiometricSignIn({
       onClick={handle}
       disabled={disabled || busy}
       data-testid="biometric-signin"
-      /* min-h-11 (44px) like every other control on this form — see the note on
-         authInputClass. `w-full` so it stacks cleanly above the OAuth buttons
-         at 390px rather than sitting beside them at half width. */
-      className="flex w-full min-h-11 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
+      /* The house `secondary` button, the same one the OAuth rows use, so the
+         three ways into the product are one control repeated rather than three
+         near-misses. `max-sm:min-h-11` keeps the 44px touch floor (see the
+         note on authInputClass); `w-full` so it stacks cleanly above the OAuth
+         buttons at 390px rather than sitting beside them at half width. The
+         focus ring is the global `:focus-visible` one — Button.tsx's rule. */
+      className={buttonClass("secondary", "md", "w-full max-sm:min-h-11")}
     >
       <IconBiometric className="h-4 w-4 flex-none text-[var(--accent)]" />
       {busy ? "Waiting for biometrics…" : "Sign in with biometrics"}

@@ -1,5 +1,7 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/Button";
+
 /**
  * Google / Microsoft sign-in.
  *
@@ -262,11 +264,19 @@ export function OAuthButtons({
     }
   };
 
-  // min-h-11 below sm: this is the first control on the sign-in form, and its
-  // measured height was 37.3px — under the 44px minimum target on the one screen
-  // nobody can skip. Relaxed at sm+, where a pointer is precise.
-  const base =
-    "flex w-full min-h-11 items-center justify-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] disabled:opacity-50 sm:min-h-0";
+  // The house `secondary` button, composed rather than restated: bezel
+  // `--border-strong` on a transparent well, `t-callout` at 500, the press
+  // translate and the full disabled set, all from the one vocabulary
+  // (APPLE_REF §5.7). It had drifted to its own `text-sm` / `px-4 py-2` /
+  // `--border` signature, which made the two controls a user meets before they
+  // are in the product the two that looked least like it.
+  //
+  // `max-sm:min-h-11`: this is the first control on the sign-in form and its
+  // measured height was 37.3px — under the 44px minimum target on the one
+  // screen nobody can skip. A variant utility sorts after `md`'s own
+  // `min-h-[32px]`, so the floor wins below `sm` without depending on class
+  // order; coarse pointers get 44px at any width from the primitive itself.
+  const base = buttonClass("secondary", "md", "w-full max-sm:min-h-11");
 
   return (
     <div className="space-y-2.5">

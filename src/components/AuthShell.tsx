@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { IconCheck, IconCross } from "@/components/nav-icons";
 import { BrandMark } from "@/components/BrandMark";
+import { LocaleSwitcher } from "@/components/locale/LocaleSwitcher";
+import { buttonClass } from "@/components/ui/Button";
 
 /** A real connectivity check, not a decorative status line — mirrors the
  * dot+label convention SyncBar uses for sync_sources inside the app. */
@@ -30,7 +32,7 @@ function ConnectionStatus() {
   const label = status === "ok" ? "CONNECTED" : status === "error" ? "UNREACHABLE" : "CHECKING";
 
   return (
-    <div className="flex items-center gap-2 font-mono text-[10px] text-[var(--text-faint)]">
+    <div className="flex items-center gap-2 t-label text-[var(--text-faint)]">
       <span aria-hidden className="h-1.5 w-1.5 flex-none" style={{ background: color }} />
       SUPABASE · {label}
     </div>
@@ -65,7 +67,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           {/* Caption at the top edge, as in the reference: it sets context
               before the eye drops to the mark, and leaves the vertical centre
               free for the hero rather than competing with it. */}
-          <p className="relative z-10 max-w-[300px] font-mono text-[10px] leading-relaxed tracking-[0.12em] text-[var(--text-faint)]">
+          <p className="relative z-10 max-w-[300px] t-label t-loose text-[var(--text-faint)]">
             OPERATIONAL VIEW FOR HEALTH &amp; SAFETY EXPERTS
           </p>
 
@@ -103,10 +105,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             <BrandMark size={220} animate loop className="relative z-10 flex-none" />
 
             <div className="relative z-10 flex flex-col items-center gap-4 text-center">
-              <h2 className="max-w-[360px] text-[30px] font-semibold leading-[1.15] text-[var(--text-primary)]">
+              <h2 className="max-w-[360px] t-large text-[var(--text-primary)]">
                 One operational view
               </h2>
-              <p className="max-w-[340px] text-[15px] leading-relaxed text-[var(--text-secondary)]">
+              <p className="max-w-[340px] t-body t-loose text-[var(--text-secondary)]">
                 Projects, timesheets, people, and compliance - together, with the
                 numbers straight from the source.
               </p>
@@ -131,26 +133,34 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
         {/* ── Form panel ──────────────────────────────────────────────────── */}
         <div className="flex flex-1 flex-col bg-[var(--page)] px-6 py-8 lg:px-12 lg:py-10">
-          {/* Lockup at the top of the FORM panel, as in the reference. On
-              mobile it is the only mark on the page, so it carries the brand
-              moment the hero carries on desktop - larger and animated, but
-              never looping: on a phone the form sits directly beneath it, so a
-              perpetual animation would move right beside what someone is
-              typing into. */}
-          {/* DESKTOP lockup: small, top-left, because the 220px hero in the
-              identity panel beside it already carries the brand. */}
-          <div className="hidden flex-none items-center justify-between lg:flex">
-            <div className="flex items-center gap-3">
+          {/*
+            The top row of the form panel: the DESKTOP lockup on the leading
+            edge (small, because the 220 px hero in the identity panel beside it
+            already carries the brand) and the language picker on the trailing
+            edge.
+
+            The ROW is present at every width even though the lockup inside it
+            is not, because the picker has to be. Before sign-in there is no top
+            bar and no account menu to carry it, and the first version of this
+            put it in the footer row: on a 390 x 844 phone that landed it below
+            the fold, under the form, where the one user who needs it — someone
+            who cannot read this screen — would never look. Top trailing corner
+            is also where the app itself keeps it (TopBarChrome), so the control
+            does not move when you sign in.
+          */}
+          <div className="flex flex-none items-center justify-end gap-3">
+            <div className="hidden items-center gap-3 lg:me-auto lg:flex">
               <BrandMark size={26} className="flex-none" />
               <div className="flex flex-col leading-[1.15]">
-                <span className="font-sans text-[15px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
+                <span className="t-title-3 text-[var(--text-primary)]">
                   HSE HUB
                 </span>
-                <span className="font-mono text-[9px] tracking-[0.14em] text-[var(--text-faint)]">
+                <span className="t-label text-[var(--text-faint)]">
                   HEALTH &amp; SAFETY EXPERTS
                 </span>
               </div>
             </div>
+            <LocaleSwitcher hideOnPhone={false} />
           </div>
 
           {/*
@@ -177,10 +187,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             </div>
             <BrandMark size={96} animate className="relative z-10 flex-none" />
             <div className="relative z-10 flex flex-col items-center leading-[1.15]">
-              <span className="font-sans text-[17px] font-bold tracking-[0.02em] text-[var(--text-primary)]">
+              <span className="t-title-2 text-[var(--text-primary)]">
                 HSE HUB
               </span>
-              <span className="font-mono text-[9px] tracking-[0.14em] text-[var(--text-faint)]">
+              <span className="t-label text-[var(--text-faint)]">
                 HEALTH &amp; SAFETY EXPERTS
               </span>
             </div>
@@ -194,10 +204,13 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             <div className="w-full max-w-sm">{children}</div>
           </div>
 
-          {/* Utility row pinned to the bottom edge, as in the reference. */}
+          {/* Utility row pinned to the bottom edge, as in the reference:
+              passive status only, no controls (APPLE_REF §3.2 "Bottom of the
+              window: nothing critical"). The language picker sits in the top
+              row instead — see the note there. */}
           <div className="flex flex-none flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-5">
             <ConnectionStatus />
-            <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
+            <span className="t-label text-[var(--text-faint)]">
               HS EXPERTS - INTERNAL
             </span>
           </div>
@@ -211,10 +224,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 export function AuthHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <>
-      <span className="mb-2 block font-mono text-[10px] tracking-[0.14em] text-[var(--text-faint)]">
+      <span className="mb-2 block t-label text-[var(--text-faint)]">
         {eyebrow}
       </span>
-      <h1 className="mb-6 text-[26px] font-semibold text-[var(--text-primary)]">{title}</h1>
+      <h1 className="mb-6 t-large text-[var(--text-primary)]">{title}</h1>
     </>
   );
 }
@@ -226,7 +239,14 @@ export function AuthNotice({ tone, children }: { tone: "error" | "success"; chil
       // role="alert" so a failed sign-in is announced rather than silently
       // appearing above a form the user is about to retry blind.
       role="alert"
-      className="mb-4 flex items-start gap-3 border border-[var(--border)] p-3 text-sm"
+      // `rise-in`, the house entrance (globals.css "MOTION VOCABULARY"), so a
+      // refused sign-in does not simply BE there on the next paint in the spot
+      // the eye has already scanned past — it settles in. A CSS keyframe rather
+      // than a spring on purpose: this element is server-rendered when
+      // /auth/callback sends someone back with `?error=`, and a JS entrance
+      // would leave the one message that explains the failure invisible until
+      // hydration. Reduce Motion removes it outright.
+      className="rise-in mb-4 flex items-start gap-3 border border-[var(--border)] p-3 t-body"
       style={{ background: tone === "error" ? "var(--critical-wash)" : "var(--good-wash)" }}
     >
       <Glyph
@@ -255,11 +275,34 @@ export function AuthNotice({ tone, children }: { tone: "error" | "success"; chil
 //
 // 2. `min-h-11` (44px). The measured height was 37.3px, under both Apple's and
 //    WCAG 2.5.8's minimum target, on the one form nobody can skip.
+// 3. The bezel is `--border-strong` and the type is the `t-callout` role from
+//    `sm` up, which is what Field.tsx's CONTROL_BASE gives every input INSIDE
+//    the app (APPLE_REF §3.2 "Inputs: 32 px, `t-callout`, bezel
+//    `--border-strong`"). The well stays `--surface` rather than CONTROL_BASE's
+//    `--page`, because this panel IS `--page`: a page-coloured input on a
+//    page-coloured panel is a bezel with nothing inside it.
+//
+//    `text-base` below `sm` is the ONE deliberate departure from the role scale
+//    on this page, for rule 1 above, and it is why AuthShell is not yet in the
+//    design gate's ROLE_ONLY list.
 export const authInputClass =
-  "w-full min-h-11 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:text-sm";
+  "w-full min-h-11 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-base text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] hover:border-[var(--text-faint)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:t-callout";
 
-export const authButtonClass =
-  "w-full min-h-11 rounded-[var(--radius-sm)] bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition-colors hover:bg-[var(--accent-hover)] active:translate-y-px disabled:cursor-not-allowed disabled:bg-[var(--surface-2)] disabled:text-[var(--text-faint)] disabled:active:translate-y-0 sm:min-h-0";
+/**
+ * The submit on every auth page is now the house `primary` button, composed
+ * from the Button primitive rather than restated here. It had drifted into its
+ * own vocabulary — `text-sm`, `px-4 py-2`, its own disabled colours — which is
+ * exactly the "99 distinct button signatures" problem Button.tsx was written to
+ * end, and it meant the one button a user meets before they are even in the
+ * product was the one button that did not look like the product.
+ *
+ * `max-sm:min-h-11` rather than a bare `min-h-11`: `md` already sets
+ * `min-h-[32px]`, and a variant utility sorts after an unvariant one, so the
+ * 44 px touch floor wins below `sm` without depending on class order. Coarse
+ * pointers get 44 px at every width from the primitive's own
+ * `pointer-coarse:` rule.
+ */
+export const authButtonClass = buttonClass("primary", "md", "w-full max-sm:min-h-11");
 
 export const authLabelClass =
-  "mb-1.5 block text-sm font-medium text-[var(--text-primary)]";
+  "mb-1.5 block t-body font-medium text-[var(--text-primary)]";

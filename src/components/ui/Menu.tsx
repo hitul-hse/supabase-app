@@ -33,3 +33,35 @@ export const menuItemClass =
 export function MenuSeparator() {
   return <div role="separator" aria-orientation="horizontal" className="my-1 h-px bg-[var(--border)]" />;
 }
+
+/**
+ * The chosen-item marker for a menu that offers a choice (APPLE_REF §5.8:
+ * "chosen = `IconCheck` + `--text-primary`, NOT colour alone").
+ *
+ * The slot is 16 px whether or not the check is drawn, so the labels of a
+ * choice list stay on one leading edge and the rows do not shift by the width
+ * of a glyph when the choice moves. `aria-hidden`, because the row already
+ * carries the fact in `aria-checked` / `aria-current` — an assistive reader
+ * that heard both would hear it twice.
+ *
+ * Deliberately not imported from `nav-icons`: this file is the vocabulary the
+ * menu rows share and must stay importable from anywhere without pulling the
+ * whole icon set behind it.
+ */
+export function MenuCheck({ checked }: { checked: boolean }) {
+  return (
+    <span aria-hidden className="flex h-4 w-4 flex-none items-center justify-center">
+      {checked && (
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" className="text-[var(--text-primary)]">
+          <path
+            d="M3.25 8.5 6.25 11.5 12.75 5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </span>
+  );
+}

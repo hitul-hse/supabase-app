@@ -1,0 +1,114 @@
+name: Check sync schedule alive
+
+# Is the TrackingTime sync CRON still firing? Asked from OUTSIDE the sync
+# workflow, on purpose.
+#
+# WHY THIS EXISTS: on 2026-08-28 the dashboard was 50 hours stale while
+# raw.sync_run showed seventeen consecutive status='ok' runs and then nothing.
+# No run failed; the schedule stopped firing (GitHub disables a repository's
+# scheduled workflows after 60 days without a push). Freshness checks cannot
+# see that -- a manual `npm run sync:year` makes the data fresh again while the
+# automation stays dead -- so scripts/check-sync-schedule-alive.mjs was written
+# to measure the CADENCE of scheduled runs instead. Then, for nine days, nothing
+# ran it: no workflow named it, and its own credential guard exited 0 without a
+# .env.local, which a runner never has. Found 2026-09-06.
+#
+# It cannot live inside sync-trackingtime.yml. When that schedule stops firing
+# the workflow never starts, so no step within it can report the outage. The
+# watcher needs a trigger of its own, and this file is that trigger. The honest
+# limit: this is itself a scheduled workflow, subject to the same 60-day rule,
+# so it cannot notice its own disabling -- only that the sync's stopped while it
+# still runs. That covers the incident as it happened; a dead repository is a
+# different failure with a different alarm.
+#
+# DELIBERATELY SEPARATE FROM ci.yml, like the sync workflows: this job holds a
+# live credential and reads production data. ci.yml proves the code is right;
+# this one asks whether the automation is alive.
+
+on:
+  schedule:
+    # 10:41 UTC daily. sync-trackingtime is scheduled at 04:17, but its real
+    # starts in raw.sync_run were 08:51, 08:21 and 08:39 on 4-6 September 2026:
+    # GitHub's scheduler runs it over four hours late under load, and the
+    # earlier note of "as late as 05:36" was already stale within a week.
+    # Running well after that means a healthy morning reads "~2h since the
+    # last scheduled run" in the log rather than "~26h", which is easier to
+    # eyeball -- the verdict itself does not depend on the ordering, because
+    # the gate's tolerance is derived from the cadence (two cycles plus grace,
+    # about 50h). Off :00 and :30 on purpose: those minutes are the scheduler's
+    # queue spike, and an odd minute makes this run easy to pick out of a log.
+    - cron: "41 10 * * *"
+
+  # Manual trigger, because the first question after a red run is "is it still
+  # red now that I pushed / re-enabled the workflow?".
+  workflow_dispatch:
+
+concurrency:
+  # Read-only, so overlap is harmless; the group only keeps a dispatch from
+  # piling onto a queued scheduled run.
+  group: check-sync-schedule-alive
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Is the cron still firing?
+    runs-on: ubuntu-latest
+    # One query against raw.sync_run. npm ci is the whole cost.
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check the schedule is alive
+        # No `|| true` here: this IS the gate. A red run in the Actions tab is
+        # the whole point -- it is the only signal a silently stopped schedule
+        # will ever produce.
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+
+          # Fail early and loudly rather than letting the gate report on a
+          # missing credential. The gate refuses to skip too, but saying WHICH
+          # secret is absent here saves reading a stack trace for it.
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "SUPABASE_DB_URL is not set -- add it as a repository secret."
+            exit 1
+          fi
+
+          # SUPABASE_DB_URL must be the SESSION POOLER url on a hosted runner.
+          # db.<ref>.supabase.co publishes an AAAA record and no A record
+          # (measured 2026-09-03), and GitHub runners have no IPv6 route, so the
+          # direct url fails at connect with ENETUNREACH. Same guard as
+          # sync-factorial.yml, for the same reason. Checked by shape, so the
+          # secret itself is never echoed.
+          case "$SUPABASE_DB_URL" in
+            *@db.*.supabase.co*)
+              echo "SUPABASE_DB_URL points at the DIRECT host (db.<ref>.supabase.co)."
+              echo "That host is IPv6-only and this runner is IPv4-only."
+              echo "Use the Session pooler url (port 5432) from Supabase > Connect."
+              exit 1
+              ;;
+          esac
+
+          node scripts/check-sync-schedule-alive.mjs
+
+      - name: Report freshness
+        # Runs even when the gate failed -- that is exactly when someone wants
+        # to know how old the data now is, and whether a human has been
+        # propping it up by hand. Same step, same secrets, same `|| true` as in
+        # sync-trackingtime.yml: a report, not a second gate.
+        if: always()
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/check-sync-freshness.mjs || true

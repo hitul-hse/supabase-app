@@ -90,6 +90,7 @@
         "check:gates-ci-executable": "node scripts/check-gates-ci-executable.mjs",
         "check:gates-runnable": "node scripts/check-gates-runnable-on-ci.mjs",
         "check:sync-schedule-alive": "node scripts/check-sync-schedule-alive.mjs",
+        "check:secret-parity": "node scripts/check-secret-parity.mjs",
         "test:factorial-minimisation": "node scripts/gates/check-factorial-minimisation.mjs",
         "test:factorial-mutations": "node scripts/gates/check-factorial-mutations.mjs",
         "test:sync-drilldown": "node scripts/check-sync-and-drilldown.mjs",

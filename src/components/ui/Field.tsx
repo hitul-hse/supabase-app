@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { STATUS_TONE_COLOR, type StatusTone } from "@/components/ui/StatusDot";
 import type { ComponentProps, ReactNode } from "react";
 import { IconArrowsVertical, IconCaret } from "../nav-icons";
 import { PopoverPanel } from "./Popover";
@@ -169,6 +170,7 @@ export function FilterChip({
   children,
   count,
   title,
+  tone,
 }: {
   active: boolean;
   onToggle: () => void;
@@ -176,6 +178,26 @@ export function FilterChip({
   count?: number;
   /** A one-line definition of what the chip selects, for mouse users. */
   title?: string;
+  /**
+   * Repaint the leading dot in a STATUS tone that survives selection.
+   *
+   * Left unset, the dot is the selection indicator it has always been: accent
+   * when chosen, `--border-strong` at rest. That is right for a facet whose
+   * name carries no severity ("Responsible", "Owner").
+   *
+   * Set, the dot states the tone of the thing the chip selects instead — the
+   * projects facets are OVER BUDGET / AT RISK / HEALTHY / NO BUDGET / NO
+   * ACTIVITY, an ordered severity ladder, and a row of five identical grey dots
+   * beside those five words throws away the one place the ladder is legible at
+   * a glance (APPLE_REF §5.3 "facets worst first with a status dot beside each
+   * word", §8 #5).
+   *
+   * The chip's own selected state is NOT lost when a tone is set: the filled
+   * `--accent-wash` and the accent bezel still carry it, which is what §5.2
+   * makes the primary signal anyway ("the fill is the state, the dot restates
+   * it"). Only the restatement moves aside.
+   */
+  tone?: StatusTone;
 }) {
   return (
     <button
@@ -210,9 +232,14 @@ export function FilterChip({
       <span
         aria-hidden="true"
         className={
-          "h-1.5 w-1.5 rounded-full transition-colors " +
-          (active ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]")
+          "h-1.5 w-1.5 rounded-full transition-colors flex-none " +
+          (tone !== undefined
+            ? ""
+            : active
+              ? "bg-[var(--accent)]"
+              : "bg-[var(--border-strong)]")
         }
+        style={tone !== undefined ? { background: STATUS_TONE_COLOR[tone] } : undefined}
       />
       {children}
       {count !== undefined && (

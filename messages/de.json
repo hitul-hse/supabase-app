@@ -132,16 +132,12 @@
       }
     },
     "hero": {
-      "dialogLabel": "Woche {week} im Detail",
-      "weekOf": "WOCHE {week}",
-      "totals": "{billable}h abrechenbar von {total}h · {people, plural, one {{people} Mitarbeiter} other {{people} Mitarbeiter}} · {entries, plural, one {{entries} Eintrag} other {{entries} Einträge}}",
-      "close": "Wochendetail schließen",
-      "esc": "ESC",
-      "fetching": "Woche wird geladen …",
-      "byPerson": "NACH MITARBEITER",
-      "byProject": "NACH PROJEKT",
-      "nothingLogged": "Nichts erfasst.",
-      "footer": "JE TOP 8 NACH STUNDEN · GLEICHER UMFANG WIE DAS DIAGRAMM · ZUKÜNFTIG DATIERTE EINTRÄGE AUSGESCHLOSSEN"
+      "kicker": "LETZTE WOCHE · {week} · TRACKINGTIME",
+      "headline": "Die Woche ist zu {share} abrechenbar",
+      "noWeek": "Noch keine Woche mit Stunden",
+      "hint": "{across} über {period} · {billable} abrechenbar von {total} gebucht · {people} Personen im Team",
+      "caption": "ABRECHENBARER ANTEIL · LETZTE WOCHE",
+      "figureLabel": "Abrechenbarer Anteil in der letzten Woche"
     },
     "billableShare": {
       "title": "Abrechenbarer Anteil",
@@ -159,7 +155,23 @@
       "nobodyTeam": "Niemand mit hinterlegtem Team {team} hat Zeit erfasst.",
       "noMembers": "Keine Mitarbeiter mit erfasster Zeit.",
       "basis": "BASIS",
-      "basisNote": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, über die Wochen, in denen die Person aktiv war. TrackingTime hält keine Vertragsstunden. Diese Prozentwerte gelten für den Gesamtzeitraum, nicht für den gewählten Zeitraum — die Ansicht je Mitarbeiter ist nicht datumsgebunden."
+      "basisNote": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, über die Wochen, in denen die Person aktiv war. TrackingTime hält keine Vertragsstunden. Diese Prozentwerte gelten für den Gesamtzeitraum, nicht für den gewählten Zeitraum — die Ansicht je Mitarbeiter ist nicht datumsgebunden.",
+      "columns": {
+        "person": "PERSON",
+        "team": "TEAM",
+        "hours": "STUNDEN",
+        "utilisation": "AUSLASTUNG",
+        "status": "STATUS"
+      },
+      "qualifier": "NIEDRIGSTE ZUERST",
+      "status": {
+        "overCapacity": "Über Kapazität",
+        "low": "Niedrig",
+        "onTrack": "Im Rahmen",
+        "noActivity": "Keine Aktivität",
+        "notMeasured": "Nicht messbar"
+      },
+      "teamNote": "Ein leeres Feld bei TEAM oder AUSLASTUNG heißt, dass nichts erfasst wurde — keine zurückgehaltene Zahl. Wer keine Zeiteinträge hat, zeigt — statt 0,0 h: es wurde nichts gemessen."
     },
     "disclosure": {
       "title": "Abrechenbar-Aufteilung & Auslastung",
@@ -210,6 +222,20 @@
         "burn": "VERBRAUCH"
       },
       "budgetWithheld": "NICHT SICHTBAR"
+    },
+    "overBudget": {
+      "title": "Über Budget",
+      "columns": {
+        "project": "PROJEKT",
+        "customer": "KUNDE",
+        "burn": "VERBRAUCH",
+        "over": "DARÜBER"
+      },
+      "hours": "{hours} h",
+      "qualifier": "SCHLECHTESTE ZUERST",
+      "footnote": "Verbrauch ist die gebuchte Zeit im Verhältnis zur Schätzung; DARÜBER sind die Stunden jenseits davon. Dieselben Projekte, die die Kachel PROJEKTE ÜBER BUDGET zählt — jedes aktive Projekt mit einem Budget über null und mehr gebuchten als budgetierten Stunden, geplante Zeit ausgenommen.",
+      "empty": "Kein aktives Projekt mit Budget hat mehr Stunden gebucht als budgetiert.",
+      "withheld": "Budgets sind für deine Rolle nicht sichtbar, deshalb kann nicht gezeigt werden, welche Projekte über Budget liegen."
     }
   },
   "drill": {
@@ -1962,7 +1988,9 @@
     "noMatch": "Keine Zeile passt zu „{query}“.",
     "clearTheSearch": "Suche zurücksetzen",
     "prev": "ZURÜCK",
-    "next": "WEITER"
+    "next": "WEITER",
+    "pagesOf": "Seiten von {title}",
+    "goToPage": "{title}, Seite {page, number}"
   },
   "myWork": {
     "header": {

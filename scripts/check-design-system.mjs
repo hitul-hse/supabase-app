@@ -773,9 +773,18 @@ check(
   /searchParams/.test(read("src/app/(app)/people/page.tsx")) &&
     /initialQuery/.test(section),
 );
+/*
+ * The utilisation ROWS moved out of page.tsx and into OverviewQueues.tsx when
+ * the card became a real 10-row table -- `DataTable`'s cell renderers cannot
+ * cross the server boundary, so the presentation shell is its own client
+ * module. The assertion is unchanged in strength: the row must still deep-link
+ * a named colleague into the directory rather than making the reader retype a
+ * name they are looking at. It just has to read the file the row is in now.
+ */
+const overviewQueues = readStripped("src/app/(app)/OverviewQueues.tsx");
 check(
   "overview utilisation rows link into /people",
-  /\/people\?q=\$\{encodeURIComponent/.test(overview),
+  /\/people\?q=\$\{encodeURIComponent/.test(overviewQueues),
 );
 
 // ---------------------------------------------------------------------------

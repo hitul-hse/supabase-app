@@ -225,6 +225,35 @@ export type TeamUtilisation = {
   tone: "neutral" | "good" | "warning" | "critical";
   /** The person's team, or null when nobody recorded one. */
   team: string | null;
+  /**
+   * How many TrackingTime entries this person has, all time.
+   *
+   * Carried so the page can tell a MEASURED zero from an ABSENT measurement.
+   * A person with no entries at all has `hours` 0 because nothing was summed,
+   * not because somebody looked and found nothing: rendering that as "0.0" in
+   * the same figure style as a colleague's 442.8 states a fact the data does
+   * not hold. With this the row renders "—" beside its already-null
+   * utilisation, which is the same rule StatTile encodes for a missing value.
+   */
+  entryCount: number;
+};
+
+/**
+ * One row of the Overview's "Over budget" queue.
+ *
+ * The SAME rows the PROJECTS OVER BUDGET tile counts — both come out of
+ * `getBudgetPosture` in one pass, so the card header's "1–10 OF 11" and the
+ * tile's "11" cannot disagree. The previous shape returned only the count, and
+ * a queue derived from a second read would have been free to drift from it.
+ */
+export type OverBudgetProject = {
+  id: number;
+  name: string;
+  customerName: string | null;
+  /** Logged hours as a percentage of the estimate. Always > 100 in this list. */
+  burnPercent: number;
+  /** Hours logged BEYOND the estimate — the size of the overrun, not the total. */
+  overHours: number;
 };
 
 export type OverviewProject = {
@@ -255,6 +284,12 @@ export type OverviewData = {
   weeks: OrgWeekRow[];
   teams: TeamUtilisation[];
   projects: OverviewProject[];
+  /**
+   * The over-budget queue's rows, worst first, or null when budgets were
+   * withheld from this caller (see `budgetsWithheld`) or could not be read.
+   * Never [] for either of those reasons -- see the note beside its assignment.
+   */
+  overBudgetProjects: OverBudgetProject[] | null;
   counts: {
     activeMembers: number;
     activeProjects: number;
@@ -330,7 +365,14 @@ function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
  * rule 6 forbids.
  */
 type BudgetPosture =
-  | { state: "visible"; activeProjects: number; overBudget: number; noBudget: number }
+  | {
+      state: "visible";
+      activeProjects: number;
+      overBudget: number;
+      noBudget: number;
+      /** Every over-budget project, worst burn first. Length === overBudget. */
+      overBudgetRows: OverBudgetProject[];
+    }
   | { state: "withheld" }
   | { state: "unavailable" };
 
@@ -367,12 +409,20 @@ async function getBudgetPosture(
   try {
     const { data, error } = await timeSchema(supabase)
       .from("project_summary")
-      .select("project_id, total_seconds, estimated_hours")
+      // project_name and customer_name join no extra table -- the view already
+      // carries both -- so the queue's rows cost the same read as its count.
+      .select("project_id, project_name, customer_name, total_seconds, estimated_hours")
       .eq("is_archived", false)
       .order("project_id", { ascending: true })
       .range(0, 9999);
     if (error || !data) return { state: "unavailable" };
-    const rows = data as { project_id: number; total_seconds: number | null; estimated_hours: number | null }[];
+    const rows = data as {
+      project_id: number;
+      project_name: string | null;
+      customer_name: string | null;
+      total_seconds: number | null;
+      estimated_hours: number | null;
+    }[];
 
     // project_summary counts PLANNED entries dated into the future (Netto / 26
     // SiFa: 398 h in the view, 217.7 h actually worked). /projects excludes
@@ -394,14 +444,44 @@ async function getBudgetPosture(
     const workedHours = (r: { project_id: number; total_seconds: number | null }) =>
       secondsToHours(Math.max(0, num(r.total_seconds) - (futureByProject.get(r.project_id) ?? 0)));
 
+    // The view writes "no budget" as 0, not null (84 of 338 rows) -- a budget
+    // is real only when > 0. Same rule as projects-live.ts isOver:
+    // strictly more worked hours than the estimate.
+    const over = rows.filter(
+      (r) => Number(r.estimated_hours) > 0 && workedHours(r) > Number(r.estimated_hours),
+    );
+
+    /*
+     * The queue rows, derived from the SAME predicate as the count above rather
+     * than from a second filter that could drift from it.
+     *
+     * Worst first (UI-CONVENTIONS rule 5): burn descending, so the project
+     * furthest past its estimate is the first thing on the card. No placeholder
+     * rule is applied -- the design's "estimates under 10 h are excluded as
+     * placeholders" would make this list disagree with the tile beside it about
+     * how many projects are over budget, and inventing a threshold is not a
+     * layout change, it is a change to what the figure means.
+     */
+    const overBudgetRows: OverBudgetProject[] = over
+      .map((r) => {
+        const estimate = Number(r.estimated_hours);
+        const worked = workedHours(r);
+        return {
+          id: r.project_id,
+          name: r.project_name ?? `#${r.project_id}`,
+          customerName: r.customer_name,
+          burnPercent: Math.round((worked / estimate) * 1000) / 10,
+          overHours: Math.round((worked - estimate) * 10) / 10,
+        };
+      })
+      .sort((a, b) => b.burnPercent - a.burnPercent || b.overHours - a.overHours);
+
     return {
       state: "visible",
       activeProjects: rows.length,
-      // The view writes "no budget" as 0, not null (84 of 338 rows) -- a budget
-      // is real only when > 0. Same rule as projects-live.ts isOver:
-      // strictly more worked hours than the estimate.
-      overBudget: rows.filter((r) => Number(r.estimated_hours) > 0 && workedHours(r) > Number(r.estimated_hours)).length,
+      overBudget: over.length,
       noBudget: rows.filter((r) => !(Number(r.estimated_hours) > 0)).length,
+      overBudgetRows,
     };
   } catch {
     return { state: "unavailable" };
@@ -583,6 +663,14 @@ export async function getLiveOverview(
   // Portfolio-wide (see getBudgetPosture). The ledger rows are a top-8 slice
   // and must not be the denominator of a KPI that links to the full list.
   const overBudget = budgetPosture.state === "visible" ? budgetPosture.overBudget : null;
+  /*
+   * null, not [], when budgets were withheld or unreadable. An empty array
+   * renders as "no project is over budget" -- a confident claim about the
+   * portfolio produced by a permission check, which is the exact substitution
+   * the three-state posture above exists to prevent.
+   */
+  const overBudgetProjects =
+    budgetPosture.state === "visible" ? budgetPosture.overBudgetRows : null;
   const noBudget = budgetPosture.state === "visible" ? budgetPosture.noBudget : 0;
   const activeProjects = budgetPosture.state === "visible" ? budgetPosture.activeProjects : 0;
   const budgetsWithheld = budgetPosture.state === "withheld";
@@ -696,14 +784,38 @@ export async function getLiveOverview(
     },
   ];
 
-  const teams: TeamUtilisation[] = utilisationRows.slice(0, 6).map((m) => ({
-    name: m.displayName,
-    percent: m.utilisationPercent,
-    hours: m.totalHours,
-    weeksActive: m.weeksActive,
-    tone: utilisationTone(m.utilisationPercent),
-    team: memberMeta.get(m.memberId)?.team ?? null,
-  }));
+  /*
+   * EVERY person, worst first -- not the top six by hours.
+   *
+   * The card was a six-row slice ordered by hours descending, which answers
+   * "who logged the most" and buries the people this figure exists to surface:
+   * the ones barely tracking anything. Utilisation is an attention list, and
+   * UI-CONVENTIONS rule 5 orders those by severity ("worst first, never
+   * alphabetical"), which here is lowest utilisation first. Eleven of the
+   * seventeen were unreachable from anywhere on the page before; the card pages
+   * through all of them now and states the honest count while doing it.
+   *
+   * Nulls sort LAST in both directions, exactly as `cmpNum` does in the table
+   * primitive: a person with no measurable ratio is absent data, not the
+   * smallest number, and floating them to the top would fill the first page
+   * with rows that carry no figure at all.
+   */
+  const teams: TeamUtilisation[] = utilisationRows
+    .map((m) => ({
+      name: m.displayName,
+      percent: m.utilisationPercent,
+      hours: m.totalHours,
+      weeksActive: m.weeksActive,
+      tone: utilisationTone(m.utilisationPercent),
+      team: memberMeta.get(m.memberId)?.team ?? null,
+      entryCount: m.entryCount,
+    }))
+    .sort((a, b) => {
+      if (a.percent === null && b.percent === null) return a.name.localeCompare(b.name);
+      if (a.percent === null) return 1;
+      if (b.percent === null) return -1;
+      return a.percent - b.percent;
+    });
 
   const projects: OverviewProject[] = projectRows.map((p) => ({
     id: p.projectId,
@@ -729,6 +841,7 @@ export async function getLiveOverview(
     weeks,
     teams,
     projects,
+    overBudgetProjects,
     range,
     coveredWeeks:
       weeks.length > 0

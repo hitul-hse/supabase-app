@@ -1,0 +1,120 @@
+name: house rules
+
+# The house rules — the ones paid for in real incidents — reported on the
+# CHANGED LINES of a pull request, so a violation is caught where it is written
+# rather than discovered weeks later.
+#
+# WHY THIS IS A SEPARATE WORKFLOW AND NOT A STEP IN checks.yml
+# ------------------------------------------------------------
+# checks.yml is the required suite. Nothing here has a measured
+# false-positive rate yet, so nothing here is allowed to decide whether a
+# branch can merge. Keeping it in its own workflow means it can be promoted (or
+# deleted) without touching the file that gates master.
+#
+# WHY filter_mode: added
+# ----------------------
+# Eighty-two pre-existing findings sit in the tree today (19 unordered paged
+# reads, 48 zero-defaulted measures, 10 silent catches, 5 gates that exit 0 on
+# a SKIP). Reporting all of them on every PR would bury the one line the author
+# actually wrote. `added` reports only lines this diff introduced. The backlog
+# is triaged separately, deliberately, and not by drowning a reviewer.
+#
+# ACTION PINS
+# -----------
+# The third-party reviewdog actions are pinned to a commit SHA, not a tag: a
+# tag is a movable pointer and a compromised or rewritten one would run
+# arbitrary code with this repo's GITHUB_TOKEN. The first-party actions/* keep
+# the tag form the rest of this repo's workflows already use.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  # reviewdog posts the findings as PR review comments.
+  pull-requests: write
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # The rules themselves still catch what they were written to catch. This one
+  # IS allowed to fail: a lint rule that has quietly stopped firing is worse
+  # than no rule, because the suite goes on looking green. It is not in the
+  # required set.
+  fixtures:
+    name: rules fire on their fixtures, and nowhere else
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # semgrep is not installed here on purpose: the gate records the two
+      # shell rules as NOT RUN rather than pretending they passed, and the
+      # `report` job below exercises them for real.
+      - name: House-rule fixtures
+        run: npm run check:house-rules
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # The findings themselves. continue-on-error: this job REPORTS, it does not
+  # judge. Promotion to a blocking check is a separate, deliberate change made
+  # once the backlog is triaged and the false-positive rate is known.
+  report:
+    name: house-rule findings on the changed lines
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
+        with:
+          reviewdog_version: v0.21.0
+
+      # ESLint: this repo's own eslint and its own config, filtered to `house/*`
+      # by scripts/lib/eslint-to-rdjson.mjs. Deliberately NOT
+      # reviewdog/action-eslint, which would also report the thirteen
+      # pre-existing no-unused-vars warnings on any line a PR happens to touch.
+      - name: House rules (JavaScript / TypeScript)
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          # eslint exits non-zero when it finds ERRORS. The house rules are all
+          # `warn`, so a non-zero exit here means a pre-existing error
+          # elsewhere, and the report should still be produced -- hence the
+          # captured status rather than a bare `|| true`, which would also hide
+          # eslint failing to start at all.
+          npx eslint -f json src scripts > eslint.json || echo "eslint exited $?"
+          test -s eslint.json || { echo "eslint produced no output at all"; exit 1; }
+          node scripts/lib/eslint-to-rdjson.mjs < eslint.json \
+            | reviewdog -f=rdjson \
+                -name="house-rules" \
+                -reporter=github-pr-review \
+                -filter-mode=added \
+                -level=warning \
+                -fail-on-error=false
+
+      # Semgrep: the two rules that live in shell rather than in JavaScript.
+      # Pinned exactly — an unpinned analyser is a rule set that changes under
+      # you, and "the gate started failing and nobody changed anything" is the
+      # most expensive kind of red.
+      - name: House rules (shell)
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          python3 -m pip install --quiet --disable-pip-version-check semgrep==1.176.0
+          semgrep --config .semgrep --metrics=off --sarif --output=semgrep.sarif . || true
+          test -s semgrep.sarif || { echo "semgrep produced no SARIF"; exit 1; }
+          reviewdog -f=sarif \
+            -name="house-rules (shell)" \
+            -reporter=github-pr-review \
+            -filter-mode=added \
+            -level=warning \
+            -fail-on-error=false < semgrep.sarif

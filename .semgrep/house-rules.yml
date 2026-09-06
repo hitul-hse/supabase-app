@@ -1,0 +1,84 @@
+# The house rules that ESLint cannot see, because they are not JavaScript.
+#
+# WHY SEMGREP AND NOT ANOTHER GATE
+# --------------------------------
+# The two rules here live in shell: inside .sh files, inside `run:` blocks in
+# GitHub workflows, and inside the strings this repo's scripts hand to bash.
+# ESLint parses none of that. A `check-*.mjs` gate COULD grep for them -- and
+# scripts/check-no-absolute-paths.mjs proves that works -- but a gate reports
+# on the CI run, not on the changed line. These two are cheap enough to run per
+# file, which is what puts the finding next to the edit that made it.
+#
+# HOW TO RUN
+#   semgrep --config .semgrep --error <paths>
+#   npm run check:house-rules          # runs these over the fixtures and asserts
+#                                      # the exact counts, plus the negatives
+#
+# SCOPE
+# The `paths.exclude` blocks below keep the vendored agent-skill trees out.
+# Those are five copies of third-party markdown that this repo does not write
+# and cannot edit; eslint.config.mjs excludes them for the same reason, and
+# the note there records what happened when it did not (152 warnings drowning
+# out real signal). All fifteen `2>/dev/null` occurrences in the tree today are
+# inside them.
+
+rules:
+  # ────────────────────────────────────────────────────────────────────────
+  - id: house-no-pkill-f
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      pkill -f matches the operator's OWN shell as well as the target -- it
+      killed the terminal that asked the question and then answered "it is
+      running", because the pattern matched the command line that contained it.
+      Kill by pid (from a pidfile, or `pgrep -f <pat>` read and checked first),
+      or scope it with `pkill -x` / a tmux target.
+    # Any flag spelling that turns pkill into a full-command-line match:
+    # `-f`, `-9 -f`, a bundled `-9f`, or the long `--full`. The first
+    # version required -f to be the first flag and missed `pkill -9 -f`,
+    # which is the form that was actually typed.
+    pattern-regex: \bpkill\b[^\n]*?(?:\s-{1,2}[a-zA-Z0-9-]*f\b|\s--full\b)
+    paths:
+      include:
+        - "scripts/**"
+        - "src/**"
+        - ".github/workflows/**"
+        - "*.sh"
+        - "docs/**"
+      exclude:
+        # Vendored third-party agent skills: not ours, not editable by us.
+        - ".claude/**"
+        - ".agents/**"
+        - ".github/skills/**"
+        - ".v3code/**"
+        - "agent/skills/**"
+        - "node_modules/**"
+        - "scripts/fixtures/**"
+
+  # ────────────────────────────────────────────────────────────────────────
+  - id: house-no-silent-stderr-redirect
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      swallowed failure: `2>/dev/null` with no handler discards the one message
+      that would have said why -- eleven gates read a dead path for weeks and
+      each one failed quietly, a CI round-trip at a time. Keep the stderr, or
+      end the line with an explicit `|| exit <n>` so the failure stops
+      something.
+    # `$( ... )` and plain commands alike. The regex, not a shell pattern:
+    # semgrep's shell support does not cover `run:` blocks embedded in YAML,
+    # and those are exactly where this repo's shell lives.
+    pattern-regex: 2>\s*/dev/null(?![^\n]*\|\|)
+    paths:
+      include:
+        - "scripts/**"
+        - ".github/workflows/**"
+        - "*.sh"
+      exclude:
+        - ".claude/**"
+        - ".agents/**"
+        - ".github/skills/**"
+        - ".v3code/**"
+        - "agent/skills/**"
+        - "node_modules/**"
+        - "scripts/fixtures/**"

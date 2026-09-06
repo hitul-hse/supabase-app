@@ -52,8 +52,16 @@ import { fmtNum } from "@/lib/locale-format";
 const pct = (n: number, locale: string, dp = 0) => `${fmtNum(n, locale, dp)}%`;
 import type { OverBudgetProject, TeamUtilisation } from "@/lib/queries/overview-live";
 
-/** The em dash both queues use for an absent value (APPLE_REF §8 #26). */
-function dash() {
+/**
+ * A missing LABEL: "—" (APPLE_REF §8 #26, the table primitive's own rule).
+ *
+ * Distinct from a missing FIGURE, which says "n/a" (`common.notAvailable`).
+ * The split is deliberate and is the one the rest of these pages already keep:
+ * an em dash in a numeric column reads as a dash-shaped zero and sorts like
+ * one in the reader's head, where "n/a" cannot be mistaken for a measurement.
+ * A missing team name is not a number and has nothing to be mistaken for.
+ */
+function noLabel() {
   return <span className="text-[var(--text-muted)]">—</span>;
 }
 
@@ -113,7 +121,7 @@ export function OverBudgetQueue({
       descFirst: false,
       cell: (r) =>
         r.customerName === null ? (
-          dash()
+          noLabel()
         ) : (
           <span className="block truncate text-[var(--text-secondary)]" title={r.customerName}>
             {r.customerName}
@@ -208,6 +216,7 @@ export function UtilisationQueue({
   locale: string;
 }) {
   const t = useTranslations("overview.utilisationByPerson");
+  const tc = useTranslations("common");
 
   const columns: Column<TeamUtilisation>[] = [
     {
@@ -240,7 +249,7 @@ export function UtilisationQueue({
       /* "—", not "No team": nobody recorded one, which is an absence, and the
          footnote says so once rather than eleven times down the column. */
       cell: (r) =>
-        r.team === null ? dash() : <span className="text-[var(--text-secondary)]">{r.team}</span>,
+        r.team === null ? noLabel() : <span className="text-[var(--text-secondary)]">{r.team}</span>,
     },
     {
       key: "hours",
@@ -256,7 +265,7 @@ export function UtilisationQueue({
           forbid, so it renders "—" beside its already-absent utilisation.
         */
         r.entryCount === 0 ? (
-          dash()
+          <span className="fig text-[var(--text-faint)]">{tc("notAvailable")}</span>
         ) : (
           <span className="fig text-[var(--text-primary)]">{fmtNum(r.hours, locale, 1)}</span>
         ),
@@ -269,7 +278,7 @@ export function UtilisationQueue({
       compare: (a, b) => cmpNum(a.percent, b.percent),
       cell: (r) =>
         r.percent === null ? (
-          dash()
+          <span className="fig text-[var(--text-faint)]">{tc("notAvailable")}</span>
         ) : (
           <span
             className="fig"

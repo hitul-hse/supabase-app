@@ -218,8 +218,19 @@ module.exports = {
   // wherever a relative or aliased import names it, because an unmapped import
   // kills the whole gate rather than one check.
   const iconsFile = await compile("src/components/nav-icons.tsx", "nav-icons.cjs");
+  /*
+   * The status vocabulary the ledger's STATUS cell and the facet chips' tone
+   * dots share (APPLE_REF §8 #5: status is never colour alone). Compiled for
+   * real rather than stubbed -- it is a dozen lines with no dependencies, and a
+   * stub would let this gate stay green while the real component threw. Field
+   * imports it for `FilterChip`'s optional tone, so it has to exist first.
+   */
+  const statusDotFile = await compile("src/components/ui/StatusDot.tsx", "StatusDot.cjs");
+  /* The fixed 0-100 meter the burn cell draws. Dependency-free, same reasoning. */
+  const meterFile = await compile("src/components/ui/Meter.tsx", "Meter.cjs");
   const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub),
+      "@/components/ui/StatusDot": posix(statusDotFile),
       "../nav-icons": posix(iconsFile), "./Popover": posix(popoverFile) });
   // The segmented skin the billable trough wears. Its Link is never rendered
   // here (only the class exports are used), but the module still imports it.
@@ -230,6 +241,13 @@ module.exports = {
   // request `useSearchParams()` returns null and the hook is plain component
   // state, which is exactly the first paint this gate asserts on. Its
   // `next/navigation` import resolves from node_modules like framer-motion.
+  /*
+   * The house pager (docs/UI-CONVENTIONS rule 3), shared with the two
+   * server-rendered queues. Its only import is `next/link`, which is already
+   * stubbed here.
+   */
+  const numberedPagerFile = await compile("src/components/NumberedPager.tsx", "NumberedPager.cjs", {
+      "next/link": posix(linkStub) });
   const urlStateFile = await compile("src/components/url-state.ts", "url-state.cjs");
   // Added when the mobile work wrapped the explorer's panels in a disclosure.
   // Compiled rather than stubbed: it is small and dependency-free, and a stub
@@ -255,6 +273,14 @@ module.exports = {
       "@/components/EmptyState": posix(emptyStateFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/Pager": posix(pagerStub),
+      // The page-size trough and the CSV button moved into the card header, and
+      // the foot is the shared numbered pager now. All three are compiled for
+      // real: an unmapped alias kills the whole gate rather than one check.
+      "@/components/ui/Button": posix(buttonFile),
+      "@/components/ui/Segmented": posix(segmentedFile),
+      "@/components/ui/Meter": posix(meterFile),
+      "@/components/ui/StatusDot": posix(statusDotFile),
+      "@/components/NumberedPager": posix(numberedPagerFile),
       "@/components/url-state": posix(urlStateFile),
       // The sort-key list moved to the plain insights module (a value from a
       // "use client" file is a client reference on the server page).
@@ -630,7 +656,19 @@ module.exports = {
   // py-1 rather than py-2.5. Asserted on the shipped source rather than the
   // rendered HTML because Tailwind classes are the only place the value lives.
   const ledgerSrc = readFileSync("src/app/(app)/projects/ProjectsLedger.tsx", "utf8");
-  const rowClass = /grid min-w-\[900px\] grid-cols-12 items-center[^"]*/.exec(ledgerSrc)?.[0] ?? "";
+  /*
+   * The row's class string, wherever the column template lives.
+   *
+   * It used to be a literal `grid min-w-[900px] grid-cols-12 items-center …`,
+   * and the eight-column re-cut moved the template into the `LEDGER_GRID`
+   * constant and interpolated it, so a regex anchored on `grid-cols-12` matched
+   * NOTHING and both assertions below failed on an empty string rather than on
+   * the row. Anchored on the parts that describe the row itself -- it is a grid,
+   * it is min-width-bounded, its cells are centred -- so the next change to the
+   * column list does not silently blind this check again. `[^`"]*` because the
+   * class is now a template literal, not a quoted string.
+   */
+  const rowClass = /grid \$\{LEDGER_GRID\} min-w-\[[^\]]+\] items-center[^`"]*/.exec(ledgerSrc)?.[0] ?? "";
   check(
     "REGRESSION 6: the desktop row keeps its compact vertical padding",
     /\bpy-1\b/.test(rowClass) && !/\bpy-2\.5\b/.test(rowClass),

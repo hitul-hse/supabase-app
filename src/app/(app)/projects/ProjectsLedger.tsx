@@ -482,6 +482,12 @@ export function ProjectsLedger({
               toolbar; §5.4 "Placement").
             */
             <div className="hidden items-center gap-1.5 sm:flex">
+              {/* Only where it can change something. A 25/50/100/ALL trough over
+                  a five-row list is a control wired to nothing, and a short list
+                  that wears pagination chrome reads as a truncated one — the
+                  same reason DataTable's worked-queue mode removes it rather
+                  than disabling it (APPLE_REF §5.4). */}
+              {sorted.length > PAGE_SIZE && (
               <div role="group" aria-label={tpager("perPage")} className={segmentedTrackClass}>
                 {[...PAGE_SIZES, "all" as const].map((size) => (
                   <button
@@ -495,6 +501,7 @@ export function ProjectsLedger({
                   </button>
                 ))}
               </div>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -699,7 +706,11 @@ export function ProjectsLedger({
                   className="w-11 shrink-0 text-right fig font-medium"
                   style={{ color: burnColor(p.burnPercent) }}
                 >
-                  {p.burnPercent === null ? "—" : fmtPct(p.burnPercent, locale)}
+                  {/* "n/a", not "—": the house rule for a MISSING FIGURE on this
+                      page, and the one check-projects-module counts. An em dash
+                      in a numeric column reads as a dash-shaped zero; "n/a"
+                      cannot be mistaken for a measurement. */}
+                  {p.burnPercent === null ? tc("notAvailable") : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>
               {/*

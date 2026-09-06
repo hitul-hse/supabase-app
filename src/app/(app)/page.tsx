@@ -90,6 +90,7 @@ export default async function OverviewPage({
   await enforceRoleRouteAccess("/");
   const supabase = await createClient();
   const t = await getTranslations("overview");
+  const tc = await getTranslations("common");
 
   /*
    * The period and team come from the URL, so a scoped view is shareable and
@@ -457,6 +458,25 @@ export default async function OverviewPage({
           Neither figure changed its basis: the same query, the same denominator,
           the same "all time" caveat, stated in the same words.
         */}
+        {/*
+          COLLAPSED ON A PHONE ONLY, and for a measured reason.
+
+          Two ten-row tables stacked into one column at 390px added 854px to
+          this route (3,106px -> 3,960px measured, against
+          check-table-scroll-budget's four-screen ceiling). Nothing is hidden by
+          it: the summary states both headline figures, and the queues are one
+          tap away. `MobileDisclosure` keeps `sm:block` on its content, so at
+          1440 this is a bare wrapper and the desktop grid below is byte for
+          byte what it was — the same mechanism, and the same reasoning, as the
+          proportion strip further down this page.
+        */}
+        <MobileDisclosure
+          title={t("queues.title")}
+          summary={t("queues.summary", {
+            overBudget: overBudgetProjects === null ? tc("notAvailable") : overBudgetProjects.length,
+            people: teams.length,
+          })}
+        >
         <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] xl:grid-cols-2">
           {overBudgetProjects === null ? (
             /*
@@ -521,6 +541,8 @@ export default async function OverviewPage({
             locale={NUMBER_LOCALE}
           />
         </div>
+        </MobileDisclosure>
+
         <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
           {/*
             The hero figure: billable share per week, as a smooth area.

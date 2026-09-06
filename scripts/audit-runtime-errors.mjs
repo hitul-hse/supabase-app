@@ -61,9 +61,10 @@
 import { existsSync, readFileSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 /* ── credentials, or a clean skip ──────────────────────────────────────── */
-const ENV_PATH = "C:/Supabase/.env.local";
+const ENV_PATH = `${REPO_ROOT}/.env.local`;
 const envFile = existsSync(".env.local") ? ".env.local" : existsSync(ENV_PATH) ? ENV_PATH : null;
 if (!envFile) {
   console.log("SKIP: no .env.local, so no session can be minted for these authed routes");

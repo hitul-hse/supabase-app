@@ -2,8 +2,9 @@
 // caption that sits under a figure. Appended rather than edited in place, and
 // CRLF-safe.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/src/components/ui/Card.tsx";
+const path = `${REPO_ROOT}/src/components/ui/Card.tsx`;
 const src = readFileSync(path, "utf8");
 const eol = src.includes("\r\n") ? "\r\n" : "\n";
 

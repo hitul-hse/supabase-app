@@ -3,9 +3,10 @@
 // the fix does not quietly widen access.
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -23,7 +24,7 @@ const before = await c.query(`
 console.log("BEFORE  project_budget_status:");
 console.table(before.rows);
 
-const sql = readFileSync("C:/Supabase/supabase/migrations/20260825090000_views_say_unknown_not_zero.sql", "utf8");
+const sql = readFileSync(`${REPO_ROOT}/supabase/migrations/20260825090000_views_say_unknown_not_zero.sql`, "utf8");
 await c.query(sql);
 console.log("\nmigration applied\n");
 

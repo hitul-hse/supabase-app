@@ -14,8 +14,9 @@
  *   8. submit stays disabled until a person and a >=3 char reason are given
  */
 import { existsSync, readFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const ENV_PATH = "C:/Supabase/.env.local";
+const ENV_PATH = `${REPO_ROOT}/.env.local`;
 if (!existsSync(ENV_PATH)) {
   console.log("SKIP: no .env.local");
   process.exit(0);

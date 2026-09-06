@@ -24,6 +24,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import pg from "pg";
 import XLSX from "xlsx";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const XL = process.env.MASTERDATA_XLSX
   ?? ".local/import/HSE_Masterdata_Übersicht Kunden_verantwortlichkeiten_customer_responsible_2026_V2.xlsx";
@@ -34,7 +35,7 @@ if (!existsSync(XL)) {
 }
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 

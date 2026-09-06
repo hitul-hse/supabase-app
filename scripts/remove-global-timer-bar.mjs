@@ -6,8 +6,9 @@
 // public.timesheet_entries. Moving it to /time would put two trackers on one
 // page; keeping it anywhere would keep a control that writes to the wrong table.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/src/app/(app)/layout.tsx";
+const path = `${REPO_ROOT}/src/app/(app)/layout.tsx`;
 const src = readFileSync(path, "utf8");
 const eol = src.includes("\r\n") ? "\r\n" : "\n";
 

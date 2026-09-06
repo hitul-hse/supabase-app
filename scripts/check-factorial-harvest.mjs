@@ -212,7 +212,7 @@ check(sparseContract.employee_id === undefined && sparseContract.working_hours =
 
 // 7. Live spec drift -- only when a credential exists.
 // Via the shared loader: process.env first (so CI secrets win), then a
-// .env.local found by walking up from this file. The hardcoded C:/Supabase
+// .env.local found by walking up from this file. The hardcoded drive-letter
 // path this replaces could only ever resolve on one Windows machine, so the
 // live half below was dead everywhere else -- silently, as a skip.
 const env = loadEnv();

@@ -13,13 +13,14 @@
  */
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
-const src = readFileSync("C:/Supabase/scripts/import-masterdata-projects.mjs", "utf8");
+const src = readFileSync(`${REPO_ROOT}/scripts/import-masterdata-projects.mjs`, "utf8");
 
 /* ---------------- what does the importer actually put in a projects row? ---- */
 
@@ -132,7 +133,7 @@ await c.end();
 
 console.log("\n--- is the roadmap's \"then re-import\" advice qualified?\n");
 
-const doc = readFileSync("C:/Supabase/docs/next-steps-2026-08-26.md", "utf8");
+const doc = readFileSync(`${REPO_ROOT}/docs/next-steps-2026-08-26.md`, "utf8");
 check("the roadmap warns that a re-import rewrites person_assignments",
   /person_assignments/.test(doc) && /re-import/.test(doc),
   "a bare \"then re-import\" hides a DELETE/INSERT over 352 assignment rows");

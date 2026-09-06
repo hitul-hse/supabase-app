@@ -2,8 +2,9 @@
 // the sheet must not cover the tab bar that opened it, and it must not leave a
 // blank slab below its own content.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/scripts/check-mobile-sheet.mjs";
+const path = `${REPO_ROOT}/scripts/check-mobile-sheet.mjs`;
 let src = readFileSync(path, "utf8");
 
 if (src.includes("does not cover the tab bar")) { console.log("already extended"); process.exit(0); }

@@ -4,9 +4,10 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import xlsx from "xlsx";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -33,7 +34,12 @@ console.log("\nfirst 10:");
 for (const r of rows.slice(0, 10)) console.log(`  ${r.project_id}  ${r.person}  ${String(r.project_name ?? "").slice(0, 44)}`);
 
 // Now the source of truth: does the workbook actually say the same name twice?
-const WB = "C:/Users/hitul/Downloads/HSE_Masterdata_Übersicht Kunden_verantwortlichkeiten_customer_responsible_2026_V2.xlsx";
+// External input, not a repo file, so it cannot be resolved from this script's
+// own location. Name it in MASTERDATA_WORKBOOK; it was hardcoded to one
+// machine's Downloads folder and worked nowhere else. An empty value falls into
+// the existing catch, which already treats an unreadable workbook as "the DB
+// finding above stands on its own".
+const WB = process.env.MASTERDATA_WORKBOOK ?? "";
 let wb;
 try { wb = xlsx.readFile(WB); }
 catch (e) {

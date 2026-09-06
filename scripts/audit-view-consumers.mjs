@@ -5,6 +5,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const walk = (dir, out = []) => {
   for (const n of readdirSync(dir)) {
@@ -16,13 +17,13 @@ const walk = (dir, out = []) => {
 };
 
 console.log("=== who reads these views in the app ===");
-const files = walk("C:/Supabase/src").filter((f) => /\.(ts|tsx)$/.test(f));
+const files = walk(`${REPO_ROOT}/src`).filter((f) => /\.(ts|tsx)$/.test(f));
 for (const name of ["billable_value_by_person", "project_budget_status"]) {
   const hits = [];
   for (const f of files) {
     const s = readFileSync(f, "utf8");
     if (s.includes(name)) {
-      s.split("\n").forEach((l, i) => { if (l.includes(name)) hits.push(`${f.replace("C:/Supabase/", "")}:${i + 1}  ${l.trim().slice(0, 90)}`); });
+      s.split("\n").forEach((l, i) => { if (l.includes(name)) hits.push(`${f.replace(`${REPO_ROOT}/`, "")}:${i + 1}  ${l.trim().slice(0, 90)}`); });
     }
   }
   console.log(`\n${name}: ${hits.length} reference(s)`);
@@ -32,16 +33,16 @@ for (const name of ["billable_value_by_person", "project_budget_status"]) {
 console.log("\n=== and in scripts / SQL ===");
 for (const name of ["billable_value_by_person", "project_budget_status"]) {
   const hits = [];
-  for (const f of [...walk("C:/Supabase/scripts"), ...walk("C:/Supabase/supabase")].filter((f) => /\.(mjs|cjs|sql|ts)$/.test(f))) {
+  for (const f of [...walk(`${REPO_ROOT}/scripts`), ...walk(`${REPO_ROOT}/supabase`)].filter((f) => /\.(mjs|cjs|sql|ts)$/.test(f))) {
     const s = readFileSync(f, "utf8");
-    if (s.includes(name)) hits.push(f.replace("C:/Supabase/", ""));
+    if (s.includes(name)) hits.push(f.replace(`${REPO_ROOT}/`, ""));
   }
   console.log(`${name}: ${[...new Set(hits)].join(", ") || "(none)"}`);
 }
 
 // Does anything else depend on them at the database level?
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });

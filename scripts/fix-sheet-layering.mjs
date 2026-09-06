@@ -13,8 +13,9 @@
 //     tracks `moreOpen` to light the More tab, which is pointless if you cannot
 //     see it.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/src/components/MobileSidebar.tsx";
+const path = `${REPO_ROOT}/src/components/MobileSidebar.tsx`;
 let src = readFileSync(path, "utf8");
 const eol = src.includes("\r\n") ? "\r\n" : "\n";
 

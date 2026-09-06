@@ -4,9 +4,10 @@
 // tight crop of the bar itself in both themes.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -49,15 +50,15 @@ const clip = await page.evaluate(() => {
   return { x: 0, y: Math.max(0, r.y - 120), width: window.innerWidth, height: Math.min(window.innerHeight - Math.max(0, r.y - 120), r.height + 140) };
 });
 
-await page.screenshot({ path: "C:/Supabase/tmp-nav-crop.png", clip });
-await page.screenshot({ path: "C:/Supabase/tmp-nav-full.png" });
+await page.screenshot({ path: `${REPO_ROOT}/tmp-nav-crop.png`, clip });
+await page.screenshot({ path: `${REPO_ROOT}/tmp-nav-full.png` });
 
 // Open the More drawer and capture that too - it is the other half of the nav.
 const moreBtn = page.locator('[data-testid="mobile-tab-bar"] button').last();
 if (await moreBtn.count()) {
   await moreBtn.click();
   await page.waitForTimeout(900);
-  await page.screenshot({ path: "C:/Supabase/tmp-nav-drawer.png" });
+  await page.screenshot({ path: `${REPO_ROOT}/tmp-nav-drawer.png` });
 
   const d = await page.evaluate(() => {
     // Whatever is now on top and covering a meaningful area.

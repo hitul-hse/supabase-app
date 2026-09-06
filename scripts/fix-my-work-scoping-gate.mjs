@@ -14,8 +14,9 @@
 // direct call or the memoised wrapper - while still rejecting the thing that
 // would actually be dangerous, a personId parameter.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/scripts/check-my-work-scoping.mjs";
+const path = `${REPO_ROOT}/scripts/check-my-work-scoping.mjs`;
 let src = readFileSync(path, "utf8");
 
 const OLD = `check(

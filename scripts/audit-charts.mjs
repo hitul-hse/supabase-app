@@ -4,6 +4,7 @@
 // the chart is actually computed from, not guessing from its title.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const walk = (dir, out = []) => {
   for (const n of readdirSync(dir)) {
@@ -17,13 +18,13 @@ const walk = (dir, out = []) => {
 // Chart primitives, as opposed to icons and logos which also use <svg>.
 const PRIMITIVES = /\b(BarChart|LineChart|AreaChart|PieChart|RadialBar|Donut|Sparkline|TrendChart|Gauge|HeatMap|Scatter)\b/;
 
-const files = walk("C:/Supabase/src").filter((f) => /\.tsx$/.test(f) && !/demo|video|BrandMark|nav-icons|LoadingSkeleton|OAuthButtons|ThemeToggle|LogoutButton|Biometric/.test(f));
+const files = walk(`${REPO_ROOT}/src`).filter((f) => /\.tsx$/.test(f) && !/demo|video|BrandMark|nav-icons|LoadingSkeleton|OAuthButtons|ThemeToggle|LogoutButton|Biometric/.test(f));
 
 const found = [];
 for (const f of files) {
   const s = readFileSync(f, "utf8");
   if (!PRIMITIVES.test(s)) continue;
-  const rel = f.replace("C:/Supabase/", "").replace(/\\/g, "/");
+  const rel = f.replace(`${REPO_ROOT}/`, "").replace(/\\/g, "/");
 
   const lines = s.split("\n");
   const charts = [];

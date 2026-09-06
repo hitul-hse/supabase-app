@@ -21,7 +21,18 @@ import { loadEnv } from "./lib/gate-env.mjs";
 import pg from "pg";
 import xlsx from "xlsx";
 
-const WB = "C:/Users/hitul/Downloads/HSE_Masterdata_Übersicht Kunden_verantwortlichkeiten_customer_responsible_2026_V2.xlsx";
+/*
+ * The masterdata workbook is an EXTERNAL input, not a repo file, so unlike every
+ * other path in this suite it cannot be resolved from the script's own location.
+ * It was hardcoded to one machine's Downloads folder, which is the same defect
+ * as a hardcoded repo root and fails on every other machine the same way.
+ *
+ * Name it in MASTERDATA_WORKBOOK -- the environment, or .env.local, which
+ * loadEnv reads. Absent, the read below reports BLOCKED, which is the honest
+ * answer: this gate compares the workbook against the database and can prove
+ * nothing without it.
+ */
+const WB = loadEnv().MASTERDATA_WORKBOOK ?? "";
 
 // Mirrors import-masterdata-projects.mjs:89-97. Archive and overview sheets are
 // deliberately excluded: they are history and aggregates, not the order book.
@@ -53,7 +64,7 @@ const KNOWN_NO_MATCH = 6;
 const KNOWN_MALFORMED = 5;
 
 // Credentials via the shared loader (process.env first, then .env.local found by
-// walking up); the old C:/Supabase/.env.local read only worked on one machine.
+// walking up); the old drive-letter .env.local read only worked on one machine.
 const env = loadEnv();
 
 // The importer's own normaliser (import-masterdata-projects.mjs:115). Matching
@@ -69,7 +80,7 @@ catch (e) {
   // The workbook lives outside the repo, so its absence is BLOCKED, not a pass.
   console.log(`BLOCKED: cannot read the source workbook.\n  ${e.message}\n`);
   console.log("This gate compares the workbook against the database, so without it");
-  console.log("nothing can be proven. Restore the file, or update WB if it moved.");
+  console.log("nothing can be proven. Set MASTERDATA_WORKBOOK to its path.");
   process.exit(2);
 }
 

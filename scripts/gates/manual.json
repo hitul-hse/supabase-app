@@ -1,0 +1,150 @@
+{
+  "readme": [
+    "THE REGISTER OF GATES CI CANNOT RUN.",
+    "",
+    "Every scripts/**/check-*.mjs must be referenced by something: an npm script in",
+    "package.json, a job in .github/workflows/, or an entry here. A gate referenced",
+    "by nothing is not a gate -- it is a file that once produced an answer, and it",
+    "rots without anyone noticing, because nothing ever runs it again.",
+    "check-gates-runnable-on-ci.mjs enforces that, so this file is not a list",
+    "somebody has to remember to update: leaving a gate out turns test:db red.",
+    "",
+    "30 gates were referenced by nothing when this register was written, found",
+    "while fixing the runner that could not start. Ten of them needed no",
+    "credentials at all and simply had never been wired up; they went into test:db.",
+    "One was superseded and deleted. The rest are here.",
+    "",
+    "THIS IS NOT A SUPPRESSION LIST. An entry must say WHY the gate cannot run",
+    "unattended and WHAT it needs, in enough detail that the next person can",
+    "decide whether the reason still holds. 'requires' names the credential,",
+    "service or process that is absent on a runner; 'run' is the exact command.",
+    "",
+    "WHY CI CANNOT SUPPLY THESE. .github/workflows/ci.yml is explicit: the DB",
+    "tests run against PGlite and 'the live Supabase credentials are NOT needed",
+    "here and must NOT be added'. So a gate that reads the live database, drives",
+    "the deployed site, calls a vendor API, or needs a server on a port is out of",
+    "scope for CI by policy, not by accident. Moving one into test:db by adding",
+    "the secret would be reversing that decision, which is not a gate author's",
+    "call to make.",
+    "",
+    "HOW TO RUN THEM. Locally, with .env.local present, from the repo root. They",
+    "are the pre-release sweep: run the ones touching what you changed before a",
+    "deploy, not all nineteen every time."
+  ],
+  "gates": [
+    {
+      "file": "scripts/check-broken-cover-live.mjs",
+      "why": "Recomputes getBrokenCover's facts in independent SQL against the live database, so the TypeScript and the SQL can be compared. PGlite cannot stand in: the point is the real data.",
+      "requires": ["SUPABASE_DB_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+      "run": "node scripts/check-broken-cover-live.mjs"
+    },
+    {
+      "file": "scripts/check-employee-ownership-live.mjs",
+      "why": "Compiles the real getEmployeeOwnershipOverview with swc and runs it against live data, so the printed numbers are the numbers the page computes. Read-only.",
+      "requires": ["SUPABASE_SERVICE_ROLE_KEY"],
+      "run": "node scripts/check-employee-ownership-live.mjs"
+    },
+    {
+      "file": "scripts/check-my-work-as-mathias.mjs",
+      "why": "Signs in as a real user over PostgREST with a genuine user JWT and reads exactly what /my-work reads. Proving RLS from the user's side needs a real user in a real project.",
+      "requires": ["SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
+      "run": "node scripts/check-my-work-as-mathias.mjs"
+    },
+    {
+      "file": "scripts/check-my-work-browser-flow.mjs",
+      "why": "Follows a real /auth/callback link with a cookie jar and GETs /my-work with those cookies. The last check before handing a magic link to a human.",
+      "requires": ["SUPABASE_SERVICE_ROLE_KEY", "a running app"],
+      "run": "node scripts/check-my-work-browser-flow.mjs"
+    },
+    {
+      "file": "scripts/check-my-work-links.mjs",
+      "why": "Asserts the working-links feature stays inside can_view_project scope, against live rows. The failure it guards -- one person's customer links rendering on another's page -- only exists with real people and real policies.",
+      "requires": ["SUPABASE_SERVICE_ROLE_KEY", "TRACKINGTIME_API_TOKEN"],
+      "run": "node scripts/check-my-work-links.mjs"
+    },
+    {
+      "file": "scripts/check-overview-range-narrows.mjs",
+      "why": "Measures that the Overview's period filter MOVES the numbers, by recomputing the bounds from time.entry and comparing against time.org_week. A filter wired to a query that ignores its bounds passes every source assertion; only data catches it.",
+      "requires": ["SUPABASE_SERVICE_ROLE_KEY"],
+      "run": "node scripts/check-overview-range-narrows.mjs"
+    },
+    {
+      "file": "scripts/check-trackingtime-parity.mjs",
+      "why": "Asks the TrackingTime API and our database the same question and prints every way they differ. Needs the vendor API, which CI has no token for and should not be calling on every push anyway.",
+      "requires": ["SUPABASE_SERVICE_ROLE_KEY", "TRACKINGTIME_API_TOKEN"],
+      "run": "node scripts/check-trackingtime-parity.mjs"
+    },
+    {
+      "file": "scripts/check-view-fix-impact.mjs",
+      "why": "Answers whether the view privilege fix left the org chart correct or merely empty, by counting what an employee can actually see. The question is about live row counts.",
+      "requires": ["SUPABASE_DB_URL"],
+      "run": "node scripts/check-view-fix-impact.mjs"
+    },
+    {
+      "file": "scripts/check-factorial-join-viable.mjs",
+      "why": "Read-only probe of Factorial's real roster against the hub. Applies a field allow-list on arrival (salary, bank, social security, disability, termination reason are dropped before anything is counted) because the API key cannot be scope-limited -- a GDPR posture that must stay a deliberate, attended run, never an unattended CI job.",
+      "requires": ["SUPABASE_DB_URL", "FACTORIAL_API_KEY", "TRACKINGTIME_API_TOKEN"],
+      "run": "node scripts/check-factorial-join-viable.mjs"
+    },
+    {
+      "file": "scripts/check-charts-ui.mjs",
+      "why": "Asserts the redesigned figures by GEOMETRY on the deployed site -- a chart filling its card, an area path, a donut, a gauge. A source check cannot measure dead space.",
+      "requires": ["a browser", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
+      "run": "node scripts/check-charts-ui.mjs"
+    },
+    {
+      "file": "scripts/check-management-people-rendered.mjs",
+      "why": "Reads the DEPLOYED management page and looks for the names. The query returning rows and the deploy reaching Ready are both true when the page is still wrong.",
+      "requires": ["a browser", "SUPABASE_SERVICE_ROLE_KEY"],
+      "run": "node scripts/check-management-people-rendered.mjs"
+    },
+    {
+      "file": "scripts/check-mobile-sheet.mjs",
+      "why": "Drives the bottom sheet at a real phone viewport and measures its geometry against the tab bar's. Needs a browser and the app on :3000.",
+      "requires": ["a browser", "SUPABASE_SERVICE_ROLE_KEY", "the app on localhost:3000"],
+      "run": "npm run dev  # then: node scripts/check-mobile-sheet.mjs"
+    },
+    {
+      "file": "scripts/check-page-length.mjs",
+      "why": "Measures document height in PIXELS across paging, because the complaint is about the height of a document. The reference implementation for browser gates in this repo.",
+      "requires": ["a browser", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
+      "run": "node scripts/check-page-length.mjs"
+    },
+    {
+      "file": "scripts/check-people-filters-live.mjs",
+      "why": "Drives the real /people filter controls and counts the real rows, because a filter that empties the roster or folds 'no data' into '0%' is invisible in the source.",
+      "requires": ["a browser", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "the app on the SITE port"],
+      "run": "SITE=http://localhost:3411 node scripts/check-people-filters-live.mjs"
+    },
+    {
+      "file": "scripts/check-team-analysis-ui.mjs",
+      "why": "Verifies the per-team analysis on PRODUCTION with both roles, polling for the new section's text to wait out the deploy.",
+      "requires": ["a browser", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "a finished deploy"],
+      "run": "node scripts/check-team-analysis-ui.mjs"
+    },
+    {
+      "file": "scripts/check-theme-and-figures.mjs",
+      "why": "Verifies the theme system and the three tabs' figures on production, in both appearances.",
+      "requires": ["a browser", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "a finished deploy"],
+      "run": "node scripts/check-theme-and-figures.mjs"
+    },
+    {
+      "file": "scripts/check-open-redirect.mjs",
+      "why": "HTTP probe of /auth/callback against a running server, checking the guard holds against the usual bypasses. The static half of the same question is check-redirect-guard-logic, which IS in test:db; this one exercises the real route.",
+      "requires": ["the app on localhost:3000"],
+      "run": "npm run dev  # then: node scripts/check-open-redirect.mjs"
+    },
+    {
+      "file": "scripts/check-ci-workflow.mjs",
+      "why": "Simulates the GitHub Actions workflow locally -- same commands, same dummy env vars -- so a workflow change is verified before it ships instead of debugged through push-and-pray. Running it IN CI would be circular, and it runs a full production build.",
+      "requires": ["a full next build", "several minutes"],
+      "run": "node scripts/check-ci-workflow.mjs"
+    },
+    {
+      "file": "scripts/check-prod-config.mjs",
+      "why": "Reads NEXT_PUBLIC_SUPABASE_URL out of the DEPLOYED client bundle to prove production points at the project we backfilled. Fetches public assets from the live site; there is no deployment to read during a pull request.",
+      "requires": [".env.local", "the deployed site"],
+      "run": "node scripts/check-prod-config.mjs [site-url]"
+    }
+  ]
+}

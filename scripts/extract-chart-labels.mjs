@@ -3,6 +3,7 @@
 // is the raw material for writing accurate descriptions - and shows exactly
 // which figures currently say nothing about what they mean.
 import { readFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const FILES = [
   "src/app/(app)/page.tsx",
@@ -16,7 +17,7 @@ const FILES = [
 ];
 
 for (const rel of FILES) {
-  const s = readFileSync(`C:/Supabase/${rel}`, "utf8");
+  const s = readFileSync(`${REPO_ROOT}/${rel}`, "utf8");
   const lines = s.split("\n");
   console.log(`\n${"=".repeat(78)}\n${rel}`);
 

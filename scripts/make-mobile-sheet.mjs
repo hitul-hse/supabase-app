@@ -10,8 +10,9 @@
 // The drawer is the desktop sidebar on a phone: square, edge-to-edge vertically,
 // and reachable only by a thumb travelling to the far top-left of the screen.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/src/components/MobileSidebar.tsx";
+const path = `${REPO_ROOT}/src/components/MobileSidebar.tsx`;
 const src = readFileSync(path, "utf8");
 const eol = src.includes("\r\n") ? "\r\n" : "\n";
 

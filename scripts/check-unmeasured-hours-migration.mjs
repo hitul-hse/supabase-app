@@ -11,8 +11,9 @@
  */
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const sql = readFileSync("C:/Supabase/supabase/migrations/20260826120000_projects_admit_unmeasured_hours.sql", "utf8");
+const sql = readFileSync(`${REPO_ROOT}/supabase/migrations/20260826120000_projects_admit_unmeasured_hours.sql`, "utf8");
 const db = await new PGlite();
 
 let failures = 0;

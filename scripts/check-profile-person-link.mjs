@@ -40,6 +40,7 @@
  * it is safe in CI without credentials.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
@@ -47,7 +48,7 @@ const check = (name, ok, detail = "") => {
   if (!ok) failed = true;
 };
 
-const ENV_PATH = "C:/Supabase/.env.local";
+const ENV_PATH = `${REPO_ROOT}/.env.local`;
 if (!existsSync(ENV_PATH)) {
   console.log("SKIP: no .env.local \u2014 this gate observes the live project only.");
   process.exit(0);

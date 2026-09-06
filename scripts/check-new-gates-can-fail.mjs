@@ -20,11 +20,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const sha = (b) => createHash("sha256").update(b).digest("hex");
 
 const run = (script) => new Promise((resolve) => {
-  const p = spawn("node", [script], { cwd: "C:/Supabase", shell: false });
+  const p = spawn("node", [script], { cwd: REPO_ROOT, shell: false });
   let out = "";
   p.stdout.on("data", (d) => (out += d));
   p.stderr.on("data", (d) => (out += d));
@@ -52,7 +53,7 @@ const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d
  *     stronger claim than the exit code anyway.
  */
 const provesItCatches = async ({ label, file, script, mutate, expect, assertion }) => {
-  const path = `C:/Supabase/${file}`;
+  const path = `${REPO_ROOT}/${file}`;
   const original = readFileSync(path);
   const before = sha(original);
 

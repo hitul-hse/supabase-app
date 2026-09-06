@@ -19,8 +19,14 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync, writeFileSync } from "node:fs";
 import * as XLSX from "xlsx";
 
-const XL =
-  "C:/Users/hitul/Downloads/HSE_Masterdata_Übersicht Kunden_verantwortlichkeiten_customer_responsible_2026_V2.xlsx";
+// External input, not a repo file, so it cannot be resolved from this script's
+// own location. Name it in MASTERDATA_WORKBOOK; it was hardcoded to one
+// machine's Downloads folder and worked nowhere else.
+const XL = process.env.MASTERDATA_WORKBOOK;
+if (!XL) {
+  console.log("SKIP: set MASTERDATA_WORKBOOK to the masterdata .xlsx to run this reconciliation.");
+  process.exit(0);
+}
 
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
   const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());

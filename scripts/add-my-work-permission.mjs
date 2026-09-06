@@ -1,8 +1,9 @@
 // Insert the my_work:read_own declaration after OVERVIEW_EXPORT, preserving the
 // file's existing line endings (CRLF here, which is why a literal edit failed).
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/src/lib/permissions.ts";
+const path = `${REPO_ROOT}/src/lib/permissions.ts`;
 const src = readFileSync(path, "utf8");
 
 if (src.includes("my_work:read_own")) {

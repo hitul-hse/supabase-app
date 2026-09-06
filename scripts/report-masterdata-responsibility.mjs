@@ -17,8 +17,11 @@
 import { readFileSync, existsSync } from "node:fs";
 import * as XLSX from "xlsx";
 
-const XL =
-  "C:/Users/hitul/Downloads/HSE_Masterdata_Übersicht Kunden_verantwortlichkeiten_customer_responsible_2026_V2.xlsx";
+// External input, not a repo file, so it cannot be resolved from this script's
+// own location. Name it in MASTERDATA_WORKBOOK; it was hardcoded to one
+// machine's Downloads folder and worked nowhere else. readOrders() still takes
+// an explicit path, so a caller can override it.
+const XL = process.env.MASTERDATA_WORKBOOK ?? "";
 
 /* ------------------------------------------------------------------- env/db */
 

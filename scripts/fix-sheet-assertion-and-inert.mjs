@@ -15,10 +15,11 @@
 // only forwards it when passed a boolean, and my spread passed a string. The
 // aria-hidden did apply. Fixing that properly below.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 // 1. Assert behaviour, not mechanism.
 {
-  const path = "C:/Supabase/scripts/check-mobile-sheet.mjs";
+  const path = `${REPO_ROOT}/scripts/check-mobile-sheet.mjs`;
   let src = readFileSync(path, "utf8");
 
   src = src.replace(
@@ -48,7 +49,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 // 2. `inert` never applied - React drops a string-valued inert. Use the boolean.
 {
-  const path = "C:/Supabase/src/components/MobileSidebar.tsx";
+  const path = `${REPO_ROOT}/src/components/MobileSidebar.tsx`;
   let src = readFileSync(path, "utf8");
   src = src
     .replace('{...(!open ? { inert: "" as unknown as boolean } : {})}', "inert={!open}")

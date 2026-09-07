@@ -332,10 +332,39 @@ const shapeOf = () => {
 };
 
 try {
-  await page.goto(
+  /*
+   * A NETWORK FAILURE HERE IS "DID NOT RUN", NOT A VERDICT (2026-09-07).
+   *
+   * This navigation threw an uncaught `net::ERR_NETWORK_CHANGED` the moment the rig's
+   * connection moved, and the gate died with zero assertions and a non-zero exit -- read
+   * from outside as a table regression. Three runs the same evening evaluated 78, 42 and
+   * 0 assertions, and only the assertion baseline made that visible at all.
+   *
+   * Production being unreachable says nothing about the tables, so say nothing: NOT RUN,
+   * with the reason. A real page that loads and misbehaves still fails below, loudly.
+   */
+  const signIn = () => page.goto(
     `${SITE}/auth/callback?token_hash=${hashed}&type=magiclink&next=%2F`,
     { waitUntil: "networkidle", timeout: 120_000 },
   );
+  try {
+    await signIn();
+  } catch (first) {
+    const why = String(first?.message ?? first);
+    if (!/net::ERR_|ERR_NETWORK|Timeout .* exceeded|ECONNREFUSED|ENOTFOUND|EAI_AGAIN/i.test(why)) throw first;
+    // One retry, because `ERR_NETWORK_CHANGED` is usually a single interface event (this rig
+    // moves between Wi-Fi, mobile hotspot and a Tailscale interface) and the second attempt
+    // succeeds. Two failures in a row is a real outage, and the gate then proves nothing.
+    console.log(`sign-in hit a network error, retrying once — ${why.split("\n")[0]}`);
+    await new Promise((r) => setTimeout(r, 3000));
+    try {
+      await signIn();
+    } catch (second) {
+      await browser.close();
+      console.log(`SKIP: could not reach ${SITE} to sign in — ${String(second?.message ?? second).split("\n")[0]}`);
+      notRunInChain();
+    }
+  }
   console.log(`signed in as ${EMAIL}, landed on ${page.url()}\n`);
 
   /**

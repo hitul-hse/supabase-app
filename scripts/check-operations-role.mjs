@@ -62,7 +62,7 @@ import {
   isRouteAllowedForRole,
   roleHome,
 } from "../src/components/nav-access.ts";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 const ROLE = "operations";
 const MIGRATION = "supabase/migrations/20260904120000_operations_role.sql";
@@ -855,6 +855,7 @@ section("5. LIVE — read-only probe of the real project");
 const env = loadEnv();
 if (!env.SUPABASE_DB_URL) {
   console.log("SKIP: no SUPABASE_DB_URL, so there is no live database to check");
+  recordNotRun("no SUPABASE_DB_URL — the 10 live operations-role probes not evaluated", 10);
 } else {
   const client = new pg.Client({
     connectionString: env.SUPABASE_DB_URL,

@@ -48,7 +48,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
@@ -160,6 +160,7 @@ const dbUrl = (() => {
 
 if (!dbUrl) {
   console.log("SKIP: no SUPABASE_DB_URL — structural half only (this is the CI path)");
+  recordNotRun("no SUPABASE_DB_URL — the 3 live timesheet-truth probes not evaluated", 3);
 } else {
   const pg = (await import("pg")).default;
   const client = new pg.Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });

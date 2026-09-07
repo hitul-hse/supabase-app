@@ -47,7 +47,7 @@
  */
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, existsSync } from "node:fs";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
@@ -281,6 +281,7 @@ console.log("\nOBSERVED — the live project\n");
 const envPath = ".env.local";
 if (!existsSync(envPath)) {
   console.log("SKIP: no .env.local — the modelled half above still ran");
+  recordNotRun("no .env.local — the 2 live auth.users probes not evaluated", 2);
   console.log(
     failed
       ? "\nIDENTITY LINKING: the modelled defences do NOT hold"
@@ -298,6 +299,7 @@ const serviceKey = get("SUPABASE_SERVICE_ROLE_KEY");
 if (!url || !serviceKey) {
   console.log("SKIP: need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
   console.log("      (auth.users is reachable only through the Admin API, never PostgREST)");
+  recordNotRun("missing Supabase credentials — the 2 live auth.users probes not evaluated", 2);
   process.exit(failed ? 1 : 0);
 }
 
@@ -329,6 +331,7 @@ if (anon) {
 const listRes = await fetch(`${url}/auth/v1/admin/users?per_page=200`, { headers: H });
 if (!listRes.ok) {
   console.log(`SKIP: admin list returned HTTP ${listRes.status}`);
+  recordNotRun(`admin list returned HTTP ${listRes.status} — the 2 live auth.users probes not evaluated`, 2);
   process.exit(failed ? 1 : 0);
 }
 const listBody = await listRes.json();

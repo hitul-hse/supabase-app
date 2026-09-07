@@ -31,7 +31,7 @@ import {
   CONTRACT_FORBIDDEN_FIELDS,
   projectContract,
 } from "./lib/factorial.mjs";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 /*
  * The 54 field names of employees_employee, snapshotted from the OpenAPI spec
@@ -223,6 +223,7 @@ const BEARER = env.FACTORIAL_ACCESS_TOKEN ?? env.FACTORIAL_TOKEN ?? "";
 
 if (!KEY && !BEARER) {
   console.log("\n  skip  live spec drift check — no Factorial credential (everything above needed none)");
+  recordNotRun("no Factorial credential — the 2 live spec-drift probes not evaluated", 2);
 } else {
   try {
     const res = await fetch("https://api.factorialhr.com/oas/?version=2026-07-01", {

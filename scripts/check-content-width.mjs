@@ -10,7 +10,7 @@
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
@@ -74,6 +74,7 @@ if (existsSync(cssDir)) {
   );
 } else {
   console.log("SKIP: no .next build present — run `npx next build` first to check shipped CSS");
+  recordNotRun("no .next build present — the 3 built-stylesheet probes not evaluated", 3);
 }
 
 console.log(failed === 0 ? "\nCONTENT WIDTH: OK" : `\nCONTENT WIDTH: ${failed} FAILURES`);

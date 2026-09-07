@@ -55,7 +55,7 @@ import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 const read = (...p) => readFileSync(join(REPO, ...p), "utf8");
@@ -535,6 +535,7 @@ let liveRan = false;
 if (!env.SUPABASE_DB_URL) {
   console.log("SKIP: no SUPABASE_DB_URL — sections 1-2 above still ran and are the deterministic");
   console.log("      part of this gate. The live half cannot be faked green.");
+  recordNotRun("no SUPABASE_DB_URL — the 4 live offboarding probes not evaluated", 4);
 } else {
   liveRan = true;
   const c = new pg.Client({

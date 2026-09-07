@@ -34,7 +34,7 @@ import { createRequire } from "node:module";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 await loadBindings();
 
@@ -988,6 +988,7 @@ module.exports = {
 
   if (!existsSync(".env.local")) {
     console.log("\nSKIPPED the live probe — no .env.local (expected in CI).");
+    recordNotRun("no .env.local — the 2 live project-budget probes not evaluated", 2);
   } else {
     const env = { ...process.env };
     for (const line of readFileSync(".env.local", "utf8").split("\n")) {
@@ -997,6 +998,7 @@ module.exports = {
 
     if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
       console.log("\nSKIPPED the live probe — credentials absent.");
+      recordNotRun("no Supabase credentials — the 2 live project-budget probes not evaluated", 2);
     } else {
       const { createClient } = await import("@supabase/supabase-js");
       const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {

@@ -110,9 +110,24 @@ const defaultDir = (key: LedgerSort): SortDirection => (key === "name" ? "asc" :
  *
  * Total at the fixed columns: 140 + 88 + 72 + 72 + 148 + 108 = 628, plus 12px
  * gaps, against 1,148 of card at 1440 — so CUSTOMER and PROJECT share ~430.
+ *
+ * THE MEASURES ARE HELD TO 1280, which §3.2's breakpoint table names as the
+ * width at which "tables should fit without sideways scroll". The first cut of
+ * this grid did not: the card measured scrollWidth 1020 against clientWidth
+ * 1010 in Chromium at 1280, in both languages — 10px of sideways scroll on a
+ * route that had none before. Two measures paid it back, and both were slack
+ * rather than content:
+ *
+ *   CODE      8.5rem -> 8.125rem. Every project code in the live table is
+ *             exactly 18 characters and measures 126px rendered (measured, not
+ *             estimated); 130px holds it with 4px to spare, 136 was air.
+ *   PROJECT   minmax(9rem,…) -> minmax(8rem,…). A FLOOR on a column that
+ *             truncates with a `title` is a preference, not a requirement, and
+ *             it only binds at the narrow end. At 1440 the `2fr` share decides
+ *             the width and the floor never applies.
  */
 const LEDGER_GRID =
-  "grid-cols-[minmax(7rem,1.2fr)_minmax(9rem,2fr)_8.5rem_8.25rem_4.5rem_4.5rem_9rem_7rem]";
+  "grid-cols-[minmax(7rem,1.2fr)_minmax(8rem,2fr)_8.125rem_8.25rem_4.5rem_4.5rem_9rem_7rem]";
 
 const PAGE_SIZE = 25;
 const PAGE_SIZES = [25, 50, 100];
@@ -396,10 +411,19 @@ export function ProjectsLedger({
    *
    * The ledger had no export at all, so answering "send me the overruns" meant
    * a screenshot. The columns are the eight the table draws, in the order it
-   * draws them, so the file and the screenshot beside it reconcile. BOM and
-   * CRLF because the only spreadsheet this is ever opened in is Excel on a
-   * German locale, which mangles umlauts without them — the same reason
-   * DataTable's export does it.
+   * draws them, and the FIGURES are written the way the table writes them, so
+   * the file and the screenshot beside it reconcile. BOM and CRLF because the
+   * only spreadsheet this is ever opened in is Excel on a German locale, which
+   * mangles umlauts without them — the same reason DataTable's export does it.
+   *
+   * The figures are locale-formatted rather than raw for that same German
+   * Excel. `p.actualHours` raw is `secondsToHours`'s 2 dp, so project 15
+   * exported `13.03` while its row read `13,0` — two different numbers on the
+   * claim that they reconcile — and de-DE Excel reads `13.03` as a
+   * thousands-grouped 1303, not as 13.03. `fmtNum(…, 1)` writes `13,0`, the
+   * comma makes `cell()` quote the field, and the quoted `13,0` parses as
+   * 13.0. Locale-formatted output is only safe BECAUSE the separator forces
+   * the quoting; do not drop the quoting helper.
    */
   const downloadCsv = () => {
     const cell = (v: string | number | null) => {
@@ -424,11 +448,15 @@ export function ProjectsLedger({
           p.name,
           p.code,
           p.isBillable ? tp("ledger.billable.yes") : tp("ledger.billable.no"),
-          p.actualHours,
+          fmtNum(p.actualHours, locale, 1),
           // Empty, never 0: "no budget set" and "a budget of zero" are
           // different facts and a spreadsheet cannot tell them apart later.
-          p.estimatedHours && p.estimatedHours > 0 ? p.estimatedHours : null,
-          p.burnPercent,
+          p.estimatedHours && p.estimatedHours > 0
+            ? fmtNum(p.estimatedHours, locale, 1)
+            : null,
+          // 0 dp, the same as the BURN cell's fmtPct; the % sign is in the
+          // column header, not in every field.
+          p.burnPercent === null ? null : fmtNum(p.burnPercent, locale, 0),
           tp(`ledger.status.${projectStatus(p.burnPercent).key}`),
         ]
           .map(cell)
@@ -591,7 +619,7 @@ export function ProjectsLedger({
           {/* 32px header (APPLE_REF §5.6): `h-8` with the 24px sort targets
               centred in it, over 28px compact rows. */}
           <div
-            className={`sticky top-0 z-10 grid h-8 ${LEDGER_GRID} min-w-[63rem] items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1`}
+            className={`sticky top-0 z-10 grid h-8 ${LEDGER_GRID} min-w-[61.5rem] items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1`}
           >
             {/* Not sortable (a customer is a label, not a measure): the same
                 caption rung as the sortable headers at rest. */}
@@ -647,7 +675,7 @@ export function ProjectsLedger({
             <div
               key={p.id}
               data-ledger-row
-              className={`grid ${LEDGER_GRID} min-w-[63rem] items-center gap-3 border-b border-[var(--divider)] px-3 py-1.5 t-callout transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]`}
+              className={`grid ${LEDGER_GRID} min-w-[61.5rem] items-center gap-3 border-b border-[var(--divider)] px-3 py-1.5 t-callout transition-colors duration-100 last:border-b-0 hover:bg-[var(--surface-hover)]`}
             >
               <span className="truncate text-[var(--text-secondary)]" title={p.customerName ?? ""}>
                 {p.customerName ?? "—"}
@@ -688,9 +716,16 @@ export function ProjectsLedger({
                 </span>
               )}
               <span className="text-right fig text-[var(--text-secondary)]">
+                {/* "n/a", the same word as BURN immediately to its right. Both
+                    are missing FIGURES on the same row about the same fact, and
+                    this column shipped writing it "—" while its neighbour wrote
+                    "n/a" and STATUS wrote "No budget" — three spellings of one
+                    absence across three adjacent cells. See the note on the
+                    BURN cell for why this page spells a missing figure "n/a"
+                    and where that departs from APPLE_REF §8 #26. */}
                 {p.estimatedHours && p.estimatedHours > 0
                   ? fmtNum(p.estimatedHours, locale, 1)
-                  : "—"}
+                  : tc("notAvailable")}
               </span>
               <div className="flex items-center gap-2">
                 {/* Fixed 0–100 scale (APPLE_REF §5.3, Apple's own charts rule):
@@ -709,7 +744,14 @@ export function ProjectsLedger({
                   {/* "n/a", not "—": the house rule for a MISSING FIGURE on this
                       page, and the one check-projects-module counts. An em dash
                       in a numeric column reads as a dash-shaped zero; "n/a"
-                      cannot be mistaken for a measurement. */}
+                      cannot be mistaken for a measurement.
+                      APPLE_REF §8 #26 rules the other way ("—" for a missing
+                      number), and this page is the reason its stated ground --
+                      "the gate reads them" -- is out of date: the gate reads
+                      "n/a". The whole row now spells the absence one way rather
+                      than the two it shipped with; which of the two the app
+                      should standardise on app-wide is hitul's call, and it is
+                      a bigger change than one band. */}
                   {p.burnPercent === null ? tc("notAvailable") : fmtPct(p.burnPercent, locale)}
                 </span>
               </div>

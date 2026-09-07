@@ -253,7 +253,8 @@
         "check:anon-grants-migration": "node scripts/check-anon-grants-migration.mjs",
         "check:offboarding": "node scripts/check-offboarding.mjs",
         "check:offboarding-leonie": "node scripts/check-offboarding-leonie.mjs",
-        "check:operations-role": "node --import ./scripts/ts-resolve.mjs --experimental-strip-types scripts/check-operations-role.mjs"
+        "check:operations-role": "node --import ./scripts/ts-resolve.mjs --experimental-strip-types scripts/check-operations-role.mjs",
+        "check:house-rules": "node scripts/check-house-rules.mjs"
     },
     "dependencies": {
         "@supabase/ssr": "^0.12.4",

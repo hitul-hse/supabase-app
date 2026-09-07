@@ -895,12 +895,16 @@ export function MyWorkTables({
           columns={projectColumns}
           rowKey={(r) => r.id}
           title={t("tables.projects")}
+          /* Mono-uppercase, like every other caption label in the app (§8 #2)
+             and like the count line it sits beside. Band 4 put this table, the
+             Overview's queues and the projects ledger on one screen-set for the
+             first time, and they were writing the same line three ways. */
           hint={
             role === "all" && activeCustomer === null
-              ? "strongest claim first"
-              : `filtered${role === "all" ? "" : ` to ${ROLE_LABEL[role]}`}${
-                  activeCustomer ? ` · ${activeCustomer}` : ""
-                } of ${projects.length}`
+              ? "STRONGEST CLAIM FIRST"
+              : `FILTERED${role === "all" ? "" : ` TO ${ROLE_LABEL[role].toUpperCase()}`}${
+                  activeCustomer ? ` · ${activeCustomer.toUpperCase()}` : ""
+                } OF ${projects.length}`
           }
           initialSort="role"
           initialDesc

@@ -73,6 +73,20 @@ export type Column<T> = {
   compact?: boolean;
   /** Omit to make the column unsortable (a bar-only column, say). */
   compare?: (a: T, b: T) => number;
+  /**
+   * True for a row whose value in THIS column is absent -- no contract, no
+   * entries, no budget. Rows it marks are pinned after every measured row in
+   * BOTH sort directions and are never reversed with them.
+   *
+   * It has to be declared per column rather than inferred from `compare`,
+   * because a comparator that pins nulls last is indistinguishable, from the
+   * outside, from one that simply thinks null is the largest value: `cmpNum`
+   * returns +1 for `(null, 5)` and -1 for `(5, null)`, which is exactly what a
+   * "null is biggest" comparator returns, and reversing the array then floats
+   * absent data to the top. See the sort below, and `sortRows` in
+   * projects/ProjectsLedger.tsx, which solved the same problem the same way.
+   */
+  nullish?: (row: T) => boolean;
   /** Sorting this column first goes descending — true for every measure. */
   descFirst?: boolean;
   cell: (row: T) => React.ReactNode;
@@ -190,7 +204,20 @@ type Props<T> = {
 /** The house cap for an opted-in bounded body: roughly 60% of the viewport. */
 export const DEFAULT_MAX_BODY_HEIGHT = "60vh";
 
-/** The row floor per density: `h-*` on the `<tr>`, which a table treats as a minimum. */
+/**
+ * The row floor per density: `h-*` on the `<tr>`, which a table treats as a
+ * MINIMUM, not a pitch.
+ *
+ * Worth saying plainly, because "32px rows" is easy to write and wrong to
+ * believe. `standard` is `h-8`, so a row whose tallest cell fits inside 32px
+ * measures 32px — and a row with a wrapping cell does not. Measured on
+ * /my-work at 1440 against live data: rows run 42–58px, because the PROJECT
+ * cell carries `[overflow-wrap:anywhere]` and long German project names wrap
+ * to two, three or four lines inside a 15rem column. That wrap is deliberate
+ * (it is what lets the table fit 1280 at all — see the cell's own note), so
+ * the ragged pitch is the price of the fit, not a bug. It is stated here so
+ * nobody quotes the token as if it were the rendered height.
+ */
 const ROW_HEIGHT: Record<Density, string> = {
   compact: "h-7",
   standard: "h-8",
@@ -218,12 +245,17 @@ function csvCell(v: string | number): string {
 }
 
 /**
- * Numeric compare that keeps nulls at the bottom in BOTH directions.
+ * Numeric compare that puts nulls last ASCENDING.
  *
  * Treating null as 0 would sort "no budget set" in among the genuinely small
- * numbers, and reversing the sort would then float it to the top — so the first
- * screen of a table sorted by "worst burn" would be rows that have no burn to
- * speak of. Nulls are absent data and belong last either way.
+ * numbers, so nulls are pushed past every real value instead.
+ *
+ * It cannot do more than that on its own, and the docstring here used to claim
+ * it did ("keeps nulls at the bottom in BOTH directions"). It does not: a
+ * comparator is asked about two rows at a time and has no idea which direction
+ * the table is sorted in, so `DataTable` reversing the sorted array reverses
+ * the nulls with it and lands them on top. A column with absent values must
+ * declare `nullish` as well; that is what actually pins them.
  */
 export function cmpNum(a: number | null, b: number | null): number {
   if (a === null && b === null) return 0;
@@ -331,8 +363,26 @@ export function DataTable<T>({
     if (!col?.compare) return filtered;
     // Copy before sorting: `filtered` can be the `rows` prop itself when no
     // search is active, and sorting in place would mutate a prop.
-    const out = [...filtered].sort(col.compare);
-    return desc ? out.reverse() : out;
+    const isAbsent = col.nullish;
+    if (!isAbsent) {
+      const out = [...filtered].sort(col.compare);
+      return desc ? out.reverse() : out;
+    }
+    /*
+     * A column that knows which of its rows have no value sorts in two parts,
+     * and only the measured part is reversed.
+     *
+     * `[...rows].sort(cmp).reverse()` put the four people with no utilisation
+     * ratio at the top of page 1 the moment somebody clicked UTILISATION to
+     * sort descending -- an absent figure in the position that reads as the
+     * extreme one, directly above the 94 % row. Nulls are absent data: they
+     * belong last whichever way the arrow points.
+     */
+    const measured = filtered.filter((r) => !isAbsent(r)).sort(col.compare);
+    if (desc) measured.reverse();
+    // Absent rows keep the incoming order among themselves, which is the
+    // query's own (stable) order rather than an arbitrary one.
+    return [...measured, ...filtered.filter((r) => isAbsent(r))];
   }, [filtered, sortKey, desc, columns]);
 
   const total = sorted.length;

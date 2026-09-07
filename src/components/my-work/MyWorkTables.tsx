@@ -107,7 +107,22 @@ type View = "projects" | "customers";
  * throwing: a role that no longer exists is "all", a view that is not
  * "customers" is projects.
  */
-type Controls = { view: View; role: MyRole | "all"; customer: string | null };
+type Controls = {
+  view: View;
+  role: MyRole | "all";
+  customer: string | null;
+  /**
+   * The project a shared link SELECTS, by id.
+   *
+   * Not a filter: the list is unchanged and every other row stays where it was.
+   * It marks one row as the current one — `--accent-wash` plus a 2px `--accent`
+   * left rule — which is the web form of the trailing inspector APPLE_REF §8
+   * #18 resolves ("a URL-selected row gets the current-row highlight"). Before
+   * this the table accepted `currentKey` and nothing ever set it, so "look at
+   * this row" was a sentence you had to type beside the link.
+   */
+  project: string | null;
+};
 
 function controlsFromParams(params: URLSearchParams): Controls {
   const role = params.get("role");
@@ -115,6 +130,7 @@ function controlsFromParams(params: URLSearchParams): Controls {
     view: params.get("view") === "customers" ? "customers" : "projects",
     role: ROLE_ORDER.includes(role as MyRole) ? (role as MyRole) : "all",
     customer: params.get("customer") || null,
+    project: params.get("project") || null,
   };
 }
 
@@ -123,6 +139,7 @@ function controlsToPatch(c: Controls): UrlPatch {
     view: c.view === "projects" ? null : c.view,
     role: c.role === "all" ? null : c.role,
     customer: c.customer,
+    project: c.project,
     // A view or filter change defines a new list; its first page is page 1.
     page: null,
   };
@@ -182,10 +199,21 @@ export function MyWorkTables({
    * GmbH" must not also select "Techspace BER GmbH".
    */
   const [controls, setControls] = useUrlState<Controls>(controlsFromParams, controlsToPatch);
-  const { view, role, customer } = controls;
+  const { view, role, customer, project: selectedProject } = controls;
   const setView = (v: View) => setControls({ ...controls, view: v }, "push");
   const setRole = (r: MyRole | "all") => setControls({ ...controls, role: r });
   const setCustomer = (c: string | null) => setControls({ ...controls, customer: c });
+  /*
+   * Selecting a row REPLACES rather than pushes, and clicking the selected row
+   * again clears it. A selection is a bookmark inside a list, not a navigation
+   * step: ten of these in the history would bury the page the reader arrived
+   * from under ten identical-looking entries.
+   */
+  const selectProject = useCallback(
+    (id: string) =>
+      setControls({ ...controls, project: controls.project === id ? null : id }),
+    [controls, setControls],
+  );
   /** Drill from a customer row into its projects: one change, one URL write. */
   const drillInto = useCallback(
     (c: string) => setControls({ ...controls, customer: c, view: "projects" }, "push"),
@@ -239,7 +267,7 @@ export function MyWorkTables({
         // leave the gap beside it. 12 rather than 13 buys the PROJECT column
         // 16px at 1280, which is the difference between "Brandschutzkonzept"
         // fitting on one line and breaking mid-word.
-        className: "w-[12rem]",
+        className: "w-[10.5rem] max-w-[10.5rem]",
         compare: (a, b) => cmpText(a.customer, b.customer),
         descFirst: false,
         title: "The canonical legal entity this project is booked under",
@@ -275,7 +303,7 @@ export function MyWorkTables({
              * empty space. It stays a cap: at 1920 min-content is 1069 against
              * 1550 available. The full name is in the tooltip either way.
              */
-            className="block max-w-[12rem] truncate text-left t-callout text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline 2xl:max-w-[18rem]"
+            className="block max-w-[10.5rem] truncate text-left t-callout text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline 2xl:max-w-[18rem]"
           >
             {r.customer}
           </button>
@@ -296,14 +324,45 @@ export function MyWorkTables({
          * DUE column holding ten characters. DUE now carries a width for the
          * same reason.
          */
-        className: "w-[15rem]",
+        /*
+          A FLOOR as well as a preference, and the floor is the new half.
+          `[overflow-wrap:anywhere]` drops this cell's min-content contribution
+          to about one character, and while the code line lived inside the cell
+          the code's own ~140px was holding the column open. Moving the code out
+          removed that prop, the auto layout handed the width to the columns that
+          could still claim it, and the project name came out four lines tall in
+          a 90px column. `min-w` restores the floor explicitly instead of
+          depending on a neighbour's content to supply it.
+        */
+        className: "w-[15rem] min-w-[12rem]",
         compare: (a, b) => cmpText(a.name, b.name),
         descFirst: false,
-        search: (r) => `${r.name} ${r.code} ${r.orderNo ?? ""}`,
-        csv: (r) => `${r.name} (${r.code})`,
+        search: (r) => r.name,
+        csv: (r) => r.name,
         cell: (r) => (
-          <div className="flex flex-col gap-0.5">
-            {/*
+          /*
+            The NAME only. The code moved to a column of its own — APPLE_REF §8
+            #17 resolves the identifier question that way ("codes get a compact
+            column of their own"), because a code stacked under the name can be
+            read across a row and never down it: "which of these is
+            10234_00103_402_01" meant reading every second line in the column.
+
+            The name is the control that SELECTS the row (§8 #18). It is a
+            button rather than a link because it changes a query parameter on
+            the page you are already on; a `<button>` that only changes a URL
+            param is banned where a `<Link>` would navigate, and nothing here
+            navigates.
+          */
+          <button
+            type="button"
+            onClick={() => selectProject(r.id)}
+            aria-pressed={selectedProject === r.id}
+            title={
+              selectedProject === r.id
+                ? `Clear the selection on ${r.name}`
+                : `Select ${r.name} — the link you copy will highlight this row`
+            }
+            /*
               overflow-wrap: anywhere, not break-word -- only `anywhere` lowers
               the element's min-content contribution, and that contribution is
               the whole problem here. A 23-character German compound
@@ -312,25 +371,42 @@ export function MyWorkTables({
               could not fit 1280 however much else was cut. Allowing it to break
               costs a mid-word split on a narrow screen and buys 45px; the
               alternative was scrolling the whole table sideways.
-            */}
-            <span className="[overflow-wrap:anywhere] t-callout t-tight text-[var(--text-primary)]">
-              {r.name}
-            </span>
-            <span className="fig t-tight text-[var(--text-faint)]">
-              {r.code}
-              {/* The masterdata order number ONLY when it differs from the code:
-                  the live import set order_no to the project id itself, so
-                  printing it unconditionally repeated the same string twice. */}
-              {r.orderNo && r.orderNo !== r.code ? ` · order ${r.orderNo}` : ""}
-            </span>
-          </div>
+            */
+            className="block w-full text-left [overflow-wrap:anywhere] t-callout text-[var(--text-primary)] underline-offset-2 control-motion hover:text-[var(--accent)] hover:underline active:translate-y-px"
+          >
+            {r.name}
+          </button>
+        ),
+      },
+      {
+        key: "code",
+        header: "CODE",
+        /*
+          `compact`, i.e. px-2 rather than px-4: a code is a token, not prose,
+          and the wide gutter around an 18-character mono string is more air
+          than the string is wide (the Column type's own note says so).
+        */
+        compact: true,
+        className: "w-[8.75rem]",
+        compare: (a, b) => cmpText(a.code, b.code),
+        descFirst: false,
+        search: (r) => `${r.code} ${r.orderNo ?? ""}`,
+        csv: (r) => r.code,
+        cell: (r) => (
+          <span className="whitespace-nowrap fig text-[var(--text-secondary)]">
+            {r.code}
+            {/* The masterdata order number ONLY when it differs from the code:
+                the live import set order_no to the project id itself, so
+                printing it unconditionally repeated the same string twice. */}
+            {r.orderNo && r.orderNo !== r.code ? ` · order ${r.orderNo}` : ""}
+          </span>
         ),
       },
       {
         key: "role",
         header: "MY ROLE",
         compact: true,
-        className: "w-[8.5rem]",
+        className: "w-[8.5rem] max-w-[8.5rem]",
         // Strongest claim first, so the default sort puts the four projects he
         // answers for at the top rather than in alphabetical order.
         compare: (a, b) => rank(b.role) - rank(a.role),
@@ -354,7 +430,7 @@ export function MyWorkTables({
         key: "service",
         header: "SERVICE",
         compact: true,
-        className: "w-[10rem]",
+        className: "w-[8.5rem] max-w-[8.5rem]",
         compare: (a, b) => cmpText(a.services.join(", "), b.services.join(", ")),
         descFirst: false,
         title:
@@ -362,7 +438,17 @@ export function MyWorkTables({
         search: (r) => r.services.join(" "),
         csv: (r) => r.services.join(" / "),
         cell: (r) => (
-          <span className="fig text-[var(--text-secondary)]">
+          <span
+            /*
+              Capped and truncated, with the full value in the tooltip. Left to
+              wrap, "Brandschutzbeauftragter (Fire Safety Officer)" sets a 177px
+              floor under this column, and the width budget has a new CODE column
+              to pay for (§8 #17). Same trade the CUSTOMER cell already makes,
+              for the same reason.
+            */
+            title={r.services.length > 0 ? r.services.join(" · ") : undefined}
+            className="block max-w-[8rem] truncate fig text-[var(--text-secondary)] 2xl:max-w-[14rem]"
+          >
             {/* No time.project row at all for this project (9 of 54 on live
                 data) -- honest "—", never a blank cell or a guessed service. */}
             {r.services.length > 0 ? r.services.join(" · ") : "—"}
@@ -401,7 +487,12 @@ export function MyWorkTables({
       // Before DUE, so the one remaining measure sits with the attributes
       // rather than inside the destination block that follows. BUDGET and BURN,
       // which it used to sit between, are gone.
-      cols.splice(5, 0, {
+      /*
+        Found by key, not by a literal index. It was `splice(5, …)` and the
+        CODE column pushed everything after PROJECT along by one, which put
+        MINE before SERVICE with nothing failing anywhere.
+      */
+      cols.splice(cols.findIndex((c) => c.key === "due"), 0, {
         key: "mine",
         header: "MINE",
         align: "right",
@@ -531,7 +622,7 @@ export function MyWorkTables({
     }
 
     return cols;
-  }, [showMyHours, drillInto]);
+  }, [showMyHours, drillInto, selectProject, selectedProject]);
 
   const customerColumns: Column<MyCustomer>[] = useMemo(() => {
     const cols: Column<MyCustomer>[] = [
@@ -804,15 +895,27 @@ export function MyWorkTables({
           columns={projectColumns}
           rowKey={(r) => r.id}
           title={t("tables.projects")}
+          /* Mono-uppercase, like every other caption label in the app (§8 #2)
+             and like the count line it sits beside. Band 4 put this table, the
+             Overview's queues and the projects ledger on one screen-set for the
+             first time, and they were writing the same line three ways. */
           hint={
             role === "all" && activeCustomer === null
-              ? "strongest claim first"
-              : `filtered${role === "all" ? "" : ` to ${ROLE_LABEL[role]}`}${
-                  activeCustomer ? ` · ${activeCustomer}` : ""
-                } of ${projects.length}`
+              ? "STRONGEST CLAIM FIRST"
+              : `FILTERED${role === "all" ? "" : ` TO ${ROLE_LABEL[role].toUpperCase()}`}${
+                  activeCustomer ? ` · ${activeCustomer.toUpperCase()}` : ""
+                } OF ${projects.length}`
           }
           initialSort="role"
           initialDesc
+          /*
+            The URL-selected row, marked as current (--accent-wash + a 2px
+            --accent left rule, APPLE_REF §5.6 "Row current", §8 #18). The
+            primitive has accepted this since it was written; nothing on this
+            page ever set it, so a shared link could name a filter but never a
+            row.
+          */
+          currentKey={selectedProject}
           exportName="my-work-projects"
           searchPlaceholder="Search projects…"
           // The in-table empty line says WHY (APPLE_REF §5.6, §5.9): an
@@ -826,6 +929,10 @@ export function MyWorkTables({
           }
           // Page and size in the URL (`?page=&size=`) with no round-trip.
           urlKeys={{ page: "page", size: "size" }}
+          /* The house pager (UI-CONVENTIONS rule 3): first, last, a one-step
+             window, an elided middle. 54 projects is three pages, and "1 / 3"
+             does not say how far the work goes the way "1 2 3" does. */
+          pagerStyle="numbered"
           // Bounded body: the rows scroll inside the card so the filter above
           // and the footnote below stay reachable, and the page does not grow.
           maxBodyHeight
@@ -845,6 +952,12 @@ export function MyWorkTables({
                 </span>
               ))}
               . An empty cell means nobody recorded that link, not a withheld figure.
+              {/* Only while something IS selected. A standing sentence about a
+                  highlight nobody can see explains a state the reader is not
+                  in, which is how a footnote stops being read at all. */}
+              {selectedProject !== null
+                ? " The highlighted row is the project this link selects; click its name again to clear it."
+                : null}
             </>
           }
         />
@@ -865,6 +978,7 @@ export function MyWorkTables({
           searchPlaceholder="Search customers…"
           emptyText={role !== "all" ? t("tables.emptyFiltered") : t("tables.emptyCustomers")}
           urlKeys={{ page: "page", size: "size" }}
+          pagerStyle="numbered"
           maxBodyHeight
           freezeFirstColumn
           footnote={footnote}

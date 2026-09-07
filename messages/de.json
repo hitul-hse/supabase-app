@@ -143,6 +143,14 @@
       "nothingLogged": "Nichts erfasst.",
       "footer": "JE TOP 8 NACH STUNDEN · GLEICHER UMFANG WIE DAS DIAGRAMM · ZUKÜNFTIG DATIERTE EINTRÄGE AUSGESCHLOSSEN"
     },
+    "heroBand": {
+      "kicker": "LETZTE WOCHE · {week} · TRACKINGTIME",
+      "headline": "Die Woche ist zu {share} abrechenbar",
+      "noWeek": "Noch keine Woche mit Stunden",
+      "hint": "{across} über {period} · {billable} abrechenbar von {total} gebucht · {people} Personen im Team",
+      "caption": "ABRECHENBARER ANTEIL · LETZTE WOCHE",
+      "figureLabel": "Abrechenbarer Anteil in der letzten Woche"
+    },
     "billableShare": {
       "title": "Abrechenbarer Anteil",
       "legend": "ABRECHENBAR %",
@@ -159,7 +167,23 @@
       "nobodyTeam": "Niemand mit hinterlegtem Team {team} hat Zeit erfasst.",
       "noMembers": "Keine Mitarbeiter mit erfasster Zeit.",
       "basis": "BASIS",
-      "basisNote": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, über die Wochen, in denen die Person aktiv war. TrackingTime hält keine Vertragsstunden. Diese Prozentwerte gelten für den Gesamtzeitraum, nicht für den gewählten Zeitraum — die Ansicht je Mitarbeiter ist nicht datumsgebunden."
+      "basisNote": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, über die Wochen, in denen die Person aktiv war. TrackingTime hält keine Vertragsstunden. Diese Prozentwerte gelten für den Gesamtzeitraum, nicht für den gewählten Zeitraum — die Ansicht je Mitarbeiter ist nicht datumsgebunden.",
+      "columns": {
+        "person": "PERSON",
+        "team": "TEAM",
+        "hours": "STUNDEN",
+        "utilisation": "AUSLASTUNG",
+        "status": "STATUS"
+      },
+      "qualifier": "NIEDRIGSTE ZUERST",
+      "status": {
+        "overCapacity": "Über Kapazität",
+        "low": "Niedrig",
+        "onTrack": "Im Plan",
+        "noActivity": "Keine Aktivität",
+        "notMeasured": "Nicht messbar"
+      },
+      "teamNote": "TEAM zeigt —, wenn niemand eines hinterlegt hat. STUNDEN und AUSLASTUNG zeigen n/a, wenn es nichts zu messen gibt — keine Zeiteinträge oder keine Vertragsstunden — nie eine 0, die nach Leerlauf aussieht. STATUS nennt eine Person niedrig unter 60 % und über Kapazität über 110 %, dieselbe Grenze wie die Anzeige darunter."
     },
     "disclosure": {
       "title": "Abrechenbar-Aufteilung & Auslastung",
@@ -210,6 +234,25 @@
         "burn": "VERBRAUCH"
       },
       "budgetWithheld": "NICHT SICHTBAR"
+    },
+    "overBudget": {
+      "title": "Über Budget",
+      "columns": {
+        "project": "PROJEKT",
+        "customer": "KUNDE",
+        "burn": "VERBRAUCH",
+        "over": "ÜBER"
+      },
+      "hours": "{hours} h",
+      "underTenth": "< 0,1 h",
+      "qualifier": "SCHLECHTESTE ZUERST",
+      "footnote": "Verbrauch ist die gebuchte Zeit im Verhältnis zur Schätzung; ÜBER sind die Stunden jenseits davon. Dieselben Projekte, die die Kachel PROJEKTE ÜBER BUDGET zählt — jedes aktive Projekt mit einem Budget über null und mehr gebuchten als budgetierten Stunden, geplante Zeit ausgenommen. Manche Schätzungen sind Platzhalter: Das Diagramm BUDGETVERBRAUCH auf Projekte lässt Schätzungen unter 10 h weg, diese Liste behält sie, damit sie genau die Projekte nennt, die die Kachel zählt.",
+      "empty": "Kein aktives Projekt mit Budget hat mehr Stunden gebucht als budgetiert.",
+      "withheld": "Budgets sind für deine Rolle nicht sichtbar, deshalb kann nicht gezeigt werden, welche Projekte über Budget liegen."
+    },
+    "queues": {
+      "title": "Über Budget und Auslastung",
+      "summary": "{overBudget} Projekte über Budget · {people} Personen, niedrigste Auslastung zuerst"
     }
   },
   "drill": {
@@ -1667,8 +1710,25 @@
         "logged": "ERFASST",
         "consumed": "VERBRAUCH",
         "people": "MITARBEITER",
-        "last": "ZULETZT"
-      }
+        "last": "ZULETZT",
+        "code": "CODE",
+        "billable": "ABRECHENBAR",
+        "hours": "STUNDEN",
+        "burn": "VERBRAUCH",
+        "status": "STATUS"
+      },
+      "billable": {
+        "yes": "Abrechenbar",
+        "no": "Nicht abrechenbar"
+      },
+      "status": {
+        "over": "Über Budget",
+        "risk": "Gefährdet",
+        "healthy": "Gesund",
+        "nobudget": "Kein Budget"
+      },
+      "csvTitle": "Diese Projekte als CSV laden — mit dem aktuellen Filter und der aktuellen Sortierung",
+      "pagerNav": "Seiten des Projektregisters"
     },
     "health": {
       "title": "Portfolio-Gesundheit",
@@ -1943,13 +2003,15 @@
     "prev": "ZURÜCK",
     "next": "WEITER",
     "srAll": "Alle {count, number} {noun} werden angezeigt",
-    "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}"
+    "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}",
+    "pageOf": "SEITE {page, number} VON {pages, number}",
+    "goToPage": "Seite {page, number}"
   },
   "dataTable": {
-    "noRows": "keine Zeilen",
-    "allRows": "alle {count, number} Zeilen",
-    "range": "{from, number}–{to, number} von {count, number}",
-    "filteredFrom": "gefiltert aus {count, number}",
+    "noRows": "KEINE ZEILEN",
+    "allRows": "ALLE {count, number} ZEILEN",
+    "range": "{from, number}–{to, number} VON {count, number}",
+    "filteredFrom": "GEFILTERT AUS {count, number}",
     "searchPlaceholder": "Zeilen durchsuchen…",
     "clearSearch": "Suche zurücksetzen",
     "showEveryRow": "Alle Zeilen anzeigen",
@@ -1962,7 +2024,9 @@
     "noMatch": "Keine Zeile passt zu „{query}“.",
     "clearTheSearch": "Suche zurücksetzen",
     "prev": "ZURÜCK",
-    "next": "WEITER"
+    "next": "WEITER",
+    "pagesOf": "Seiten von {title}",
+    "goToPage": "{title}, Seite {page, number}"
   },
   "myWork": {
     "header": {

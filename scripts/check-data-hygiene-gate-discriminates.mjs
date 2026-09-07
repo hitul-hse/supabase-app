@@ -22,6 +22,14 @@ import { record } from "./lib/gate-result.mjs";
 
 const PAGE = "src/app/(app)/data-hygiene/page.tsx";
 const QUERY = "src/lib/queries/data-hygiene.ts";
+/*
+ * The pager markup moved into the shared component (docs/UI-CONVENTIONS rule
+ * 3): this page, customer-master/import-review and the projects ledger all
+ * render through it. Sabotaging it there is a STRONGER mutation than
+ * sabotaging one page's private copy was -- it breaks all three pagers at once
+ * and must still be caught.
+ */
+const SHARED_PAGER = "src/components/NumberedPager.tsx";
 
 const MUTATIONS = [
   {
@@ -120,11 +128,15 @@ const MUTATIONS = [
     to: "const hygiene = await getDataHygiene(supabase);",
   },
   {
-    file: PAGE,
+    file: SHARED_PAGER,
     catcher: "fixture",
     why: "drops aria-current from the pager, so a screen reader announces N identical page links",
-    from: 'aria-current={current ? "page" : undefined}',
-    to: "data-current={current}",
+    // Anchored on the LINK branch specifically (only it carries `scroll`), so
+    // this replaces one of the component's two render paths. The gates count
+    // the attribute per path rather than merely finding it, so losing one is
+    // caught instead of hiding behind the other.
+    from: 'scroll={false}\n        aria-current={current ? "page" : undefined}',
+    to: 'scroll={false}\n        data-current={current}',
   },
   /*
    * The five below are claim-classification sabotages. Each one WAS a live bug,

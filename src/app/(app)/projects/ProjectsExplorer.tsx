@@ -45,7 +45,7 @@ import {
   type ProjectFacet,
   type ProjectFilters,
 } from "./project-insights";
-import { ProjectTotalsStrip, type ProjectTotalsTile } from "./ProjectPanels";
+import { ProjectTotalsStrip, facetTone, type ProjectTotalsTile } from "./ProjectPanels";
 import { PortfolioCharts } from "./PortfolioCharts";
 import { CustomerPortfolioCharts } from "./CustomerPortfolioCharts";
 import { ProjectsLedger, type LedgerSort } from "./ProjectsLedger";
@@ -456,6 +456,16 @@ export function ProjectsExplorer({
               active={filters.facets.has(key)}
               onToggle={() => toggleFacet(key)}
               count={facetCounts[key]}
+              /*
+                The dot takes the tone of what the chip SELECTS, not of whether
+                it is selected. These five are an ordered severity ladder — over
+                budget, at risk, healthy, no budget, no activity — and five
+                identical grey dots beside those five words threw away the one
+                place the ladder is legible at a glance (APPLE_REF §5.3, §8 #5).
+                The chip's own selected state is still carried by its fill and
+                bezel, which is the primary signal either way.
+              */
+              tone={facetTone(key)}
             >
               {facetLabels[key]}
             </FilterChip>

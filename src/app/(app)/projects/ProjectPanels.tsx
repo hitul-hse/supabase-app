@@ -76,6 +76,49 @@ export function burnTone(percent: number | null): "neutral" | "good" | "warning"
   return "good";
 }
 
+/**
+ * The budget posture as a NAMED status, not only as a colour.
+ *
+ * WHY THIS EXISTS. `burnColor` returned --critical / --warning / --good /
+ * --text-faint and the ledger painted the bar and the number with it, and that
+ * was the whole story: nowhere on the page did a word say whether a project was
+ * over budget. APPLE_REF §8 #5 and docs/UI-CONVENTIONS both forbid that in the
+ * same sentence ("Status is never colour alone: icon + text"), and it is simply
+ * unreadable to a red-green reader, in a greyscale print of a board pack, or to
+ * anyone who has not memorised the thresholds.
+ *
+ * The KEY, not the word: the caller renders it in the reader's language through
+ * `projects.ledger.status.*`. The thresholds are `burnTone`'s own, imported
+ * rather than restated, so the status, the bar colour and the facet chip that
+ * selects the same rows cannot drift into three different opinions.
+ */
+export type ProjectStatusKey = "over" | "risk" | "healthy" | "nobudget";
+
+export function projectStatus(percent: number | null): {
+  key: ProjectStatusKey;
+  tone: "critical" | "warning" | "good" | "unknown";
+} {
+  if (percent === null) return { key: "nobudget", tone: "unknown" };
+  if (percent > 100) return { key: "over", tone: "critical" };
+  if (percent >= 85) return { key: "risk", tone: "warning" };
+  return { key: "healthy", tone: "good" };
+}
+
+/**
+ * The tone of a FACET chip's leading dot — the same ladder, plus the one facet
+ * that is not a budget posture at all. "No activity" selects projects with zero
+ * logged hours, which says nothing about their budget, so it takes the faint
+ * rung rather than borrowing a status colour it has not earned.
+ */
+export function facetTone(
+  facet: "over" | "risk" | "healthy" | "nobudget" | "idle",
+): "critical" | "warning" | "good" | "neutral" | "unknown" {
+  if (facet === "idle") return "unknown";
+  return projectStatus(
+    facet === "over" ? 101 : facet === "risk" ? 90 : facet === "healthy" ? 10 : null,
+  ).tone;
+}
+
 /* ------------------------------------------------------------------ list */
 
 /** One tile's words: what the reader sees, and the footnote under it. */

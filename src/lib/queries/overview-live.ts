@@ -232,8 +232,9 @@ export type TeamUtilisation = {
    * A person with no entries at all has `hours` 0 because nothing was summed,
    * not because somebody looked and found nothing: rendering that as "0.0" in
    * the same figure style as a colleague's 442.8 states a fact the data does
-   * not hold. With this the row renders "—" beside its already-null
-   * utilisation, which is the same rule StatTile encodes for a missing value.
+   * not hold. With this the row renders "n/a" beside its already-null
+   * utilisation -- the same word, because both are missing FIGURES -- which is
+   * the rule the ledger's burn column and the card's own footnote both keep.
    */
   entryCount: number;
 };
@@ -332,13 +333,27 @@ function burnTone(burnPercent: number | null): OverviewProject["tone"] {
 }
 
 /**
+ * The two cuts that decide whether a utilisation figure is a concern.
+ *
+ * Exported because the Overview draws the SAME judgement twice: as a word per
+ * person in the utilisation queue ("Low" / "On track" / "Over capacity") and
+ * as the colour of the average-utilisation gauge three cards below. Those had
+ * two different sets of numbers -- 60/110 here, 40/105 in the gauge -- so the
+ * page could call one person low at 54 % while colouring a 53 % average
+ * healthy. Naming a person is the stronger claim of the two and it was the
+ * stricter rule, so the gauge adopts these; the card's footnote states them,
+ * because a published word about a colleague deserves a stated basis.
+ */
+export const UTILISATION_BANDS = { low: 60, overCapacity: 110 } as const;
+
+/**
  * Utilisation severity. Both ends are flagged: chronically over 100% is a
  * burnout signal, and well under is unsold capacity. Neither is "good".
  */
 function utilisationTone(percent: number | null): TeamUtilisation["tone"] {
   if (percent === null) return "neutral";
-  if (percent > 110) return "critical";
-  if (percent < 60) return "warning";
+  if (percent > UTILISATION_BANDS.overCapacity) return "critical";
+  if (percent < UTILISATION_BANDS.low) return "warning";
   return "good";
 }
 
@@ -384,7 +399,9 @@ type BudgetPosture =
  * Counting only the eight ledger rows here produced "2" on the tile and "11"
  * on the page it opens -- the exact contradiction a KPI must not have. Same
  * rule as /projects: strictly over, and only projects that HAVE a budget.
- * Worked hours exclude future-dated (planned) entries, exactly as /projects does.
+ * Worked hours exclude future-dated (planned) entries because the VIEW excludes
+ * them (`started_at <= now()` in its join), exactly as /projects does by
+ * filtering raw entries -- two routes to the same 11.
  *
  * Paged read per the house rule: .order() before .range(), no bare limit.
  */
@@ -424,25 +441,25 @@ async function getBudgetPosture(
       estimated_hours: number | null;
     }[];
 
-    // project_summary counts PLANNED entries dated into the future (Netto / 26
-    // SiFa: 398 h in the view, 217.7 h actually worked). /projects excludes
-    // anything after today and so must this count, or the tile says 12 and
-    // the page it opens says 11. Future-dated seconds per project are few by
-    // construction; paged read per the house rule.
-    const futureByProject = new Map<number, number>();
-    const { data: future } = await timeSchema(supabase)
-      .from("entry")
-      .select("project_id, duration_seconds")
-      .not("duration_seconds", "is", null)
-      .not("project_id", "is", null)
-      .gt("started_at", new Date().toISOString())
-      .order("id", { ascending: true })
-      .range(0, 9999);
-    for (const e of (future ?? []) as { project_id: number; duration_seconds: number }[]) {
-      futureByProject.set(e.project_id, (futureByProject.get(e.project_id) ?? 0) + num(e.duration_seconds));
-    }
-    const workedHours = (r: { project_id: number; total_seconds: number | null }) =>
-      secondsToHours(Math.max(0, num(r.total_seconds) - (futureByProject.get(r.project_id) ?? 0)));
+    /*
+     * `total_seconds` IS the worked total. Do not net planned hours out of it.
+     *
+     * This used to subtract every future-dated entry a second time, from a
+     * figure the view had already excluded them from. `time.project_summary`
+     * joins `LEFT JOIN time.entry e ON e.project_id = p.id AND
+     * e.duration_seconds IS NOT NULL AND e.started_at <= now()` -- verified
+     * against the live view definition, not inferred -- so the planned hours
+     * are gone before the sum happens.
+     *
+     * Subtracting them again did not merely inflate the arithmetic, it removed
+     * a real finding: Enercon W-12727 Bimolten is 332.2 h against a 320 h
+     * estimate, and 332.2 - 28.0 planned = 304.2 put it back under budget. The
+     * tile then said 10 while /projects said 11 -- measured on the live
+     * database as `over_view_only = 11, over_code = 10` -- which is the exact
+     * contradiction the comment above says this function exists to prevent.
+     */
+    const workedHours = (r: { total_seconds: number | null }) =>
+      secondsToHours(num(r.total_seconds));
 
     // The view writes "no budget" as 0, not null (84 of 338 rows) -- a budget
     // is real only when > 0. Same rule as projects-live.ts isOver:
@@ -456,11 +473,22 @@ async function getBudgetPosture(
      * than from a second filter that could drift from it.
      *
      * Worst first (UI-CONVENTIONS rule 5): burn descending, so the project
-     * furthest past its estimate is the first thing on the card. No placeholder
-     * rule is applied -- the design's "estimates under 10 h are excluded as
-     * placeholders" would make this list disagree with the tile beside it about
-     * how many projects are over budget, and inventing a threshold is not a
-     * layout change, it is a change to what the figure means.
+     * furthest past its estimate is the first thing on the card.
+     *
+     * THE 10 h PLACEHOLDER FLOOR IS NOT APPLIED HERE, and that needs saying
+     * plainly because the floor is real and agreed, not a threshold somebody
+     * invented. It lives at projects/PortfolioCharts.tsx (`p.estimatedHours >=
+     * 10`), its rationale is written beside it -- 32 live projects carry a
+     * placeholder "2 h" estimate, and a 2 h budget at 300 % burn is an artefact
+     * of the placeholder -- and /projects ships it as a visible qualifier on
+     * the BUDGET BURN chart.
+     *
+     * It is not applied here because this list and the PROJECTS OVER BUDGET
+     * tile beside it must name the same projects the tile counts. Filtering the
+     * rows without filtering the count would put "1-3 OF 11" on a card whose
+     * neighbour says 11, which is worse than a small estimate near the top. The
+     * footnote states the placeholder caveat instead, and points at the chart
+     * that does exclude them, so the reader is told rather than filtered for.
      */
     const overBudgetRows: OverBudgetProject[] = over
       .map((r) => {
@@ -471,7 +499,14 @@ async function getBudgetPosture(
           name: r.project_name ?? `#${r.project_id}`,
           customerName: r.customer_name,
           burnPercent: Math.round((worked / estimate) * 1000) / 10,
-          overHours: Math.round((worked - estimate) * 10) / 10,
+          /*
+           * Kept unrounded. Rounding to 1 dp here turned a 0.02 h overrun into
+           * "0 h" -- a row in a list of projects PAST their budget saying the
+           * overrun is nothing, which is the plausible zero the house rules
+           * forbid. The renderer decides how to write a sub-0.1 h overrun; the
+           * query does not throw the information away first.
+           */
+          overHours: worked - estimate,
         };
       })
       .sort((a, b) => b.burnPercent - a.burnPercent || b.overHours - a.overHours);

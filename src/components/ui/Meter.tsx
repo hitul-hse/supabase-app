@@ -18,7 +18,9 @@
  *    "past the end".
  * 2. A NULL IS NOT A ZERO. `percent === null` renders the empty track and
  *    nothing else — no zero-width fill that would read as "0 % burned". The
- *    caller pairs it with "—" in the figure column. This is the same rule
+ *    caller pairs it with the word its own page uses for a missing figure --
+ *    "n/a" in the ledger and in the Overview's utilisation queue, "—" where
+ *    the absent thing is a LABEL rather than a number. This is the same rule
  *    StatTile encodes for a missing value.
  *
  * It is a plain meter, not a `<progress>`: `<progress>` cannot be styled

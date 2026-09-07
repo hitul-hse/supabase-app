@@ -21,9 +21,14 @@
  * WHY DataTable RATHER THAN A HAND-ROLLED TABLE
  * ---------------------------------------------
  * The primitive already owns the four things these lists must not re-decide:
- * null placement in a sort (`cmpNum` keeps a person with no ratio last in BOTH
- * directions), the opaque sticky header material (§8 #4), the current-row
- * treatment, and the page/size contract with the URL. The only thing it lacked
+ * null placement in a sort, the opaque sticky header material (§8 #4), the
+ * current-row treatment, and the page/size contract with the URL. Null
+ * placement needed the primitive extended, not merely used: `cmpNum` puts
+ * nulls last ascending, but `DataTable` reversed the whole array for a
+ * descending sort and floated them back to the top, so clicking UTILISATION
+ * twice put the four people with no measurable ratio above the 94 % row. Every
+ * column here with absent values declares `nullish`, which pins them last in
+ * both directions. The only thing it lacked
  * was the worked-queue MODE — a fixed 10 rows with the 25/50/100/ALL control
  * taken away — so that was added to the primitive (`fixedPageSize`) rather than
  * worked around here.
@@ -53,13 +58,20 @@ const pct = (n: number, locale: string, dp = 0) => `${fmtNum(n, locale, dp)}%`;
 import type { OverBudgetProject, TeamUtilisation } from "@/lib/queries/overview-live";
 
 /**
- * A missing LABEL: "—" (APPLE_REF §8 #26, the table primitive's own rule).
+ * A missing LABEL: "—".
  *
- * Distinct from a missing FIGURE, which says "n/a" (`common.notAvailable`).
- * The split is deliberate and is the one the rest of these pages already keep:
- * an em dash in a numeric column reads as a dash-shaped zero and sorts like
- * one in the reader's head, where "n/a" cannot be mistaken for a measurement.
- * A missing team name is not a number and has nothing to be mistaken for.
+ * Distinct from a missing FIGURE, which says "n/a" (`common.notAvailable`) --
+ * the split /projects already keeps and check-projects-module.mjs already
+ * counts: an em dash in a numeric column reads as a dash-shaped zero and sorts
+ * like one in the reader's head, where "n/a" cannot be mistaken for a
+ * measurement. A missing team name is not a number and has nothing to be
+ * mistaken for.
+ *
+ * APPLE_REF §8 #26 rules "—" for a missing NUMBER and is not cited here on
+ * purpose: it is the one place the band departs from the reference, and the
+ * departure is declared rather than dressed up as compliance. Its stated
+ * reason -- "the gate reads them" -- is out of date, because the gate that
+ * reads this (check-projects-module.mjs:487) counts "n/a".
  */
 function noLabel() {
   return <span className="text-[var(--text-muted)]">—</span>;
@@ -148,7 +160,17 @@ export function OverBudgetQueue({
       compare: (a, b) => cmpNum(a.overHours, b.overHours),
       cell: (r) => (
         <span className="fig text-[var(--text-primary)]">
-          {t("hours", { hours: fmtNum(r.overHours, locale, 1) })}
+          {/*
+            An overrun smaller than 0.05 h is written "< 0.1 h", not "0 h".
+            Live, "10190_Topographie des Terrors" is 2.02 h against a 2 h
+            estimate: at one decimal that renders as a bare 0 in a list whose
+            whole claim is that these projects went PAST their budget, which is
+            the plausible zero the house rules forbid. The row is real and
+            belongs here -- only the rounding was lying about it.
+          */}
+          {r.overHours < 0.05
+            ? t("underTenth")
+            : t("hours", { hours: fmtNum(r.overHours, locale, 1) })}
         </span>
       ),
     },
@@ -188,18 +210,23 @@ export function OverBudgetQueue({
  * ratio has no denominator. Collapsing both into one label would let a reader
  * conclude somebody is idle when the truth is that we cannot compute it.
  */
+/* `tStatus`, not `t`: the translator arrives as a PARAMETER here, so its
+   namespace belongs to the caller, and a key-reference sweep reading this file
+   cannot resolve it against any `useTranslations` line above. Naming it apart
+   from the file's own bindings keeps those verifiable
+   (scripts/check-i18n-key-references.mjs). */
 function utilisationStatus(
   row: TeamUtilisation,
-  t: (k: string) => string,
+  tStatus: (k: string) => string,
 ): { tone: StatusTone; word: string } {
   if (row.percent === null) {
     return row.entryCount === 0
-      ? { tone: "unknown", word: t("status.noActivity") }
-      : { tone: "unknown", word: t("status.notMeasured") };
+      ? { tone: "unknown", word: tStatus("status.noActivity") }
+      : { tone: "unknown", word: tStatus("status.notMeasured") };
   }
-  if (row.tone === "critical") return { tone: "critical", word: t("status.overCapacity") };
-  if (row.tone === "warning") return { tone: "warning", word: t("status.low") };
-  return { tone: "good", word: t("status.onTrack") };
+  if (row.tone === "critical") return { tone: "critical", word: tStatus("status.overCapacity") };
+  if (row.tone === "warning") return { tone: "warning", word: tStatus("status.low") };
+  return { tone: "good", word: tStatus("status.onTrack") };
 }
 
 export function UtilisationQueue({
@@ -257,12 +284,15 @@ export function UtilisationQueue({
       align: "right",
       compact: true,
       compare: (a, b) => cmpNum(a.entryCount === 0 ? null : a.hours, b.entryCount === 0 ? null : b.hours),
+      nullish: (r) => r.entryCount === 0,
       cell: (r) =>
         /*
           A person with NO entries has 0 because nothing was summed, not because
           somebody measured zero. Rendering that as "0.0" in the same figure
           style as a colleague's 442.8 is the plausible zero the house rules
-          forbid, so it renders "—" beside its already-absent utilisation.
+          forbid, so it renders "n/a" beside its already-absent utilisation --
+          the same word the utilisation cell uses, and the same word the
+          footnote promises.
         */
         r.entryCount === 0 ? (
           <span className="fig text-[var(--text-faint)]">{tc("notAvailable")}</span>
@@ -276,6 +306,7 @@ export function UtilisationQueue({
       align: "right",
       compact: true,
       compare: (a, b) => cmpNum(a.percent, b.percent),
+      nullish: (r) => r.percent === null,
       cell: (r) =>
         r.percent === null ? (
           <span className="fig text-[var(--text-faint)]">{tc("notAvailable")}</span>
@@ -307,6 +338,8 @@ export function UtilisationQueue({
       header: t("columns.status"),
       compact: true,
       compare: (a, b) => cmpNum(a.percent, b.percent),
+      /* Sorted by the same figure as UTILISATION, so it pins the same rows. */
+      nullish: (r) => r.percent === null,
       cell: (r) => {
         const { tone, word } = utilisationStatus(r, t);
         return <StatusDot tone={tone}>{word}</StatusDot>;

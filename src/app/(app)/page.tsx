@@ -18,6 +18,7 @@ import {
   NO_TEAM,
   parseOverviewRange,
   parseOverviewTeam,
+  UTILISATION_BANDS,
   type OverviewMessage,
 } from "@/lib/queries/overview-live";
 import { OverviewFilters } from "./OverviewFilters";
@@ -209,12 +210,15 @@ export default async function OverviewPage({
     utilised.length > 0
       ? Math.round(utilised.reduce((s, t) => s + (t.percent ?? 0), 0) / utilised.length)
       : null;
+  /* The SAME cuts the utilisation queue words are drawn from, imported rather
+     than repeated: 40/105 here against 60/110 there let the page call a person
+     low at 54 % and paint a 53 % average healthy on the same screen. */
   const gaugeColor =
     avgUtilisation === null
       ? "var(--text-muted)"
-      : avgUtilisation < 40
+      : avgUtilisation < UTILISATION_BANDS.low
         ? "var(--warning)"
-        : avgUtilisation > 105
+        : avgUtilisation > UTILISATION_BANDS.overCapacity
           ? "var(--critical)"
           : "var(--accent)";
 
@@ -342,16 +346,16 @@ export default async function OverviewPage({
               current (§5.9).
             */}
             <span className="t-label text-[var(--text-faint)]">
-              {t("hero.kicker", {
+              {t("heroBand.kicker", {
                 week: trendPoints.length > 0 ? trendPoints[trendPoints.length - 1].label : "—",
               })}
             </span>
             <h2 className="t-large text-[var(--text-primary)]">
               {trendPoints.length > 0
-                ? t("hero.headline", {
+                ? t("heroBand.headline", {
                     share: pct(trendPoints[trendPoints.length - 1].value),
                   })
-                : t("hero.noWeek")}
+                : t("heroBand.noWeek")}
             </h2>
             {/*
               The period figure beside the weekly one, so the headline cannot be
@@ -359,7 +363,7 @@ export default async function OverviewPage({
             */}
             {billableShareAll !== null && (
               <p className="t-subhead text-[var(--text-muted)]">
-                {t("hero.hint", {
+                {t("heroBand.hint", {
                   across: pct(billableShareAll),
                   /* Not lower-cased. `periodLabel` is "W25–W36 · 12 WEEKS" /
                      "· 12 Wochen": German capitalises the noun, and folding it
@@ -376,7 +380,12 @@ export default async function OverviewPage({
           {trendPoints.length > 0 && (
             <div className="flex flex-none flex-col items-start gap-2 sm:items-end">
               {/* The ONE teal figure on the page: fig-xl in --accent lives in
-                  the hero tile and nowhere else (§5.5, §8 #5). */}
+                  the hero tile and nowhere else (§5.5, §8 #5). Verified rather
+                  than asserted — the "This period" card's BILLABLE figure was
+                  the second one, and it is in the text ladder now. Grep for
+                  `text-[var(--accent)]` before adding a third: everything else
+                  that matches on this page is a LINK, which is what teal is
+                  for. */}
               <span className="fig-xl text-[var(--accent)]">
                 {pct(trendPoints[trendPoints.length - 1].value)}
               </span>
@@ -385,7 +394,7 @@ export default async function OverviewPage({
                 color="var(--accent)"
                 className="w-full sm:w-60"
               />
-              <span className="t-label text-[var(--text-faint)]">{t("hero.caption")}</span>
+              <span className="t-label text-[var(--text-faint)]">{t("heroBand.caption")}</span>
             </div>
           )}
         </Card>
@@ -557,7 +566,16 @@ export default async function OverviewPage({
             per-point readouts, the same axis, the same three distinct
             "no hours" sentences.
           */}
-          <Card className="flex flex-col lg:col-span-12">
+          {/* `data-chart="billable-share"` is the CHART's own hook.
+              check-charts-ui.mjs used to find this card by `data-card="hero"`,
+              which is how it asserted that the figure is an SVG filling at
+              least 45 % of its card rather than the old ~25 % bar strip. That
+              tone moved to the hero band above (one hero per page), and the
+              gate went on reading `data-card="hero"` — where it found a text
+              tile with no SVG in it and failed three assertions that are still
+              true of this card. A name that says what the element IS, rather
+              than what tone it happens to carry, cannot come loose that way. */}
+          <Card data-chart="billable-share" className="flex flex-col lg:col-span-12">
             <CardHeader
               title={t("billableShare.title")}
               qualifier={scopedQualifier(t("qualifiers.trackingTime"))}
@@ -764,7 +782,13 @@ export default async function OverviewPage({
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">{t("thisPeriod.billable")}</span>
-                <span className="font-mono text-[18px] font-semibold text-[var(--accent)]">
+                {/* --text-primary, not --accent. This was the SECOND teal
+                    figure on the page, three cards under a hero whose comment
+                    claims to hold the only one — both above the fold at 1440.
+                    Teal on a figure is decoration, which §8 #5 and
+                    UI-CONVENTIONS forbid in the same words; the label beside it
+                    already says which of the two numbers is the billable one. */}
+                <span className="font-mono text-[18px] font-semibold text-[var(--text-primary)]">
                   {Math.round(billableHoursAll).toLocaleString("de-DE")}
                 </span>
               </div>

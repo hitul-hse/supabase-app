@@ -132,6 +132,18 @@
       }
     },
     "hero": {
+      "dialogLabel": "Week of {week} in detail",
+      "weekOf": "WEEK OF {week}",
+      "totals": "{billable}h billable of {total}h · {people, plural, one {{people} person} other {{people} people}} · {entries, plural, one {{entries} entry} other {{entries} entries}}",
+      "close": "Close week detail",
+      "esc": "ESC",
+      "fetching": "Fetching the week…",
+      "byPerson": "BY PERSON",
+      "byProject": "BY PROJECT",
+      "nothingLogged": "Nothing logged.",
+      "footer": "TOP 8 EACH, BY HOURS · SAME SCOPE AS THE CHART · FUTURE-DATED ENTRIES EXCLUDED"
+    },
+    "heroBand": {
       "kicker": "LATEST WEEK · {week} · TRACKINGTIME",
       "headline": "The week is {share} billable",
       "noWeek": "No week has hours yet",
@@ -171,7 +183,7 @@
         "noActivity": "No activity",
         "notMeasured": "Not measured"
       },
-      "teamNote": "An empty TEAM or UTILISATION cell means nobody recorded one, not a withheld figure. A person with no tracked entries shows — rather than 0.0 h: nothing was measured."
+      "teamNote": "TEAM reads — when nobody recorded one. HOURS and UTILISATION read n/a when there is nothing to measure — no tracked entries, or no contracted hours — never a 0 that would read as somebody idle. STATUS calls a person low under 60 % and over capacity above 110 %, the same cut the gauge below uses."
     },
     "disclosure": {
       "title": "Billable split & utilisation",
@@ -232,8 +244,9 @@
         "over": "OVER"
       },
       "hours": "{hours} h",
+      "underTenth": "< 0.1 h",
       "qualifier": "WORST FIRST",
-      "footnote": "Burn is logged hours as a share of the estimate; OVER is the hours past it. The same projects the PROJECTS OVER BUDGET tile counts — every active project with a budget above zero and more hours logged than budgeted, planned time excluded.",
+      "footnote": "Burn is logged hours as a share of the estimate; OVER is the hours past it. The same projects the PROJECTS OVER BUDGET tile counts — every active project with a budget above zero and more hours logged than budgeted, planned time excluded. Some estimates are placeholders: the BUDGET BURN chart on Projects drops estimates under 10 h, this list keeps them so that it names exactly the projects the tile counts.",
       "empty": "No active project with a budget has more hours logged than budgeted.",
       "withheld": "Budgets are not visible to your role, so which projects are over budget cannot be shown."
     },
@@ -1995,10 +2008,10 @@
     "goToPage": "Page {page, number}"
   },
   "dataTable": {
-    "noRows": "no rows",
-    "allRows": "all {count, number} rows",
-    "range": "{from, number}–{to, number} of {count, number}",
-    "filteredFrom": "filtered from {count, number}",
+    "noRows": "NO ROWS",
+    "allRows": "ALL {count, number} ROWS",
+    "range": "{from, number}–{to, number} OF {count, number}",
+    "filteredFrom": "FILTERED FROM {count, number}",
     "searchPlaceholder": "Search rows…",
     "clearSearch": "Clear search",
     "showEveryRow": "Show every row",

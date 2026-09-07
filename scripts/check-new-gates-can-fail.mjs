@@ -224,6 +224,24 @@ await provesItCatches({
   expect: /FAIL/,
 });
 
+/* -------------------------------------------------- the message catalogues */
+
+await provesItCatches({
+  label: "check-i18n-key-references notices a namespace collision that deletes live keys",
+  file: "messages/en.json",
+  script: "scripts/check-i18n-key-references.mjs",
+  /*
+   * The exact shape of the incident: a new Overview hero band was given the
+   * `overview.hero.*` namespace, which the week drill-down dialog already
+   * owned, and the dialog's ten keys went with it. Renaming `heroBand` back
+   * onto `hero` reproduces that collision in one line. Both halves must go
+   * red -- the dialog's ten keys vanish, and the band's five stop resolving.
+   */
+  mutate: (s) => s.replace('"heroBand": {', '"heroCollision": {')
+                  .replace('"hero": {\n      "dialogLabel"', '"heroBand": {\n      "dialogLabel"'),
+  expect: /overview\.hero\.dialogLabel|FAIL/,
+});
+
 console.log(failures === 0
   ? "\nEVERY NEW GATE FAILS WHEN ITS SUBJECT BREAKS. They are checks, not decoration."
   : `\n${failures} problem(s) — a gate that cannot fail is not protecting anything`);

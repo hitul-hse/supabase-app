@@ -649,7 +649,7 @@ try {
   );
   check(
     "the breakdown states the full row count, not a 'top N'",
-    /1–25 of 60/.test(text),
+    /1–25 OF 60/.test(text),
     "the header must say how many rows exist in total, so a page-1 view is never mistaken for everything",
   );
 
@@ -749,8 +749,8 @@ try {
   const searchedText = (await panel("BY PROJECT").innerText()).replace(/\s+/g, " ");
   check(
     "search reports what it filtered from",
-    /filtered from 60/.test(searchedText),
-    "a filtered count with no 'of 60' reads as the whole dataset",
+    /FILTERED FROM 60/.test(searchedText),
+    "a filtered count with no 'OF 60' reads as the whole dataset",
   );
   // Multi-term search must AND, not OR. "Projekt 07 Kunde 3" is Projekt 07 and
   // its own customer, so it stays at one row; swapping in a customer that
@@ -803,7 +803,7 @@ try {
   check("NEXT advances the page", /2 \/ 3/.test(page2), "the pager did not advance");
   check(
     "page 2 shows rows 26–50",
-    /26–50 of 60/.test(page2),
+    /26–50 OF 60/.test(page2),
     "the range line must track the page",
   );
   await pager.getByRole("button", { name: /NEXT/ }).click();
@@ -840,7 +840,7 @@ try {
   const budgetText = (await panel("BUDGET BURN").innerText()).replace(/\s+/g, " ");
   check(
     "budget burn counts every project WITH an estimate",
-    budgetText.includes(`of ${ESTIMATED_PROJECTS}`),
+    budgetText.includes(`OF ${ESTIMATED_PROJECTS}`),
     `expected ${ESTIMATED_PROJECTS} estimated projects, panel says: ${budgetText.slice(0, 160)}`,
   );
   check(
@@ -853,7 +853,7 @@ try {
   const entriesText = (await panel("TIME ENTRIES").innerText()).replace(/\s+/g, " ");
   check(
     "the entry table exposes all 60 entries, not 25",
-    entriesText.includes("of 60"),
+    entriesText.includes("OF 60"),
     `panel says: ${entriesText.slice(0, 160)}`,
   );
 
@@ -886,7 +886,7 @@ try {
   // Only even-indexed entries are billable: 30 of 60.
   check(
     "filtering to billable reaches the query and halves the projects",
-    /1–25 of 30/.test(billableText),
+    /1–25 OF 30/.test(billableText),
     `expected 30 billable projects; page says: ${billableText.slice(0, 220)}`,
   );
 
@@ -914,7 +914,7 @@ try {
   // the unfiltered page below, where all 30 are in scope.
   check(
     "the economics table row count follows the selection",
-    /1–15 of 15/.test(econBody),
+    /1–15 OF 15/.test(econBody),
     `panel says: ${econBody.slice(0, 200)}`,
   );
   await goto("preset=this_month&group=project&bucket=day");
@@ -922,7 +922,7 @@ try {
   const econAll = (await panel("PROJECT ECONOMICS").innerText()).replace(/\s+/g, " ");
   check(
     "unfiltered, the economics table exposes all 30 rows rather than the old 15",
-    /of 30/.test(econAll),
+    /OF 30/.test(econAll),
     `panel says: ${econAll.slice(0, 200)} — a hard-coded limit of 15 was applied at the query before this change`,
   );
 
@@ -1080,7 +1080,7 @@ try {
     // Case-insensitive: the chip label is uppercased by CSS, so innerText reads
     // "FILTERED TO" and a case-sensitive match failed while the chip was right
     // there on screen.
-    /filtered to/i.test(afterPick) && /1 project with logged time|1–1 of 1/.test(afterPick),
+    /filtered to/i.test(afterPick) && /1 project with logged time|1–1 OF 1/.test(afterPick),
     `page after the keyboard pick: ${afterPick.slice(afterPick.indexOf("BY PROJECT"), afterPick.indexOf("BY PROJECT") + 160)}`,
   );
 

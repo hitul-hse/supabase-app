@@ -393,7 +393,27 @@ ok(base.scope.orders === ORDERS, `scope counts all ${ORDERS} orders read`, `got 
   ok(/searchParams/.test(page) && /getDataHygiene\(supabase, \{ pages \}\)/.test(page),
     "the page reads its page numbers from searchParams and passes them to the query",
     "paging not driven by the URL breaks the back button, refresh and shared links");
-  ok(/scroll=\{false\}/.test(page) && /aria-current=\{current \? "page" : undefined\}/.test(page),
+/*
+ * The pager markup lives in the SHARED component now.
+ *
+ * docs/UI-CONVENTIONS rule 3 describes one pager and this page had written its
+ * own copy of it, as had customer-master/import-review; the projects ledger
+ * would have made three. `NumberedPager` is that one component, so the
+ * assertion reads it there. It is not weaker for having moved -- it is now the
+ * single place all three pagers inherit from, so a regression here breaks
+ * every one of them at once instead of one at a time.
+ */
+  const sharedPager = readFileSync("src/components/NumberedPager.tsx", "utf8");
+  /*
+   * Once per RENDER PATH. `NumberedPager` renders server `<Link>`s where the
+   * page lives in the URL and buttons where a client table already mirrors it,
+   * and BOTH have to mark the current page -- a row of controls whose current
+   * one is merely a different colour announces as N identical controls. Counted
+   * rather than merely found, so dropping it from one path cannot hide behind
+   * the other; the mutation in check-data-hygiene-gate-discriminates does
+   * exactly that and must still be caught.
+   */
+  ok(/scroll=\{false\}/.test(sharedPager) && (sharedPager.match(/aria-current=\{current \? "page" : undefined\}/g) ?? []).length >= 2,
     "pager links are server-rendered <Link>s that mark the current page for assistive tech",
     "a row of anchors where the current one is merely a different colour announces as identical links");
   ok(/from "@\/lib\/data-hygiene-url"/.test(page),

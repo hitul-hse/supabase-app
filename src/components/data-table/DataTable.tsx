@@ -32,6 +32,7 @@ import { controlClass } from "@/components/ui/Field";
 import { segmentedItemClass, segmentedTrackClass } from "@/components/ui/Segmented";
 import { IconArrowRight, IconCaret, IconCross } from "@/components/nav-icons";
 import { pageFromParams, pageToParam, useUrlState } from "@/components/url-state";
+import { NumberedPager } from "@/components/NumberedPager";
 
 export type Align = "left" | "right";
 
@@ -72,6 +73,20 @@ export type Column<T> = {
   compact?: boolean;
   /** Omit to make the column unsortable (a bar-only column, say). */
   compare?: (a: T, b: T) => number;
+  /**
+   * True for a row whose value in THIS column is absent -- no contract, no
+   * entries, no budget. Rows it marks are pinned after every measured row in
+   * BOTH sort directions and are never reversed with them.
+   *
+   * It has to be declared per column rather than inferred from `compare`,
+   * because a comparator that pins nulls last is indistinguishable, from the
+   * outside, from one that simply thinks null is the largest value: `cmpNum`
+   * returns +1 for `(null, 5)` and -1 for `(5, null)`, which is exactly what a
+   * "null is biggest" comparator returns, and reversing the array then floats
+   * absent data to the top. See the sort below, and `sortRows` in
+   * projects/ProjectsLedger.tsx, which solved the same problem the same way.
+   */
+  nullish?: (row: T) => boolean;
   /** Sorting this column first goes descending — true for every measure. */
   descFirst?: boolean;
   cell: (row: T) => React.ReactNode;
@@ -158,12 +173,51 @@ type Props<T> = {
    * component state is the documented deviation for those (APPLE_REF §5.4).
    */
   urlKeys?: { page: string; size: string };
+  /**
+   * Fix the page at N rows and take the size control away with it.
+   *
+   * A WORKED QUEUE is not a ledger. APPLE_REF §5.4 sets "25 · 50 · 100 · ALL
+   * for ledgers; 10 fixed for worked queues", and UI-CONVENTIONS rule 1 says
+   * why: a queue is handled item by item, so the page size is part of the
+   * queue's shape rather than a reader preference. Offering ALL on a list whose
+   * job is to be finished invites the endless scroll the rule exists to stop.
+   *
+   * Set, the 25/50/100/ALL segmented control is not rendered at all — leaving it
+   * on screen wired to nothing would be worse than removing it.
+   */
+  fixedPageSize?: number;
+  /**
+   * Which pager the foot wears.
+   *
+   * `compact` (the default, and what every existing call site keeps) is
+   * PREV · n / N · NEXT: right for one of several report tables on a page, where
+   * the pager must not out-weigh the table.
+   *
+   * `numbered` is the house pager of UI-CONVENTIONS rule 3 — first, last, a
+   * one-step window, an elided middle — shared with the two server-rendered
+   * queues through `NumberedPager`. Right where the list IS the page and the
+   * size of the remaining work has to be visible.
+   */
+  pagerStyle?: "compact" | "numbered";
 };
 
 /** The house cap for an opted-in bounded body: roughly 60% of the viewport. */
 export const DEFAULT_MAX_BODY_HEIGHT = "60vh";
 
-/** The row floor per density: `h-*` on the `<tr>`, which a table treats as a minimum. */
+/**
+ * The row floor per density: `h-*` on the `<tr>`, which a table treats as a
+ * MINIMUM, not a pitch.
+ *
+ * Worth saying plainly, because "32px rows" is easy to write and wrong to
+ * believe. `standard` is `h-8`, so a row whose tallest cell fits inside 32px
+ * measures 32px — and a row with a wrapping cell does not. Measured on
+ * /my-work at 1440 against live data: rows run 42–58px, because the PROJECT
+ * cell carries `[overflow-wrap:anywhere]` and long German project names wrap
+ * to two, three or four lines inside a 15rem column. That wrap is deliberate
+ * (it is what lets the table fit 1280 at all — see the cell's own note), so
+ * the ragged pitch is the price of the fit, not a bug. It is stated here so
+ * nobody quotes the token as if it were the rendered height.
+ */
 const ROW_HEIGHT: Record<Density, string> = {
   compact: "h-7",
   standard: "h-8",
@@ -191,12 +245,17 @@ function csvCell(v: string | number): string {
 }
 
 /**
- * Numeric compare that keeps nulls at the bottom in BOTH directions.
+ * Numeric compare that puts nulls last ASCENDING.
  *
  * Treating null as 0 would sort "no budget set" in among the genuinely small
- * numbers, and reversing the sort would then float it to the top — so the first
- * screen of a table sorted by "worst burn" would be rows that have no burn to
- * speak of. Nulls are absent data and belong last either way.
+ * numbers, so nulls are pushed past every real value instead.
+ *
+ * It cannot do more than that on its own, and the docstring here used to claim
+ * it did ("keeps nulls at the bottom in BOTH directions"). It does not: a
+ * comparator is asked about two rows at a time and has no idea which direction
+ * the table is sorted in, so `DataTable` reversing the sorted array reverses
+ * the nulls with it and lands them on top. A column with absent values must
+ * declare `nullish` as well; that is what actually pins them.
  */
 export function cmpNum(a: number | null, b: number | null): number {
   if (a === null && b === null) return 0;
@@ -228,6 +287,8 @@ export function DataTable<T>({
   freezeFirstColumn = false,
   maxBodyHeight,
   density = "standard",
+  fixedPageSize,
+  pagerStyle = "compact",
   zebra,
   currentKey = null,
   urlKeys,
@@ -262,7 +323,14 @@ export function DataTable<T>({
         : {},
     { enabled: urlKeys !== undefined },
   );
-  const { page, size: pageSize } = paging;
+  /*
+   * A fixed queue size overrules whatever the URL or the stored state says.
+   * Read here rather than folded into the state initialiser so a stale
+   * `?size=100` on a link to a worked queue degrades to the queue's own 10
+   * instead of quietly turning it back into a ledger.
+   */
+  const { page } = paging;
+  const pageSize: number | "all" = fixedPageSize ?? paging.size;
   // Moving to another page is a step the back button should undo, so it
   // pushes; a size change or a reset to the first page replaces. Each setter
   // writes the WHOLE pair from this render's `paging`, so two of them in one
@@ -295,8 +363,26 @@ export function DataTable<T>({
     if (!col?.compare) return filtered;
     // Copy before sorting: `filtered` can be the `rows` prop itself when no
     // search is active, and sorting in place would mutate a prop.
-    const out = [...filtered].sort(col.compare);
-    return desc ? out.reverse() : out;
+    const isAbsent = col.nullish;
+    if (!isAbsent) {
+      const out = [...filtered].sort(col.compare);
+      return desc ? out.reverse() : out;
+    }
+    /*
+     * A column that knows which of its rows have no value sorts in two parts,
+     * and only the measured part is reversed.
+     *
+     * `[...rows].sort(cmp).reverse()` put the four people with no utilisation
+     * ratio at the top of page 1 the moment somebody clicked UTILISATION to
+     * sort descending -- an absent figure in the position that reads as the
+     * extreme one, directly above the 94 % row. Nulls are absent data: they
+     * belong last whichever way the arrow points.
+     */
+    const measured = filtered.filter((r) => !isAbsent(r)).sort(col.compare);
+    if (desc) measured.reverse();
+    // Absent rows keep the incoming order among themselves, which is the
+    // query's own (stable) order rather than an arbitrary one.
+    return [...measured, ...filtered.filter((r) => isAbsent(r))];
   }, [filtered, sortKey, desc, columns]);
 
   const total = sorted.length;
@@ -516,7 +602,10 @@ export function DataTable<T>({
             </div>
           )}
 
-          {/* Page sizes wear the segmented skin: a choice among a few, one lit. */}
+          {/* Page sizes wear the segmented skin: a choice among a few, one lit.
+              A worked queue has no such choice (APPLE_REF §5.4: "10 fixed for
+              worked queues"), so the control is absent rather than inert. */}
+          {fixedPageSize === undefined && (
           <div role="group" aria-label={t("rowsPerPageGroup")} className={segmentedTrackClass}>
             {PAGE_SIZES.map((s) => (
               <button
@@ -531,6 +620,7 @@ export function DataTable<T>({
               </button>
             ))}
           </div>
+          )}
 
           {exportName !== undefined && total > 0 && (
             <Button variant="ghost" size="sm" onClick={download} title={t("csvTitle")} className="font-mono">
@@ -659,12 +749,37 @@ export function DataTable<T>({
             </table>
           </div>
 
-          {(pageCount > 1 || footnote) && (
+          {pagerStyle === "numbered" && pageCount > 1 && (
+            /*
+              The house pager (UI-CONVENTIONS rule 3), shared with the two
+              server-rendered queues. Buttons rather than links because this
+              table already mirrors its page into the URL itself through
+              `useUrlState` — routing the same state through an href as well
+              would push two history entries for one click.
+            */
+            <NumberedPager
+              page={safePage + 1}
+              pageCount={pageCount}
+              countLine={showing}
+              navLabel={t("pagesOf", { title })}
+              labels={{
+                prev: t("prev"),
+                next: t("next"),
+                pageLabel: (n) => t("goToPage", { title, page: n }),
+              }}
+              onSelect={(n) => {
+                setPage(n - 1);
+                scrollRef.current?.scrollTo({ top: 0 });
+              }}
+            />
+          )}
+
+          {((pagerStyle === "compact" && pageCount > 1) || footnote) && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--divider)] px-4 py-1.5">
               {/* Prose, so it is set in the sans face at 11px with real leading,
                   not as a 10px mono label -- a sentence is not a column header. */}
               <span className="t-subhead text-[var(--text-faint)]">{footnote}</span>
-              {pageCount > 1 && (
+              {pagerStyle === "compact" && pageCount > 1 && (
                 <div className="flex items-center gap-1">
                   {/* 24px ghost buttons (Button `sm`); disabled dims to
                       opacity-35 and never hides -- Apple dims unavailable

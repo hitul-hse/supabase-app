@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NumberedPager } from "@/components/NumberedPager";
 
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge, type Tone } from "@/components/StatusBadge";
@@ -225,6 +226,15 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
   );
 }
 
+/**
+ * The queue's pager: the shared house pager (UI-CONVENTIONS rule 3) with this
+ * page's German labels and its two-list href arithmetic.
+ *
+ * The window/elide logic and the control geometry used to live here in full and
+ * again, character for character, in data-hygiene. It is `NumberedPager` now —
+ * this file was UI-CONVENTIONS' named reference implementation, so the promotion
+ * moved the reference rather than adding a competitor to it.
+ */
 function Pager({
   filter,
   currentPage,
@@ -242,52 +252,25 @@ function Pager({
   /** The OTHER list's current page, preserved while this one moves. */
   otherPage: number;
 }) {
-  /*
-   * Numbered links with an elided middle: first, last, and a window around the
-   * current page. Server-rendered <Link>s like every other control here, so
-   * back/forward and shareable URLs keep working.
-   */
-  const windowed: (number | "gap")[] = [];
-  for (let n = 1; n <= pageCount; n += 1) {
-    if (n === 1 || n === pageCount || Math.abs(n - currentPage) <= 1) windowed.push(n);
-    else if (windowed[windowed.length - 1] !== "gap") windowed.push("gap");
-  }
-  const pageLink = (n: number, label: string, disabled: boolean, current = false) =>
-    disabled ? (
-      <span key={`${label}-off`} className="border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] text-[var(--text-faint)] opacity-40">{label}</span>
-    ) : (
-      <Link
-        key={`${label}-${n}`}
-        href={hrefFor(filter, {
+  return (
+    <NumberedPager
+      page={currentPage}
+      pageCount={pageCount}
+      countLine={`SEITE ${currentPage} VON ${pageCount} · ${total} CASES`}
+      navLabel="Review-Cases Seiten"
+      labels={{
+        prev: "Zurück",
+        next: "Weiter",
+        pageLabel: (n) => `Review-Cases, Seite ${n}`,
+      }}
+      hrefFor={(n) =>
+        hrefFor(filter, {
           case: null,
           page: pageKey === "page" ? n : otherPage,
           dpage: pageKey === "dpage" ? n : otherPage,
-        })}
-        scroll={false}
-        aria-current={current ? "page" : undefined}
-        className={`border px-2.5 py-1 font-mono text-[10px] transition-colors ${current ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
-      >
-        {label}
-      </Link>
-    );
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--divider)] px-4 py-3">
-      <span className="font-mono text-[10px] text-[var(--text-faint)]">
-        SEITE {currentPage} VON {pageCount} · {total} CASES
-      </span>
-      <nav aria-label="Review-Cases Seiten" className="flex items-center gap-1.5">
-        {pageLink(currentPage - 1, "Zurück", currentPage === 1)}
-        {windowed.map((n, i) =>
-          n === "gap" ? (
-            <span key={`gap-${i}`} className="px-1 font-mono text-[10px] text-[var(--text-faint)]">…</span>
-          ) : (
-            pageLink(n, String(n), false, n === currentPage)
-          ),
-        )}
-        {pageLink(currentPage + 1, "Weiter", currentPage === pageCount)}
-      </nav>
-    </div>
+        })
+      }
+    />
   );
 }
 

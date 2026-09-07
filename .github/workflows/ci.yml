@@ -104,8 +104,19 @@ jobs:
       # permission gate), test:backfill and test:verify-query were in test:db
       # but missing from CI, so they never ran on a pull request. Adding a gate
       # to package.json is now enough -- there is no second list to forget.
+      # `npm run test:db` is a single && chain: the FIRST non-zero exit stops it, so one
+      # stale failure early on hides every gate after it and the log still ends in PASS
+      # lines. `npm run gates` runs the same list independently and classifies each gate on
+      # its RESULT line as well as its exit code (PR #52), so a gate that exits 0 having
+      # asserted nothing is red rather than green, and one that cannot reach a dependency
+      # here is NOT RUN rather than either. It also enforces the assertion baseline, so a
+      # gate that quietly evaluates fewer checks than last time is red.
+      #
+      # Until 2026-09-07 the runner printed all of that and then exited 0 regardless, and
+      # nothing called it. Both halves are fixed together: it now fails on red, and this is
+      # the caller.
       - name: Run schema, RLS and unit test gates
-        run: npm run test:db
+        run: npm run gates
 
   # ─── 5. Profile gates ──────────────────────────────────────────────────────
   # The six check:* gates the user-profile feature added. Before this job

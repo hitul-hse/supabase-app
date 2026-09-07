@@ -44,7 +44,7 @@
 // exempt: they print an explanation rather than a verdict and have no pass or
 // fail state to count. check-gates-runnable-on-ci.mjs verifies that exemption
 // is still true rather than taking it on trust.
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
 
@@ -55,8 +55,20 @@ const pkg = JSON.parse(readFileSync(`${REPO_ROOT}/package.json`, "utf8").replace
 const chain = pkg.scripts["test:db"];
 
 // The chain is "npm run a && npm run b && ..."
-const names = [...chain.matchAll(/npm run ([\w:-]+)/g)].map((m) => m[1]);
-console.log(`test:db chains ${names.length} gates; running each independently\n`);
+const allNames = [...chain.matchAll(/npm run ([\w:-]+)/g)].map((m) => m[1]);
+// `--only <substring>` narrows the run to matching gate names. It exists so the baseline
+// guard below can be exercised on one fast gate instead of a ten-minute suite -- a guard
+// nobody can afford to test is a guard nobody has tested.
+const onlyAt = process.argv.indexOf("--only");
+const only = onlyAt > -1 ? process.argv[onlyAt + 1] : null;
+const names = only ? allNames.filter((n) => n.includes(only)) : allNames;
+if (only && names.length === 0) {
+  console.error(`--only ${only} matched none of the ${allNames.length} gates in test:db`);
+  process.exit(2);
+}
+console.log(only
+  ? `test:db chains ${allNames.length} gates; --only ${only} selects ${names.length}\n`
+  : `test:db chains ${names.length} gates; running each independently\n`);
 
 const run = (name) => new Promise((resolve) => {
   const t0 = Date.now();
@@ -107,6 +119,57 @@ const diagnostics = existsSync(REGISTRY)
   : [];
 const isDiagnostic = (name) => diagnostics.some((base) => (pkg.scripts[name] ?? "").includes(base));
 
+/*
+ * THE ASSERTION BASELINE (2026-09-07)
+ * -----------------------------------
+ * Classifying on the RESULT line catches a gate that asserts NOTHING. It does not catch a
+ * gate that quietly asserts LESS: one whose forty checks become six because a selector
+ * stopped matching, a loop lost its input, or an early return skipped the rest. That gate
+ * stays green and stays silent, which is this project's most expensive recurring bug wearing
+ * a smaller hat.
+ *
+ * So the count is remembered. scripts/gates/assertion-baseline.json holds the pass+fail total
+ * each gate last evaluated; a gate that RAN and now evaluates fewer is red, and says by how
+ * much. A gate that did not run is never compared, because zero assertions from a gate that
+ * could not start is not a regression -- it is the NOT RUN state, already handled above.
+ *
+ * When a drop is deliberate, `npm run gates:baseline` rewrites the file. That is the whole
+ * escape hatch, and it is deliberately a separate, explicit command: the failure mode this
+ * guards against is silence, and a baseline that updated itself on every run would restore it.
+ */
+const BASELINE = `${REPO_ROOT}/scripts/gates/assertion-baseline.json`;
+const baselineFile = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, "utf8")) : {};
+const baseline = baselineFile.gates ?? {};
+/*
+ * A few gates legitimately evaluate a different number of assertions from run to run: a
+ * browser gate measures however many routes it reached, so a slow production or a dropped
+ * interface changes the count without anything being wrong with the code. Those are named
+ * in the file with the reason, never silently omitted, and the runner prints which gates it
+ * did not hold to a count. Silence about an exemption is the bug this file exists to prevent.
+ */
+const unstable = baselineFile.unstable ?? {};
+const UPDATE_BASELINE = process.argv.includes("--update-baseline");
+/*
+ * THE BASELINE IS ENVIRONMENT-SPECIFIC, AND ONLY ONE ENVIRONMENT IS RECORDED.
+ *
+ * The counts are written on the rig, where live credentials exist and every gate can reach
+ * the database and the deployed site. CI has no credentials on purpose, and thirteen gates
+ * quietly evaluate fewer assertions there -- test:time-write-path 44 against 50,
+ * check:offboarding 53 against 60 -- while still reporting notrun=0. Comparing those
+ * numbers across environments produced thirteen red gates on the first CI run of this
+ * runner, every one of them a false alarm, which is precisely the crying-wolf failure this
+ * suite has already paid for once.
+ *
+ * So the count is enforced where it was recorded, and CI is told why it is not enforcing.
+ * CI still gets the honest half: exit codes and RESULT lines, red for a gate that asserts
+ * nothing, NOT RUN for a gate that cannot reach its dependency.
+ *
+ * Two follow-ups this deliberately does not do: record a second set of counts for the
+ * credential-free environment, and fix the thirteen gates that drop assertions in CI
+ * without declaring them not-run. The second is the real bug; the first is a workaround.
+ */
+const ENFORCE_BASELINE = !process.env.CI;
+
 /** GREEN | RED | NOTRUN, plus why, from the exit code and the RESULT line. */
 function classify(r) {
   if (r.code === 3) return { state: "NOTRUN", why: "exit 3 — did not run" };
@@ -123,6 +186,14 @@ const results = [];
 for (const n of names) {
   const r = await run(n);
   r.verdict = classify(r);
+  // The baseline only speaks about gates that ran: NOT RUN already means "proved nothing".
+  if (r.verdict.state !== "NOTRUN" && r.result) {
+    const asserted = r.result.pass + r.result.fail;
+    const was = ENFORCE_BASELINE && !unstable[n] ? baseline[n] : undefined;
+    if (typeof was === "number" && asserted < was) {
+      r.verdict = { state: "RED", why: `evaluated ${asserted} assertions where the baseline is ${was} — ${was - asserted} fewer. If that is intended, run: npm run gates:baseline` };
+    }
+  }
   results.push(r);
   const mark = { GREEN: "pass", RED: "RED ", NOTRUN: "n/r " }[r.verdict.state];
   const counts = r.result ? `  ${r.result.pass}/${r.result.pass + r.result.fail} asserted` : "";
@@ -148,4 +219,43 @@ const idx = names.indexOf(broken[0]?.name);
 if (idx >= 0) {
   console.log(`\nFirst red gate is #${idx + 1} of ${names.length}.`);
   console.log(`In the real chain that hides the ${names.length - idx - 1} gates after it.`);
+}
+
+if (UPDATE_BASELINE) {
+  if (only) {
+    console.error("\nRefusing to write the baseline from a --only run: it would erase every gate not selected.");
+    process.exitCode = 2;
+  } else {
+  const gates = {};
+  for (const r of results) if (r.verdict.state !== "NOTRUN" && r.result && !unstable[r.name]) gates[r.name] = r.result.pass + r.result.fail;
+  const before = Object.keys(baseline).length;
+  writeFileSync(BASELINE, `${JSON.stringify({
+    _comment: "Assertions each gate last evaluated (pass+fail). run-all-gates.mjs turns a gate RED if it runs and evaluates fewer than this. Rewrite deliberately with `npm run gates:baseline`, never automatically.",
+    updated: new Date().toISOString().slice(0, 10),
+    unstable,
+    gates,
+  }, null, 2)}\n`);
+  console.log(`\nBaseline written: ${Object.keys(gates).length} gates (was ${before}). Commit scripts/gates/assertion-baseline.json with the change that justified it.`);
+  process.exitCode = 0;
+  }
+} else {
+  /*
+   * The runner that exists to stop silence reading as success exited 0 with six gates red,
+   * every day, until 2026-09-07. Nothing called it, so nothing noticed. It now reports its
+   * own verdict the way it demands its gates do: red gates fail, NOT RUN does not -- an
+   * unconfigured environment is a fact about the environment, and failing on it is how a
+   * red suite gets ignored.
+   */
+  if (!ENFORCE_BASELINE) {
+    console.log("\nAssertion baseline NOT enforced here: it is recorded on a machine with live\ncredentials, and this environment has none, so a lower count is expected rather than a\nregression. Exit codes and RESULT lines are still enforced.");
+  }
+  const exempt = Object.keys(unstable).filter((n) => names.includes(n));
+  if (exempt.length) {
+    console.log(`\nNot held to an assertion count (${exempt.length}):`);
+    for (const n of exempt) console.log(`     ${n}  ${unstable[n]}`);
+  }
+  process.exitCode = broken.length > 0 ? 1 : 0;
+  console.log(broken.length
+    ? `\nVERDICT: FAIL — ${broken.length} gate(s) red${notrun.length ? `, ${notrun.length} not run` : ""}.`
+    : `\nVERDICT: PASS — no gate is red${notrun.length ? `, ${notrun.length} not run and counted as proving nothing` : ""}.`);
 }

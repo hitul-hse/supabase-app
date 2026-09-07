@@ -203,7 +203,10 @@ stops it and hides every gate after it, which is why CI no longer calls it.
 
 It also enforces **`scripts/gates/assertion-baseline.json`** — how many
 assertions each gate last evaluated. A gate that runs and evaluates fewer than
-its baseline is red and says by how much. That catches the failure the RESULT
+its baseline is red and says by how much. The counts are recorded on a machine
+with live credentials, so they are **not** compared in CI, which has none and
+where thirteen gates legitimately evaluate fewer; CI says so rather than
+comparing anyway. That catches the failure the RESULT
 line cannot: forty checks quietly becoming six. When a drop is deliberate, run
 `npm run gates:baseline` and commit the file **in the same change that justified
 it**; never as a tidy-up. `--only <substring>` narrows a run to matching gates,

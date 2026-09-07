@@ -149,6 +149,26 @@ const baseline = baselineFile.gates ?? {};
  */
 const unstable = baselineFile.unstable ?? {};
 const UPDATE_BASELINE = process.argv.includes("--update-baseline");
+/*
+ * THE BASELINE IS ENVIRONMENT-SPECIFIC, AND ONLY ONE ENVIRONMENT IS RECORDED.
+ *
+ * The counts are written on the rig, where live credentials exist and every gate can reach
+ * the database and the deployed site. CI has no credentials on purpose, and thirteen gates
+ * quietly evaluate fewer assertions there -- test:time-write-path 44 against 50,
+ * check:offboarding 53 against 60 -- while still reporting notrun=0. Comparing those
+ * numbers across environments produced thirteen red gates on the first CI run of this
+ * runner, every one of them a false alarm, which is precisely the crying-wolf failure this
+ * suite has already paid for once.
+ *
+ * So the count is enforced where it was recorded, and CI is told why it is not enforcing.
+ * CI still gets the honest half: exit codes and RESULT lines, red for a gate that asserts
+ * nothing, NOT RUN for a gate that cannot reach its dependency.
+ *
+ * Two follow-ups this deliberately does not do: record a second set of counts for the
+ * credential-free environment, and fix the thirteen gates that drop assertions in CI
+ * without declaring them not-run. The second is the real bug; the first is a workaround.
+ */
+const ENFORCE_BASELINE = !process.env.CI;
 
 /** GREEN | RED | NOTRUN, plus why, from the exit code and the RESULT line. */
 function classify(r) {
@@ -169,7 +189,7 @@ for (const n of names) {
   // The baseline only speaks about gates that ran: NOT RUN already means "proved nothing".
   if (r.verdict.state !== "NOTRUN" && r.result) {
     const asserted = r.result.pass + r.result.fail;
-    const was = unstable[n] ? undefined : baseline[n];
+    const was = ENFORCE_BASELINE && !unstable[n] ? baseline[n] : undefined;
     if (typeof was === "number" && asserted < was) {
       r.verdict = { state: "RED", why: `evaluated ${asserted} assertions where the baseline is ${was} — ${was - asserted} fewer. If that is intended, run: npm run gates:baseline` };
     }
@@ -226,6 +246,9 @@ if (UPDATE_BASELINE) {
    * unconfigured environment is a fact about the environment, and failing on it is how a
    * red suite gets ignored.
    */
+  if (!ENFORCE_BASELINE) {
+    console.log("\nAssertion baseline NOT enforced here: it is recorded on a machine with live\ncredentials, and this environment has none, so a lower count is expected rather than a\nregression. Exit codes and RESULT lines are still enforced.");
+  }
   const exempt = Object.keys(unstable).filter((n) => names.includes(n));
   if (exempt.length) {
     console.log(`\nNot held to an assertion count (${exempt.length}):`);

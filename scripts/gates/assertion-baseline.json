@@ -1,5 +1,5 @@
 {
-  "_comment": "Assertions each gate last evaluated (pass+fail). run-all-gates.mjs turns a gate RED if it runs and evaluates fewer than this. Rewrite deliberately with `npm run gates:baseline`, never automatically.",
+  "_comment": "Assertions each gate last evaluated (pass+fail), recorded on a machine WITH live credentials. run-all-gates.mjs turns a gate RED if it runs there and evaluates fewer. It does not compare in CI, where thirteen gates legitimately evaluate fewer because their dependencies are absent. Rewrite deliberately with `npm run gates:baseline`, in the same change that justified the drop, never as a tidy-up.",
   "updated": "2026-09-07",
   "unstable": {
     "check:table-scroll-budget": "measures however many production routes it reached; observed 78, 42 and 0 assertions in one evening as the rig's network moved"

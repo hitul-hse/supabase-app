@@ -480,15 +480,24 @@ module.exports = {
   // Untouched project, which HAS a 50h budget) is correct and must survive —
   // asserting "no 0% anywhere" would have demanded the wrong behaviour.
   //
-  // Doubled because the ledger renders BOTH layouts into the markup — a mobile
-  // card list and a desktop grid, one hidden by CSS at any viewport. Counting
-  // raw occurrences without accounting for that reads as a bug in the page when
-  // it is really a bug in the assertion.
+  // SIX, not four. Two rows × three cells that state the same absence:
+  //   desktop BUDGET  n/a   (was "—" until the row was made to spell one absence
+  //                         one way: BUDGET said "—", BURN said "n/a" and STATUS
+  //                         said "No budget" — three spellings of one fact in
+  //                         three adjacent cells)
+  //   desktop BURN    n/a
+  //   mobile  burn    n/a   (the mobile card has no BUDGET cell; it writes the
+  //                         word "No budget" in its figure row instead)
+  // The ledger renders BOTH layouts into the markup — a mobile card list and a
+  // desktop grid, one hidden by CSS at any viewport. Counting raw occurrences
+  // without accounting for that reads as a bug in the page when it is really a
+  // bug in the assertion. RETARGETED, not relaxed: still an exact count, and
+  // still the same property (a missing budget never renders a plausible 0%).
   const naCount = (tableHtml.match(/n\/a/g) ?? []).length;
   check(
     "a project without a budget renders 'n/a', not '0%'",
-    naCount === 4,
-    `${naCount} occurrences across the mobile and desktop layouts (2 rows × 2)`,
+    naCount === 6,
+    `${naCount} occurrences: 2 unbudgeted rows × (desktop BUDGET + desktop BURN + mobile burn)`,
   );
   check(
     "a genuine 0% burn is still shown as 0%, not hidden as n/a",

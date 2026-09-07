@@ -61,9 +61,22 @@ try {
   const skip = page.locator('button:has-text("Skip tour")');
   if (await skip.count()) { await skip.first().click().catch(() => {}); await page.waitForTimeout(400); }
 
-  // 1. The dead-space bug, by geometry: the figure's share of the hero card.
+  /*
+   * 1. The dead-space bug, by geometry: the figure's share of the card it
+   *    lives in.
+   *
+   *    Selected by `[data-chart="billable-share"]`, the CHART's own name.
+   *    This used to say `[data-card="hero"]`, which worked only for as long as
+   *    the billable-share chart happened to be the page's hero-toned card.
+   *    When the Overview grew a hero text band the tone moved there — one hero
+   *    per page — and this gate started measuring a 105px text tile with no
+   *    SVG in it, failing three assertions that were all still true of the
+   *    chart. RETARGETED, not relaxed: the 45% floor and the focusable-points
+   *    check are unchanged, and against the real card the figure measures 412
+   *    of 544px (76%) with 12 named points.
+   */
   const hero = await page.evaluate(() => {
-    const card = [...document.querySelectorAll('[data-card="hero"]')][0];
+    const card = [...document.querySelectorAll('[data-chart="billable-share"]')][0];
     if (!card) return null;
     const svg = card.querySelector("svg");
     if (!svg) return { card: card.getBoundingClientRect().height, svg: 0 };
@@ -72,7 +85,7 @@ try {
       svg: Math.round(svg.getBoundingClientRect().height),
     };
   });
-  check("the hero card renders an SVG figure", hero !== null && hero.svg > 0, JSON.stringify(hero));
+  check("the billable-share card renders an SVG figure", hero !== null && hero.svg > 0, JSON.stringify(hero));
   check(
     "the figure fills the card instead of leaving dead space (>=45% of card height)",
     hero !== null && hero.svg / hero.card >= 0.45,
@@ -96,7 +109,7 @@ try {
   check("the gauge states its basis", /OF A 40H WEEK/i.test(bodyText));
 
   // 4. Keyboard reachability: focus a chart point and read the aria-label.
-  const point = page.locator('[data-card="hero"] button[aria-label*="billable"]').first();
+  const point = page.locator('[data-chart="billable-share"] button[aria-label*="billable"]').first();
   check("chart points are focusable buttons with real names", (await point.count()) > 0,
     await point.getAttribute("aria-label").catch(() => "none"));
 

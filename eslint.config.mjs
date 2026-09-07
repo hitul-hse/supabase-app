@@ -44,6 +44,22 @@ const eslintConfig = defineConfig([
     // the three entries above did not cover it and all 152 warnings came
     // straight back the moment the mirror was created.
     ".v3code/**",
+    // And a third time, via the agent worktrees. Every `git worktree` an agent
+    // session opens lands under .claude/worktrees/ as a REAL checkout, each
+    // carrying its own copy of .claude/skills, .agents/skills, .github/skills
+    // and .v3code -- so the four entries above, which anchor at the repo root,
+    // miss all of them. Measured on 2026-09-07 with 25 worktrees present:
+    // `npm run lint` reported 77,782 problems (5,826 errors) across 3,523
+    // files, of which 3,513 were worktree copies. Ten files in the real tree
+    // had anything to say, and none of them an error. The run took over twenty
+    // minutes, emitted 14.6 MB, and exited 1 -- so the repo's own lint command
+    // was red on this machine for code that is not the app, while CI stayed
+    // green because a fresh checkout has no worktrees. That is the failure the
+    // .next-* and tmp-* entries above were written to prevent, arriving through
+    // a directory they do not cover: lint red for a file that is not part of
+    // the app trains you to ignore the output. Globbed, not listed, for the
+    // same reason .next-* is.
+    ".claude/worktrees/**",
   ]),
   // Plain Node CommonJS scripts (CI checks, etc.) — not app source, so the
   // app's ESM-only import rule doesn't apply.

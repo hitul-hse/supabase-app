@@ -190,6 +190,7 @@ const chainFileSet = new Set(chainFiles(["test:db"]));
 const noResult = [];
 const skipsWithExitZero = [];
 const chainOnlyOutsideChain = [];
+const bareNotRunInsideChain = [];
 const diagnosticProblems = [];
 const fakeDiagnostics = [];
 
@@ -244,6 +245,14 @@ for (const f of gates) {
   // call-site regex, and the one thing this must not be is evadable by
   // renaming. Nothing can be called that was not first imported.
   if (bound.includes("notRunInChain") && !chainFileSet.has(f)) chainOnlyOutsideChain.push(f);
+
+  /*
+   * The mirror case, and the more expensive one. notRun() exits 3. Inside the
+   * test:db && chain that stops npm at this gate and silences every gate after
+   * it -- the exact failure notRunInChain() exists to avoid. Matched on the
+   * import for the same reason as above: only what is imported can be called.
+   */
+  if (bound.includes("notRun") && chainFileSet.has(f)) bareNotRunInsideChain.push(f);
 }
 
 for (const [file, d] of diagnostics) {
@@ -256,6 +265,7 @@ console.log(`\nresult protocol: ${gates.length - diagnostics.size} gate(s) must 
 record(noResult.length === 0);
 record(skipsWithExitZero.length === 0);
 record(chainOnlyOutsideChain.length === 0);
+record(bareNotRunInsideChain.length === 0);
 record(fakeDiagnostics.length === 0);
 record(diagnosticProblems.length === 0);
 if (noResult.length) {
@@ -276,6 +286,13 @@ if (chainOnlyOutsideChain.length) {
   console.log("\nThat helper exists only because && would stop npm mid-chain. Outside the");
   console.log("chain nothing is hidden by exiting 3, so use notRun().");
 }
+if (bareNotRunInsideChain.length) {
+  console.log(`\nnotRun() INSIDE THE test:db CHAIN (${bareNotRunInsideChain.length}):`);
+  for (const f of bareNotRunInsideChain) console.log(`  ${f}`);
+  console.log("\nnotRun() exits 3. Inside the test:db && chain that stops npm at this gate and");
+  console.log("silences every gate after it. Use notRunInChain() instead -- read its header in");
+  console.log("scripts/lib/gate-result.mjs first.");
+}
 if (fakeDiagnostics.length) {
   console.log(`\nREGISTERED AS A DIAGNOSTIC BUT EMITS A VERDICT (${fakeDiagnostics.length}):`);
   for (const f of fakeDiagnostics) console.log(`  ${f}`);
@@ -286,11 +303,11 @@ if (diagnosticProblems.length) {
   for (const p of diagnosticProblems) console.log(`  ${p}`);
 }
 if (!noResult.length && !skipsWithExitZero.length && !chainOnlyOutsideChain.length
-  && !fakeDiagnostics.length && !diagnosticProblems.length) {
+  && !bareNotRunInsideChain.length && !fakeDiagnostics.length && !diagnosticProblems.length) {
   console.log("every gate emits a RESULT line from real counts, and none exits 0 on a skip.");
 }
 
 const protocolProblems = noResult.length + skipsWithExitZero.length
-  + chainOnlyOutsideChain.length + fakeDiagnostics.length + diagnosticProblems.length;
+  + chainOnlyOutsideChain.length + bareNotRunInsideChain.length + fakeDiagnostics.length + diagnosticProblems.length;
 
 process.exit(unsafe.length || orphans.length || registryProblems.length || protocolProblems ? 1 : 0);

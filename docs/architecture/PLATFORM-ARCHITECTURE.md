@@ -133,7 +133,18 @@ choice, it just costs Hub the ability to join, and we'd need to design around th
 
 ## 3. Sign-in: one identity, several ways to prove it
 
-You have a real constraint here that shapes the design: **Asana seats are Microsoft accounts,
+> **Superseded in part on 2026-09-08.** Microsoft sign-in was removed from the product
+> (board ticket 37). Google and email/password are what the app offers. This section is kept
+> because its reasoning about identity linking is still correct and still matters the moment a
+> second provider is added.
+>
+> **One consequence worth naming rather than burying:** the constraint below — that Asana seats
+> are Microsoft accounts — was the original reason for offering Microsoft at all. Colleagues
+> whose only work identity is Microsoft now sign in by email and password instead. That is a
+> deliberate trade, not an oversight, but it is the thing to revisit if those colleagues start
+> asking why sign-in got harder.
+
+You had a real constraint here that shaped the design: **Asana seats are Microsoft accounts,
 TrackingTime is Google.** So the same colleague may arrive with either, and they must land on the same
 account rather than creating two.
 
@@ -305,9 +316,13 @@ Deliberately ordered so that nothing is built on an unverified assumption, and s
 - Introduce the `platform` schema; move people/roles/permissions into it, leaving compatibility views so
   nothing breaks mid-move.
 - Add Google + Microsoft OAuth with a domain allow-list and pending-provisioning.
+  *(Microsoft was removed on 2026-09-08 — board ticket 37. Google only.)*
 - Stand up the bridge portal shell with permission-driven tiles.
 - **Exit test:** a colleague signs in with Microsoft, then Google, and lands on **one** account — proven
   by a single `auth.users` row with two identities.
+  **This test is no longer performable as written**, because the app offers one provider. It is
+  reported as NOT PERFORMABLE by `check-identity-linking.mjs` rather than passing vacuously. To
+  restore it, the criterion needs rewriting around a provider we actually ship.
 
 **Phase 1 — Discovery.** The moment keys arrive. Run the harness against all three APIs, produce field
 inventories, and only then write the module schemas. Days, not weeks.

@@ -36,9 +36,17 @@ if (!url || !anon) {
 console.log(`live project: ${url}\n`);
 
 let notReady = 0;
+/**
+ * `ok` means "this expectation holds", which since 2026-09-08 is not the same as
+ * "this provider is switched on": one of the expectations below is that a provider
+ * is switched OFF. The label therefore says OK / WRONG rather than ENABLED / NOT
+ * SET, because a line reading "ENABLED — Microsoft is not accepted" is a gate
+ * telling you the opposite of what it checked, and that is how a passing run gets
+ * misread as a failing one.
+ */
 const report = (ok, name, detail = "") => {
   record(ok);
-  console.log(`${ok ? "ENABLED  " : "NOT SET  "} ${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "OK     " : "WRONG  "} ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) notReady++;
 };
 
@@ -73,20 +81,42 @@ async function probe(provider) {
   return { ok: false, detail: `${res.status}: ${body}` };
 }
 
-for (const [provider, label] of [
-  ["google", "Google"],
-  ["azure", "Microsoft (azure)"],
-]) {
+for (const [provider, label] of [["google", "Google"]]) {
   const { ok, detail } = await probe(provider);
-  report(ok, label, detail);
+  report(ok, `${label} is enabled`, detail);
+}
+
+/**
+ * Microsoft is REMOVED FROM THE PRODUCT, so this assertion is inverted rather than
+ * deleted (2026-09-08, hitul's decision; board ticket 37).
+ *
+ * Deleting the check would have been the easy move and the wrong one. Until today
+ * this gate failed every night because azure was not enabled, and the temptation on
+ * a removal is to drop the line that was red. But the interesting failure now runs
+ * the other way: if somebody enables the azure provider in the Supabase project,
+ * accounts can be created through a path the application no longer offers, reviews
+ * or explains. That is worth catching, and nothing else catches it.
+ *
+ * So the question changes from "is Microsoft enabled?" to "is Microsoft still off?",
+ * and the gate keeps a real assertion instead of one fewer.
+ */
+{
+  const { ok, detail } = await probe("azure");
+  report(
+    !ok,
+    "Microsoft (azure) is not accepted by the project",
+    ok
+      ? `ENABLED in Supabase (${detail}), but the app removed Microsoft sign-in — disable it in Authentication -> Providers`
+      : "disabled, as the product expects",
+  );
 }
 
 if (notReady > 0) {
   console.log(
     "\n  FIX: enable the provider in Supabase → Authentication → Providers, after\n" +
       "       creating its OAuth client. Full steps, including the exact redirect\n" +
-      "       URIs each console needs:\n" +
-      "         docs/architecture/SSO-GOOGLE-MICROSOFT.md",
+      "       URIs the Google console needs:\n" +
+      "         docs/architecture/SSO-GOOGLE-MICROSOFT.md (Microsoft half now historical)",
   );
 }
 
@@ -118,7 +148,7 @@ if (!siteUrl || /localhost|127\.0\.0\.1/.test(siteUrl)) {
 
 console.log(
   notReady === 0
-    ? "\nSSO PROVIDERS: both enabled on the live project"
-    : `\nSSO PROVIDERS: ${notReady} not enabled yet — the buttons will show an error until then`,
+    ? "\nSSO PROVIDERS: Google is enabled and the removed Microsoft provider is not accepted"
+    : `\nSSO PROVIDERS: ${notReady} expectation(s) not met — see the WRONG line(s) above`,
 );
 process.exit(notReady === 0 ? 0 : 1);

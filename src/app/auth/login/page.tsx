@@ -168,10 +168,10 @@ function LoginForm() {
 
       {/* Single sign-on first: most staff already carry a Google session, so the
           password form below is the fallback rather than the default path.
-          Whether Microsoft appears here too is decided inside OAuthButtons by a
-          flag, so this page deliberately does not name the providers. Errors
-          surface through the same notice as password failures, so there is only
-          one place to look. */}
+          Google is the only provider now; Microsoft was removed on 2026-09-08.
+          This page still does not name providers, so adding or dropping one stays
+          a change inside OAuthButtons. Errors surface through the same notice as
+          password failures, so there is only one place to look. */}
       <div>
         <OAuthButtons
           redirectTo={redirectTo}

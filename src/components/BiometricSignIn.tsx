@@ -19,7 +19,7 @@ import { buttonClass } from "@/components/ui/Button";
  *      local stack that is not up, a bad URL) the browser logs the failure to
  *      the console before our .catch() ever sees it, so a misconfigured
  *      environment makes the sign-in page look broken while behaving fine.
- *      Same build-time-flag shape as NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN; it
+ *      Same build-time-flag shape the removed Microsoft sign-in used; it
  *      is inlined at build time, so turning passkeys on is a flag flip in the
  *      Supabase dashboard AND a rebuild, not a dashboard flip alone.
  *   1. The browser HAS a platform authenticator. `isUserVerifyingPlatform

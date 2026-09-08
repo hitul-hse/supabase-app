@@ -1,5 +1,8 @@
 # Google and Microsoft sign-in
 
+> **Microsoft / Azure was removed on 2026-09-08** (board ticket 37). Google is the
+> only OAuth provider the app offers. Microsoft references below are historical.
+
 **Google sign-in works.** The redirect URI was registered in the Google Cloud
 console on 18 Aug 2026, and `npm run diagnose:oauth` section 5 now reports the
 Supabase callback as `ACCEPTED (registered)`. Verified end to end: clicking the

@@ -255,7 +255,7 @@ else if (googleUriRegistered === false) {
   console.log(`    > Authorised redirect URIs > add exactly: ${URL_BASE.replace(/\/$/, "")}/auth/v1/callback`);
   console.log("    Console-only; there is no API for this (see check:google-client-manageable).");
 }
-if (!ext.azure) console.log("  * Microsoft (azure) is NOT enabled -> enable it with an Azure app registration client id/secret.");
+if (ext.azure) console.log("  * Microsoft (azure) is ENABLED but the app removed Microsoft sign-in on 2026-09-08 -> disable it in Authentication -> Providers.");
 if (ext.google && ext.azure && googleUriRegistered !== false) {
   console.log("  * Both providers are enabled and nothing provider-side was detected as broken.");
 }

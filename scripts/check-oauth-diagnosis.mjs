@@ -128,22 +128,19 @@ try {
     check("a healthy provider reports ok:true", google.json?.ok === true, JSON.stringify(google.json));
   }
 
+  /**
+   * `azure` used to be probed here as the live example of a disabled provider.
+   * Microsoft was removed from the product on 2026-09-08 (board ticket 37) and the
+   * route no longer recognises it, so it now exercises the unknown-provider path
+   * instead -- which is the correct answer for a provider the app does not offer.
+   */
   const azure = await ask("azure");
   console.log(`\n  azure verdict: ${JSON.stringify(azure.json)}`);
-  if (azure.json?.ok === false) {
-    check(
-      "a disabled provider is reported as not enabled, not as a generic error",
-      azure.json.reason === "provider_not_enabled",
-      `reason = ${azure.json.reason}`,
-    );
-    check(
-      "the disabled-provider hint tells an administrator what to do",
-      /enable|switch/i.test(String(azure.json.hint)),
-      azure.json.hint ?? "(no hint)",
-    );
-  } else {
-    console.log("  (Microsoft currently reports OK -- it has been enabled.)");
-  }
+  check(
+    "the removed Microsoft provider is not probed as if it were still offered",
+    azure.json?.ok !== false || azure.json?.reason !== "provider_not_enabled",
+    `verdict = ${JSON.stringify(azure.json)} -- azure should be treated as unknown, not as a disabled provider we still ship`,
+  );
 
   // 4. Fails open on anything unclassifiable.
   const bogus = await ask("not-a-provider");
@@ -198,25 +195,24 @@ try {
      * This is the distinction worth holding onto. Google is fully configured and
      * refused only by one missing entry in the Google console, so hiding it would
      * leave a colleague wondering whether it ever existed -- explaining it in
-     * place is better. Microsoft is a different case: no Azure app registration
-     * exists, so it cannot succeed for anyone, and it is deliberately not offered
-     * (NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN). An unusable control is worse than an
-     * absent one; a temporarily-broken but real one is not.
+     * place is better. Microsoft was the opposite case and has now been removed
+     * from the product entirely (2026-09-08, board ticket 37): it could never
+     * succeed for anyone, so an unusable control was worse than an absent one.
+     * A temporarily-broken but real control is not the same thing.
      *
      * So the assertion is about Google specifically, not about button count.
      */
     const googleBtn = await page.getByRole("button", { name: /Continue with Google/i }).count();
     const msBtn = await page.getByRole("button", { name: /Continue with Microsoft/i }).count();
-    const microsoftExpected = process.env.NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN === "true";
     check(
       "the failing-but-configured Google button is still rendered, not hidden",
       googleBtn > 0,
       `google=${googleBtn} -- hiding it would leave a colleague wondering whether it ever existed; explaining it in place is better`,
     );
     check(
-      "Microsoft is offered only when it could actually work",
-      microsoftExpected ? msBtn > 0 : msBtn === 0,
-      `microsoft=${msBtn}, flag=${microsoftExpected} -- Azure has no app registration yet, so offering it would be a guaranteed dead end`,
+      "the removed Microsoft button is not rendered",
+      msBtn === 0,
+      `microsoft=${msBtn} -- Microsoft sign-in was removed from the product; offering it would be a guaranteed dead end`,
     );
 
     /**

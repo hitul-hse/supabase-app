@@ -1,5 +1,9 @@
 # Enable Google sign-in: step by step
 
+> **Part B (Microsoft / Azure) is obsolete.** Microsoft sign-in was removed from the
+> product on 2026-09-08 (board ticket 37). Do not perform the Azure steps; they are
+> kept only as a record of what the integration would have required.
+
 (and Microsoft later, if you want it)
 
 ## ✅ Part A is DONE — Google sign-in works

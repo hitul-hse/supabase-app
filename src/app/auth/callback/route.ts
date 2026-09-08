@@ -5,7 +5,7 @@ import { proxiedOrigin } from "@/utils/proxied-origin";
 
 /**
  * Landing point for every credential that arrives by redirect — email invites,
- * password resets, and OAuth (Google / Microsoft).
+ * password resets, and OAuth (Google).
  *
  * Supabase hands the credential over in one of three shapes depending on the
  * flow, so all of them are handled rather than betting on one and 404-ing the

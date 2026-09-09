@@ -40,13 +40,32 @@ export function InviteUserForm({ roles }: { roles: AppRoleRow[] }) {
           <label htmlFor="role_key" className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
             Role
           </label>
+          {/*
+            * defaultValue="" plus a disabled placeholder is what stops this form granting
+            * Executive by omission. getRoles() orders app_role by seniority DESCENDING, so
+            * without a placeholder the browser pre-selects the FIRST option — which is the
+            * most senior role there is. An invite submitted without touching this field
+            * granted every project, every budget and admin:users:write, with no confirmation
+            * step. The over-grant is silent (the colleague simply sees everything and says
+            * nothing); the under-grant is loud (they say "it's empty" within a minute). Only
+            * the dangerous mistake was quiet, and it was the default.
+            *
+            * `required` + value="" is what makes the choice mandatory: the browser refuses to
+            * submit until a real role is picked. Do not remove the placeholder without also
+            * reversing the sort order, and do not rely on the sort order alone — a future
+            * role with higher seniority would silently become the new default.
+            */}
           <select
             id="role_key"
             name="role_key"
             required
+            defaultValue=""
             disabled={isPending}
             className="w-full border border-[var(--border)] bg-[var(--page)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50"
           >
+            <option value="" disabled>
+              Choose a role…
+            </option>
             {roles.map((role) => (
               <option key={role.role_key} value={role.role_key}>
                 {role.display_name}

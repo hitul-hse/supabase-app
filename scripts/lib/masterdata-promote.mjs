@@ -105,17 +105,23 @@
  *                              ownership page multiplies contract hours by
  *                              share/100 per row);
  *   person, unresolved      -> nothing touched, reported;
- *   DOC / OTHER / empty     -> the sheet says no colleague holds the role, so
- *                              the masterdata rows of that role go from both
- *                              tables and, for the responsible, owner_person_id
- *                              becomes NULL and lead 'n/a'. DOC is the company
- *                              doctor and OTHER "someone else": both are a
- *                              statement, not a gap, and the August importers
- *                              wrote no row for either (import-masterdata-
- *                              projects.mjs resolved DOC to nobody), so on
- *                              production this is a no-op that keeps the three
- *                              encodings and project_masterdata.responsible_kind
- *                              telling one story.
+ *   DOC / OTHER / empty     -> the sheet names no colleague. The current
+ *                              holder is LEFT ALONE and reported, every run.
+ *                              Measured on production on 2026-09-10: 69 of the
+ *                              75 services the sheet marks DOC carry a named
+ *                              responsible from the August workbook (the
+ *                              coordinating consultant); clearing them would
+ *                              empty those services from people's My Work,
+ *                              which nobody decided. The 27 blank cells hold
+ *                              nothing today, and a blank is more often an
+ *                              omission than a statement. What the step does
+ *                              do is make the two role tables agree about the
+ *                              holder (a cover the August workbook wrote as a
+ *                              0/1 assignment only gets its role row), counted
+ *                              as encodings_repaired, so the live encodings
+ *                              gate has nothing to flag. Whether DOC should
+ *                              one day clear the role is hitul's call
+ *                              (HSEHU-63); the report gives him the list.
  *
  * logged_hours on a NEW responsible row follows the August convention
  * (import-masterdata-projects.mjs:312-317): the responsible's row carries the
@@ -187,15 +193,23 @@ export function sheetModifiedOf(batch) {
  * blocking flag; every other review status is a decision that has not been
  * taken yet (or was taken against the row) and is honoured as such.
  */
-export function promotability(record) {
+export function promotability(record, { knownCustomers = null } = {}) {
   const payload = payloadOf(record);
   const flags = Array.isArray(payload.flags) ? payload.flags : [];
+  const customerNumber = String(payload.values?.customer_number ?? "");
   const reasons = [];
   if (record.validation_status !== "valid") reasons.push("INVALID");
   if (record.review_status === "approved") {
     // reviewer's call: flags are information now
   } else if (record.review_status === "unreviewed") {
-    for (const f of flags) if (BLOCKING_FLAGS.has(f)) reasons.push(f);
+    for (const f of flags) {
+      // The staging verdict is as old as the batch. A customer the warehouse
+      // did not know then may have been created since -- by promoteCustomers
+      // in this very transaction -- so that flag is re-judged against the
+      // customers that exist NOW, never trusted stale.
+      if (f === "CUSTOMER_NOT_IN_WAREHOUSE" && knownCustomers?.has(customerNumber)) continue;
+      if (BLOCKING_FLAGS.has(f)) reasons.push(f);
+    }
   } else {
     reasons.push(String(record.review_status ?? "NO_REVIEW_STATUS").toUpperCase());
   }
@@ -253,6 +267,9 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
   // that has since been removed must not abort the whole batch on a foreign
   // key; it is reported per role instead.
   const people = new Set((await rows(`select id from public.people`)).map((r) => r.id));
+  // The customers the warehouse knows NOW (promoteCustomers may have added
+  // some in this transaction): the live source for the legal-entity link.
+  const lexware = new Map((await rows(`select customer_number, legal_entity_id from crm.lexware_customer`)).map((r) => [String(r.customer_number).trim(), r.legal_entity_id]));
 
   const counts = {
     promotable: 0,
@@ -269,7 +286,8 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
     responsibility_rows: 0,        // roles enforced to a resolved person, in every encoding
     responsibility_changed: 0,     // ...of which the holder changed from one person to another
     responsibility_cleared: 0,     // roles the sheet gives to nobody (DOC / OTHER / empty) whose rows were removed
-    responsibility_left_alone: 0,  // roles naming a person the staging step could not resolve
+    responsibility_left_alone: 0,
+    encodings_repaired: 0,  // roles naming a person the staging step could not resolve
     responsibility_held_elsewhere: 0, // roles owned by another process (source <> 'masterdata'); untouched
     assignment_rows: 0,            // assignment rows enforced (kept in place or inserted)
     assignment_rows_inserted: 0,
@@ -295,7 +313,7 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
   for (const record of records) {
     const v = payloadOf(record).values ?? {};
     /* ------------------------------------------------------ b. promotable */
-    const verdict = promotability(record);
+    const verdict = promotability(record, { knownCustomers: new Set(lexware.keys()) });
     if (!verdict.promotable) { skip(record, v, verdict.reasons); continue; }
 
     /* ------------------------------------------------ c. exact-key resolution */
@@ -319,8 +337,11 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
     } else if (v.order_resolution === "new_key" || v.order_resolution === "new") {
       const hit = await byNewKey();
       if (hit?.id) { projectId = hit.id; how = "new_key"; } else if (v.order_resolution === "new") {
-        if (record.review_status !== "approved") reasons.push("NEW_SERVICE_NOT_APPROVED");
-        else how = "insert";
+        // A clean new service goes live without a reviewer (hitul, 2026-09-10:
+        // "new data should be live too"). Whatever could make it unfit --
+        // duplicate key, missing language, unknown customer -- already made
+        // the record non-promotable above; newness itself is not a defect.
+        how = "insert";
       } else reasons.push("NEW_KEY_PROJECT_MISSING");
     } else if (v.order_resolution === "unknown") {
       reasons.push("UNKNOWN_OLD_KEY");
@@ -351,7 +372,7 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
     if (taken) { skip(record, v, ["MASTERDATA_KEY_CONFLICT"]); continue; }
 
     counts.promotable += 1;
-    const candidate = record.candidate_legal_entity_id ?? null;
+    const candidate = record.candidate_legal_entity_id ?? lexware.get(String(v.customer_number ?? "")) ?? null;
     const responsibleResolved = v.responsible_kind === "person" && v.responsible_person_id && people.has(v.responsible_person_id);
     const replacementResolved = v.replacement_kind === "person" && v.replacement_person_id && people.has(v.replacement_person_id);
     const dueText = v.contract_end ? String(v.contract_end) : null;
@@ -591,28 +612,57 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
         continue;
       }
 
-      /* -- DOC / OTHER / empty: no colleague holds the role ---------------- */
+      /* -- DOC / OTHER / empty: the sheet names no colleague ---------------- */
+      // Left alone, on purpose. Measured on production on 2026-09-10: 69 of
+      // the 75 services the sheet marks DOC carry a named responsible from the
+      // August workbook -- the coordinating consultant -- and clearing them
+      // would empty those services from people's My Work overnight, which
+      // nobody asked for; the 27 blank cells hold nothing today, and a blank is
+      // more often an omission than a statement. So the holder stays and the
+      // report says so every run. What this step DOES do is make the two role
+      // tables agree about that holder (the August workbook wrote some covers
+      // as a 0/1 assignment only), so the live encodings gate has nothing to
+      // flag and no gap project is left half-described.
       if (!resolved) {
-        const goneRoles = await rows(
-          `delete from public.project_responsibility where project_id = $1 and role = $2 and source = $3 returning person_id`,
-          [projectId, role, RESPONSIBILITY_SOURCE],
-        );
-        const goneAssignments = await rows(
+        const holders = await rows(
           isResponsible
-            ? `delete from public.person_assignments where project_id = $1 and share_percent = 100 returning person_id`
-            : `delete from public.person_assignments where project_id = $1 and share_percent = 0 and sort_order = 1 returning person_id`,
+            ? `select person_id from public.person_assignments where project_id = $1 and share_percent = 100 and sort_order = 0
+               union select person_id from public.project_responsibility where project_id = $1 and role = 'responsible'`
+            : `select person_id from public.person_assignments where project_id = $1 and share_percent = 0 and sort_order = 1
+               union select person_id from public.project_responsibility where project_id = $1 and role = 'replacement'`,
           [projectId],
         );
-        let ownerCleared = false;
-        if (isResponsible && project?.owner_person_id) {
-          await db.query(`update public.projects set owner_person_id = null, lead = 'n/a' where id = $1`, [projectId]);
-          ownerCleared = true;
+        let repaired = 0;
+        for (const h of holders) {
+          const r = await rows(
+            `insert into public.project_responsibility (project_id, person_id, role, source, order_no)
+             values ($1, $2, $3, $4, $1) on conflict (project_id, person_id, role) do nothing returning person_id`,
+            [projectId, h.person_id, role, RESPONSIBILITY_SOURCE],
+          );
+          const a = await rows(
+            `insert into public.person_assignments (person_id, project_id, project_name, logged_hours, tasks_count, share_percent, sort_order)
+             select $1, $2, $3, coalesce($4::numeric, 0), 0, $5::numeric, $6::integer
+             where not exists (select 1 from public.person_assignments
+                                where project_id = $2 and person_id = $1 and share_percent = $5::numeric and sort_order = $6::integer)
+             returning id`,
+            [h.person_id, projectId, projectName, isResponsible ? project?.logged_hours ?? null : 0, share, sort],
+          );
+          repaired += r.length + a.length;
         }
-        if (goneRoles.length || goneAssignments.length || ownerCleared) {
-          counts.responsibility_cleared += 1;
-          const who = [...new Set([...goneRoles, ...goneAssignments].map((r) => r.person_id).concat(ownerCleared ? [project.owner_person_id] : []))].sort();
-          note(role, kind, `the sheet ${sheetSays} for ${role}; ${who.join(", ")} removed from that role in every encoding`);
+        // The third encoding: an owner that is NULL while the role table names
+        // one holder is filled from that holder (the August importer wrote
+        // owner = responsible, so this is the same fact); an owner that names
+        // a DIFFERENT person is a hand change and is reported, never overruled.
+        if (isResponsible && holders.length === 1 && !project?.owner_person_id) {
+          const who = await one(`select name from public.people where id = $1`, [holders[0].person_id]);
+          await db.query(`update public.projects set owner_person_id = $2, lead = $3 where id = $1`, [projectId, holders[0].person_id, who?.name ?? holders[0].person_id]);
+          repaired += 1;
+        } else if (isResponsible && holders.length && project?.owner_person_id && !holders.some((h) => h.person_id === project.owner_person_id)) {
+          note(role, kind, `owner_person_id is ${project.owner_person_id} while the responsible rows name ${holders.map((h) => h.person_id).join(", ")}; a hand change, left as it is`);
         }
+        counts.responsibility_left_alone += 1;
+        if (repaired) counts.encodings_repaired += repaired;
+        note(role, kind, `the sheet ${sheetSays} for ${role}; ${holders.length ? `${holders.map((h) => h.person_id).join(", ")} stays` : "nobody holds it and nothing was written"}${repaired ? ` (${repaired} missing encoding row${repaired === 1 ? "" : "s"} added so both tables agree)` : ""}`);
         continue;
       }
 

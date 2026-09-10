@@ -57,6 +57,7 @@
 
 import { loadEnv } from "./lib/gate-env.mjs";
 import { promoteBatch, SOURCE_SYSTEM } from "./lib/masterdata-promote.mjs";
+import { promoteCustomers } from "./lib/masterdata-customers.mjs";
 
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
@@ -115,6 +116,10 @@ try {
 
   await client.query("begin");
   transactionOpen = true;
+  // Customers first: a Lexware number the warehouse lacks but the Kontakte
+  // tab describes is created here, so the services of that customer resolve
+  // their legal entity in the same transaction (scripts/lib/masterdata-customers.mjs).
+  const customers = await promoteCustomers(client, { batchId: batch.id, now: new Date() });
   const report = await promoteBatch(client, {
     batchId: batch.id, apply: APPLY, now: new Date(), ...(ALLOW_MASS_HISTORICAL ? { maxHistoricalShare: 1 } : {}),
   });
@@ -122,11 +127,11 @@ try {
   if (APPLY) {
     await client.query("commit");
     transactionOpen = false;
-    console.log(JSON.stringify({ applied: true, dry_run: false, project_ref: projectRef, file_name: batch.file_name, ...report }, null, 2));
+    console.log(JSON.stringify({ applied: true, dry_run: false, project_ref: projectRef, file_name: batch.file_name, customers, ...report }, null, 2));
   } else {
     await client.query("rollback");
     transactionOpen = false;
-    console.log(JSON.stringify({ dry_run: true, applied: false, writes_performed: false, project_ref: projectRef, file_name: batch.file_name, ...report }, null, 2));
+    console.log(JSON.stringify({ dry_run: true, applied: false, writes_performed: false, project_ref: projectRef, file_name: batch.file_name, customers, ...report }, null, 2));
   }
 } catch (error) {
   if (transactionOpen) await client.query("rollback").catch(() => {});

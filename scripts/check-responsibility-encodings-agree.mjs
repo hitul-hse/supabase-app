@@ -31,15 +31,14 @@
 // promote.mjs, gated by check-masterdata-promote.mjs) maintains BOTH tables per
 // role from the sheet, so the 28 are expected to shrink on the first --apply
 // -- lower KNOWN_GAP then. A promote writes a role only when the sheet resolves
-// it to a person, clears it when the sheet says DOC / OTHER / nothing (that
-// removes a gap project's orphan cover rather than leaving it beside a new
-// responsible row), and leaves it alone when the sheet names a person the
-// staging step could not match. That last case is the ONE state a promote can
-// leave that check 4 below calls a changed diagnosis: an APPROVED record whose
-// replacement name matched nobody, on a project whose only cover is an August
-// 0/1 assignment. The promote report lists it under responsibility_notes
-// ("matched no person ... left alone"); the remedy is to resolve the name
-// (public.people or the sheet) and promote again, not to lower this check.
+// it to a person. When the sheet says DOC / OTHER / nothing, or names a person
+// the staging step could not match, the current holder is left alone -- and
+// the promote makes BOTH tables name that holder (a gap project's orphan 0/1
+// cover gets its role row), so no partial encoding is left behind and check 4
+// below stays true. The promote report lists every such role under
+// responsibility_notes ("... stays"); the remedy for an unmatched name is to
+// resolve it (public.people or the sheet) and promote again, not to lower
+// this check.
 //
 // The gate does not decide which table wins -- that is a data-ownership call.
 // It records the disagreement with an explicit tolerance so it cannot grow

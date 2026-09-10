@@ -39,10 +39,12 @@
  *     logged_hours survive); a changed responsible never inherits the previous
  *     holder's hours; a brand-new responsible row carries the project's
  *     logged total (the August convention), the replacement's 0;
- *   - DOC / OTHER / an empty cell mean no colleague holds the role: its
- *     masterdata rows go from both tables and owner_person_id is cleared, so
- *     the orphan cover of a "gap project" (the 28 the live gate documents) is
- *     removed rather than left beside a new responsible row;
+ *   - DOC / OTHER / an empty cell mean the sheet names no colleague: the
+ *     current holder is LEFT ALONE and reported (measured 2026-09-10: 69 of
+ *     the 75 DOC rows on production carry a named responsible), and the two
+ *     role tables are made to agree about that holder -- an orphan 0/1 cover
+ *     of a "gap project" (the 28 the live gate documents) gets its role row,
+ *     a NULL owner gets the sole holder -- so no partial encoding is left;
  *   - links: the sheet's rows carry source 'masterdata_sheet'; a stated URL
  *     replaces the workbook's ('masterdata') URL of that kind, an empty or
  *     placeholder cell leaves the workbook's link alone and withdraws only the
@@ -441,8 +443,13 @@ console.log("check-masterdata-promote: the promote step against the real schema 
 {
   const mk = (validation_status, review_status, flags) => ({ validation_status, review_status, raw_payload: { flags } });
   check("an approved record is promotable even with NEW_SERVICE (the reviewer's override)", promotability(mk("valid", "approved", ["NEW_SERVICE", "CUSTOMER_NOT_IN_WAREHOUSE"])).promotable);
-  const blocked = promotability(mk("valid", "unreviewed", ["NEW_SERVICE", "ENDED_BUT_OPEN"]));
-  check("an unreviewed record with a blocking flag is skipped for exactly that flag", !blocked.promotable && j(blocked.reasons) === j(["NEW_SERVICE"]), j(blocked.reasons));
+  check("an unreviewed record whose only flag is NEW_SERVICE is promotable -- newness is not a defect (hitul, 2026-09-10: new data goes live)", promotability(mk("valid", "unreviewed", ["NEW_SERVICE", "ENDED_BUT_OPEN"])).promotable);
+  const mkc = (flags, customer_number) => ({ validation_status: "valid", review_status: "unreviewed", raw_payload: { flags, values: { customer_number } } });
+  const blocked = promotability(mkc(["NEW_SERVICE", "CUSTOMER_NOT_IN_WAREHOUSE"], "10345"));
+  check("an unreviewed record with a blocking flag is skipped for exactly that flag", !blocked.promotable && j(blocked.reasons) === j(["CUSTOMER_NOT_IN_WAREHOUSE"]), j(blocked.reasons));
+  check("CUSTOMER_NOT_IN_WAREHOUSE is re-judged against the customers that exist now: once the number is known, the stale staging verdict no longer blocks",
+    promotability(mkc(["CUSTOMER_NOT_IN_WAREHOUSE"], "10345"), { knownCustomers: new Set(["10345"]) }).promotable
+    && !promotability(mkc(["CUSTOMER_NOT_IN_WAREHOUSE"], "10345"), { knownCustomers: new Set(["10346"]) }).promotable);
   check("an unreviewed record with only informational flags is promotable", promotability(mk("valid", "unreviewed", ["ENDED_BUT_OPEN", "PHONE_STORED_AS_NUMBER"])).promotable);
   const inv = promotability(mk("invalid", "approved", []));
   check("an invalid record is never promotable, approved or not", !inv.promotable && inv.reasons.includes("INVALID"));
@@ -503,9 +510,9 @@ check("fixture: the staging replica shaped the records as the importer does (ord
 const r1 = await promote(db, staged1.batchId, "2026-09-10T07:00:00Z");
 check("batch 1: 8 promotable = 7 legacy matches + 1 inserted new service; nothing matched by new key yet",
   r1.counts.promotable === 8 && r1.counts.matched_legacy === 7 && r1.counts.inserted_new === 1 && r1.counts.matched_new_key === 0, j(r1.counts));
-check("batch 1: the unreviewed NEW_SERVICE is skipped for its flag; the approved service without contract hours for CONTRACT_HOURS_MISSING",
-  r1.counts.skipped.NEW_SERVICE === 1 && r1.counts.skipped.CONTRACT_HOURS_MISSING === 1
-  && r1.skipped.some((s) => s.sheet_row === 7 && s.reasons.includes("NEW_SERVICE"))
+check("batch 1: the unreviewed new service is skipped ONLY because its customer is unknown to this fixture's warehouse (the CLI runs promoteCustomers first; newness itself no longer blocks); the approved service without contract hours for CONTRACT_HOURS_MISSING",
+  r1.counts.skipped.NEW_SERVICE === undefined && r1.counts.skipped.CUSTOMER_NOT_IN_WAREHOUSE === 1 && r1.counts.skipped.CONTRACT_HOURS_MISSING === 1
+  && r1.skipped.some((s) => s.sheet_row === 7 && j(s.reasons) === j(["CUSTOMER_NOT_IN_WAREHOUSE"]))
   && r1.skipped.some((s) => s.sheet_row === 8 && s.reasons.includes("CONTRACT_HOURS_MISSING")), j(r1.skipped));
 
 /* ---- ADR-001: exact keys, never names */
@@ -608,16 +615,19 @@ check("assignments A: Mathias's 100/0 row is updated IN PLACE (same id, tasks_co
 
 const respB = await respOf(LEGACY_B);
 const asgB = await asgOf(LEGACY_B);
-check("DOC project B: the sheet says no colleague is responsible, so Mathias's masterdata responsible rows go from BOTH tables; Hendryk's replacement is added to both",
-  respB.length === 1 && respB[0].role === "replacement" && respB[0].person_id === "md-hendryk"
-  && asgB.length === 1 && asgB[0].person_id === "md-hendryk" && asgB[0].share === 0 && asgB[0].sort === 1, j({ respB, asgB }));
-check("...and B's owner stays NULL / lead 'n/a' -- the third encoding agrees with the other two",
-  j(await ownerOf(LEGACY_B)) === j({ owner_person_id: null, lead: "n/a" }), j(await ownerOf(LEGACY_B)));
+check("DOC project B: the sheet names no colleague, so Mathias's responsible rows are LEFT ALONE in both tables (69 of 75 DOC rows on production carry such a holder); Hendryk's replacement is added to both",
+  respB.length === 2 && respB.some((r) => r.role === "responsible" && r.person_id === "md-mathias") && respB.some((r) => r.role === "replacement" && r.person_id === "md-hendryk")
+  && asgB.length === 2 && asgB.some((a) => a.person_id === "md-mathias" && a.share === 100 && a.sort === 0 && a.logged === 12.5 && a.tasks_count === 2)
+  && asgB.some((a) => a.person_id === "md-hendryk" && a.share === 0 && a.sort === 1), j({ respB, asgB }));
+check("...and B's NULL owner is filled from the sole holder the role tables name, so the third encoding agrees with the other two",
+  (await ownerOf(LEGACY_B)).owner_person_id === "md-mathias" && (await ownerOf(LEGACY_B)).lead !== "n/a", j(await ownerOf(LEGACY_B)));
 
 const respE = await respOf(LEGACY_E);
 const asgE = await asgOf(LEGACY_E);
-check("emptied cells on E: both roles cleared in both role tables AND owner_person_id NULL / lead 'n/a' (no page contradicts another)",
-  respE.length === 0 && asgE.length === 0 && j(await ownerOf(LEGACY_E)) === j({ owner_person_id: null, lead: "n/a" }), j({ respE, asgE, owner: await ownerOf(LEGACY_E) }));
+check("emptied cells on E: both roles are left alone -- Mathias responsible and Thorsten replacement stay in both tables, the owner stays Mathias (a blank is an omission, not a statement)",
+  respE.length === 2 && respE.some((r) => r.role === "responsible" && r.person_id === "md-mathias") && respE.some((r) => r.role === "replacement" && r.person_id === "md-thorsten")
+  && asgE.length === 2 && asgE.some((a) => a.person_id === "md-mathias" && a.share === 100 && a.id === 4) && asgE.some((a) => a.person_id === "md-thorsten" && a.share === 0 && a.sort === 1)
+  && (await ownerOf(LEGACY_E)).owner_person_id === "md-mathias", j({ respE, asgE, owner: await ownerOf(LEGACY_E) }));
 
 const respF = await respOf(LEGACY_F);
 const asgF = await asgOf(LEGACY_F);
@@ -634,11 +644,11 @@ check("change_control project F: the report says the role is held elsewhere and 
 
 const respG = await respOf(LEGACY_G);
 const asgG = await asgOf(LEGACY_G);
-check("gap project G: Hendryk becomes responsible in both tables and the orphan 0/1 cover goes because the sheet says DOC -- no partial role row is left behind",
-  respG.length === 1 && respG[0].role === "responsible" && respG[0].person_id === "md-hendryk"
-  && asgG.length === 1 && asgG[0].person_id === "md-hendryk" && asgG[0].share === 100 && asgG[0].sort === 0, j({ respG, asgG }));
+check("gap project G: Hendryk becomes responsible in both tables; the orphan 0/1 cover (Thorsten) stays because the sheet says DOC, and gains the replacement role row it lacked -- no partial role row is left behind",
+  respG.length === 2 && respG.some((r) => r.role === "responsible" && r.person_id === "md-hendryk") && respG.some((r) => r.role === "replacement" && r.person_id === "md-thorsten" && r.source === "masterdata")
+  && asgG.length === 2 && asgG.some((a) => a.person_id === "md-hendryk" && a.share === 100 && a.sort === 0) && asgG.some((a) => a.person_id === "md-thorsten" && a.share === 0 && a.sort === 1), j({ respG, asgG }));
 check("gap project G: the brand-new responsible row carries the PROJECT's logged total 12.5 (the August convention), and owner/lead follow",
-  asgG[0]?.logged === 12.5 && j(await ownerOf(LEGACY_G)) === j({ owner_person_id: "md-hendryk", lead: "Hendryk Arndt" }), j({ asgG, owner: await ownerOf(LEGACY_G) }));
+  asgG.find((a) => a.share === 100)?.logged === 12.5 && j(await ownerOf(LEGACY_G)) === j({ owner_person_id: "md-hendryk", lead: "Hendryk Arndt" }), j({ asgG, owner: await ownerOf(LEGACY_G) }));
 
 const respH = await respOf(LEGACY_H);
 const asgH = await asgOf(LEGACY_H);
@@ -657,14 +667,16 @@ check("the report names the change: responsibility_changed counts H's responsibl
   && r1.responsibility_notes.some((n) => n.project_id === LEGACY_I && n.role === "responsible" && /from md-mathias to md-thorsten/.test(n.note))
   && r1.responsibility_notes.some((n) => n.project_id === LEGACY_H && n.role === "responsible" && /from md-mathias to md-thorsten/.test(n.note))
   && r1.responsibility_notes.some((n) => n.project_id === LEGACY_A && n.role === "replacement" && /from md-thorsten to md-hendryk/.test(n.note)), j(r1.responsibility_notes));
-check("the report counts the clearings (B's DOC responsible, E's two roles, G's DOC replacement = 4) with a note naming who was removed; C's OTHER replacement had nothing to clear and is silent",
-  r1.counts.responsibility_cleared === 4
-  && r1.responsibility_notes.filter((n) => /removed from that role/.test(n.note)).length === 4
-  && r1.responsibility_notes.some((n) => n.project_id === LEGACY_B && n.kind === "doctor" && /md-mathias/.test(n.note))
+check("the report counts the roles left alone (B's DOC responsible, C's OTHER replacement, E's two empty cells, G's DOC replacement, H's empty replacement = 6), names who stays, and clears nothing",
+  r1.counts.responsibility_left_alone === 6 && r1.counts.responsibility_cleared === 0
+  && r1.responsibility_notes.filter((n) => /stays|nothing was written/.test(n.note)).length === 6
+  && r1.responsibility_notes.some((n) => n.project_id === LEGACY_B && n.kind === "doctor" && /md-mathias stays/.test(n.note))
   && r1.responsibility_notes.filter((n) => n.project_id === LEGACY_E).length === 2
-  && !r1.responsibility_notes.some((n) => n.project_id === NEW_KEY_C), j({ counts: r1.counts, notes: r1.responsibility_notes }));
+  && r1.responsibility_notes.some((n) => n.project_id === NEW_KEY_C && n.kind === "other" && /nothing was written/.test(n.note)), j({ counts: r1.counts, notes: r1.responsibility_notes }));
+check("the report counts the encoding repairs: G's orphan cover got its role row, B's NULL owner got its holder (2), and nothing else was touched",
+  r1.counts.encodings_repaired === 2 && r1.responsibility_notes.some((n) => n.project_id === LEGACY_G && /1 missing encoding row added/.test(n.note)), j(r1.counts));
 check("the report's role/assignment counts match the rows enforced (9 roles: A×2, B×1, C×1, F×1, G×1, H×1, I×2; 6 assignment rows inserted, 3 kept in place)",
-  r1.counts.responsibility_rows === 9 && r1.counts.assignment_rows === 9 && r1.counts.assignment_rows_inserted === 6 && r1.counts.responsibility_left_alone === 0, j(r1.counts));
+  r1.counts.responsibility_rows === 9 && r1.counts.assignment_rows === 9 && r1.counts.assignment_rows_inserted === 6, j(r1.counts));
 const inv1 = await invariants(db);
 check("every encoding agrees for every project after batch 1: the live gate's four checks, one share-100 row per project, owner = responsible", j(inv1) === ALL_ZERO, j(inv1));
 check("batch 1 marked nothing historical: every masterdata row is in the sheet", r1.counts.historical_marked === 0

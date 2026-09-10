@@ -2088,6 +2088,63 @@
         "title": "Dir sind keine Projekte zugewiesen",
         "description": "Nichts nennt {name} als verantwortlich, Betreuer, Vertretung oder zugewiesen. Weist dich eine Projektleitung zu, erscheint es hier."
       }
+    },
+    "detail": {
+      "close": "Auswahl aufheben",
+      "empty": "Für diesen Auftrag gibt es noch keine Stammdaten.",
+      "withheld": "nicht freigegeben",
+      "historical": {
+        "label": "HISTORISCH",
+        "endedLabel": "VERTRAG BEENDET",
+        "ended": "Der Vertrag ist am {date} ausgelaufen.",
+        "gone": "Dieser Auftrag steht nicht mehr im Stammdatenblatt.",
+        "both": "Der Vertrag ist am {date} ausgelaufen und der Auftrag steht nicht mehr im Stammdatenblatt."
+      },
+      "service": {
+        "title": "SERVICE",
+        "customer": "KUNDE",
+        "customerName": "FIRMENNAME",
+        "language": "SPRACHE",
+        "address": "ADRESSE",
+        "contractStart": "VERTRAGSBEGINN",
+        "contractEnd": "VERTRAGSENDE",
+        "contractHours": "VERTRAGSSTUNDEN"
+      },
+      "language": {
+        "de": "Deutsch",
+        "en": "English"
+      },
+      "people": {
+        "title": "PERSONEN",
+        "responsible": "VERANTWORTLICH",
+        "role": "ROLLE",
+        "replacement": "VERTRETUNG",
+        "doctor": "Betriebsarzt",
+        "other": "Sonstige",
+        "unknown": "Name nicht verfügbar",
+        "responsibleTitle": "Laut Stammdatenblatt verantwortlich für diesen Auftrag",
+        "replacementTitle": "Laut Stammdatenblatt Vertretung für diesen Auftrag"
+      },
+      "delivery": {
+        "title": "LEISTUNGSBEDINGUNGEN",
+        "minOnsite": "MINDESTZEIT VOR ORT",
+        "travelFlatRate": "PAUSCHALE ANFAHRT",
+        "travelAsProjectTime": "REISEZEIT ALS PROJEKTZEIT",
+        "yes": "Ja",
+        "no": "Nein"
+      },
+      "contacts": {
+        "title": "ANSPRECHPARTNER BEIM KUNDEN",
+        "slot": "ANSPRECHPARTNER {slot}",
+        "none": "Kein Ansprechpartner hinterlegt"
+      },
+      "links": {
+        "title": "LINKS",
+        "fileStorage": "DATEIABLAGE",
+        "none": "Keine Links hinterlegt"
+      },
+      "source": "Aus dem Stammdatenblatt, Stand {when}",
+      "sourceUndated": "Aus dem Stammdatenblatt"
     }
   }
 }

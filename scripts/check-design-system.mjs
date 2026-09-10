@@ -1064,6 +1064,9 @@ const SCALE_OWNED = [
   "src/components/data-table/DataTable.tsx",
   "src/components/my-work/MyWorkSummary.tsx",
   "src/components/my-work/MyWorkTables.tsx",
+  // The selected order's detail panel (2026-09-10, HSEHU-64): born on the
+  // roles, so it is on the ratchet from its first commit.
+  "src/components/my-work/MyWorkDetail.tsx",
   "src/components/my-work/RoleBadge.tsx",
   "src/components/DrillDialog.tsx",
   "src/components/EmptyState.tsx",

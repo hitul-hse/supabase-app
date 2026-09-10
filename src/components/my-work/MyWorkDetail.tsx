@@ -52,17 +52,24 @@
  * and renders as the house absence glyph, never as 0, never as "Nein", never
  * as an empty string that looks like a rendering bug. A Ja/Nein column whose
  * cell held free text ("nach Absprache") shows that text, because the boolean
- * was never a boolean there.
+ * was never a boolean there. The contact cells are the one place the importer
+ * leaves "-" as written (they are text to it); the query folds them before
+ * they reach this file, so a "-" never becomes a contact called "-" with a
+ * dead tel: link.
  *
- * HISTORICAL, AND WHICH KIND
+ * ENDED, HISTORICAL, OR BOTH
  * --------------------------
- * A row the sheet stopped carrying is marked `lifecycle_status = 'historical'`
- * with the batch that last saw it, never deleted (decision 2026-09-10). The
- * banner says WHICH of two things happened, because they call for different
- * action: a contract whose end date has passed is finished business; a row
- * that vanished from the sheet while its contract runs is a data question for
- * whoever maintains the sheet. Liveness is `contract_end`, never the sheet's
- * status column, which was stale in 66 of 247 rows when measured.
+ * Liveness is `contract_end`: never the sheet's status column (stale in 66 of
+ * 247 rows when measured) and never `lifecycle_status` -- "open" is derived
+ * by the readers, not stored, as the warehouse migration says. So a contract
+ * whose end date has passed says so on EVERY row, whether or not the sheet
+ * still carries it. A row the sheet stopped carrying is marked
+ * `lifecycle_status = 'historical'` with the batch that last saw it, never
+ * deleted (decision 2026-09-10), and that is a second, different fact: a
+ * finished contract is finished business; a row that vanished while its
+ * contract runs is a data question for whoever maintains the sheet. The
+ * banner states whichever holds, or both, and "today" for the comparison is
+ * the Berlin date, like every other stamp on the panel.
  */
 import { useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
@@ -75,7 +82,6 @@ import {
   type PersonKind,
 } from "@/lib/queries/my-work";
 import { LINK_ICON } from "./link-icons";
-import { RoleBadge } from "./RoleBadge";
 
 /** The house glyph for a missing value (DESIGN.md §Data tables 6) -- never 0, never blank. */
 const ABSENT = "—";
@@ -118,6 +124,19 @@ function formatStamp(iso: string, locale: string): string {
   });
 }
 
+/**
+ * Today as YYYY-MM-DD in Europe/Berlin, the zone every other stamp on this
+ * panel is pinned to. `toISOString().slice(0, 10)` is the UTC date, which is
+ * still yesterday in Berlin between local midnight and 01:00 (02:00 in
+ * summer): long enough for a server render and a client render to disagree
+ * about whether a contract has ended, and for the footnote's Berlin stamp and
+ * the banner to name different days. en-CA is the locale whose default date
+ * format IS the ISO one.
+ */
+function todayInBerlin(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date());
+}
+
 /** tel: wants digits and a leading plus; the sheet writes spaces, slashes and dashes. */
 function telHref(phone: string): string {
   return `tel:${phone.replace(/[^+\d]/g, "")}`;
@@ -154,11 +173,28 @@ function Value({ value }: { value: string | null }) {
   return <>{value}</>;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * A titled block of the panel. Its rows are a definition list -- unless
+ * `list` is false, in which case the children render as they are. An empty
+ * state is a sentence, and a <p> inside a <dl> is invalid markup that costs
+ * assistive tech the list semantics it would otherwise announce (Card.tsx
+ * makes the same point about a div between <ul> and its items). A section
+ * that can be empty passes `list={items.length !== 0}` -- written without a
+ * bare `>` so check-my-work-detail can find where the opening tag ends.
+ */
+function Section({
+  title,
+  children,
+  list = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  list?: boolean;
+}) {
   return (
     <section className="px-4 py-3">
       <h3 className="mb-1 t-label text-[var(--text-faint)]">{title}</h3>
-      <dl className="flex flex-col">{children}</dl>
+      {list ? <dl className="flex flex-col">{children}</dl> : children}
     </section>
   );
 }
@@ -220,10 +256,23 @@ export function MyWorkDetail({
           .join(", ")
       : null;
 
-  // Which kind of historical: the contract ran out, or the row vanished while
-  // it was still running. Compared as ISO strings, which sort as dates.
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const contractEnded = detail?.contractEnd !== null && detail !== null && detail.contractEnd < todayIso;
+  // Two independent facts, each shown whenever it holds. ENDED: the end date
+  // is before today, on ANY lifecycle, because liveness is contract_end. GONE:
+  // the sheet stopped carrying the row. Compared as ISO strings, which sort
+  // as dates; a contract ending today is still running today.
+  const endedOn = detail?.contractEnd ?? null;
+  const contractEnded = endedOn !== null && endedOn < todayInBerlin();
+  const gone = detail?.lifecycleStatus === "historical";
+  const bannerText =
+    endedOn !== null && contractEnded
+      ? gone
+        ? t("detail.historical.both", { date: formatDate(endedOn, locale) })
+        : t("detail.historical.ended", { date: formatDate(endedOn, locale) })
+      : gone
+        ? t("detail.historical.gone")
+        : null;
+
+  const hasLinks = links.length > 0 || Boolean(detail?.fileStorage);
 
   return (
     <Card
@@ -259,15 +308,19 @@ export function MyWorkDetail({
         <p className="px-4 py-3 t-callout text-[var(--text-muted)]">{t("detail.empty")}</p>
       ) : (
         <>
-          {detail.lifecycleStatus === "historical" ? (
+          {bannerText !== null ? (
             <p
               role="status"
               className="mx-4 mt-3 rounded-[var(--radius)] border border-[var(--border-strong)] px-3 py-2 t-callout text-[var(--text-secondary)]"
             >
-              <span className="t-label text-[var(--text-faint)]">{t("detail.historical.label")}</span>{" "}
-              {contractEnded && detail.contractEnd
-                ? t("detail.historical.ended", { date: formatDate(detail.contractEnd, locale) })
-                : t("detail.historical.gone")}
+              {/* The label names the state -- a row the sheet dropped is
+                  HISTORICAL, a finished contract the sheet still carries is
+                  CONTRACT ENDED -- and the sentence names the fact(s). Text,
+                  not colour: neither is a risk, so no amber. */}
+              <span className="t-label text-[var(--text-faint)]">
+                {gone ? t("detail.historical.label") : t("detail.historical.endedLabel")}
+              </span>{" "}
+              {bannerText}
             </p>
           ) : null}
 
@@ -314,23 +367,21 @@ export function MyWorkDetail({
           <CardDivider />
 
           <Section title={t("detail.people.title")}>
+            {/* The dt already names the rung (VERANTWORTLICH / VERTRETUNG). A
+                RESPONSIBLE chip beside it was the same word twice, and in
+                English inside a German panel; the tooltip keeps what the chip
+                explained, on the name itself. */}
             <Row label={t("detail.people.responsible")}>
-              <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+              <span title={detail.responsibleKind !== null ? t("detail.people.responsibleTitle") : undefined}>
                 <Value value={kindLabel(detail.responsibleKind, detail.responsibleName)} />
-                {detail.responsibleKind !== null ? (
-                  <RoleBadge role="responsible" title={t("detail.people.responsibleTitle")} />
-                ) : null}
               </span>
             </Row>
             <Row label={t("detail.people.role")}>
               <Value value={detail.serviceRole} />
             </Row>
             <Row label={t("detail.people.replacement")}>
-              <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+              <span title={detail.replacementKind !== null ? t("detail.people.replacementTitle") : undefined}>
                 <Value value={kindLabel(detail.replacementKind, detail.replacementName)} />
-                {detail.replacementKind !== null ? (
-                  <RoleBadge role="replacement" title={t("detail.people.replacementTitle")} />
-                ) : null}
               </span>
             </Row>
           </Section>
@@ -349,7 +400,7 @@ export function MyWorkDetail({
           </Section>
           <CardDivider />
 
-          <Section title={t("detail.contacts.title")}>
+          <Section title={t("detail.contacts.title")} list={contacts.length !== 0}>
             {contacts.length === 0 ? (
               <p className="t-callout text-[var(--text-faint)]">{t("detail.contacts.none")}</p>
             ) : (
@@ -385,8 +436,15 @@ export function MyWorkDetail({
         </>
       )}
 
-      <Section title={t("detail.links.title")}>
-        {links.length === 0 && !detail?.fileStorage ? (
+      {/*
+        Links are dt/dd groups like every other row -- dt where it goes, dd the
+        link -- so the <dl> holds definitions and not stray <div>s. The link's
+        own text is the sheet's label when there is one and the destination
+        otherwise: a screen reader lists links out of context, so a link's
+        name must stand on its own even where it repeats the dt beside it.
+      */}
+      <Section title={t("detail.links.title")} list={hasLinks}>
+        {!hasLinks ? (
           <p className="t-callout text-[var(--text-faint)]">{t("detail.links.none")}</p>
         ) : (
           <>
@@ -394,20 +452,17 @@ export function MyWorkDetail({
               const Icon = LINK_ICON[l.kind];
               const destination = LINK_DESTINATION[l.kind];
               return (
-                <div key={`${l.kind}:${l.url}`} className="py-1">
+                <Row key={`${l.kind}:${l.url}`} label={destination}>
                   <a
                     href={l.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 t-callout text-[var(--accent)] underline-offset-2 hover:underline"
+                    className="inline-flex items-center gap-2 text-[var(--accent)] underline-offset-2 hover:underline"
                   >
                     <Icon className="h-4 w-4 flex-none" />
-                    <span className="[overflow-wrap:anywhere]">
-                      {destination}
-                      {l.label ? ` · ${l.label}` : ""}
-                    </span>
+                    <span className="[overflow-wrap:anywhere]">{l.label ?? destination}</span>
                   </a>
-                </div>
+                </Row>
               );
             })}
             {detail?.fileStorage ? (

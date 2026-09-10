@@ -138,7 +138,7 @@
     "check:overview-filters": 53,
     "check:content-width": 9,
     "check:gates-runnable": 8,
-    "check:my-work-detail": 61,
+    "check:my-work-detail": 80,
     "test:schema-order": 5,
     "test:approval-error-handling": 6
   }

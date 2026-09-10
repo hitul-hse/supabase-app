@@ -2095,8 +2095,10 @@
       "withheld": "nicht freigegeben",
       "historical": {
         "label": "HISTORISCH",
+        "endedLabel": "VERTRAG BEENDET",
         "ended": "Der Vertrag ist am {date} ausgelaufen.",
-        "gone": "Dieser Auftrag steht nicht mehr im Stammdatenblatt."
+        "gone": "Dieser Auftrag steht nicht mehr im Stammdatenblatt.",
+        "both": "Der Vertrag ist am {date} ausgelaufen und der Auftrag steht nicht mehr im Stammdatenblatt."
       },
       "service": {
         "title": "SERVICE",

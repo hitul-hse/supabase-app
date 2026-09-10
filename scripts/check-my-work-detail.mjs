@@ -9,7 +9,11 @@
  * 1. PRIVACY. The two customer contacts are personal data of third parties.
  *    They render in the panel and nowhere else: no list column carries them
  *    and no `Column.csv` exports them. A CSV that quietly grew a phone column
- *    would ship a contact list to every download.
+ *    would ship a contact list to every download. Pinned in three places,
+ *    because the first two alone were bypassable: the two column blocks, the
+ *    DataTable call sites (`columns={projectColumns}` by name, no spread and
+ *    no concat, the mutation a reviewer got past the sliced blocks with), and
+ *    the whole of MyWorkTables for any contact field at all.
  * 2. WIDTH. The projects table clears 1280px by a few pixels and
  *    check-table-scroll-budget pins /my-work on FIRST LOAD. So the panel is a
  *    separate file, a sibling Card, and it renders ONLY once a row is
@@ -19,10 +23,13 @@
  * 3. PAGING. The three new reads are paged like every other read here:
  *    `.order()` before `.range()` so the pages partition stably, and wrapped
  *    in try/catch so losing a table costs the panel, not the list.
- * 4. HONESTY. `lifecycle_status = 'historical'` (the sheet stopped carrying
- *    the row; never deleted, decision 2026-09-10) raises a banner that says
- *    WHICH kind of historical, from contract_end -- the contract ran out, or
- *    the row vanished while it ran.
+ * 4. HONESTY. Liveness is contract_end, so a contract whose end date has
+ *    passed says so on ANY row, not only one the sheet has also dropped; a
+ *    row the sheet stopped carrying (`lifecycle_status = 'historical'`,
+ *    never deleted, decision 2026-09-10) says that too; both say both. Today
+ *    is the Berlin date, like every other stamp on the panel, never the UTC
+ *    date. And the sheet's own "-" in a contact cell is null before it can
+ *    render as a contact called "-" with a dead tel: link.
  * 5. LANGUAGE. Every new string goes through the `myWork.detail` branch, present
  *    in both catalogues with the same key set. German is the primary UI
  *    language; a key present in one catalogue only renders its own path to
@@ -30,6 +37,9 @@
  * 6. BUDGETS. The panel never touches the raw contract figure: it receives the
  *    string the tables already formatted through hours(), plus the withheld
  *    flag, so the redaction applied at the query cannot be undone here.
+ * 7. MARKUP. Every <dl> the panel renders holds dt/dd groups and nothing
+ *    else: an empty state is a sentence outside the list, and a link is a
+ *    dt/dd pair, not a <div> around an <a>. jsx-a11y does not catch this.
  *
  * NEGATIVE CONTROLS at the end re-run the load-bearing regexes against
  * deliberately broken inputs and fail if any of them still passes. A gate
@@ -118,6 +128,22 @@ check(
   "no list column renders contacts, phone, email or the sheet detail",
   !CONTACT_FIELD.test(columns),
   "the two tables must stay column-for-column what they were; the panel is the only surface",
+);
+check(
+  "each DataTable takes its pinned column list BY NAME, unmodified (no spread, no concat at the call site)",
+  /columns=\{projectColumns\}/.test(tables) && /columns=\{customerColumns\}/.test(tables),
+  "a column spliced in at the JSX call site never enters the sliced blocks above; this is the pin that sees it",
+);
+const mentions = (id) => (tables.match(new RegExp(`\\b${id}\\b`, "g")) ?? []).length;
+check(
+  "the column identifiers appear exactly twice each: their definition and their DataTable prop",
+  mentions("projectColumns") === 2 && mentions("customerColumns") === 2,
+  `projectColumns x${mentions("projectColumns")}, customerColumns x${mentions("customerColumns")}`,
+);
+check(
+  "no contact field is read ANYWHERE in MyWorkTables, not only inside the column blocks",
+  !CONTACT_FIELD.test(tables),
+  "the tables hand the whole row to the panel and never look at contacts, phone, email or detail themselves",
 );
 check(
   "the panel is not itself a DataTable and exports no csv",
@@ -256,16 +282,46 @@ check(
 console.log("\n--- 4. historical is a banner, and it says which kind\n");
 
 check(
-  "the banner is keyed on lifecycleStatus === 'historical'",
-  /detail\.lifecycleStatus === "historical" \?/.test(detail),
+  "the banner shows whenever the contract has ended OR the row has vanished, never only on 'historical'",
+  /\{bannerText !== null \? \(/.test(detail) &&
+    /const gone = detail\?\.lifecycleStatus === "historical";/.test(detail) &&
+    !/lifecycleStatus === "historical" \?\s*\(/.test(detail),
+  "an active row whose contract_end has passed is finished business and must say so: liveness is contract_end",
 );
 check(
-  "it says whether the contract ended or the row vanished, from contractEnd",
-  /contractEnded/.test(detail) &&
-    /detail\.contractEnd < todayIso/.test(detail) &&
-    /t\("detail\.historical\.ended", \{ date:/.test(detail) &&
-    /t\("detail\.historical\.gone"\)/.test(detail),
-  "liveness is contract_end, never the sheet's status column",
+  "ended is derived from contractEnd against TODAY IN BERLIN, the zone of every other stamp on the panel",
+  /const contractEnded = endedOn !== null && endedOn < todayInBerlin\(\);/.test(detail) &&
+    /new Intl\.DateTimeFormat\("en-CA", \{ timeZone: "Europe\/Berlin" \}\)\.format\(new Date\(\)\)/.test(detail) &&
+    !/toISOString\(\)\.slice\(0, 10\)/.test(detail),
+  "a UTC today is still yesterday in Berlin after midnight, and the server and the client could disagree",
+);
+check(
+  "it says which: ended, gone, or both, and the label names the state",
+  /t\("detail\.historical\.ended", \{ date:/.test(detail) &&
+    /t\("detail\.historical\.gone"\)/.test(detail) &&
+    /t\("detail\.historical\.both", \{ date:/.test(detail) &&
+    /gone \? t\("detail\.historical\.label"\) : t\("detail\.historical\.endedLabel"\)/.test(detail),
+  "HISTORICAL for a row the sheet dropped, CONTRACT ENDED for one it still carries",
+);
+check(
+  "a contact cell holding the sheet's own '-' is null BEFORE the empty-slot test and the push",
+  /const name = textOrNull\(c\.name\);\s*const phone = textOrNull\(c\.phone\);\s*const email = textOrNull\(c\.email\);/.test(query) &&
+    /if \(!name && !phone && !email\) continue;/.test(query) &&
+    /list\.push\(\{ slot: c\.slot, name, phone, email \}\);/.test(query) &&
+    !/name: c\.name, phone: c\.phone, email: c\.email/.test(query),
+  "the importer leaves contact cells as text (masterdata-sheet.mjs uses text(), not textNa()); the query is the only fold",
+);
+const naSet = (src, name) => {
+  const m = new RegExp(`const ${name} = new Set\\((\\[[^\\]]*\\])\\);`).exec(src);
+  return m ? JSON.parse(m[1]) : null;
+};
+const importerNa = naSet(read("scripts/lib/masterdata-sheet.mjs"), "NA");
+const queryNa = naSet(query, "SHEET_NA");
+check(
+  "textOrNull folds the importer's whole n/a marker set, marker for marker, case-folded",
+  importerNa !== null && queryNa !== null && importerNa.join("|") === queryNa.join("|") &&
+    /SHEET_NA\.has\(t\.toLowerCase\(\)\)/.test(query),
+  importerNa && queryNa ? `importer: ${importerNa.join(" ")} | query: ${queryNa.join(" ")}` : "one of the two sets is not locatable",
 );
 check(
   "the query maps any value other than 'historical' to active (no banner on an unexpected value)",
@@ -320,6 +376,11 @@ check(
   "the panel binds useTranslations(\"myWork\")",
   /const t = useTranslations\("myWork"\);/.test(detail),
 );
+check(
+  "the panel renders no RoleBadge chip: its label is an English literal the scan below cannot see",
+  !/RoleBadge/.test(detail),
+  "VERANTWORTLICH beside a RESPONSIBLE chip was the same word twice, half of it in English",
+);
 const referenced = [...new Set([...detail.matchAll(/\bt\("detail\.([^"]+)"/g)].map((m) => m[1]))].sort();
 const missing = referenced.filter((k) => !enKeys.includes(k));
 check(
@@ -364,6 +425,42 @@ check(
 check(
   "withheld renders as the reader's state, distinct from the absence glyph",
   /budgetsWithheld \? \(\s*<span[^>]*>\{t\("detail\.withheld"\)\}<\/span>/.test(detail),
+);
+
+/* ----------------------------------------------------------- 7. markup */
+
+console.log("\n--- 7. every <dl> holds dt/dd groups; empty states are prose outside it\n");
+
+check(
+  "Section wraps its children in a <dl> only when `list` is true",
+  /\{list \? <dl className="flex flex-col">\{children\}<\/dl> : children\}/.test(detail),
+  "an empty-state <p> inside a <dl> is invalid list markup that assistive tech announces as empty or malformed",
+);
+/* The opening tag must not contain a bare '>' (write `!== 0`, not `> 0`). */
+const sectionBlocks = [...detail.matchAll(/<Section\b([^>]*)>([\s\S]*?)<\/Section>/g)].map((m) => ({ props: m[1], body: m[2] }));
+const proseSections = sectionBlocks.filter((s) => /<p\b/.test(s.body));
+check(
+  "every Section whose body can render a <p> passes list={...} (contacts and links)",
+  sectionBlocks.length >= 5 && proseSections.length === 2 && proseSections.every((s) => /\blist=\{/.test(s.props)),
+  `${sectionBlocks.length} sections, ${proseSections.length} with an empty state`,
+);
+const divsOpenGroups = (body) => [...body.matchAll(/<div\b[^>]*>([\s\S]{0,120})/g)].every((m) => /<dt\b/.test(m[1]));
+check(
+  "no Section body holds a <div> that is not a dt/dd group",
+  sectionBlocks.length >= 5 && sectionBlocks.every((s) => divsOpenGroups(s.body)),
+  "a <div> inside a <dl> must contain a dt/dd pair; the links used to be <div><a/></div>",
+);
+check(
+  "link entries are Rows (dt = destination, dd = the link), keyed per link",
+  /links\.map\(\(l\) => \{[\s\S]{0,200}<Row key=\{`\$\{l\.kind\}:\$\{l\.url\}`\} label=\{destination\}>/.test(detail),
+);
+check(
+  "a link's own text stands alone (label, else destination): screen readers list links out of context",
+  /<span className="\[overflow-wrap:anywhere\]">\{l\.label \?\? destination\}<\/span>/.test(detail),
+);
+check(
+  "the contact entries are dt/dd groups",
+  /<div key=\{c\.slot\} className="[^"]*">\s*<dt\b/.test(detail),
 );
 
 /* --------------------------------------------- the page: design tokens */
@@ -429,6 +526,37 @@ console.log("\n--- negative controls: the load-bearing regexes can go red\n");
     "[control] a new column on the projects table WOULD be caught",
     keysIn(extraColumn).join(",") !== PROJECT_KEYS.join(","),
   );
+}
+{
+  const inline = `columns={[...projectColumns, { key: "phone", header: "PHONE", csv: (r) => r.contacts.map((c) => c.phone).join(" "), cell: (r) => null }]}`;
+  check(
+    "[control] a column spliced in at the DataTable call site WOULD be caught",
+    !/columns=\{projectColumns\}/.test(inline) && CONTACT_FIELD.test(inline),
+  );
+}
+{
+  const utc = `const todayIso = new Date().toISOString().slice(0, 10);`;
+  check("[control] a UTC today WOULD be caught", /toISOString\(\)\.slice\(0, 10\)/.test(utc));
+}
+{
+  const gated = `{detail.lifecycleStatus === "historical" ? (\n            <p role="status">`;
+  check("[control] a banner gated on lifecycle alone WOULD be caught", /lifecycleStatus === "historical" \?\s*\(/.test(gated));
+}
+{
+  const raw = `list.push({ slot: c.slot, name: c.name, phone: c.phone, email: c.email });`;
+  check("[control] a contact pushed without textOrNull WOULD be caught", /name: c\.name, phone: c\.phone, email: c\.email/.test(raw));
+}
+{
+  const prose = `<Section title={t("x")}>\n<p className="t-callout">{t("none")}</p>\n</Section>`;
+  const blocks = [...prose.matchAll(/<Section\b([^>]*)>([\s\S]*?)<\/Section>/g)].map((m) => ({ props: m[1], body: m[2] }));
+  check(
+    "[control] an empty-state <p> inside a Section without list= WOULD be caught",
+    blocks.length === 1 && /<p\b/.test(blocks[0].body) && !/\blist=\{/.test(blocks[0].props),
+  );
+}
+{
+  const bareDiv = `<div key={x} className="py-1">\n<a href="#">x</a>\n</div>`;
+  check("[control] a bare <div> holding only a link inside a Section WOULD be caught", !divsOpenGroups(bareDiv));
 }
 {
   const half = { a: "x", b: { c: "y" } };

@@ -2095,8 +2095,10 @@
       "withheld": "withheld",
       "historical": {
         "label": "HISTORICAL",
+        "endedLabel": "CONTRACT ENDED",
         "ended": "The contract ended on {date}.",
-        "gone": "This order is no longer in the masterdata sheet."
+        "gone": "This order is no longer in the masterdata sheet.",
+        "both": "The contract ended on {date} and the order is no longer in the masterdata sheet."
       },
       "service": {
         "title": "SERVICE",

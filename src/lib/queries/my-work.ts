@@ -456,11 +456,25 @@ function kindOrNull(v: string | null | undefined): PersonKind | null {
   return v === "person" || v === "doctor" || v === "other" ? v : null;
 }
 
-/** Text with the sheet's blanks and "-" folded to null. The importer does this already; belt and braces. */
+/**
+ * The sheet's own "not applicable" markers, the set scripts/lib/masterdata-
+ * sheet.mjs (NA) folds to null for the fields it parses as n/a-able. The two
+ * typographic dashes are written as escapes so the source stays ASCII. The
+ * contact columns are NOT folded by the importer -- a name is text to it, and
+ * "-" is a legal name as far as a text parser knows -- so a "-" the sheet
+ * wrote for "no contact" reaches project_contact as written, and this map is
+ * the only place it becomes the absence it means.
+ */
+const SHEET_NA = new Set(["-", "\u2013", "\u2014", "n/a", "na", "k.a.", "keine"]);
+
+/**
+ * Text with the sheet's blanks and n/a markers folded to null. Belt and braces
+ * for the fields the importer already folds; the ONLY fold for the contacts.
+ */
 function textOrNull(v: string | null | undefined): string | null {
   if (v === null || v === undefined) return null;
   const t = v.trim();
-  return t === "" || t === "-" ? null : t;
+  return t === "" || SHEET_NA.has(t.toLowerCase()) ? null : t;
 }
 
 /**
@@ -1105,7 +1119,9 @@ export function assembleMyWork(
     if (!(l.kind in LINK_LABEL)) continue;
     const kind = l.kind as MyLink["kind"];
     const list = linksByProject.get(l.project_id) ?? [];
-    list.push({ kind, url: l.url, label: l.label });
+    // A blank or "-" label is no label: the panel falls back to the destination
+    // on null, and an empty string would render an empty link.
+    list.push({ kind, url: l.url, label: textOrNull(l.label) });
     linksByProject.set(l.project_id, list);
   }
   for (const list of linksByProject.values()) {
@@ -1128,10 +1144,18 @@ export function assembleMyWork(
   const contactsByProject = new Map<string, MyContact[]>();
   for (const c of options.contacts ?? []) {
     if (!c.project_id || (c.slot !== 1 && c.slot !== 2)) continue;
-    // A slot with nothing in it is the sheet's empty column, not a contact.
-    if (!c.name && !c.phone && !c.email) continue;
+    // Fold the sheet's "-" BEFORE the empty-slot test. Unfolded, a "-" name
+    // rendered as a contact called "-", a "-" phone as a dead tel: link (the
+    // href strips it to "tel:") and a "-" e-mail as "mailto:-". The importer
+    // leaves contact cells as written, so this is the only fold they get.
+    const name = textOrNull(c.name);
+    const phone = textOrNull(c.phone);
+    const email = textOrNull(c.email);
+    // A slot with nothing in it is the sheet's empty column, not a contact --
+    // and "-" in all three cells is the same empty column written by hand.
+    if (!name && !phone && !email) continue;
     const list = contactsByProject.get(c.project_id) ?? [];
-    list.push({ slot: c.slot, name: c.name, phone: c.phone, email: c.email });
+    list.push({ slot: c.slot, name, phone, email });
     contactsByProject.set(c.project_id, list);
   }
   for (const list of contactsByProject.values()) list.sort((a, b) => a.slot - b.slot);

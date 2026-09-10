@@ -65,24 +65,11 @@ const STYLE: Record<MyRole, { className: string; title: string; label: string }>
   },
 };
 
-export function RoleBadge({
-  role,
-  title,
-}: {
-  role: MyRole;
-  /**
-   * Overrides the default tooltip, which is written in the second person
-   * ("the masterdata names YOU"). The detail panel reuses the RESPONSIBLE and
-   * REPLACEMENT chips beside a NAMED colleague, where "you" would be false.
-   * The look is unchanged: the ladder is the bezel and the weight, not the
-   * words in the tooltip.
-   */
-  title?: string;
-}) {
+export function RoleBadge({ role }: { role: MyRole }) {
   const s = STYLE[role];
   return (
     <span
-      title={title ?? s.title}
+      title={s.title}
       className={`inline-flex flex-none items-center rounded-full px-2 py-0.5 t-label ${s.className}`}
     >
       {s.label}

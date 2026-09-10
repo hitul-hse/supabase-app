@@ -357,6 +357,15 @@ const EXTRA_MIGRATIONS = [
   "supabase/migrations/20260824160000_create_project_responsibility.sql",
   "supabase/migrations/20260903230000_project_link.sql",
   "supabase/migrations/add_contract_periods.sql",
+  /*
+   * The masterdata sheet's warehouse tables (2026-09-10, HSEHU-64): My Work's
+   * detail panel reads public.project_masterdata and public.project_contact,
+   * both under can_view_project(project_id). The customer-master foundation
+   * goes first because the warehouse migration references stg.import_batch
+   * and projects.project_order from it.
+   */
+  "supabase/migrations/20260822130000_create_customer_master_foundation.sql",
+  "supabase/migrations/20260910120000_masterdata_sheet_warehouse.sql",
 ];
 
 const U = {
@@ -716,6 +725,18 @@ await seed("projects, assignments, links, responsibilities, services", `
     select 'tp-ops-2', c.id, 'Assigned project', 'prj-asgn',
            (select id from time.service where source_id = 'svc-ops-2'), 200
       from time.customer c where c.source_id = 'cust-ops-1';
+
+  -- The sheet's row and contacts per project, so "operations reads exactly
+  -- what employee reads" is a statement about rows that exist. Fixture
+  -- values only; the customer_number CHECK wants five digits.
+  insert into project_masterdata (project_id, masterdata_key, customer_number, customer_display_name, language, responsible_kind, responsible_person_id) values
+    ('prj-own',   '10001_00001_0001.1_01', '10001', 'ACME (fixture)',  1, 'person', 'md-mathias'),
+    ('prj-asgn',  '10001_00001_0002.1_01', '10001', 'ACME (fixture)',  1, 'doctor', null),
+    ('prj-other', '10002_00001_0001.2_01', '10002', 'OTHER (fixture)', 2, 'person', 'md-hannes');
+  insert into project_contact (project_id, slot, name, phone, email) values
+    ('prj-own',   1, 'Fixture Contact', '+49 30 0000000', 'contact.own@example.invalid'),
+    ('prj-asgn',  1, 'Fixture Contact', '+49 30 0000001', 'contact.asgn@example.invalid'),
+    ('prj-other', 1, 'Fixture Contact', '+49 30 0000002', 'contact.other@example.invalid');
 `);
 
 // A budget row, so "operations sees no budgets" is a statement about something
@@ -755,6 +776,9 @@ const READS = {
   person_assignments: `select project_id from person_assignments order by project_id`,
   project_responsibility: `select project_id from project_responsibility order by project_id`,
   project_link: `select project_id, kind from project_link order by 1,2`,
+  // The detail panel's two tables (HSEHU-64). Same predicate as project_link.
+  project_masterdata: `select project_id from project_masterdata order by 1`,
+  project_contact: `select project_id, slot from project_contact order by 1,2`,
   "time.project": `select hub_project_id from time.project order by 1`,
   "time.service": `select name from time.service order by 1`,
 };

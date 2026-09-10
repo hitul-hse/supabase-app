@@ -176,6 +176,87 @@ export type MyProject = {
    * "n/a" would overstate the case.
    */
   links: MyLink[];
+  /**
+   * The masterdata sheet's facts about this order -- the 27 magenta columns
+   * hitul confirmed on 2026-09-10 as what an operations person sees for a
+   * service (HSEHU-64) -- or null when the sheet has no row for it yet.
+   *
+   * Read from `public.project_masterdata`, a 1:1 table under the same
+   * `can_view_project()` policy as the project itself, so it cannot widen what
+   * the page shows. Rendered ONLY in the detail panel for the one selected row,
+   * never as a table column: the projects table clears 1280px by a few pixels
+   * and every one of these fields would cost a column.
+   *
+   * Contract hours are deliberately NOT here. They stay on `contractHours`
+   * above, where the budget redaction already applies; a second copy on this
+   * object would be a second place to forget it.
+   */
+  detail: MyProjectDetail | null;
+  /**
+   * The customer's two contact persons for this order, from
+   * `public.project_contact`. Personal data of third parties: shown for the one
+   * selected row, never in a list column, never in the CSV export -- every
+   * `Column.csv` on the tables omits them, and check-my-work-detail.mjs pins it.
+   */
+  contacts: MyContact[];
+};
+
+/**
+ * What the sheet knows about one service order, in the reader's terms.
+ *
+ * HONEST NULLS THROUGHOUT. The sheet writes "-" for "not applicable" and the
+ * importer already turns that into null (scripts/lib/masterdata-sheet.mjs); a
+ * null here is rendered as an absence, never as 0, "Nein" or an empty string.
+ */
+export type MyProjectDetail = {
+  /** The name the sheet displays for the customer (Kunde Anzeigename). */
+  customerDisplayName: string | null;
+  /** The customer's legal name as written in the sheet. */
+  customerName: string | null;
+  /** 1 = Deutsch, 2 = English in the sheet; mapped here so the UI never sees a digit. */
+  language: "de" | "en" | null;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  /** ISO date (YYYY-MM-DD) or null. */
+  contractStart: string | null;
+  /** ISO date (YYYY-MM-DD) or null. Liveness is THIS, not the sheet's status column. */
+  contractEnd: string | null;
+  /** The named lead's name, resolved through org_chart_nodes; null when unknown or not a person. */
+  responsibleName: string | null;
+  /** 'person' when a colleague; 'doctor' (the company doctor) or 'other' when the sheet names no person. */
+  responsibleKind: PersonKind | null;
+  replacementName: string | null;
+  replacementKind: PersonKind | null;
+  /** The role the responsible person holds on this service (e.g. Fachkraft für Arbeitssicherheit). */
+  serviceRole: string | null;
+  /** Free text from the sheet ("2 Std.", "halber Tag"); never parsed into a number. */
+  minOnsiteTime: string | null;
+  /** Ja/Nein as a boolean; anything else the sheet wrote is kept in the text field. */
+  travelFlatRate: boolean | null;
+  travelFlatRateText: string | null;
+  travelAsProjectTime: boolean | null;
+  travelAsProjectTimeText: string | null;
+  /** Where the files live, as text (the sheet's Dateiablage column). */
+  fileStorage: string | null;
+  /**
+   * 'historical' when the last batch no longer carried this row (decision
+   * 2026-09-10: never delete, mark). The panel shows a banner and says whether
+   * the contract ended or the row simply vanished from the sheet.
+   */
+  lifecycleStatus: "active" | "historical";
+  /** The sheet's own modified time of the batch that last carried this row. */
+  lastSeenAt: string | null;
+};
+
+export type PersonKind = "person" | "doctor" | "other";
+
+/** One customer contact person on an order. Slot 1 and 2 are the sheet's two columns. */
+export type MyContact = {
+  slot: 1 | 2;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
 };
 
 /** One outbound working link on a project. */
@@ -370,6 +451,67 @@ function dueOrNull(v: string | null): string | null {
   return trimmed;
 }
 
+/** Only the three values the CHECK constraint admits; anything else is treated as unknown. */
+function kindOrNull(v: string | null | undefined): PersonKind | null {
+  return v === "person" || v === "doctor" || v === "other" ? v : null;
+}
+
+/** Text with the sheet's blanks and "-" folded to null. The importer does this already; belt and braces. */
+function textOrNull(v: string | null | undefined): string | null {
+  if (v === null || v === undefined) return null;
+  const t = v.trim();
+  return t === "" || t === "-" ? null : t;
+}
+
+/**
+ * The sheet row in the reader's terms, or null when there is no row.
+ *
+ * Names are resolved through the id -> name map from org_chart_nodes ONLY when
+ * the kind is 'person': the sheet's DOC and OTHER sentinels carry no person id
+ * (scripts/lib/masterdata-sheet.mjs personSentinel), and a name looked up for
+ * them would be a fixture accident. A person id with no name in the map yields
+ * null, which the panel renders as "name not available" -- true, and different
+ * from "nobody is responsible".
+ */
+function toDetail(
+  m: MasterdataRowLite | null,
+  nameById: Map<string, string>,
+): MyProjectDetail | null {
+  if (!m) return null;
+  const responsibleKind = kindOrNull(m.responsible_kind);
+  const replacementKind = kindOrNull(m.replacement_kind);
+  const nameFor = (kind: PersonKind | null, id: string | null) =>
+    kind === "person" && id ? (nameById.get(id) ?? null) : null;
+  return {
+    customerDisplayName: textOrNull(m.customer_display_name),
+    customerName: textOrNull(m.customer_name),
+    language: m.language === 1 ? "de" : m.language === 2 ? "en" : null,
+    street: textOrNull(m.street),
+    postalCode: textOrNull(m.postal_code),
+    city: textOrNull(m.city),
+    contractStart: textOrNull(m.contract_start),
+    contractEnd: textOrNull(m.contract_end),
+    responsibleName: nameFor(responsibleKind, m.responsible_person_id),
+    responsibleKind,
+    replacementName: nameFor(replacementKind, m.replacement_person_id),
+    replacementKind,
+    serviceRole: textOrNull(m.service_role),
+    minOnsiteTime: textOrNull(m.min_onsite_time),
+    // A boolean is only ever true or false here; the sheet's free text ("nach
+    // Absprache") lives in the *_text field and the boolean stays null.
+    travelFlatRate: typeof m.travel_flat_rate === "boolean" ? m.travel_flat_rate : null,
+    travelFlatRateText: textOrNull(m.travel_flat_rate_text),
+    travelAsProjectTime:
+      typeof m.travel_as_project_time === "boolean" ? m.travel_as_project_time : null,
+    travelAsProjectTimeText: textOrNull(m.travel_as_project_time_text),
+    fileStorage: textOrNull(m.file_storage),
+    // Anything that is not the literal 'historical' is active: the column has
+    // a CHECK to that effect, and an unexpected value must not raise a banner.
+    lifecycleStatus: m.lifecycle_status === "historical" ? "historical" : "active",
+    lastSeenAt: textOrNull(m.last_seen_at),
+  };
+}
+
 type ProjectRowLite = {
   id: string;
   code: string | null;
@@ -428,6 +570,61 @@ type LinkRowLite = {
   url: string | null;
   label: string | null;
 };
+
+/**
+ * One row of public.project_masterdata, the sheet's facts about an order.
+ *
+ * The COMMERCIAL columns the sheet also carries (planned / on-site / remote
+ * hours) were deliberately not promoted into this table, and this select does
+ * not ask for the one it does carry nothing of: contract hours stay on
+ * `public.projects.contract_hours` under `canReadBudgets()`. So this read is
+ * budget-blind by construction and needs no permission check.
+ */
+type MasterdataRowLite = {
+  project_id: string;
+  customer_display_name: string | null;
+  customer_name: string | null;
+  language: number | null;
+  street: string | null;
+  postal_code: string | null;
+  city: string | null;
+  contract_start: string | null;
+  contract_end: string | null;
+  responsible_kind: string | null;
+  replacement_kind: string | null;
+  responsible_person_id: string | null;
+  replacement_person_id: string | null;
+  service_role: string | null;
+  min_onsite_time: string | null;
+  travel_flat_rate: boolean | null;
+  travel_flat_rate_text: string | null;
+  travel_as_project_time: boolean | null;
+  travel_as_project_time_text: string | null;
+  file_storage: string | null;
+  lifecycle_status: string | null;
+  last_seen_at: string | null;
+};
+
+/** One row of public.project_contact: a customer's contact person on an order. */
+type ContactRowLite = {
+  project_id: string;
+  slot: number;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+};
+
+/** One row of the org_chart_nodes view: identity only, which is all the panel needs. */
+type PersonNameRowLite = {
+  id: string;
+  name: string | null;
+};
+
+const MASTERDATA_COLUMNS =
+  "project_id, customer_display_name, customer_name, language, street, postal_code, city, " +
+  "contract_start, contract_end, responsible_kind, replacement_kind, responsible_person_id, " +
+  "replacement_person_id, service_role, min_onsite_time, travel_flat_rate, travel_flat_rate_text, " +
+  "travel_as_project_time, travel_as_project_time_text, file_storage, lifecycle_status, last_seen_at";
 
 /*
  * Canonical grouping keys on `projects.customer_legal_entity_id` and NOTHING
@@ -643,6 +840,146 @@ async function fetchMyLinks(
 }
 
 /**
+ * The sheet's facts about this person's projects, from public.project_masterdata.
+ *
+ * Same shape and same reasoning as `fetchMyLinks`: the table carries a single
+ * SELECT policy, `can_view_project(project_id)`, so the read cannot widen what
+ * the page shows; chunked so a long `.in()` list cannot 414; `.order()` before
+ * `.range()` so the pages partition stably; wrapped in try/catch and degrading
+ * to NOTHING, because losing this table costs the detail panel and nothing
+ * else -- every project, role and link still renders. Contrast
+ * `fetchMyProjects`, whose failure is deliberately NOT caught.
+ *
+ * Until the first promote runs, this table is empty on the live project and
+ * the panel says "no masterdata for this order yet" for every row. That is the
+ * honest state, not a failure, and it is distinct from the catch below.
+ */
+async function fetchMyMasterdata(
+  supabase: SupabaseTyped,
+  projectIds: string[],
+): Promise<{ rows: MasterdataRowLite[]; truncated: boolean }> {
+  if (projectIds.length === 0) return { rows: [], truncated: false };
+
+  try {
+    const rows: MasterdataRowLite[] = [];
+    let truncated = false;
+    const CHUNK = 200;
+    for (let i = 0; i < projectIds.length; i += CHUNK) {
+      const slice = projectIds.slice(i, i + CHUNK);
+      if (slice.length === 0) continue;
+      const page = await fetchAllPaged<MasterdataRowLite>(
+        (from, to) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .from("project_masterdata")
+            .select(MASTERDATA_COLUMNS)
+            .in("project_id", slice)
+            .order("project_id")
+            .range(from, to),
+        { maxPages: Math.max(1, Math.ceil(slice.length / PAGE) + 1) },
+      );
+      truncated = truncated || page.truncated;
+      rows.push(...page.rows);
+    }
+    return { rows, truncated };
+  } catch {
+    return { rows: [], truncated: false };
+  }
+}
+
+/**
+ * The customer contacts on this person's projects, from public.project_contact.
+ *
+ * Personal data of third parties, under the same `can_view_project(project_id)`
+ * policy as everything else here. It is read for the whole book of work in one
+ * round rather than per selection because the page is server-rendered and
+ * has no per-row endpoint; what keeps it out of the LIST is the UI contract
+ * (never a column, never a CSV field), pinned by check-my-work-detail.mjs.
+ * Degrades to no contacts, for the same reason `fetchMyLinks` does.
+ */
+async function fetchMyContacts(
+  supabase: SupabaseTyped,
+  projectIds: string[],
+): Promise<{ rows: ContactRowLite[]; truncated: boolean }> {
+  if (projectIds.length === 0) return { rows: [], truncated: false };
+
+  try {
+    const rows: ContactRowLite[] = [];
+    let truncated = false;
+    const CHUNK = 200;
+    for (let i = 0; i < projectIds.length; i += CHUNK) {
+      const slice = projectIds.slice(i, i + CHUNK);
+      if (slice.length === 0) continue;
+      const page = await fetchAllPaged<ContactRowLite>(
+        (from, to) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .from("project_contact")
+            .select("project_id, slot, name, phone, email")
+            .in("project_id", slice)
+            .order("project_id")
+            .order("slot")
+            .range(from, to),
+        { maxPages: Math.max(1, Math.ceil(slice.length / PAGE) + 1) },
+      );
+      truncated = truncated || page.truncated;
+      rows.push(...page.rows);
+    }
+    return { rows, truncated };
+  } catch {
+    return { rows: [], truncated: false };
+  }
+}
+
+/**
+ * Names for the responsible and replacement person ids the sheet resolved.
+ *
+ * Through `org_chart_nodes`, NOT `public.people`: `people` is hidden from a
+ * non-exec caller by `can_view_person()`, so an operations person reading a
+ * colleague's row would get nothing back and the panel would print an id. The
+ * view projects identity only -- id, name, role, department, manager_id -- and
+ * is deliberately not security_invoker for exactly this reason (an org chart
+ * that shows you only yourself is not an org chart; see
+ * 20260903090000_contract_status_view_must_not_bypass_rls.sql). Nothing
+ * commercial or HR-sensitive can leak through it.
+ *
+ * Degrades to no names: the panel then says the name is not available beside
+ * the kind, which is true, rather than inventing one.
+ */
+async function fetchPersonNames(
+  supabase: SupabaseTyped,
+  personIds: string[],
+): Promise<{ rows: PersonNameRowLite[]; truncated: boolean }> {
+  if (personIds.length === 0) return { rows: [], truncated: false };
+
+  try {
+    const rows: PersonNameRowLite[] = [];
+    let truncated = false;
+    const CHUNK = 200;
+    for (let i = 0; i < personIds.length; i += CHUNK) {
+      const slice = personIds.slice(i, i + CHUNK);
+      if (slice.length === 0) continue;
+      const page = await fetchAllPaged<PersonNameRowLite>(
+        (from, to) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .from("org_chart_nodes")
+            .select("id, name")
+            .in("id", slice)
+            .order("id")
+            .range(from, to),
+        { maxPages: Math.max(1, Math.ceil(slice.length / PAGE) + 1) },
+      );
+      truncated = truncated || page.truncated;
+      rows.push(...page.rows);
+    }
+    return { rows, truncated };
+  } catch {
+    return { rows: [], truncated: false };
+  }
+}
+
+/**
  * Every masterdata responsibility row naming this person.
  *
  * READ-ONLY, and gated by the table's own `can_view_project(project_id)`
@@ -712,6 +1049,19 @@ export function assembleMyWork(
    * and hide a regression in the ladder behind an unrelated change.
    */
   canSeeBudgets = true,
+  /*
+   * ONE trailing options object for the sheet's fields, rather than three more
+   * positional parameters: check-my-work-scoping.mjs exercises this function
+   * with four arguments and must keep type-checking, and a tenth positional
+   * `[]` after a boolean is the kind of call nobody can read back. Everything
+   * in here defaults to empty, which yields `detail: null` and no contacts --
+   * the same result as a project the sheet does not know.
+   */
+  options: {
+    masterdata?: MasterdataRowLite[];
+    contacts?: ContactRowLite[];
+    personNames?: PersonNameRowLite[];
+  } = {},
 ): MyWork {
   const assignmentByProject = new Map<string, AssignmentRowLite>();
   for (const a of assignments) {
@@ -761,6 +1111,30 @@ export function assembleMyWork(
   for (const list of linksByProject.values()) {
     list.sort((a, b) => LINK_ORDER.indexOf(a.kind) - LINK_ORDER.indexOf(b.kind));
   }
+
+  // The sheet's row per project (1:1 by primary key, so a Map is exact), the
+  // names its person ids resolve to, and the contacts folded per project in
+  // slot order. A contact row with a slot outside {1, 2} is dropped rather than
+  // rendered: the check constraint should make it impossible, and a third
+  // "contact" the sheet has no column for is a fixture error, not a fact.
+  const masterdataByProject = new Map<string, MasterdataRowLite>();
+  for (const m of options.masterdata ?? []) {
+    if (m.project_id) masterdataByProject.set(m.project_id, m);
+  }
+  const nameById = new Map<string, string>();
+  for (const p of options.personNames ?? []) {
+    if (p.id && p.name) nameById.set(p.id, p.name);
+  }
+  const contactsByProject = new Map<string, MyContact[]>();
+  for (const c of options.contacts ?? []) {
+    if (!c.project_id || (c.slot !== 1 && c.slot !== 2)) continue;
+    // A slot with nothing in it is the sheet's empty column, not a contact.
+    if (!c.name && !c.phone && !c.email) continue;
+    const list = contactsByProject.get(c.project_id) ?? [];
+    list.push({ slot: c.slot, name: c.name, phone: c.phone, email: c.email });
+    contactsByProject.set(c.project_id, list);
+  }
+  for (const list of contactsByProject.values()) list.sort((a, b) => a.slot - b.slot);
 
   const rows: MyProject[] = [];
   for (const p of projects) {
@@ -825,6 +1199,8 @@ export function assembleMyWork(
       dueDate: dueOrNull(p.due),
       services: projectServices,
       links: projectLinks,
+      detail: toDetail(masterdataByProject.get(p.id) ?? null, nameById),
+      contacts: contactsByProject.get(p.id) ?? [],
     });
   }
 
@@ -1076,11 +1452,32 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
     ];
     // Neither depends on the other -- same round-trip reasoning as the
     // assignments/responsibilities pair above.
-    const [projects, services, links] = await Promise.all([
+    const [projects, services, links, masterdata, contacts] = await Promise.all([
       fetchMyProjects(supabase, personId, projectIds),
       fetchMyServices(supabase, projectIds),
       fetchMyLinks(supabase, projectIds),
+      fetchMyMasterdata(supabase, projectIds),
+      fetchMyContacts(supabase, projectIds),
     ]);
+
+    /*
+     * A THIRD, usually tiny, round: the names behind the sheet's responsible
+     * and replacement ids. It cannot join the second round because the ids
+     * come out of it, and it is not an embed on the masterdata select because
+     * `people` is hidden from a non-exec caller (see fetchPersonNames). Only
+     * ids of kind 'person' are asked for; DOC/OTHER carry none.
+     */
+    const personIds = [
+      ...new Set(
+        masterdata.rows
+          .flatMap((m) => [
+            m.responsible_kind === "person" ? m.responsible_person_id : null,
+            m.replacement_kind === "person" ? m.replacement_person_id : null,
+          ])
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const personNames = await fetchPersonNames(supabase, personIds);
 
     return assembleMyWork(
       personId,
@@ -1092,6 +1489,10 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
       links.rows,
       assignments.truncated || projects.truncated || responsibilities.truncated || services.truncated,
       canSeeBudgets,
+      // Panel data only. Its truncation is not folded into `truncated` above:
+      // that flag warns that the LIST and the TOTALS may understate, and a
+      // clipped detail read cannot move either.
+      { masterdata: masterdata.rows, contacts: contacts.rows, personNames: personNames.rows },
     );
   } catch {
     // A failed read must NOT render as "you have no work": that is the same

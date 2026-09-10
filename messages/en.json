@@ -2088,6 +2088,61 @@
         "title": "No projects are assigned to you",
         "description": "Nothing names {name} as responsible, owner, replacement or assignee yet. Once a project lead assigns you, it appears here."
       }
+    },
+    "detail": {
+      "close": "Clear the selection",
+      "empty": "No masterdata for this order yet.",
+      "withheld": "withheld",
+      "historical": {
+        "label": "HISTORICAL",
+        "ended": "The contract ended on {date}.",
+        "gone": "This order is no longer in the masterdata sheet."
+      },
+      "service": {
+        "title": "SERVICE",
+        "customer": "CUSTOMER",
+        "customerName": "LEGAL NAME",
+        "language": "LANGUAGE",
+        "address": "ADDRESS",
+        "contractStart": "CONTRACT START",
+        "contractEnd": "CONTRACT END",
+        "contractHours": "CONTRACT HOURS"
+      },
+      "language": {
+        "de": "Deutsch",
+        "en": "English"
+      },
+      "people": {
+        "title": "PEOPLE",
+        "responsible": "RESPONSIBLE",
+        "role": "ROLE",
+        "replacement": "REPLACEMENT",
+        "doctor": "Company doctor",
+        "other": "Other",
+        "unknown": "Name not available",
+        "responsibleTitle": "Named in the masterdata sheet as responsible for this order",
+        "replacementTitle": "Named in the masterdata sheet as the replacement for this order"
+      },
+      "delivery": {
+        "title": "DELIVERY TERMS",
+        "minOnsite": "MIN. TIME ON SITE",
+        "travelFlatRate": "TRAVEL FLAT RATE",
+        "travelAsProjectTime": "TRAVEL TIME IS PROJECT TIME",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "contacts": {
+        "title": "CUSTOMER CONTACTS",
+        "slot": "CONTACT {slot}",
+        "none": "No contact recorded"
+      },
+      "links": {
+        "title": "LINKS",
+        "fileStorage": "FILE STORAGE",
+        "none": "No links recorded"
+      },
+      "source": "From the masterdata sheet, updated {when}",
+      "sourceUndated": "From the masterdata sheet"
     }
   }
 }

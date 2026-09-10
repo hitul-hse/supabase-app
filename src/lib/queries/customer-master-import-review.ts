@@ -49,8 +49,26 @@ export type ImportReviewData = {
   documentedCases: ReviewCase[];
   sheetCounts: { sheet_name: string; count: number }[];
   caseTypeCounts: { case_type: ReviewCase["case_type"]; count: number }[];
+  /*
+   * Honest counts (UI-CONVENTIONS rule 6). The read model is built from the
+   * records actually read, so the page must be able to say when that is not
+   * all of them, and how many clean rows it deliberately left out of the queue.
+   */
+  recordsRead: number;
+  recordsCapped: boolean;
+  cleanRecords: number;
   error: string | null;
 };
+
+/*
+ * How many records the read model will hold at most. The earlier version read
+ * `limit 1000` in one query and said nothing: the first masterdata sheet batch
+ * had 1,082 records and the page showed 962 as if that were all of them. Now
+ * the records are read page by page until the batch is exhausted, and only a
+ * batch beyond this ceiling is cut -- visibly, through recordsCapped.
+ */
+const RECORD_PAGE = 1000;
+const RECORD_CEILING = 20000;
 
 export type ReviewPriority = "P0" | "P1" | "P2";
 export type ReviewCaseType =
@@ -59,7 +77,25 @@ export type ReviewCaseType =
   | "PROJECT_LOCATION_CANDIDATE"
   | "MULTI_LOCATION_CUSTOMER"
   | "HISTORICAL_SOURCE_REVIEW"
-  | "CUSTOMER_MASTER_REVIEW";
+  | "CUSTOMER_MASTER_REVIEW"
+  /*
+   * The four below exist for the masterdata sheet batches (source
+   * MASTERDATA_SHEET_V1, 2026-09-10). Their records carry raw_payload.flags,
+   * written by scripts/import-masterdata-sheet-staging.mjs, and the flags say
+   * exactly why a row cannot be promoted. ORDER_KEY_REVIEW is a service row
+   * whose key is not usable (duplicate, missing language, old and new key
+   * naming different customers, or an old key the warehouse never saw);
+   * PERSON_REVIEW is a responsible or replacement name that matched nobody or
+   * two people; CUSTOMER_NOT_IN_WAREHOUSE is a Lexware number with services
+   * but no legal entity; PARKED_CONTACT is a customer from the contacts tab
+   * with no service and no warehouse row -- kept, not reviewed. A row that is
+   * merely NEW is not a case since 2026-09-10: the promote inserts a clean new
+   * service without a reviewer, so newness alone never reaches this queue.
+   */
+  | "ORDER_KEY_REVIEW"
+  | "PERSON_REVIEW"
+  | "CUSTOMER_NOT_IN_WAREHOUSE"
+  | "PARKED_CONTACT";
 export type ReviewStatus = "OPEN" | "IN_REVIEW" | "RESOLVED" | "DEFERRED" | "REJECTED";
 export type ResolutionStatus = Lowercase<ReviewStatus>;
 
@@ -123,6 +159,53 @@ function sheetName(record: ImportRecord) {
   return String(record.raw_payload.sheet_name ?? "unknown");
 }
 
+/** The importer's verdict flags on a masterdata-sheet record; [] for every other batch. */
+function sheetFlags(record: ImportRecord): string[] {
+  const flags = record.raw_payload.flags;
+  return Array.isArray(flags) ? flags.map(String) : [];
+}
+
+/** Records staged from the masterdata sheet carry a flags array, even when empty. */
+function isSheetRecord(record: ImportRecord) {
+  return Array.isArray(record.raw_payload.flags);
+}
+
+const ORDER_KEY_FLAGS = ["DUPLICATE_ORDER_KEY", "DUPLICATE_OLD_KEY", "MISSING_LANGUAGE", "KEY_FORMULA_MISMATCH", "KEY_PREFIX_MISMATCH", "UNKNOWN_OLD_KEY"];
+const PERSON_FLAGS = ["UNMATCHED_RESPONSIBLE", "UNMATCHED_RESPONSIBLE_AMBIGUOUS", "UNMATCHED_REPLACEMENT", "UNMATCHED_REPLACEMENT_AMBIGUOUS"];
+/*
+ * The importer's blocking set (scripts/lib/masterdata-sheet.mjs BLOCKING_FLAGS),
+ * copied here because a server query module does not import from scripts/.
+ * check-import-review-honesty.mjs asserts the two lists are identical, so the
+ * page cannot drift from the promote step's idea of what blocks a row.
+ * CUSTOMER_NOT_IN_WAREHOUSE counts only while the record has no legal-entity
+ * candidate: the promote re-judges it against the customers that exist now.
+ */
+const BLOCKING_FLAGS = [...ORDER_KEY_FLAGS, ...PERSON_FLAGS, "CUSTOMER_NOT_IN_WAREHOUSE"];
+
+function blockingFlagsOf(record: ImportRecord) {
+  return sheetFlags(record).filter((flag) => BLOCKING_FLAGS.includes(flag) && !(flag === "CUSTOMER_NOT_IN_WAREHOUSE" && record.candidate_legal_entity_id));
+}
+
+/** A contacts-tab row with no service in the sheet and no warehouse row: kept, not a decision. Only a VALID row can be parked. */
+function isParkedContact(record: ImportRecord) {
+  return isSheetRecord(record) && record.validation_status === "valid" && sheetFlags(record).includes("NO_SERVICE_ROW") && !record.candidate_legal_entity_id;
+}
+
+/**
+ * A sheet record that resolved cleanly is not a case: nothing about it needs
+ * a person. It stays counted (the page says how many were left out) but it
+ * does not sit in the queue between the rows that do need a decision.
+ */
+function isCleanSheetRecord(record: ImportRecord) {
+  if (!isSheetRecord(record)) return false;
+  if (record.validation_status !== "valid") return false;
+  // rejected / in_review are a person's decisions; review_required is the
+  // importer's own stamp and is re-judged from the flags, as the promote does.
+  if (record.review_status === "rejected" || record.review_status === "in_review") return false;
+  if (isParkedContact(record)) return false; // parked, shown as such
+  return blockingFlagsOf(record).length === 0;
+}
+
 function isOperationalLocationRecord(record: ImportRecord) {
   return ["location_observations", "locations"].includes(sheetName(record));
 }
@@ -161,6 +244,11 @@ function customerId(record: ImportRecord) {
 }
 
 function caseKey(record: ImportRecord) {
+  // A sheet service row is its own case: its defects (a duplicate key, a
+  // missing language) belong to that row, not to every service of the customer.
+  if (isSheetRecord(record) && sheetName(record) === "service_orders") {
+    return `order:${record.source_external_id ?? record.row_number}`;
+  }
   if (isOperationalLocationRecord(record)) {
     const id = customerId(record) ?? record.source_customer_number;
     if (id) return `location-customer:${id}`;
@@ -183,6 +271,14 @@ function hasLexwareReferenceConflict(records: ImportRecord[]) {
 }
 
 function caseType(records: ImportRecord[]): ReviewCase["case_type"] {
+  if (records.some(isSheetRecord)) {
+    const blocking = new Set(records.flatMap(blockingFlagsOf));
+    if (ORDER_KEY_FLAGS.some((flag) => blocking.has(flag))) return "ORDER_KEY_REVIEW";
+    if (blocking.has("CUSTOMER_NOT_IN_WAREHOUSE")) return "CUSTOMER_NOT_IN_WAREHOUSE";
+    if (PERSON_FLAGS.some((flag) => blocking.has(flag))) return "PERSON_REVIEW";
+    if (records.every(isParkedContact)) return "PARKED_CONTACT";
+    return "CUSTOMER_MASTER_REVIEW";
+  }
   const text = JSON.stringify(records).toUpperCase();
   const locationRecords = records.filter(isOperationalLocationRecord);
   if (locationRecords.length > 0 && !text.includes("LEXWARE_REFERENCE_CONFLICT")) {
@@ -216,6 +312,9 @@ function hasUnclearLegalEntity(record: ImportRecord) {
 }
 
 function priorityFor(reviewCase: Pick<ReviewCase, "case_type" | "records">): ReviewPriority {
+  if (reviewCase.case_type === "ORDER_KEY_REVIEW") return "P0";
+  if (reviewCase.case_type === "PERSON_REVIEW" || reviewCase.case_type === "CUSTOMER_NOT_IN_WAREHOUSE") return "P1";
+  if (reviewCase.case_type === "PARKED_CONTACT") return "P2";
   const text = JSON.stringify(reviewCase.records).toUpperCase();
   if (
     reviewCase.case_type === "LEXWARE_REFERENCE_CONFLICT" ||
@@ -229,8 +328,9 @@ function priorityFor(reviewCase: Pick<ReviewCase, "case_type" | "records">): Rev
   return "P1";
 }
 
-function statusFor(reviewCase: Pick<ReviewCase, "resolution_state" | "records" | "review_statuses">): ReviewStatus {
+function statusFor(reviewCase: Pick<ReviewCase, "resolution_state" | "records" | "review_statuses" | "case_type">): ReviewStatus {
   if (reviewCase.resolution_state === "documented") return "RESOLVED";
+  if (reviewCase.case_type === "PARKED_CONTACT") return "DEFERRED";
   if (reviewCase.records.some((record) => record.resolution_status === "unresolved")) return "OPEN";
   if (reviewCase.review_statuses.some((status) => status === "in_review")) return "IN_REVIEW";
   return "OPEN";
@@ -238,6 +338,18 @@ function statusFor(reviewCase: Pick<ReviewCase, "resolution_state" | "records" |
 
 function reviewReasonFor(reviewCase: Pick<ReviewCase, "case_type" | "resolution_state" | "resolution_note" | "records">) {
   if (reviewCase.resolution_state === "documented" && reviewCase.resolution_note) return reviewCase.resolution_note;
+  if (reviewCase.case_type === "ORDER_KEY_REVIEW") {
+    return `Auftragsschlüssel nicht verwendbar: ${[...new Set(reviewCase.records.flatMap(sheetFlags).filter((flag) => ORDER_KEY_FLAGS.includes(flag)))].join(" · ")} — im Sheet korrigieren, dann erneut importieren.`;
+  }
+  if (reviewCase.case_type === "PERSON_REVIEW") {
+    return `Verantwortliche Person oder Vertretung konnte keiner Person zugeordnet werden: ${[...new Set(reviewCase.records.flatMap(sheetFlags).filter((flag) => PERSON_FLAGS.includes(flag)))].join(" · ")} — Namen im Sheet oder in den Personen prüfen.`;
+  }
+  if (reviewCase.case_type === "CUSTOMER_MASTER_REVIEW" && reviewCase.records.some(isSheetRecord)) {
+    // the importer wrote the exact errors and flags; a canned sentence would be less true
+    return reviewCase.records.map((record) => record.review_reason).filter(Boolean).join(" · ") || "Zeile aus dem Stammdatenblatt konnte nicht verarbeitet werden.";
+  }
+  if (reviewCase.case_type === "CUSTOMER_NOT_IN_WAREHOUSE") return "Lexware-Kundennummer hat Services im Sheet, aber keine Legal Entity im Warehouse. Kunde anlegen oder Nummer prüfen.";
+  if (reviewCase.case_type === "PARKED_CONTACT") return "Kontakt ohne Service im Sheet und ohne Warehouse-Zeile — geparkt, keine Entscheidung nötig.";
   if (reviewCase.case_type === "LEXWARE_REFERENCE_CONFLICT") return "Eine Lexware-Kundennummer verweist auf mehrere Legal-Entity-Kandidaten.";
   if (reviewCase.case_type === "ALIAS_REVIEW") return "Namensvariante oder historische Firmierung fachlich prüfen.";
   if (reviewCase.case_type === "PROJECT_LOCATION_CANDIDATE") return "Projekt-/Auftragsbezug enthält einen potenziell operativen Standort.";
@@ -248,6 +360,10 @@ function reviewReasonFor(reviewCase: Pick<ReviewCase, "case_type" | "resolution_
 }
 
 function documentedResolution(reviewCase: Pick<ReviewCase, "case_name" | "case_key" | "records">) {
+  // The notes below record decisions taken on the August workbook. A sheet row
+  // whose customer name merely contains one of those names is not decided by
+  // them -- deciding anything by name similarity is what ADR-001 forbids.
+  if (reviewCase.records.some(isSheetRecord)) return null;
   const text = `${reviewCase.case_name} ${reviewCase.case_key} ${JSON.stringify(reviewCase.records)}`.toUpperCase();
   if (text.includes("PBS GERMANY OPERATIONS") && (text.includes("10284") || text.includes("10285"))) {
     return "PBS Germany Operations GmbH: eine Legal Entity; Lexware-Referenzen 10284 und 10285 bleiben erhalten.";
@@ -275,7 +391,12 @@ const PRIORITY_RANK: Record<ReviewPriority, number> = { P0: 0, P1: 1, P2: 2 };
 
 function caseName(record: ImportRecord) {
   const values = payloadValues(record);
-  const name = values.canonical_name ?? values.name ?? values.alias ?? values.issue;
+  if (isSheetRecord(record) && sheetName(record) === "service_orders") {
+    const order = values.order_name ?? values.service_name ?? "Service";
+    const customer = values.customer_display_name ?? values.customer_name ?? record.source_customer_number ?? "Kunde";
+    return `${String(order)} · ${String(customer)} · ${record.source_external_id ?? `row ${record.row_number}`}`;
+  }
+  const name = values.canonical_name ?? values.company_name ?? values.name ?? values.alias ?? values.issue;
   if (record.source_customer_number) return `${name ? String(name) : "Lexware customer"} · ${record.source_customer_number}`;
   if (customerId(record)) return `${name ? String(name) : "Customer Master case"} · ${customerId(record)}`;
   return `${sheetName(record)} · ${record.source_external_id ?? `row ${record.row_number}`}`;
@@ -358,6 +479,30 @@ function matchesFilter(reviewCase: ReviewCase, filter: ReviewFilter) {
   );
 }
 
+/**
+ * Every record of the batch, read RECORD_PAGE at a time in row order until a
+ * page comes back short. A batch beyond RECORD_CEILING is cut there and says
+ * so through `capped`; nothing is cut silently.
+ */
+async function readAllRecords(db: Pool, batchId: string): Promise<{ records: ImportRecord[]; capped: boolean }> {
+  const records: ImportRecord[] = [];
+  for (let offset = 0; offset < RECORD_CEILING; offset += RECORD_PAGE) {
+    const page = await db.query<ImportRecord>(`
+      select id, batch_id, row_number, source_external_id,
+             source_customer_number, raw_payload, validation_status,
+             resolution_status, candidate_legal_entity_id,
+             candidate_location_id, review_status, review_reason
+      from stg.import_record
+      where batch_id = $1
+      order by row_number asc
+      limit $2 offset $3
+    `, [batchId, RECORD_PAGE, offset]);
+    records.push(...page.rows);
+    if (page.rows.length < RECORD_PAGE) return { records, capped: false };
+  }
+  return { records, capped: true };
+}
+
 export async function getCustomerMasterImportReview(
   filter: ReviewFilter,
 ): Promise<ImportReviewData> {
@@ -380,6 +525,9 @@ export async function getCustomerMasterImportReview(
         documentedCases: [],
         sheetCounts: [],
         caseTypeCounts: [],
+        recordsRead: 0,
+        recordsCapped: false,
+        cleanRecords: 0,
         error: null,
       };
     }
@@ -404,19 +552,28 @@ export async function getCustomerMasterImportReview(
         group by 1
         order by 1
       `, [batch.id]),
-      db.query<ImportRecord>(`
-        select id, batch_id, row_number, source_external_id,
-               source_customer_number, raw_payload, validation_status,
-               resolution_status, candidate_legal_entity_id,
-               candidate_location_id, review_status, review_reason
-        from stg.import_record
-        where batch_id = $1
-        order by row_number asc
-        limit 1000
-      `, [batch.id]),
+      readAllRecords(db, batch.id),
     ]);
-
-    const reviewRecords = recordsResult.rows.filter((record) => !isBillingOnlyRecord(record));
+    const { records, capped } = recordsResult;
+    // A staging verdict is as old as its batch. Customers the warehouse did not
+    // know at staging time may exist now (the promote creates them from the
+    // contacts tab), so the legal-entity link is completed from the customer
+    // master as it is NOW -- in memory only; stg is never written by this page.
+    const unresolvedNumbers = [...new Set(records.filter((r) => isSheetRecord(r) && !r.candidate_legal_entity_id && r.source_customer_number).map((r) => String(r.source_customer_number)))];
+    if (unresolvedNumbers.length) {
+      const known = await db.query<{ customer_number: string; legal_entity_id: string | null }>(
+        `select customer_number, legal_entity_id from crm.lexware_customer where customer_number = any($1::text[])`,
+        [unresolvedNumbers],
+      );
+      const byNumber = new Map(known.rows.map((r) => [String(r.customer_number), r.legal_entity_id]));
+      for (const r of records) {
+        const entity = byNumber.get(String(r.source_customer_number ?? ""));
+        if (isSheetRecord(r) && !r.candidate_legal_entity_id && entity) { r.candidate_legal_entity_id = entity; r.resolution_status = "matched"; }
+      }
+    }
+    const notBilling = records.filter((record) => !isBillingOnlyRecord(record));
+    const reviewRecords = notBilling.filter((record) => !isCleanSheetRecord(record));
+    const cleanRecords = notBilling.length - reviewRecords.length;
     const allCases = buildCases(reviewRecords).map((reviewCase) => ({
       ...reviewCase,
       created_at: batch.received_at,
@@ -441,6 +598,11 @@ export async function getCustomerMasterImportReview(
       documentedCases,
       sheetCounts: sheetResult.rows,
       caseTypeCounts,
+      recordsRead: records.length,
+      // A batch of exactly RECORD_CEILING rows fills every page and is complete;
+      // without the measured total, a full read cannot be called complete.
+      recordsCapped: capped && (metricsResult.rows[0]?.record_count === undefined || records.length < Number(metricsResult.rows[0].record_count)),
+      cleanRecords,
       error: null,
     };
   } catch {
@@ -451,6 +613,9 @@ export async function getCustomerMasterImportReview(
       documentedCases: [],
       sheetCounts: [],
       caseTypeCounts: [],
+      recordsRead: 0,
+      recordsCapped: false,
+      cleanRecords: 0,
       error: "Die Staging-Daten konnten nicht gelesen werden.",
     };
   }

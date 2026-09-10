@@ -52,7 +52,7 @@ import { createRequire } from "node:module";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 await loadBindings();
 
@@ -695,6 +695,7 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
   // ── 4. Live: the real database, when credentials exist ───────────────────
   if (!existsSync(".env.local")) {
     console.log("\nSKIP: no .env.local — live roster assertions not run");
+    recordNotRun("no .env.local — the 4 live roster probes not evaluated", 4);
   } else {
     const env = {};
     for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -704,6 +705,7 @@ module.exports = { useTranslations: (namespace) => createTranslator({ locale: "e
 
     if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
       console.log("\nSKIP: .env.local lacks Supabase credentials");
+      recordNotRun("no Supabase credentials — the 4 live roster probes not evaluated", 4);
     } else {
       const { createClient } = await import("@supabase/supabase-js");
       const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {

@@ -24,7 +24,7 @@
 import { loadEnv } from "./lib/gate-env.mjs";
 import { contractWeeklyHours } from "./lib/factorial.mjs";
 import pg from "pg";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 let failed = 0;
 const check = (ok, label, detail = "") => {
@@ -105,6 +105,7 @@ console.log("\n--- live (read-only): does the database contain only what the con
 const env = loadEnv();
 if (!env.SUPABASE_DB_URL) {
   console.log("  skip  SUPABASE_DB_URL not set — this half measures the live DB.");
+  recordNotRun("no SUPABASE_DB_URL — the 6 live factorial-contract-hours probes not evaluated", 6);
 } else {
   const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
   await c.connect();
@@ -135,6 +136,7 @@ if (!env.SUPABASE_DB_URL) {
       console.log("  skip  20260903150000_factorial_contract_version.sql has not been pasted into this database.");
       console.log("  skip  Checks 2-6 below need that table; check #1 above already covers the one thing that");
       console.log("  skip  can exist without it (people.contract_hours, which predates this PR).");
+      recordNotRun("crm.factorial_contract_version does not exist yet — checks 2-6 not evaluated", 5);
       await c.query("rollback");
       await c.end();
       console.log(`\n${failed === 0 ? "PASS: conversion logic holds; live schema checks pending the migration" : `FAIL (${failed})`}`);
@@ -213,6 +215,7 @@ if (!env.SUPABASE_DB_URL) {
     );
     if (populatedCount[0].n < MIN_TO_JUDGE) {
       console.log(`  skip  only ${populatedCount[0].n} Factorial-mapped people have contract_hours set (need ${MIN_TO_JUDGE}+ to judge uniformity)`);
+      recordNotRun(`only ${populatedCount[0].n} Factorial-mapped people populated — uniformity not judged`);
     } else {
       check(populated.length > 1,
         "contract_hours values are not all identical once enough people are populated",

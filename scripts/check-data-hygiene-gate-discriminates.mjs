@@ -18,7 +18,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 const PAGE = "src/app/(app)/data-hygiene/page.tsx";
 const QUERY = "src/lib/queries/data-hygiene.ts";
@@ -237,6 +237,7 @@ if (liveSkips) {
 for (const m of MUTATIONS) {
   if (m.catcher === "live" && liveSkips) {
     console.log(`SKIP: needs credentials — ${m.why}`);
+    recordNotRun(`needs credentials — mutation not exercised: ${m.why}`);
     continue;
   }
   const original = readFileSync(m.file, "utf8");

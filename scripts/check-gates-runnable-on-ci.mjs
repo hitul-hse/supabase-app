@@ -193,6 +193,33 @@ const chainOnlyOutsideChain = [];
 const bareNotRunInsideChain = [];
 const diagnosticProblems = [];
 const fakeDiagnostics = [];
+/*
+ * 4. gates that skip assertions without declaring them not-run.
+ *
+ * Section 3 catches a gate that runs and asserts NOTHING. It does not catch one
+ * that runs and asserts LESS: a `console.log("SKIP: no SUPABASE_DB_URL ...")`
+ * guarding a whole block of check() calls, with the block simply omitted and no
+ * notRun-family call anywhere to say so. That gate's RESULT line still reads
+ * notrun=0, so run-all-gates.mjs cannot tell "this gate proved everything it
+ * always proves" from "six of its checks quietly stopped running" -- which is
+ * exactly how scripts/gates/assertion-baseline.json ended up unenforceable in
+ * CI: thirteen gates evaluate fewer assertions there than the baseline records,
+ * every one of them reporting notrun=0 while doing it.
+ *
+ * Detected statically, on the same reasoning as the `guarded` scan in section 1:
+ * a `console.log(...)` whose string argument STARTS (after normalising a
+ * literal "\n" to a space, so a leading "\nSKIP" is not mistaken for glued-on
+ * prose) with the word "skip" -- case-insensitive, since two of the thirteen use
+ * lowercase -- is this codebase's own convention for announcing a skipped
+ * section, distinct from prose that merely mentions skipping as a fact about
+ * the product (e.g. check-time-transform.mjs logging that malformed CSV rows
+ * "are skipped, not thrown"). Requiring the FIRST word, not just the word
+ * anywhere, is what tells the two apart. Only gates inside the test:db chain
+ * are in scope: that chain is what CI runs and what the baseline measures, so
+ * it is the only place this gap matters.
+ */
+const skipTextRe = /console\.log\(\s*[`'"]\s*skip/i;
+const silentSkip = [];
 
 for (const f of gates) {
   const src = readFileSync(`${REPO_ROOT}/${f}`, "utf8");
@@ -253,6 +280,14 @@ for (const f of gates) {
    * import for the same reason as above: only what is imported can be called.
    */
   if (bound.includes("notRun") && chainFileSet.has(f)) bareNotRunInsideChain.push(f);
+
+  // Excluding this file itself: its own report lines start with "SKIPS ..." /
+  // "SKIP" by design, to describe what sections 3 and 4 found -- that is this
+  // audit doing its job, not the bug it exists to catch.
+  if (chainFileSet.has(f) && f !== "scripts/check-gates-runnable-on-ci.mjs" && skipTextRe.test(src.replace(/\\n/g, " "))) {
+    const declaresNotRun = bound.includes("recordNotRun") || bound.includes("notRun") || bound.includes("notRunInChain");
+    if (!declaresNotRun) silentSkip.push(f);
+  }
 }
 
 for (const [file, d] of diagnostics) {
@@ -268,6 +303,7 @@ record(chainOnlyOutsideChain.length === 0);
 record(bareNotRunInsideChain.length === 0);
 record(fakeDiagnostics.length === 0);
 record(diagnosticProblems.length === 0);
+record(silentSkip.length === 0);
 if (noResult.length) {
   console.log(`NO RESULT LINE (${noResult.length}) — cannot be told apart from a gate that asserted nothing:`);
   for (const f of noResult) console.log(`  ${f}`);
@@ -302,12 +338,19 @@ if (diagnosticProblems.length) {
   console.log(`\nDIAGNOSTIC REGISTER PROBLEMS (${diagnosticProblems.length}):`);
   for (const p of diagnosticProblems) console.log(`  ${p}`);
 }
+if (silentSkip.length) {
+  console.log(`\nSKIPS ASSERTIONS WITHOUT DECLARING notrun (${silentSkip.length}) — evaluates fewer assertions in CI than the baseline records, invisibly:`);
+  for (const f of silentSkip) console.log(`  ${f}`);
+  console.log("\nCall recordNotRun(reason, n) from scripts/lib/gate-result.mjs for the assertions");
+  console.log("the skipped section would otherwise have evaluated, alongside the existing SKIP message.");
+}
 if (!noResult.length && !skipsWithExitZero.length && !chainOnlyOutsideChain.length
-  && !bareNotRunInsideChain.length && !fakeDiagnostics.length && !diagnosticProblems.length) {
+  && !bareNotRunInsideChain.length && !fakeDiagnostics.length && !diagnosticProblems.length && !silentSkip.length) {
   console.log("every gate emits a RESULT line from real counts, and none exits 0 on a skip.");
 }
 
 const protocolProblems = noResult.length + skipsWithExitZero.length
-  + chainOnlyOutsideChain.length + bareNotRunInsideChain.length + fakeDiagnostics.length + diagnosticProblems.length;
+  + chainOnlyOutsideChain.length + bareNotRunInsideChain.length + fakeDiagnostics.length + diagnosticProblems.length
+  + silentSkip.length;
 
 process.exit(unsafe.length || orphans.length || registryProblems.length || protocolProblems ? 1 : 0);

@@ -26,7 +26,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
-import { record } from "./lib/gate-result.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
@@ -336,6 +336,7 @@ if (!existsSync(QUERY) || !existsSync(PAGE)) {
     `SKIP: ${QUERY} / ${PAGE} not present in this checkout — attribution rules not checked here.`,
   );
   console.log("      (they are asserted once those files land; scoping and wiring above still ran)");
+  recordNotRun(`${QUERY} / ${PAGE} not present — the 9 query/page attribution probes not evaluated`, 9);
   console.log(`\n${failed === 0 ? "OK" : `${failed} FAILED`}`);
   process.exit(failed === 0 ? 0 : 1);
 }

@@ -97,7 +97,7 @@
     "check:upsert-merge-semantics": 4,
     "check:reassignment-migration": 15,
     "check:reassignment-migration-is-needed": 3,
-    "check:reassignment-candidates-live": 5,
+    "check:reassignment-candidates-live": 10,
     "check:handover-chain-live": 8,
     "check:order-hours-freshness": 8,
     "check:order-hours-freshness-discriminates": 44,

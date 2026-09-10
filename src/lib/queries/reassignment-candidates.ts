@@ -55,8 +55,21 @@ export type CandidateLoad = {
   /** Projects where they are the named cover. Real work if the other person goes off. */
   coversAsReplacement: number;
   /**
-   * Contract hours across the projects they are responsible for. Null when every
-   * one of those projects is unmeasured, which is an honest unknown rather than 0.
+   * Contract hours across the projects they OWN.
+   *
+   * The key is public.projects.owner_person_id, which is NOT the key behind
+   * `responsibleFor` above -- that counts project_responsibility rows. The two
+   * agree on all but one order today (10793_00304_701_01, owned by md-hendryk,
+   * 15h, with no 'responsible' row at all), so a portfolio here can cover one
+   * more project than the count beside it. The divergence is tracked by
+   * masterdata-chain-check.mjs as responsible_role_disagrees_with_owner, and
+   * scripts/lib/masterdata-promote.mjs deliberately leaves a hand-changed owner
+   * alone, so it is designed to persist and can grow. Said here because the
+   * previous wording claimed the responsible key and the reader had no way to
+   * tell which one the number came from.
+   *
+   * Null when every owned project is unmeasured, or when the caller may not see
+   * budgets at all -- an honest unknown either way, never 0.
    */
   contractHours: number | null;
   /** Hours they actually logged in the last 30 days, bounded at today. */

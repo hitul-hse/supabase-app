@@ -541,7 +541,11 @@ export function flagDuplicateKeys(serviceRows) {
 }
 
 // Flags that block promotion. Everything else is information the reviewer
-// sees but does not have to act on.
+// sees but does not have to act on. NEW_SERVICE is deliberately NOT blocking
+// (hitul, 2026-09-10: "new data should be live too"): a service row that is
+// clean in every other respect -- key derivable, customer known to the
+// warehouse, hours stated -- is inserted by the hourly promote without a
+// reviewer. What blocks a new row is a real defect in it, not its newness.
 export const BLOCKING_FLAGS = new Set([
   "DUPLICATE_ORDER_KEY",
   "DUPLICATE_OLD_KEY",
@@ -549,7 +553,6 @@ export const BLOCKING_FLAGS = new Set([
   "KEY_FORMULA_MISMATCH",
   "KEY_PREFIX_MISMATCH",
   "UNKNOWN_OLD_KEY",
-  "NEW_SERVICE",
   "UNMATCHED_RESPONSIBLE",
   "UNMATCHED_RESPONSIBLE_AMBIGUOUS",
   "UNMATCHED_REPLACEMENT",

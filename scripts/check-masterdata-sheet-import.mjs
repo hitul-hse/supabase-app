@@ -123,7 +123,8 @@ check(badContact.errors.length === 1 && badContact.flags.includes("NO_COMPANY_NA
 // ---- classification
 check(eq(classify({ errors: [], flags: ["PHONE_STORED_AS_NUMBER", "ENDED_BUT_OPEN"], candidateLegalEntityId: "uuid" }), { validation_status: "valid", validation_error: null, resolution_status: "matched", review_status: "unreviewed", review_reason: "PHONE_STORED_AS_NUMBER · ENDED_BUT_OPEN" }), "information-only flags do not require review");
 check(classify({ errors: [], flags: ["DUPLICATE_ORDER_KEY"], candidateLegalEntityId: "uuid" }).review_status === "review_required", "a duplicate key requires review");
-check(classify({ errors: [], flags: ["NEW_SERVICE"], candidateLegalEntityId: "uuid" }).review_status === "review_required", "a new service requires review before it is inserted");
+check(classify({ errors: [], flags: ["NEW_SERVICE"], candidateLegalEntityId: "uuid" }).review_status === "unreviewed", "a clean new service needs no reviewer: new data goes live (hitul, 2026-09-10)");
+check(classify({ errors: [], flags: ["NEW_SERVICE", "CUSTOMER_NOT_IN_WAREHOUSE"], candidateLegalEntityId: null }).review_status === "review_required", "a new service for an unknown customer still waits for review");
 check(classify({ errors: [], flags: [], candidateLegalEntityId: null }).resolution_status === "unresolved", "no legal entity candidate means unresolved");
 check(classify({ errors: ["contract_hours: unparsable"], flags: [], candidateLegalEntityId: "uuid" }).validation_status === "invalid", "a parse error makes the row invalid");
 

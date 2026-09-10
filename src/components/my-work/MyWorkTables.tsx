@@ -81,6 +81,7 @@ import {
   type MyRole,
 } from "@/lib/queries/my-work";
 import { LINK_ICON } from "./link-icons";
+import { MyWorkDetail } from "./MyWorkDetail";
 import { RoleBadge } from "./RoleBadge";
 
 /** `—` rather than 0: an unrecorded figure and a real zero are different facts. */
@@ -233,6 +234,18 @@ export function MyWorkTables({
   const filteredCustomers = useMemo(
     () => (role === "all" ? customers : customers.filter((c) => c.roleCounts[role] > 0)),
     [customers, role],
+  );
+
+  /*
+   * The row the URL selects, resolved against the UNFILTERED list: a shared
+   * link carries `?project=` and a role filter independently, and the panel
+   * for the linked project must open even when the filter happens to hide its
+   * row. A stale id that matches nothing yields null and no panel -- the same
+   * degrade-to-default rule every other control here follows.
+   */
+  const selectedRow = useMemo(
+    () => (selectedProject === null ? null : (projects.find((p) => p.id === selectedProject) ?? null)),
+    [projects, selectedProject],
   );
 
   /**
@@ -890,77 +903,112 @@ export function MyWorkTables({
       </div>
 
       {view === "projects" ? (
-        <DataTable<MyProject>
-          rows={filteredProjects}
-          columns={projectColumns}
-          rowKey={(r) => r.id}
-          title={t("tables.projects")}
-          /* Mono-uppercase, like every other caption label in the app (§8 #2)
-             and like the count line it sits beside. Band 4 put this table, the
-             Overview's queues and the projects ledger on one screen-set for the
-             first time, and they were writing the same line three ways. */
-          hint={
-            role === "all" && activeCustomer === null
-              ? "STRONGEST CLAIM FIRST"
-              : `FILTERED${role === "all" ? "" : ` TO ${ROLE_LABEL[role].toUpperCase()}`}${
-                  activeCustomer ? ` · ${activeCustomer.toUpperCase()}` : ""
-                } OF ${projects.length}`
+        /*
+          MASTER / DETAIL, but only once a row is selected.
+
+          With nothing selected this wrapper is a plain column and the table
+          renders exactly as it did before the detail panel existed -- no grid,
+          no second column, no width taken from a table that clears 1280px by
+          a few pixels (check-table-scroll-budget pins this route on first
+          load). Selecting a row turns the wrapper into a two-column grid at
+          `lg` with the panel beside the list and sticky (UI-CONVENTIONS rule
+          4); below `lg` the panel stacks under the table. The panel is a
+          SIBLING Card of the DataTable's Card, never a child of it.
+        */
+        <div
+          className={
+            selectedRow
+              ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,20rem)]"
+              : "flex min-w-0 flex-col"
           }
-          initialSort="role"
-          initialDesc
-          /*
-            The URL-selected row, marked as current (--accent-wash + a 2px
-            --accent left rule, APPLE_REF §5.6 "Row current", §8 #18). The
-            primitive has accepted this since it was written; nothing on this
-            page ever set it, so a shared link could name a filter but never a
-            row.
-          */
-          currentKey={selectedProject}
-          exportName="my-work-projects"
-          searchPlaceholder="Search projects…"
-          // The in-table empty line says WHY (APPLE_REF §5.6, §5.9): an
-          // empty table under a role or customer filter is the filter's
-          // doing, and "no projects are assigned to you" would be a lie to
-          // someone with 54 of them.
-          emptyText={
-            role !== "all" || activeCustomer !== null
-              ? t("tables.emptyFiltered")
-              : t("empty.none.title")
-          }
-          // Page and size in the URL (`?page=&size=`) with no round-trip.
-          urlKeys={{ page: "page", size: "size" }}
-          /* The house pager (UI-CONVENTIONS rule 3): first, last, a one-step
-             window, an elided middle. 54 projects is three pages, and "1 / 3"
-             does not say how far the work goes the way "1 2 3" does. */
-          pagerStyle="numbered"
-          // Bounded body: the rows scroll inside the card so the filter above
-          // and the footnote below stay reachable, and the page does not grow.
-          maxBodyHeight
-          freezeFirstColumn
-          footnote={
-            <>
-              {footnote ? <>{footnote} </> : null}
-              Recorded links across these {filteredProjects.length} projects —{" "}
-              {linkInventory.map((x, i) => (
-                <span key={x.kind}>
-                  {i > 0 ? " · " : ""}
-                  {LINK_LABEL[x.kind]}{" "}
-                  {/* "none", not "0": a column that is empty end to end should
-                      say so in words, because a bare zero under an empty column
-                      is exactly what a broken column would also print. */}
-                  {x.count === 0 ? "none" : x.count}
-                </span>
-              ))}
-              . An empty cell means nobody recorded that link, not a withheld figure.
-              {/* Only while something IS selected. A standing sentence about a
-                  highlight nobody can see explains a state the reader is not
-                  in, which is how a footnote stops being read at all. */}
-              {selectedProject !== null
-                ? " The highlighted row is the project this link selects; click its name again to clear it."
-                : null}
-            </>
-          }
-        />
+        >
+          <DataTable<MyProject>
+            rows={filteredProjects}
+            columns={projectColumns}
+            rowKey={(r) => r.id}
+            title={t("tables.projects")}
+            /* Mono-uppercase, like every other caption label in the app (§8 #2)
+               and like the count line it sits beside. Band 4 put this table, the
+               Overview's queues and the projects ledger on one screen-set for the
+               first time, and they were writing the same line three ways. */
+            hint={
+              role === "all" && activeCustomer === null
+                ? "STRONGEST CLAIM FIRST"
+                : `FILTERED${role === "all" ? "" : ` TO ${ROLE_LABEL[role].toUpperCase()}`}${
+                    activeCustomer ? ` · ${activeCustomer.toUpperCase()}` : ""
+                  } OF ${projects.length}`
+            }
+            initialSort="role"
+            initialDesc
+            /*
+              The URL-selected row, marked as current (--accent-wash + a 2px
+              --accent left rule, APPLE_REF §5.6 "Row current", §8 #18). The
+              primitive has accepted this since it was written; nothing on this
+              page ever set it, so a shared link could name a filter but never a
+              row.
+            */
+            currentKey={selectedProject}
+            exportName="my-work-projects"
+            searchPlaceholder="Search projects…"
+            // The in-table empty line says WHY (APPLE_REF §5.6, §5.9): an
+            // empty table under a role or customer filter is the filter's
+            // doing, and "no projects are assigned to you" would be a lie to
+            // someone with 54 of them.
+            emptyText={
+              role !== "all" || activeCustomer !== null
+                ? t("tables.emptyFiltered")
+                : t("empty.none.title")
+            }
+            // Page and size in the URL (`?page=&size=`) with no round-trip.
+            urlKeys={{ page: "page", size: "size" }}
+            /* The house pager (UI-CONVENTIONS rule 3): first, last, a one-step
+               window, an elided middle. 54 projects is three pages, and "1 / 3"
+               does not say how far the work goes the way "1 2 3" does. */
+            pagerStyle="numbered"
+            // Bounded body: the rows scroll inside the card so the filter above
+            // and the footnote below stay reachable, and the page does not grow.
+            maxBodyHeight
+            freezeFirstColumn
+            footnote={
+              <>
+                {footnote ? <>{footnote} </> : null}
+                Recorded links across these {filteredProjects.length} projects —{" "}
+                {linkInventory.map((x, i) => (
+                  <span key={x.kind}>
+                    {i > 0 ? " · " : ""}
+                    {LINK_LABEL[x.kind]}{" "}
+                    {/* "none", not "0": a column that is empty end to end should
+                        say so in words, because a bare zero under an empty column
+                        is exactly what a broken column would also print. */}
+                    {x.count === 0 ? "none" : x.count}
+                  </span>
+                ))}
+                . An empty cell means nobody recorded that link, not a withheld figure.
+                {/* Only while something IS selected. A standing sentence about a
+                    highlight nobody can see explains a state the reader is not
+                    in, which is how a footnote stops being read at all. */}
+                {selectedProject !== null
+                  ? " The highlighted row is the project this link selects; click its name again to clear it."
+                  : null}
+              </>
+            }
+          />
+          {/*
+            The sheet's purple fields for the selected row. Contract hours go
+            through the SAME hours() as every table cell, already redacted at
+            the query, so the panel cannot print a figure the row could not.
+            Contacts ride on the row object and are rendered here only: no
+            column, no CSV (check-my-work-detail.mjs).
+          */}
+          {selectedRow ? (
+            <MyWorkDetail
+              project={selectedRow}
+              contractHours={hours(selectedRow.contractHours)}
+              budgetsWithheld={budgetsWithheld}
+              onClose={() => selectProject(selectedRow.id)}
+            />
+          ) : null}
+        </div>
       ) : (
         <DataTable<MyCustomer>
           rows={filteredCustomers}

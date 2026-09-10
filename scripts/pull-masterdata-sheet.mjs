@@ -18,7 +18,19 @@
  * It exits 0 when the export is already staged (same hash as the newest
  * batch): nothing changed is a fine answer, silence about it is not.
  *
- * Usage:  node --env-file=.env.local scripts/pull-masterdata-sheet.mjs [--dry-run]
+ * STAGING ALONE IS NOT LIVE. hitul, 2026-09-10: "new data should be live
+ * too". So once a new batch is staged, this job runs the promote step on it
+ * (scripts/promote-masterdata-sheet.mjs --apply --batch <id>) in the same
+ * run: a clean row reaches public.projects, project_masterdata, the
+ * responsibility encodings and the links within the hour; a row with a
+ * defect (duplicate key, missing language, unknown customer ...) stays a
+ * review case and is reported; a row that vanished from the sheet is marked
+ * historical. A failed promote fails the job, so the dead-man switch sees it.
+ * --no-promote stages only (the first promote after a schema change is run
+ * by hand, dry-run first); --promote promotes the newest batch even when
+ * nothing new was staged (a manual re-run after a fix).
+ *
+ * Usage:  node --env-file=.env.local scripts/pull-masterdata-sheet.mjs [--dry-run] [--no-promote | --promote]
  * Needs:  NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (bucket read),
  *         SUPABASE_DB_URL (the importer's write path)
  */
@@ -29,6 +41,8 @@ import { dirname, resolve } from "node:path";
 import { loadEnv } from "./lib/gate-env.mjs";
 
 const DRY_RUN = process.argv.includes("--dry-run");
+const NO_PROMOTE = process.argv.includes("--no-promote");
+const FORCE_PROMOTE = process.argv.includes("--promote");
 const BUCKET = "masterdata-sheet";
 const PREFIX = "V1";
 const MAX_HEARTBEAT_AGE_H = Number(process.env.MASTERDATA_MAX_HEARTBEAT_AGE_H || 3);
@@ -93,7 +107,8 @@ const newest = (await client.query(
 )).rows[0] ?? null;
 await client.end();
 if (newest && newest.file_hash === manifest.sha256) {
-  console.log(`already staged as batch ${newest.id} at ${newest.received_at}; nothing to do`);
+  console.log(`already staged as batch ${newest.id} at ${newest.received_at}; nothing new to stage`);
+  if (FORCE_PROMOTE && !NO_PROMOTE) process.exit(promote(newest.id));
   process.exit(0);
 }
 
@@ -114,7 +129,32 @@ console.log(`downloaded ${bytes.byteLength} bytes to ${TARGET}`);
 
 const args = ["scripts/import-masterdata-sheet-staging.mjs", ...(DRY_RUN ? ["--dry-run"] : [])];
 const run = spawnSync(process.execPath, args, {
-  stdio: "inherit",
+  stdio: ["inherit", "pipe", "inherit"],
+  encoding: "utf8",
   env: { ...process.env, ...env, MASTERDATA_SHEET_XLSX: TARGET, MASTERDATA_SHEET_MODIFIED: manifest.modified },
 });
-process.exit(run.status ?? 1);
+process.stdout.write(run.stdout ?? "");
+if (run.status !== 0) process.exit(run.status ?? 1);
+if (DRY_RUN || NO_PROMOTE) process.exit(0);
+const staged = parseJsonTail(run.stdout);
+if (!staged?.import_succeeded || !staged.batch_id) {
+  console.error("FAIL: the importer reported no batch id; not promoting");
+  process.exit(1);
+}
+process.exit(promote(staged.batch_id));
+
+/** The last JSON object a child printed, or null. */
+function parseJsonTail(text) {
+  const i = String(text ?? "").lastIndexOf("\n{");
+  try { return JSON.parse(String(text).slice(i < 0 ? 0 : i + 1)); } catch { return null; }
+}
+
+/** Promote one staged batch for real; returns the exit status to propagate. */
+function promote(batchId) {
+  console.log(`promoting batch ${batchId} ...`);
+  const p = spawnSync(process.execPath, ["scripts/promote-masterdata-sheet.mjs", "--apply", "--batch", batchId], {
+    stdio: "inherit",
+    env: { ...process.env, ...env },
+  });
+  return p.status ?? 1;
+}

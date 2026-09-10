@@ -118,8 +118,11 @@ if (await exists("public.project_masterdata")) {
 
 // --- invariants: 0 is the only healthy value
 const I = snapshot.invariants;
+// Rows with a NULL project_id are the seed fiction's emp-% assignments (no
+// project at all); they are not a project that could be over-shared.
 I.projects_over_100_percent_share = (await one(`
-  select count(*)::int as n from (select project_id from public.person_assignments group by project_id having sum(share_percent) > 100) x`)).n;
+  select count(*)::int as n from (select project_id from public.person_assignments where project_id is not null group by project_id having sum(share_percent) > 100) x`)).n;
+F.assignments.rows_without_project = (await one(`select count(*)::int as n from public.person_assignments where project_id is null`)).n; // the seed fiction's emp-% rows; a figure, not a fault of the chain
 I.replacement_role_without_cover_assignment = (await one(`
   select count(*)::int as n from public.project_responsibility r
   where r.role = 'replacement' and not exists (

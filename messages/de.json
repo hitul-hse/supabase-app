@@ -2182,7 +2182,7 @@
       "contractNone": "für keinen Auftrag hinterlegt",
       "withheld": "nicht freigegeben",
       "withheldHint": "Deine Rolle sieht keine Vertragsstunden",
-      "logged": "STUNDEN GELOGGT",
+      "logged": "ERFASSTE STUNDEN",
       "loggedHint": "gemessen für {measured} von {total} Aufträgen · Stand {when}",
       "loggedNone": "für keinen Auftrag gemessen"
     },
@@ -2190,12 +2190,12 @@
       "endedLabel": "ALLE VERTRÄGE BEENDET",
       "ended": "Der letzte Vertrag lief am {date} aus.",
       "historicalLabel": "HISTORISCH",
-      "historical": "{count} Aufträge stehen nicht mehr im Stammdatenblatt.",
-      "both": "Der letzte Vertrag lief am {date} aus; {count} Aufträge stehen nicht mehr im Stammdatenblatt."
+      "historical": "{count, plural, one {# Auftrag steht} other {# Aufträge stehen}} nicht mehr im Stammdatenblatt.",
+      "both": "Der letzte Vertrag lief am {date} aus; {count, plural, one {# Auftrag steht} other {# Aufträge stehen}} nicht mehr im Stammdatenblatt."
     },
     "locations": {
       "title": "Standorte",
-      "count": "{count} ADRESSEN",
+      "count": "{count, plural, one {# ADRESSE} other {# ADRESSEN}}",
       "orders": "AUFTRÄGE {codes}",
       "none": "Keine Adresse hinterlegt"
     },
@@ -2213,7 +2213,7 @@
         "termTitle": "Vertragsbeginn bis Vertragsende. Sortiert nach Vertragsende; Aufträge ohne Enddatum stehen immer am Ende.",
         "status": "STATUS",
         "contract": "VERTRAGSSTUNDEN",
-        "logged": "GELOGGT",
+        "logged": "ERFASST",
         "loggedTitle": "Stunden aller Personen auf diesem Auftrag, Stand {when}. Ohne TrackingTime-Verknüpfung bleibt die Zelle leer."
       },
       "status": {
@@ -2227,7 +2227,7 @@
         "hours": "Stunden sind für {measured} von {total} Aufträgen bekannt; die Summe ist eine Untergrenze, nicht das Ganze.",
         "hoursNone": "Für keinen dieser Aufträge sind Stunden gemessen.",
         "budgets": "Vertragsstunden sind für deine Rolle nicht freigegeben und stehen deshalb nicht in dieser Tabelle.",
-        "unnumbered": "{count} weitere Aufträge desselben Rechtsträgers tragen keine Kundennummer und stehen nicht in dieser Liste.",
+        "unnumbered": "{count, plural, one {# weiterer Auftrag desselben Rechtsträgers trägt keine Kundennummer und steht nicht in dieser Liste.} other {# weitere Aufträge desselben Rechtsträgers tragen keine Kundennummer und stehen nicht in dieser Liste.}}",
         "siblingsLead": "Derselbe Rechtsträger führt weitere Kundennummern:",
         "terms": "Leistungsbedingungen – Mindestzeit vor Ort, Anfahrt, Reisezeit – stehen am einzelnen Auftrag, nicht hier.",
         "truncated": "Ein Teil der Daten konnte nicht vollständig gelesen werden; die Zahlen sind Untergrenzen."
@@ -2239,7 +2239,8 @@
       "privacy": "Nur zu Aufträgen, die du sehen darfst. Nicht im Export.",
       "onOrders": "Genannt bei {codes}",
       "noName": "Name nicht hinterlegt",
-      "none": "Kein Ansprechpartner hinterlegt"
+      "none": "Kein Ansprechpartner hinterlegt",
+      "unavailable": "Die Ansprechpartner konnten nicht gelesen werden. Das ist ein Fehler, keine Aussage über den Kunden."
     },
     "care": {
       "title": "Betreuung",
@@ -2248,8 +2249,9 @@
       "replacement": "VERTRETUNG",
       "onOrders": "{codes}",
       "none": "Niemand hinterlegt",
-      "summary": "{count} Personen",
-      "gap": "{count} von {total} Aufträgen haben keinen benannten Verantwortlichen.",
+      "summary": "{count, plural, one {# Person} other {# Personen}}",
+      "gap": "{count, plural, one {# von {total} Aufträgen hat} other {# von {total} Aufträgen haben}} keinen benannten Verantwortlichen.",
+      "gapUnknown": "Ob auf allen Aufträgen jemand als verantwortlich benannt ist, konnte nicht geprüft werden.",
       "noneNamed": "Auf keinem dieser Aufträge ist jemand als verantwortlich benannt."
     },
     "people": {
@@ -2263,7 +2265,9 @@
       "onOrders": "{codes}",
       "fileStorage": "DATEIABLAGE",
       "none": "Keine Links hinterlegt",
-      "summary": "{count} Links"
+      "unavailable": "Die Links konnten nicht gelesen werden. Das ist ein Fehler, keine Aussage über den Kunden.",
+      "summary": "{count, plural, one {# Link} other {# Links}}",
+      "summaryUnavailable": "Nicht lesbar"
     },
     "crm": {
       "title": "Kundenstammsatz",

@@ -61,7 +61,13 @@ export type OrdersFootnoteFacts = {
   budgetsWithheld: boolean;
   measuredOrders: number;
   totalOrders: number;
-  siblingUnnumberedOrders: number;
+  /**
+   * null when the sibling read failed. Recomputed over an empty masterdata
+   * sub-read the count becomes EVERY sibling order, so this footnote would state
+   * that N orders carry no customer number on the strength of a read that
+   * returned nothing. The absent case prints no line; `truncated` carries it.
+   */
+  siblingUnnumberedOrders: number | null;
   siblingCustomerNumbers: string[];
   truncated: boolean;
 };
@@ -302,7 +308,7 @@ function OrdersFootnotes({ facts }: { facts: OrdersFootnoteFacts }) {
     lines.push(t("orders.footnote.hours", { measured: facts.measuredOrders, total: facts.totalOrders }));
   }
   if (facts.budgetsWithheld) lines.push(t("orders.footnote.budgets"));
-  if (facts.siblingUnnumberedOrders > 0) {
+  if (facts.siblingUnnumberedOrders !== null && facts.siblingUnnumberedOrders > 0) {
     lines.push(t("orders.footnote.unnumbered", { count: facts.siblingUnnumberedOrders }));
   }
   lines.push(t("orders.footnote.terms"));

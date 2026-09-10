@@ -73,6 +73,22 @@
  * render an empty list that reads as "no orders" (the exact lie /my-work shipped
  * once). Every other read is wrapped and degrades to its own empty section.
  *
+ * A DEGRADED SIDE READ IS NOT AN ABSENCE, AND EVERY SIDE READ SAYS WHICH
+ * ---------------------------------------------------------------------
+ * `{ rows: [] }` from a caught error and `{ rows: [] }` from a customer with no
+ * contacts are the same value and OPPOSITE facts, and the section above renders
+ * them as one sentence unless the failure travels with the rows. So every
+ * degrading read carries `failed`, and the two counts DERIVED from those rows —
+ * `figures.ordersWithoutResponsible` and `siblingUnnumberedOrders` — are
+ * `number | null`, null meaning "could not be checked". They are never
+ * recomputed over an empty set, which would turn a failed read into the
+ * categorical claim "nobody is responsible for any of these orders": the exact
+ * substitution budget-visibility.ts forbids ("DERIVED COUNTS MUST BE ABSENT, NOT
+ * RECOMPUTED"), and the same class of lie as the empty list above.
+ *
+ * Every degradation ALSO sets `truncated`, so the table's "the figures are
+ * floors" footnote fires whether a read was cut short or lost outright.
+ *
  * NO AGGREGATES OVER PostgREST, AND `.order()` BEFORE `.range()`
  * -------------------------------------------------------------
  * `db-aggregates-enabled` is off on this project, so every total below is summed
@@ -83,7 +99,7 @@ import type { SupabaseTyped } from "./types";
 import { fetchAllPaged, PAGE } from "./paged";
 import { canReadBudgets, budgetAwareColumns } from "@/lib/budget-visibility";
 import { PERMISSIONS } from "@/lib/permissions";
-import { todayInBerlin, berlinDatePlusDays } from "@/lib/date-display";
+import { todayInBerlin } from "@/lib/date-display";
 import { LINK_LABEL, LINK_ORDER, type MyLink, type PersonKind } from "./my-work";
 
 /* --------------------------------------------------------------- the key */
@@ -181,8 +197,6 @@ export type CustomerFigures = {
   endedContracts: number;
   /** No end date recorded at all — its own count, never folded into "running". */
   unknownEnd: number;
-  /** `today <= contract_end < today + 90d` — the renewal window. */
-  endingWithin90Days: number;
   /** The latest end date across the visible orders, for the "all ended" banner. */
   lastContractEnd: string | null;
   /** Orders the sheet stopped carrying. */
@@ -197,12 +211,6 @@ export type CustomerFigures = {
   /** How many orders carry contracted hours. 0 and meaningless when withheld. */
   contractHoursOrders: number;
   /**
-   * Orders with no contracted hours. NULL when budgets are withheld — it is
-   * derived from `contract_hours` and would disclose which orders carry a
-   * budget. budget-visibility.ts: derived counts are absent, not recomputed.
-   */
-  ordersWithoutContractHours: number | null;
-  /**
    * Sum of logged hours, or null when NOT ONE visible order is measured.
    *
    * 13 of 101 accounts are in that state. Rendering 0 h there reads as a
@@ -213,18 +221,24 @@ export type CustomerFigures = {
   loggedMeasuredOrders: number;
   /** The refresh instant behind `loggedHours`; every moving figure is stamped. */
   loggedHoursAsOf: string | null;
-  /** The service mix as a LIST — see the note on `foldServices` for why. */
-  services: { name: string; orders: number }[];
   /**
-   * Visible orders with no `responsible` row in `public.project_responsibility`.
+   * Visible orders with no `responsible` row in `public.project_responsibility`,
+   * or NULL when that read FAILED and the question could not be answered.
    *
    * Defined on the ROLE TABLE, not on `project_masterdata.responsible_person_id`:
    * 64 masterdata rows record `responsible_kind = 'doctor'` with a null person
    * id, and an external occupational physician is not a missing person. The role
    * table still names an internal holder for 62 of those 64, so reading the
-   * masterdata column would report 92 gaps where there are 23.
+   * masterdata column would report 92 gaps where there are 23 (re-measured
+   * against production on 2026-09-10: 23 numbered, 34 overall, against 92).
+   *
+   * NULL RATHER THAN A RECOMPUTED COUNT. Over an empty row set this count equals
+   * `orders.length`, which the Betreuung card renders as "nobody is named
+   * responsible on ANY of these orders" — a categorical claim manufactured out
+   * of a failed read, printed directly beneath the carers the card has just
+   * listed by name. The absent case gets its own sentence instead.
    */
-  ordersWithoutResponsible: number;
+  ordersWithoutResponsible: number | null;
 };
 
 /** The canonical Lexware record. Exec only; see `masterState` for the rest. */
@@ -274,8 +288,16 @@ export type CustomerProfile = {
   figures: CustomerFigures;
   locations: CustomerLocation[];
   contacts: CustomerContact[];
+  /**
+   * True when the `project_contact` read FAILED. Without it an empty list renders
+   * as "Kein Ansprechpartner hinterlegt" — a positive claim about the customer
+   * built out of a failed read.
+   */
+  contactsUnavailable: boolean;
   care: CustomerCarer[];
   links: CustomerLink[];
+  /** True when the `project_link` read FAILED. Same argument as `contacts`. */
+  linksUnavailable: boolean;
   /** Sheet `Dateiablage` values — paths, not URLs, so never rendered as links. */
   fileStorages: string[];
   master: CustomerMasterRecord | null;
@@ -284,15 +306,24 @@ export type CustomerProfile = {
    * Orders of the SAME legal entity that carry no customer number, counted from
    * the exact uuid key and never from name similarity. Counted only: they are
    * never folded into a figure and never given a profile.
+   *
+   * NULL when the sibling read failed. Over an empty masterdata sub-read this
+   * count becomes EVERY sibling order, so the footnote would state that N orders
+   * of this legal entity carry no customer number on the strength of a read that
+   * returned nothing at all.
    */
-  siblingUnnumberedOrders: number;
+  siblingUnnumberedOrders: number | null;
   /** Other customer numbers under the same legal entity. Separate customers. */
   siblingCustomerNumbers: string[];
   /** The sheet batch behind this data, for the provenance line. */
   lastSeenAt: string | null;
   /** Set when the masterdata or projects read THREW. Never an empty list. */
   loadFailed: boolean;
-  /** Set when a paged read hit its ceiling: the figures are then floors. */
+  /**
+   * Set when a paged read hit its ceiling OR a side read was lost outright: the
+   * figures are then floors and the table's footnote says so. Both are "part of
+   * the data could not be read in full", which is what that footnote claims.
+   */
   truncated: boolean;
 };
 
@@ -504,6 +535,14 @@ async function fetchRosterProjects(
  * Every one of these degrades to NO ROWS on error: losing a side table costs
  * the page one section and nothing else. That is the opposite of the two reads
  * above, and the difference is deliberate.
+ *
+ * `failed` TRAVELS WITH THE ROWS, because the rows cannot carry it. An empty
+ * result from a caught error and an empty result from a customer with no
+ * contacts are the same value and opposite facts, and every caller here renders
+ * a SENTENCE about that emptiness — "Kein Ansprechpartner hinterlegt", "Auf
+ * keinem dieser Aufträge ist jemand als verantwortlich benannt". Without this
+ * flag each of those becomes a confident claim manufactured out of a failed
+ * read, which is the class of lie this module exists to refuse.
  */
 async function fetchByProjectIds<Row>(
   supabase: SupabaseTyped,
@@ -511,8 +550,9 @@ async function fetchByProjectIds<Row>(
   columns: string,
   projectIds: string[],
   orderBy: string[],
-): Promise<{ rows: Row[]; truncated: boolean }> {
-  if (projectIds.length === 0) return { rows: [], truncated: false };
+): Promise<{ rows: Row[]; truncated: boolean; failed: boolean }> {
+  // Nothing to ask for is not a failure: there are no orders to have rows.
+  if (projectIds.length === 0) return { rows: [], truncated: false, failed: false };
   try {
     const rows: Row[] = [];
     let truncated = false;
@@ -533,9 +573,9 @@ async function fetchByProjectIds<Row>(
       truncated = truncated || page.truncated;
       rows.push(...page.rows);
     }
-    return { rows, truncated };
+    return { rows, truncated, failed: false };
   } catch {
-    return { rows: [], truncated: false };
+    return { rows: [], truncated: false, failed: true };
   }
 }
 
@@ -579,17 +619,23 @@ async function fetchPersonNames(supabase: SupabaseTyped, personIds: string[]) {
  * are COUNTS and a list of numbers in a footnote; neither is ever folded into a
  * figure, because they belong to other customers or to no customer at all.
  *
- * Degrades to nothing: losing this costs two footnotes.
+ * Degrades to nothing: losing this costs two footnotes. `unnumbered` is then
+ * NULL and not 0, because 0 is a claim and the derivation is worse than wrong:
+ * `otherIds.filter((id) => !numberById.has(id))` over a failed masterdata
+ * sub-read counts EVERY sibling order as unnumbered, so the footnote would say
+ * that N orders of this legal entity carry no customer number on the strength of
+ * a read that returned nothing at all.
  */
 async function fetchSiblings(
   supabase: SupabaseTyped,
   entityIds: string[],
   rosterIds: Set<string>,
   customerNumber: string,
-): Promise<{ unnumbered: number; numbers: string[] }> {
-  if (entityIds.length === 0) return { unnumbered: 0, numbers: [] };
+): Promise<{ unnumbered: number | null; numbers: string[]; truncated: boolean; failed: boolean }> {
+  if (entityIds.length === 0) return { unnumbered: 0, numbers: [], truncated: false, failed: false };
   try {
     const projects: SiblingProjectRow[] = [];
+    let truncated = false;
     const CHUNK = 100;
     for (let i = 0; i < entityIds.length; i += CHUNK) {
       const slice = entityIds.slice(i, i + CHUNK);
@@ -603,10 +649,11 @@ async function fetchSiblings(
             .range(from, to),
         { maxPages: 4 },
       );
+      truncated = truncated || page.truncated;
       projects.push(...page.rows);
     }
     const otherIds = projects.map((p) => p.id).filter((id) => !rosterIds.has(id));
-    if (otherIds.length === 0) return { unnumbered: 0, numbers: [] };
+    if (otherIds.length === 0) return { unnumbered: 0, numbers: [], truncated, failed: false };
 
     const md = await fetchByProjectIds<SiblingMasterdataRow>(
       supabase,
@@ -615,14 +662,17 @@ async function fetchSiblings(
       otherIds,
       ["project_id"],
     );
+    // The sub-read decides both answers, so ITS failure is the whole result's
+    // failure rather than an empty half of it.
+    if (md.failed) return { unnumbered: null, numbers: [], truncated: true, failed: true };
     const numberById = new Map<string, string>();
     for (const r of md.rows) if (r.customer_number) numberById.set(r.project_id, r.customer_number);
 
     const unnumbered = otherIds.filter((id) => !numberById.has(id)).length;
     const numbers = [...new Set([...numberById.values()])].filter((n) => n !== customerNumber).sort();
-    return { unnumbered, numbers };
+    return { unnumbered, numbers, truncated: truncated || md.truncated, failed: false };
   } catch {
-    return { unnumbered: 0, numbers: [] };
+    return { unnumbered: null, numbers: [], truncated: false, failed: true };
   }
 }
 
@@ -753,30 +803,6 @@ async function canOpenOrderDetail(supabase: SupabaseTyped): Promise<boolean> {
 }
 
 /* ------------------------------------------------------------ assembly */
-
-/**
- * The service mix, as a LIST rather than a count.
- *
- * The sheet's service identity is not clean: 8 distinct `service_number`, 7
- * distinct `service_name` and 9 distinct pairs across the 222 rows. Numbers
- * 1000 and 1001 carry the SAME name (11 + 65 orders), and 2 rows carry a number
- * that contradicts the code embedded in their own name. A headline "4 services"
- * would therefore be 7-or-8 depending on the key nobody stated. The list is
- * self-evidencing: the reader sees the names and can count them.
- *
- * Grouped on the name AS WRITTEN. Never `canonicalService()` from
- * management-customer-portfolio.ts, which buckets by substring
- * (`key.includes("brandschutz")`) — name similarity, forbidden by ADR-001 — and
- * maps anything unmatched to "Nicht zugeordnet".
- */
-function foldServices(orders: CustomerOrder[]): { name: string; orders: number }[] {
-  const counts = new Map<string, number>();
-  for (const o of orders) {
-    if (!o.serviceName) continue;
-    counts.set(o.serviceName, (counts.get(o.serviceName) ?? 0) + 1);
-  }
-  return [...counts.entries()].map(([name, n]) => ({ name, orders: n })).sort(byCountThenName);
-}
 
 /** Digits only, so "+49 30 1234" and "030/1234" are one phone number. */
 function phoneKey(phone: string | null): string {
@@ -958,24 +984,23 @@ function emptyProfile(
       runningContracts: 0,
       endedContracts: 0,
       unknownEnd: 0,
-      endingWithin90Days: 0,
       lastContractEnd: null,
       historicalOrders: 0,
       // No orders means no contracted hours to sum, and that is an ABSENCE,
       // not a zero — the same rule the tiles apply to a partial roster.
       contractHours: null,
       contractHoursOrders: 0,
-      ordersWithoutContractHours: budgetsWithheld ? null : 0,
       loggedHours: null,
       loggedMeasuredOrders: 0,
       loggedHoursAsOf: null,
-      services: [],
       ordersWithoutResponsible: 0,
     },
     locations: [],
     contacts: [],
+    contactsUnavailable: false,
     care: [],
     links: [],
+    linksUnavailable: false,
     fileStorages: [],
     master: null,
     masterState,
@@ -1090,7 +1115,6 @@ export async function getCustomerProfile(
   for (const p of personNames.rows) if (p.id && p.name) nameById.set(p.id, p.name);
 
   const today = todayInBerlin();
-  const in90Days = berlinDatePlusDays(90);
 
   const orders: CustomerOrder[] = rosterRows.flatMap((m) => {
     const p = projectById.get(m.project_id);
@@ -1158,9 +1182,6 @@ export async function getCustomerProfile(
     runningContracts: orders.filter((o) => o.termState === "running").length,
     endedContracts: orders.filter((o) => o.termState === "ended").length,
     unknownEnd: orders.filter((o) => o.termState === "unknownEnd").length,
-    endingWithin90Days: orders.filter(
-      (o) => o.contractEnd !== null && o.contractEnd >= today && o.contractEnd < in90Days,
-    ).length,
     lastContractEnd: orders.reduce<string | null>(
       (best, o) => (o.contractEnd !== null && (best === null || o.contractEnd > best) ? o.contractEnd : best),
       null,
@@ -1170,9 +1191,6 @@ export async function getCustomerProfile(
     // hours" is a real state on 11 orders and 2 whole accounts.
     contractHours: budgeted.length === 0 ? null : round1(contractSum),
     contractHoursOrders: budgeted.length,
-    // Withheld readers get an absent count, not a recomputed one: it is derived
-    // from contract_hours and would disclose which orders carry a budget.
-    ordersWithoutContractHours: canSeeBudgets ? orders.length - budgeted.length : null,
     // Null, never 0, when NOT ONE order is measured. One live account holds 6
     // orders and 250 contracted hours with 0 of 6 measured; "0 h logged" there
     // reads as a customer we abandoned, and the truth is an unlinked order.
@@ -1182,8 +1200,18 @@ export async function getCustomerProfile(
       (best, p) => (p.logged_hours_as_of && (best === null || p.logged_hours_as_of > best) ? p.logged_hours_as_of : best),
       null,
     ),
-    services: foldServices(orders),
-    ordersWithoutResponsible: orders.filter((o) => !responsibleProjectIds.has(o.id)).length,
+    /*
+     * ABSENT, NOT RECOMPUTED, WHEN THE ROLE TABLE COULD NOT BE READ.
+     *
+     * `responsibleProjectIds` over a failed read is empty, and this filter over
+     * an empty set returns EVERY order — which the Betreuung card renders as
+     * "nobody is named responsible on any of these orders", printed directly
+     * beneath the carers it has just listed by name. A count is only meaningful
+     * when the rows behind it were actually read.
+     */
+    ordersWithoutResponsible: responsibilities.failed
+      ? null
+      : orders.filter((o) => !responsibleProjectIds.has(o.id)).length,
   };
 
   /*
@@ -1225,8 +1253,10 @@ export async function getCustomerProfile(
     figures,
     locations: foldLocations(rosterRows, codeById),
     contacts: foldContacts(contacts.rows, codeById),
+    contactsUnavailable: contacts.failed,
     care: foldCare(rosterRows, nameById, codeById),
     links: foldLinks(links.rows, codeById),
+    linksUnavailable: links.failed,
     fileStorages: distinctText(rosterRows.map((m) => m.file_storage)),
     master: master ?? null,
     /*
@@ -1243,6 +1273,23 @@ export async function getCustomerProfile(
       null,
     ),
     loadFailed: false,
-    truncated: roster.truncated || projects.truncated || contacts.truncated || links.truncated,
+    /*
+     * EVERY degraded read, not only the two that page. A read cut short and a
+     * read lost outright are the same fact to a reader — "part of the data
+     * could not be read in full; the figures are floors" — and the earlier
+     * expression named four of the ten, so a failed side table left the footnote
+     * silent while its own section quietly claimed an absence.
+     */
+    truncated:
+      roster.truncated ||
+      projects.truncated ||
+      contacts.truncated ||
+      contacts.failed ||
+      links.truncated ||
+      links.failed ||
+      responsibilities.truncated ||
+      responsibilities.failed ||
+      siblings.truncated ||
+      siblings.failed,
   };
 }

@@ -249,7 +249,7 @@ export default async function CustomerProfilePage({
               and must clear the fold on a phone, so they sit above the ledger. */}
           <div className="grid gap-4 lg:grid-cols-2">
             <CustomerLocations locations={data.locations} />
-            <CustomerContacts contacts={data.contacts} />
+            <CustomerContacts contacts={data.contacts} unavailable={data.contactsUnavailable} />
           </div>
 
           {/* DataTable renders its own section shell, so it is a SIBLING of the
@@ -281,12 +281,20 @@ export default async function CustomerProfilePage({
             </MobileDisclosure>
             <MobileDisclosure
               title={t("links.title")}
-              summary={t("links.summary", { count: data.links.length + data.fileStorages.length })}
+              /* A collapsed panel is read INSTEAD of the card behind it, so a
+                 count of the rows a failed read returned would be the same lie
+                 one level up. "Nicht lesbar" is the crm card's own word for it. */
+              summary={
+                data.linksUnavailable
+                  ? t("links.summaryUnavailable")
+                  : t("links.summary", { count: data.links.length + data.fileStorages.length })
+              }
             >
               <CustomerLinks
                 links={data.links}
                 fileStorages={data.fileStorages}
                 totalOrders={data.figures.orders}
+                unavailable={data.linksUnavailable}
               />
             </MobileDisclosure>
           </div>

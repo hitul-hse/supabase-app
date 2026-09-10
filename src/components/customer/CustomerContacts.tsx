@@ -26,8 +26,24 @@ import type { CustomerContact } from "@/lib/queries/customer-profile";
  *
  * A contact with no name at all is 4 of 263 rows, and it says so rather than
  * rendering an empty line that looks broken.
+ *
+ * AN EMPTY LIST IS TWO DIFFERENT FACTS
+ * ------------------------------------
+ * The `project_contact` read degrades to no rows on error, so "this customer has
+ * no contacts" and "the read failed" arrive here as the same empty array. "Kein
+ * Ansprechpartner hinterlegt" is a claim about the CUSTOMER and is false in the
+ * second case — and that is the case where a colleague most needs to know to
+ * look elsewhere rather than conclude there is nobody to call. `unavailable`
+ * carries the difference, and it gets its own sentence.
  */
-export function CustomerContacts({ contacts }: { contacts: CustomerContact[] }) {
+export function CustomerContacts({
+  contacts,
+  unavailable,
+}: {
+  contacts: CustomerContact[];
+  /** True when the read FAILED. An absence and a failure are not one sentence. */
+  unavailable: boolean;
+}) {
   const t = useTranslations("customer");
 
   /** tel: wants digits and a leading plus; the sheet writes spaces and slashes. */
@@ -40,7 +56,7 @@ export function CustomerContacts({ contacts }: { contacts: CustomerContact[] }) 
       <p className="px-4 pt-3 t-label text-[var(--text-faint)]">{t("contacts.privacy")}</p>
       {contacts.length === 0 ? (
         <div className="px-4 py-3">
-          <NoneLine>{t("contacts.none")}</NoneLine>
+          <NoneLine>{unavailable ? t("contacts.unavailable") : t("contacts.none")}</NoneLine>
         </div>
       ) : (
         <div className="divide-y divide-[var(--divider)]">

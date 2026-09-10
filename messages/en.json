@@ -2190,12 +2190,12 @@
       "endedLabel": "ALL CONTRACTS ENDED",
       "ended": "The last contract ended on {date}.",
       "historicalLabel": "HISTORICAL",
-      "historical": "{count} orders are no longer carried in the masterdata sheet.",
-      "both": "The last contract ended on {date}; {count} orders are no longer in the sheet."
+      "historical": "{count, plural, one {# order is} other {# orders are}} no longer carried in the masterdata sheet.",
+      "both": "The last contract ended on {date}; {count, plural, one {# order is} other {# orders are}} no longer in the sheet."
     },
     "locations": {
       "title": "Locations",
-      "count": "{count} ADDRESSES",
+      "count": "{count, plural, one {# ADDRESS} other {# ADDRESSES}}",
       "orders": "ORDERS {codes}",
       "none": "No address recorded"
     },
@@ -2227,7 +2227,7 @@
         "hours": "Hours are known for {measured} of {total} orders; the total is a floor, not the whole.",
         "hoursNone": "No hours are measured for any of these orders.",
         "budgets": "Contract hours are withheld from your role and are therefore not in this table.",
-        "unnumbered": "{count} further orders of the same legal entity carry no customer number and are not in this list.",
+        "unnumbered": "{count, plural, one {# further order of the same legal entity carries no customer number and is not in this list.} other {# further orders of the same legal entity carry no customer number and are not in this list.}}",
         "siblingsLead": "The same legal entity carries further customer numbers:",
         "terms": "Delivery terms – minimum on-site time, travel, travel as project time – are on the order, not here.",
         "truncated": "Part of the data could not be read in full; the figures are floors."
@@ -2239,7 +2239,8 @@
       "privacy": "Only for orders you may see. Never exported.",
       "onOrders": "Named on {codes}",
       "noName": "No name recorded",
-      "none": "No contact recorded"
+      "none": "No contact recorded",
+      "unavailable": "The contacts could not be read. That is a failure, not a statement about the customer."
     },
     "care": {
       "title": "Who looks after this",
@@ -2248,8 +2249,9 @@
       "replacement": "REPLACEMENT",
       "onOrders": "{codes}",
       "none": "Nobody recorded",
-      "summary": "{count} people",
-      "gap": "{count} of {total} orders have no named responsible.",
+      "summary": "{count, plural, one {# person} other {# people}}",
+      "gap": "{count, plural, one {# of {total} orders has} other {# of {total} orders have}} no named responsible.",
+      "gapUnknown": "Whether someone is named responsible on every order could not be checked.",
       "noneNamed": "Nobody is named responsible on any of these orders."
     },
     "people": {
@@ -2263,7 +2265,9 @@
       "onOrders": "{codes}",
       "fileStorage": "FILE STORAGE",
       "none": "No links recorded",
-      "summary": "{count} links"
+      "unavailable": "The links could not be read. That is a failure, not a statement about the customer.",
+      "summary": "{count, plural, one {# link} other {# links}}",
+      "summaryUnavailable": "Not readable"
     },
     "crm": {
       "title": "Customer master record",

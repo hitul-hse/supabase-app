@@ -33,6 +33,15 @@ import type { CustomerCarer } from "@/lib/queries/customer-profile";
  * any order the line says that in words rather than as "3 of 3", which is a
  * different sentence.
  *
+ * AND THE COUNT IS THREE-STATE, BECAUSE THE READ CAN FAIL
+ * -------------------------------------------------------
+ * `null` means the role table could not be READ, and it gets its own sentence.
+ * Recomputed over the empty rows of a failed read the count equals the order
+ * total, so this card would print "auf keinem dieser Aufträge ist jemand als
+ * verantwortlich benannt" directly below the carers it had just listed by name
+ * — a categorical claim manufactured out of a failed read, and a card
+ * contradicting its own footnote. 0 stays silent, as before.
+ *
  * No link to /people: that route is off the operations allow-list, and a link
  * that ends in a redirect is worse than a name.
  */
@@ -42,7 +51,8 @@ export function CustomerCare({
   totalOrders,
 }: {
   care: CustomerCarer[];
-  ordersWithoutResponsible: number;
+  /** null when `public.project_responsibility` could not be read at all. */
+  ordersWithoutResponsible: number | null;
   totalOrders: number;
 }) {
   const t = useTranslations("customer");
@@ -86,15 +96,18 @@ export function CustomerCare({
           ))}
         </div>
       )}
-      {/* The gap, stated only when there is one. "Nobody at all" is a different
-          sentence from a count, so it gets its own string. */}
-      {ordersWithoutResponsible > 0 ? (
+      {/* Three sentences and a silence. null is "could not be checked", which is
+          a fact about the READ; "nobody at all" is about the customer and is a
+          different sentence from a count; 0 says nothing at all. */}
+      {ordersWithoutResponsible === null || ordersWithoutResponsible > 0 ? (
         <>
           <CardDivider />
           <p className="px-4 py-2.5 t-label text-[var(--text-muted)]">
-            {ordersWithoutResponsible === totalOrders
-              ? t("care.noneNamed")
-              : t("care.gap", { count: ordersWithoutResponsible, total: totalOrders })}
+            {ordersWithoutResponsible === null
+              ? t("care.gapUnknown")
+              : ordersWithoutResponsible === totalOrders
+                ? t("care.noneNamed")
+                : t("care.gap", { count: ordersWithoutResponsible, total: totalOrders })}
           </p>
         </>
       ) : null}

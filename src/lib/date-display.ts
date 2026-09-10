@@ -86,16 +86,3 @@ export function formatStamp(iso: string, locale: string): string {
 export function todayInBerlin(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date());
 }
-
-/**
- * `YYYY-MM-DD`, N days from today in Europe/Berlin.
- *
- * Used for the "ending within 90 days" window. Day arithmetic is done on a UTC
- * instant built from the Berlin calendar date, so it cannot drift across a DST
- * boundary the way adding 90 * 86_400_000 to a local `Date` does.
- */
-export function berlinDatePlusDays(days: number): string {
-  const [y, m, d] = todayInBerlin().split("-").map(Number);
-  const shifted = new Date(Date.UTC(y, m - 1, d + days));
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "UTC" }).format(shifted);
-}

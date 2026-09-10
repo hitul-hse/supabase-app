@@ -30,16 +30,28 @@ import type { CustomerLink } from "@/lib/queries/customer-profile";
  * Nobody recorded one; there is no figure being withheld and no measurement
  * missing. Two customers are in that state and the card says so in a sentence.
  *
+ * AND AN ABSENT LINK IS NOT A LOST ONE
+ * ------------------------------------
+ * The `project_link` read degrades to no rows on error, so "no links" and "the
+ * read failed" arrive as the same empty array. "Keine Links hinterlegt" is a
+ * claim about the customer and is false in the second case, so `unavailable`
+ * carries the difference and gets its own sentence. The Dateiablage paths come
+ * from the masterdata rows, which do not degrade, so a lost link read still
+ * leaves those rendered.
+ *
  * DATEIABLAGE is a PATH, not a URL — a text row, never an anchor.
  */
 export function CustomerLinks({
   links,
   fileStorages,
   totalOrders,
+  unavailable,
 }: {
   links: CustomerLink[];
   fileStorages: string[];
   totalOrders: number;
+  /** True when the read FAILED. An absence and a failure are not one sentence. */
+  unavailable: boolean;
 }) {
   const t = useTranslations("customer");
   const several = totalOrders > 1;
@@ -51,7 +63,7 @@ export function CustomerLinks({
       <CardDivider />
       {empty ? (
         <div className="px-4 py-3">
-          <NoneLine>{t("links.none")}</NoneLine>
+          <NoneLine>{unavailable ? t("links.unavailable") : t("links.none")}</NoneLine>
         </div>
       ) : (
         <div className="divide-y divide-[var(--divider)]">

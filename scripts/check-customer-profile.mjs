@@ -18,11 +18,27 @@
  *    (`columns={orderColumns}` by name -- no spread, no concat), and the whole
  *    of CustomerOrdersTable.tsx for any contact field at all.
  *
- * 3. HONEST NULLS. A sum over zero measured orders is null, never 0 -- one live
- *    account holds 6 orders and 250 contracted hours with 0 of 6 measured, and
- *    "0 h logged" there reads as a customer we abandoned. A withheld budget is
- *    the WORDS "nicht freigegeben", never a dash: absence and refusal mean
- *    opposite things (budget-visibility.ts).
+ * 3. HONEST NULLS, AT THE ROW AS WELL AS AT THE SUM. A sum over zero measured
+ *    orders is null, never 0 -- one live account holds 6 orders and 250
+ *    contracted hours with 0 of 6 measured, and "0 h logged" there reads as a
+ *    customer we abandoned. The two SUMS are only honest because the ROW that
+ *    feeds them is, so `loggedHours` and the budget-gated `contractHours` are
+ *    pinned at the row too: `?? 0` on either line survives every assertion about
+ *    the sums and re-introduces exactly the figure they exist to prevent. A
+ *    withheld budget is the WORDS "nicht freigegeben", never a dash: absence and
+ *    refusal mean opposite things (budget-visibility.ts).
+ *
+ * 3b. A DEGRADED READ IS NOT AN ABSENCE. Every side read carries `failed`, and
+ *    the two counts derived from those rows are absent rather than recomputed
+ *    when it is set. Recomputed over the empty rows of a failed read they become
+ *    "nobody is responsible for any of these orders" and "N orders carry no
+ *    customer number" -- confident claims manufactured out of a network error,
+ *    which is the class budget-visibility.ts's header forbids by name.
+ *
+ * 3c. NOTHING IS COMPUTED THAT NOBODY READS. Every field of `CustomerFigures`
+ *    is rendered somewhere. A figure that is computed, documented and pinned but
+ *    never drawn makes its assertion a description of the code rather than a
+ *    protection of the page, and makes a correct cleanup look like a regression.
  *
  * 4. THE READ MODEL DECIDES, THE COMPONENTS DRAW. Every figure -- including
  *    `termState`, i.e. whether a contract has ended -- is computed in
@@ -72,14 +88,18 @@ const TABLE = "src/components/customer/CustomerOrdersTable.tsx";
 const CRM_CARD = "src/components/customer/CustomerMasterRecord.tsx";
 const NAV = "src/components/nav-access.ts";
 const IDENTITY = "src/components/customer/CustomerIdentityCard.tsx";
+const CARE = "src/components/customer/CustomerCare.tsx";
+/* The ONE file allowed to render a contact's value. Everything else is checked
+ * against it, which is the point: the rule is "here and nowhere else". */
+const CONTACTS_CARD = "src/components/customer/CustomerContacts.tsx";
 
 const COMPONENTS = [
   "src/components/customer/parts.tsx",
   IDENTITY,
   "src/components/customer/CustomerLocations.tsx",
-  "src/components/customer/CustomerContacts.tsx",
+  CONTACTS_CARD,
   TABLE,
-  "src/components/customer/CustomerCare.tsx",
+  CARE,
   "src/components/customer/CustomerLinks.tsx",
   CRM_CARD,
 ];
@@ -146,8 +166,64 @@ const P = {
     /loggedHours:\s*measured\.length === 0 \? null : round1\(/.test(s),
   contractNullWhenUnbudgeted: (s) =>
     /contractHours:\s*budgeted\.length === 0 \? null : round1\(/.test(s),
-  derivedCountWithheld: (s) =>
-    /ordersWithoutContractHours:\s*canSeeBudgets \? orders\.length - budgeted\.length : null/.test(s),
+  /*
+   * THE ROW, NOT ONLY THE SUM. Both sums above are computed by filtering on
+   * `!== null`, so `numOrNull(p.logged_hours) ?? 0` leaves every assertion about
+   * them green while the page reports "0,0 h -- gemessen für 6 von 6
+   * Aufträgen" for the account with six unlinked orders. The same is true of
+   * the budget: dropping `canSeeBudgets ?` puts a withheld figure back into the
+   * payload, and `budgetOrNull` is what keeps a stored 0 from becoming a budget.
+   */
+  rowLevelNulls: (s) =>
+    /loggedHours: numOrNull\(p\.logged_hours\),/.test(s) &&
+    /contractHours: canSeeBudgets \? budgetOrNull\(p\.contract_hours\) : null,/.test(s),
+  /*
+   * The gap is defined on the ROLE TABLE. Testing only that the strings
+   * "project_responsibility" and "responsibleProjectIds" appear leaves the set
+   * free to be rebuilt from `m.responsible_person_id`, which reports 92 gaps
+   * where the role table reports 23 (both re-measured live on 2026-09-10).
+   */
+  responsibleFromRoleTable: (s) =>
+    /const responsibleProjectIds = new Set\(\s*responsibilities\.rows\s*\.filter\(\(r\) => r\.role === "responsible"\)\s*\.map\(\(r\) => r\.project_id\),?\s*\);/.test(s),
+  /* Every degrading read reports whether it failed, and the catch says so. */
+  sideReadCarriesFailure: (s) =>
+    /Promise<\{ rows: Row\[\]; truncated: boolean; failed: boolean \}>/.test(s) &&
+    /\} catch \{\s*return \{ rows: \[\], truncated: false, failed: true \};\s*\}/.test(s),
+  /* ... and the two counts derived from those rows are ABSENT when it did. */
+  gapAbsentOnFailedRead: (s) =>
+    /ordersWithoutResponsible: responsibilities\.failed\s*\?\s*null\s*:\s*orders\.filter\(\(o\) => !responsibleProjectIds\.has\(o\.id\)\)\.length,/.test(s),
+  siblingCountAbsentOnFailedRead: (s) =>
+    /if \(md\.failed\) return \{ unnumbered: null, numbers: \[\], truncated: true, failed: true \};/.test(s) &&
+    /catch \{\s*return \{ unnumbered: null, numbers: \[\], truncated: false, failed: true \};/.test(s),
+  /*
+   * A lost read fires the same footnote as a read that was cut short. Anchored on
+   * `loadFailed: false,` so this reads the PROFILE's own truncated expression and
+   * not one of the six the reads return along the way.
+   */
+  everyDegradationIsStated: (s) => {
+    const expr = /loadFailed: false,\s*truncated:([\s\S]*?),\n\s*\};/.exec(s)?.[1] ?? "";
+    return [
+      "roster.truncated",
+      "projects.truncated",
+      "contacts.truncated",
+      "contacts.failed",
+      "links.truncated",
+      "links.failed",
+      "responsibilities.truncated",
+      "responsibilities.failed",
+      "siblings.truncated",
+      "siblings.failed",
+    ].every((f) => expr.includes(f));
+  },
+  /* The Betreuung card renders the unknown case as its own sentence. */
+  careStatesTheUnknownGap: (s) =>
+    /ordersWithoutResponsible === null \|\| ordersWithoutResponsible > 0 \?/.test(s) &&
+    /ordersWithoutResponsible === null\s*\?\s*t\("care\.gapUnknown"\)/.test(s),
+  /* A failed contact or link read is a failure, not "nothing recorded". */
+  emptyStateNamesTheFailure: (s) => /unavailable \? t\("[a-z]+\.unavailable"\) : t\("[a-z]+\.none"\)/.test(s),
+  /* The service name reaches the table AS WRITTEN, never bucketed by substring. */
+  serviceNameAsWritten: (s) =>
+    /serviceName: textOrNull\(m\.service_name\),/.test(s) && !/canonicalService/.test(s),
   termStateOnServer: (s) =>
     /termState:\s*contractEnd === null \? "unknownEnd" : contractEnd < today \? "ended" : "running"/.test(s) &&
     /todayInBerlin\(\)/.test(s),
@@ -158,6 +234,15 @@ const P = {
   columnsByName: (s) => /columns=\{orderColumns\}/.test(s),
   columnsNotSpliced: (s) => !/columns=\{\[/.test(s) && !/orderColumns\.concat/.test(s) && !/\.\.\.orderColumns/.test(s),
   noContactField: (s) => !/\bcontacts?\b|\.phone\b|\.email\b|project_contact|telHref|mailto:/.test(s),
+  /*
+   * The same rule for every OTHER surface. `noContactField` bans the word
+   * outright, which the orders table can afford and the page cannot: the page
+   * has to hand `contacts={data.contacts}` to the card that renders them. So
+   * this bans a contact's VALUE -- the fields, the anchors, and any traversal of
+   * the array -- while leaving the plumbing legal.
+   */
+  noContactValue: (s) =>
+    !/\.phone\b|\.email\b|project_contact|telHref|mailto:|\bcontacts\s*\.\s*(?:map|forEach|filter|reduce|slice|join|flatMap)\b|\bcontacts\[/.test(s),
   contractColumnGuarded: (s) => /if \(!budgetsWithheld\) \{\s*cols\.push\(\{\s*key: "contract"/.test(s),
   bothStateBranches: (s) => /orders\.status\.historical/.test(s) && /unknownEnd/.test(s),
 
@@ -169,6 +254,21 @@ const P = {
   withheldTileIsWords: (s) =>
     /profile\.budgetsWithheld \? \(\s*<WithheldTile/.test(s) &&
     /t\("tiles\.withheld"\)/.test(s),
+
+  /*
+   * EVERY FIGURE IS DRAWN. Three fields of CustomerFigures once shipped
+   * computed, documented at length and pinned by this gate, and rendered by
+   * nothing -- so two assertions here described the code instead of protecting
+   * the page, and a correct cleanup would have read as a regression. The type is
+   * the list; the rendered files are the proof.
+   */
+  figuresAllRendered: (s) => {
+    const block = /export type CustomerFigures = \{([\s\S]*?)\n\};/.exec(s)?.[1] ?? "";
+    const fields = [...block.matchAll(/^ {2}([A-Za-z][A-Za-z0-9]*)\??:/gm)].map((m) => m[1]);
+    if (fields.length < 8) return false;
+    const drawn = [PAGE, ...COMPONENTS].map((f) => src[f]).join("\n");
+    return fields.every((f) => new RegExp(`\\bfigures\\.${f}\\b`).test(drawn));
+  },
 };
 
 /* ------------------------------------------------------------- 1. the key */
@@ -258,8 +358,22 @@ check(
 );
 check(
   "the contacts card states the privacy rule on screen",
-  /t\("contacts\.privacy"\)/.test(src["src/components/customer/CustomerContacts.tsx"]),
+  /t\("contacts\.privacy"\)/.test(src[CONTACTS_CARD]),
   "the reader should be able to see the promise, not only rely on it",
+);
+/*
+ * THE RULE IS "HERE AND NOWHERE ELSE", SO IT IS CHECKED EVERYWHERE ELSE.
+ * Pinning only the orders table left the page and the other five cards free to
+ * render a phone number or an e-mail address. `contacts={data.contacts}` on the
+ * page is plumbing and stays legal; a contact's VALUE is what may not appear.
+ */
+const contactValueLeaks = [PAGE, ...COMPONENTS].filter(
+  (f) => f !== CONTACTS_CARD && !P.noContactValue(src[f]),
+);
+check(
+  "no contact VALUE is rendered outside the contacts card -- not on the page, not in any other card",
+  contactValueLeaks.length === 0,
+  contactValueLeaks.join(", "),
 );
 
 /* ------------------------------------------------------------ 4. columns */
@@ -302,9 +416,14 @@ check(
   P.contractNullWhenUnbudgeted(src[QUERY]),
 );
 check(
-  "the DERIVED 'orders without contract hours' count is absent when budgets are withheld, not recomputed",
-  P.derivedCountWithheld(src[QUERY]),
-  "budget-visibility.ts: a derived count discloses which orders carry a budget",
+  "the ROW that feeds both sums is null-honest too",
+  P.rowLevelNulls(src[QUERY]),
+  "`numOrNull(p.logged_hours) ?? 0` leaves every assertion about the SUMS green while the tile reports '0,0 h -- gemessen für 6 von 6 Aufträgen' on the account with six unlinked orders, and its coverage clause silently becomes 6/6",
+);
+check(
+  "the budget is redacted at the row, where the column becomes a field",
+  /contractHours: canSeeBudgets \? budgetOrNull\(p\.contract_hours\) : null,/.test(src[QUERY]),
+  "redacted once, so no downstream sum, CSV column or component can reconstruct it -- and budgetOrNull keeps a stored 0 from becoming a zero budget",
 );
 check(
   "the withheld budget tile carries WORDS, not the absence glyph",
@@ -341,14 +460,60 @@ check(
   /export type CustomerFigures = \{/.test(src[QUERY]) && /figures: CustomerFigures;/.test(src[QUERY]),
 );
 check(
-  "the service mix is a LIST, folded on the name as written",
-  /function foldServices\(/.test(src[QUERY]) && !/canonicalService/.test(src[QUERY]),
-  "canonicalService() buckets by substring (key.includes('brandschutz')) -- name similarity, forbidden by ADR-001",
+  "the service name reaches the table AS WRITTEN, never bucketed by substring",
+  P.serviceNameAsWritten(src[QUERY]),
+  "canonicalService() buckets by substring (key.includes('brandschutz')) -- name similarity, forbidden by ADR-001 -- and maps anything unmatched to 'Nicht zugeordnet'",
 );
 check(
   "'no responsible' is counted from public.project_responsibility, not from the masterdata person column",
-  /"project_responsibility"/.test(src[QUERY]) && /responsibleProjectIds/.test(src[QUERY]),
-  "64 rows record responsible_kind='doctor' with a null person id; the masterdata column would report 92 gaps where there are 23",
+  /"project_responsibility"/.test(src[QUERY]) && P.responsibleFromRoleTable(src[QUERY]),
+  "64 rows record responsible_kind='doctor' with a null person id; the masterdata column reports 92 gaps live where the role table reports 23. The set has to be BUILT from the role rows, not merely mentioned near them",
+);
+check(
+  "every field of CustomerFigures is rendered somewhere",
+  P.figuresAllRendered(src[QUERY]),
+  "a figure computed, documented and pinned but drawn nowhere turns its assertion into a description of the code, and makes deleting it look like a regression",
+);
+
+/* ------------------------------- 6b. a degraded read is not an absence */
+
+console.log("\n--- 6b. a read that FAILED never renders as a fact about the customer\n");
+
+check(
+  "every side read reports whether it failed",
+  P.sideReadCarriesFailure(src[QUERY]),
+  "`{rows: []}` from a caught error and `{rows: []}` from a customer with no contacts are the same value and opposite facts",
+);
+check(
+  "the responsibility gap is ABSENT, not recomputed, when the role table could not be read",
+  P.gapAbsentOnFailedRead(src[QUERY]),
+  "over an empty row set the count equals orders.length, which the card renders as 'auf keinem dieser Aufträge ist jemand verantwortlich benannt' -- directly under the carers it just listed by name",
+);
+check(
+  "the unnumbered-sibling count is ABSENT, not recomputed, when its sub-read failed",
+  P.siblingCountAbsentOnFailedRead(src[QUERY]),
+  "over an empty masterdata sub-read every sibling order counts as unnumbered, and the footnote states it as a fact",
+);
+check(
+  "EVERY degraded read fires the 'the figures are floors' footnote, not only the two that page",
+  P.everyDegradationIsStated(src[QUERY]),
+  "a read cut short and a read lost outright are the same fact to a reader",
+);
+check(
+  "the Betreuung card gives the unknown gap its own sentence",
+  P.careStatesTheUnknownGap(src[CARE]),
+  "null is a fact about the READ; 'nobody at all' is a claim about the customer",
+);
+for (const f of [CONTACTS_CARD, "src/components/customer/CustomerLinks.tsx"]) {
+  check(
+    `${f.split("/").pop()}: a failed read reads as a failure, not as 'nothing recorded'`,
+    P.emptyStateNamesTheFailure(src[f]),
+  );
+}
+check(
+  "the collapsed links panel does not count the rows a failed read returned",
+  /data\.linksUnavailable\s*\?\s*t\("links\.summaryUnavailable"\)/.test(src[PAGE]),
+  "a collapsed panel is read INSTEAD of the card behind it, so '0 Links' there is the same lie one level up",
 );
 check(
   "colleague names resolve through org_chart_nodes, never public.people",
@@ -375,8 +540,9 @@ check(
   "swallowing these would render 'no orders' to a reader with nine of them -- the lie /my-work shipped once",
 );
 check(
-  "losing a side table costs its section, not the page",
-  /\} catch \{\s*return \{ rows: \[\], truncated: false \};\s*\}/.test(src[QUERY]),
+  "losing a side table costs its section, not the page -- and the section is TOLD",
+  /\} catch \{\s*return \{ rows: \[\], truncated: false, failed: true \};\s*\}/.test(src[QUERY]),
+  "without `failed` the empty result is indistinguishable from a customer who has none, and every caller renders a sentence about that emptiness",
 );
 check(
   "the budget column is omitted from the wire, not blanked after the fetch",
@@ -520,6 +686,27 @@ const isReferenced = (k) => referenced.includes(k) || DYNAMIC_PREFIXES.some((p) 
 const stale = enKeys.filter((k) => !isReferenced(k));
 check("no dead strings in the branch", stale.length === 0, stale.join(", "));
 
+/*
+ * PLURALS ARE THE HOUSE CONVENTION, NOT A NEW IDEA. de.json already carries 47
+ * ICU plural forms. Interpolating {count} into hard-coded plural German reads as
+ * a translation on live data: 16 accounts hit `care.gap` with count 1 ("1 von 3
+ * Aufträgen HABEN"), 28 render `links.summary` as "1 Links", 7 legal entities
+ * carry exactly one unnumbered sibling, and one account resolves to "1
+ * Personen" -- all four re-measured against production on 2026-09-10.
+ */
+const pluralOffenders = [];
+for (const lang of ["de", "en"]) {
+  for (const k of flatten(cat[lang].customer)) {
+    const v = at(cat[lang].customer, k);
+    if (/\{count\}/.test(v) && !/\{count,\s*plural,/.test(v)) pluralOffenders.push(`${lang}:${k}`);
+  }
+}
+check(
+  "every count-bearing customer.* string carries an ICU plural form",
+  pluralOffenders.length === 0,
+  pluralOffenders.join(", "),
+);
+
 /* ------------------------------------------------------- 11. house tokens */
 
 console.log("\n--- 11. house tokens in every new file\n");
@@ -608,10 +795,53 @@ const MUTATIONS = [
     (s) => s.replace("loggedHours: measured.length === 0 ? null : round1(", "loggedHours: round1(")],
   [QUERY, "an unbudgeted customer reports 0 contracted hours", P.contractNullWhenUnbudgeted,
     (s) => s.replace("contractHours: budgeted.length === 0 ? null : round1(", "contractHours: round1(")],
-  [QUERY, "the derived count is recomputed for a withheld reader", P.derivedCountWithheld,
+  [QUERY, "an unmeasured ORDER reports 0 h, leaving both sums green", P.rowLevelNulls,
+    (s) => s.replace("loggedHours: numOrNull(p.logged_hours),", "loggedHours: numOrNull(p.logged_hours) ?? 0,")],
+  [QUERY, "the budget stops being redacted at the row", P.rowLevelNulls,
     (s) => s.replace(
-      "ordersWithoutContractHours: canSeeBudgets ? orders.length - budgeted.length : null",
-      "ordersWithoutContractHours: orders.length - budgeted.length",
+      "contractHours: canSeeBudgets ? budgetOrNull(p.contract_hours) : null,",
+      "contractHours: budgetOrNull(p.contract_hours),",
+    )],
+  [QUERY, "the responsibility gap is counted from the masterdata person column", P.responsibleFromRoleTable,
+    (s) => s.replace(
+      'responsibilities.rows.filter((r) => r.role === "responsible").map((r) => r.project_id),',
+      'rosterRows.filter((m) => m.responsible_person_id).map((m) => m.project_id),',
+    )],
+  [QUERY, "a side read stops reporting that it failed", P.sideReadCarriesFailure,
+    (s) => s.replace(
+      "return { rows: [], truncated: false, failed: true };",
+      "return { rows: [], truncated: false, failed: false };",
+    )],
+  [QUERY, "the responsibility gap is recomputed over a failed read", P.gapAbsentOnFailedRead,
+    (s) => s.replace(
+      "ordersWithoutResponsible: responsibilities.failed\n      ? null\n      : orders.filter((o) => !responsibleProjectIds.has(o.id)).length,",
+      "ordersWithoutResponsible: orders.filter((o) => !responsibleProjectIds.has(o.id)).length,",
+    )],
+  [QUERY, "the unnumbered-sibling count is recomputed over a failed sub-read", P.siblingCountAbsentOnFailedRead,
+    (s) => s.replace(
+      "if (md.failed) return { unnumbered: null, numbers: [], truncated: true, failed: true };",
+      "",
+    )],
+  [QUERY, "a lost side read stops firing the floor footnote", P.everyDegradationIsStated,
+    (s) => s.replace("      responsibilities.failed ||\n", "")],
+  [QUERY, "a figure is computed that nothing renders", P.figuresAllRendered,
+    (s) => s.replace("  loggedHoursAsOf: string | null;", "  loggedHoursAsOf: string | null;\n  endingWithin90Days: number;")],
+  [QUERY, "the service name is bucketed by substring", P.serviceNameAsWritten,
+    (s) => s.replace("serviceName: textOrNull(m.service_name),", "serviceName: canonicalService(m.service_name),")],
+  [CARE, "the unknown gap is rendered as a count again", P.careStatesTheUnknownGap,
+    (s) => s.replace(
+      "{ordersWithoutResponsible === null || ordersWithoutResponsible > 0 ? (",
+      "{(ordersWithoutResponsible ?? 0) > 0 ? (",
+    )],
+  [CONTACTS_CARD, "a failed contact read reads as 'nothing recorded'", P.emptyStateNamesTheFailure,
+    (s) => s.replace(
+      '{unavailable ? t("contacts.unavailable") : t("contacts.none")}',
+      '{t("contacts.none")}',
+    )],
+  [PAGE, "a contact value is spliced onto the page", P.noContactValue,
+    (s) => s.replace(
+      "<CustomerIdentityCard profile={data} />",
+      "<CustomerIdentityCard profile={data} />\n          <p>{data.contacts.map((c) => c.email).join(\", \")}</p>",
     )],
   [QUERY, "a failed crm read is reported as 'no record'", P.masterFailReturnsUndefined,
     (s) => s.replace("    return undefined;\n  }", "    return null;\n  }")],

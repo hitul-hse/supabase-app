@@ -26,6 +26,15 @@
  *     columns; contract_hours is written only when the sheet states a figure;
  *   - promote a record a reviewer has not cleared: 'approved', or
  *     'unreviewed' with no blocking flag. Everything else waits in staging;
+ *   - touch a responsibility another process owns (a project_responsibility
+ *     row with source 'change_control' is an approved four-eyes handover;
+ *     the report says whether the sheet agrees with it) or a hand-added link;
+ *   - promote an EMPTY batch, or one that would mark more than half of the
+ *     active warehouse historical. Both are refused before any write
+ *     persists: a service tab that came through empty or half-filtered is a
+ *     broken export, not 120 ended contracts. The dry run prints the refusal
+ *     with the figures; --allow-mass-historical is the operator's explicit
+ *     answer to it, never the default;
  *   - run against a database other than the one NEXT_PUBLIC_SUPABASE_URL
  *     names, and never applies without --apply.
  *
@@ -39,6 +48,7 @@
  *   node --env-file=.env.local scripts/promote-masterdata-sheet.mjs            # dry run, newest completed batch
  *   node --env-file=.env.local scripts/promote-masterdata-sheet.mjs --apply
  *   node --env-file=.env.local scripts/promote-masterdata-sheet.mjs --batch <uuid> [--apply]
+ *   node --env-file=.env.local scripts/promote-masterdata-sheet.mjs --apply --allow-mass-historical
  *
  * Required environment: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_DB_URL (or
  * DATABASE_URL). stg is not exposed through PostgREST, so a service-role key
@@ -50,6 +60,10 @@ import { promoteBatch, SOURCE_SYSTEM } from "./lib/masterdata-promote.mjs";
 
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
+// Lifts the disappearance bound (promoteBatch's maxHistoricalShare) to 100%.
+// Only for a sheet that really did lose most of its rows, after the dry run
+// named the count and a person checked the sheet.
+const ALLOW_MASS_HISTORICAL = args.includes("--allow-mass-historical");
 const batchArg = args.indexOf("--batch");
 const REQUESTED_BATCH = batchArg >= 0 ? args[batchArg + 1] ?? null : null;
 if (batchArg >= 0 && !REQUESTED_BATCH) fail("--batch needs a batch id");
@@ -101,7 +115,9 @@ try {
 
   await client.query("begin");
   transactionOpen = true;
-  const report = await promoteBatch(client, { batchId: batch.id, apply: APPLY, now: new Date() });
+  const report = await promoteBatch(client, {
+    batchId: batch.id, apply: APPLY, now: new Date(), ...(ALLOW_MASS_HISTORICAL ? { maxHistoricalShare: 1 } : {}),
+  });
 
   if (APPLY) {
     await client.query("commit");

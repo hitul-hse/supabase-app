@@ -48,9 +48,23 @@
  *     belong to scripts/refresh-order-hours.mjs; budget_* to the budget editor;
  *   - promote the sheet's planned/on-site/remote hours (they are not in the
  *     warehouse contract at all);
- *   - write a person the staging step did not resolve: a responsible or
- *     replacement of kind 'doctor' / 'other', or a name that matched nobody,
- *     leaves the existing responsibility rows alone and is reported.
+ *   - write a person the staging step did not resolve: a name that matched
+ *     nobody (possible only on an approved record) leaves the existing rows of
+ *     that role alone and is reported -- the sheet names someone, we merely
+ *     cannot match them, and a resolution failure is not a fact about the
+ *     project;
+ *   - touch a responsibility row another process owns: a project_responsibility
+ *     row whose source is not 'masterdata' was written by the in-product
+ *     handover RPC (decide_project_responsible_change, 20260827080000, source
+ *     'change_control'), which records an approved four-eyes decision. That
+ *     role is skipped entirely -- role rows, assignment rows, owner_person_id,
+ *     lead -- and the report says whether the sheet agrees with it;
+ *   - remove a link it did not write: a hand-added project_link (any source
+ *     other than the two importers') survives every promote;
+ *   - promote an EMPTY batch, or one that would mark more than half of the
+ *     active warehouse historical: both are refused with an error before any
+ *     write persists, because a sheet whose service tab came through empty or
+ *     half-filtered must not flip 247 rows to 'historical' in one hour.
  *
  * WHAT MAKES A RECORD PROMOTABLE
  * ------------------------------
@@ -70,21 +84,72 @@
  *                                    only for an 'approved' record
  *   order_resolution 'unknown'    -> skipped (UNKNOWN_OLD_KEY)
  *
- * THE TWO RESPONSIBILITY ENCODINGS
- * --------------------------------
- * The same fact is stored twice (public.project_responsibility with a role,
- * public.person_assignments with share_percent 100 / sort_order 0 for the
- * responsible and 0 / 1 for the replacement) and read by different pages.
- * check-responsibility-encodings-agree.mjs fails when they disagree, so both
- * are written here in the same transaction, per role, and only for a role the
- * sheet resolves to a person. order_no on project_responsibility is the
- * project id, not the new key: MyWorkTables prints "· order N" whenever
- * order_no differs from the code.
+ * THE THREE RESPONSIBILITY ENCODINGS
+ * ----------------------------------
+ * The same fact is stored three times and read by different pages:
+ *   public.project_responsibility   role 'responsible' / 'replacement'   my-work, service overview
+ *   public.person_assignments       share 100 / sort 0, share 0 / sort 1  employee ownership, my-work MINE
+ *   public.projects                 owner_person_id + lead                my-work isOwner, customer portfolio
+ * check-responsibility-encodings-agree.mjs fails when the first two disagree,
+ * and a page contradicting another is the bug, so one decision per role is
+ * applied to every encoding in the same transaction:
+ *
+ *   held by change_control  -> nothing touched (see above), reported;
+ *   person, resolved        -> that person and nobody else holds the role in
+ *                              every encoding. An assignment row the person
+ *                              already holds is UPDATED in place (its id,
+ *                              tasks_count and logged_hours survive); a
+ *                              different holder's row goes; every other
+ *                              share-100 row of the project goes with it so
+ *                              "one 100-share row per project" holds (the
+ *                              ownership page multiplies contract hours by
+ *                              share/100 per row);
+ *   person, unresolved      -> nothing touched, reported;
+ *   DOC / OTHER / empty     -> the sheet says no colleague holds the role, so
+ *                              the masterdata rows of that role go from both
+ *                              tables and, for the responsible, owner_person_id
+ *                              becomes NULL and lead 'n/a'. DOC is the company
+ *                              doctor and OTHER "someone else": both are a
+ *                              statement, not a gap, and the August importers
+ *                              wrote no row for either (import-masterdata-
+ *                              projects.mjs resolved DOC to nobody), so on
+ *                              production this is a no-op that keeps the three
+ *                              encodings and project_masterdata.responsible_kind
+ *                              telling one story.
+ *
+ * logged_hours on a NEW responsible row follows the August convention
+ * (import-masterdata-projects.mjs:312-317): the responsible's row carries the
+ * project's logged total, the replacement's carries 0. A figure is never
+ * carried over from a different person's deleted row.
+ *
+ * order_no on project_responsibility is the project id, not the new key:
+ * MyWorkTables prints "· order N" whenever order_no differs from the code.
+ *
+ * LINKS HAVE TWO IMPORTER SOURCES
+ * -------------------------------
+ * project_link.source 'masterdata' is what the August workbook importer wrote
+ * (253 TrackingTime, 95 Chat, 75 Teams, 44 Asana, 17 Drive rows) and the
+ * column's default. This pipeline writes 'masterdata_sheet' so its own rows
+ * are distinguishable. A kind the sheet STATES a URL for is the sheet's: the
+ * URL is claimed (inserted, or an identical importer row re-sourced) and every
+ * other importer-sourced URL of that kind goes. A kind the sheet leaves empty
+ * -- or holds the placeholder "Link einfügen", which parseLink reads as null --
+ * withdraws only what the sheet itself claimed earlier; the workbook's link
+ * stays until the sheet states a different one, because an unfilled cell is
+ * not a statement that the link is wrong. A hand-added link is never touched.
  */
 
 import { BLOCKING_FLAGS, SERVICE_COLUMNS, SERVICE_SHEET_NAME } from "./masterdata-sheet.mjs";
 
 export const SOURCE_SYSTEM = "MASTERDATA_SHEET_V1";
+/** project_link.source for rows this pipeline writes. 'masterdata' is the August workbook's. */
+export const LINK_SOURCE = "masterdata_sheet";
+/** The link sources a promote may replace when the sheet states a URL for the kind. */
+export const IMPORTER_LINK_SOURCES = ["masterdata", LINK_SOURCE];
+/** The project_responsibility source this pipeline owns. Anything else is another process's decision. */
+export const RESPONSIBILITY_SOURCE = "masterdata";
+/** A batch that would mark more than this share of the active warehouse historical is refused. */
+export const DEFAULT_MAX_HISTORICAL_SHARE = 0.5;
 
 /** Sheet column -> public.project_link.kind. file_storage is a folder name, not a link kind. */
 export const LINK_KINDS = [
@@ -141,15 +206,20 @@ export function promotability(record) {
  * Promote one batch inside the caller's transaction.
  *
  * @param db     anything with query(sql, params) -> Promise<{ rows }>
- * @param opts   { batchId, apply, now }
+ * @param opts   { batchId, apply, now, maxHistoricalShare }
  *               apply is echoed into the report; the writes happen either way,
  *               and the caller decides between COMMIT and ROLLBACK.
  *               now is the instant written to updated_at / historical_since,
  *               injectable so a gate can reason about it.
+ *               maxHistoricalShare (0..1, default 0.5): the disappearance step
+ *               throws when it would mark more than this share of the active
+ *               MASTERDATA_SHEET_V1 rows historical. 1 disables the guard; the
+ *               CLI passes that only under --allow-mass-historical.
  * @returns the report described in the header of this file
  */
-export async function promoteBatch(db, { batchId, apply = false, now = new Date() } = {}) {
+export async function promoteBatch(db, { batchId, apply = false, now = new Date(), maxHistoricalShare = DEFAULT_MAX_HISTORICAL_SHARE } = {}) {
   if (!batchId) throw new Error("promoteBatch: batchId is required");
+  if (!(maxHistoricalShare >= 0 && maxHistoricalShare <= 1)) throw new Error("promoteBatch: maxHistoricalShare must be between 0 and 1");
   const nowIso = new Date(now).toISOString();
   const rows = async (sql, params = []) => (await db.query(sql, params)).rows;
   const one = async (sql, params = []) => (await rows(sql, params))[0] ?? null;
@@ -171,6 +241,13 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
       order by row_number`,
     [batchId, SERVICE_SHEET_NAME],
   );
+  // An empty service tab stages as a completed batch (the header is found,
+  // dataRows() is [], the contacts still land). Promoting it would find no
+  // key in the batch and mark EVERY masterdata row historical. Refused here,
+  // before a single write, rather than reported as historical_marked = N.
+  if (records.length === 0) {
+    throw new Error(`batch ${batchId} carries no ${SERVICE_SHEET_NAME} records; refusing to promote it, because an empty batch would mark the whole warehouse historical`);
+  }
 
   // The people the warehouse knows. A person id the staging step resolved but
   // that has since been removed must not abort the whole batch on a foreign
@@ -189,9 +266,13 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
     contacts_deleted: 0,
     links_written: 0,
     links_removed: 0,
-    responsibility_rows: 0,
-    assignment_rows: 0,
-    responsibility_left_alone: 0,
+    responsibility_rows: 0,        // roles enforced to a resolved person, in every encoding
+    responsibility_changed: 0,     // ...of which the holder changed from one person to another
+    responsibility_cleared: 0,     // roles the sheet gives to nobody (DOC / OTHER / empty) whose rows were removed
+    responsibility_left_alone: 0,  // roles naming a person the staging step could not resolve
+    responsibility_held_elsewhere: 0, // roles owned by another process (source <> 'masterdata'); untouched
+    assignment_rows: 0,            // assignment rows enforced (kept in place or inserted)
+    assignment_rows_inserted: 0,
     historical_marked: 0,
     reactivated: 0,
   };
@@ -303,18 +384,17 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
       /* ------------------------------------ d. the existing project, narrowly */
       // Only the columns the sheet owns. A null from the sheet never overwrites
       // a known figure (contract_hours, due) -- "-" means "not stated", not 0.
+      // owner_person_id and lead are the third responsibility encoding and
+      // are decided in step i together with the other two.
       const updated = await rows(
         `update public.projects set
            contract_hours = coalesce($2::numeric, contract_hours),
            due = coalesce($3::text, due),
            contract_type = coalesce($4::text, contract_type),
-           customer_legal_entity_id = coalesce(customer_legal_entity_id, $5::uuid),
-           owner_person_id = case when $6::boolean then $7::text else owner_person_id end,
-           lead = case when $6::boolean then $8::text else lead end
+           customer_legal_entity_id = coalesce(customer_legal_entity_id, $5::uuid)
          where id = $1
          returning id`,
-        [projectId, v.contract_hours ?? null, dueText, v.service_name ?? null, candidate,
-          Boolean(responsibleResolved), responsibleResolved ? v.responsible_person_id : null, responsibleResolved ? v.responsible_name : null],
+        [projectId, v.contract_hours ?? null, dueText, v.service_name ?? null, candidate],
       );
       counts.projects_updated += updated.length;
       if (how === "legacy") counts.matched_legacy += 1; else counts.matched_new_key += 1;
@@ -430,78 +510,168 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
     }
 
     /* ---------------------------------------------------- h. project_link */
-    // The sheet is the single source for its own kinds: the URL it names is
-    // inserted (or already there), every other masterdata-sourced URL of that
-    // kind goes. A hand-added link (source <> 'masterdata') is not ours to
-    // remove.
+    // See "LINKS HAVE TWO IMPORTER SOURCES" in the header. A stated URL is
+    // claimed under LINK_SOURCE (an identical workbook row is re-sourced, not
+    // duplicated -- the unique key is (project, kind, url)) and every other
+    // importer-sourced URL of the kind goes; an empty cell withdraws only the
+    // sheet's own earlier claim. Anything hand-added is never touched.
     for (const [key, kind] of LINK_KINDS) {
       const url = v[key] ?? null;
       if (url) {
-        const inserted = await rows(
+        const written = await rows(
           `insert into public.project_link (project_id, kind, url, label, source)
-           values ($1, $2, $3, $4, 'masterdata')
-           on conflict (project_id, kind, url) do nothing
+           values ($1, $2, $3, $4, $5)
+           on conflict (project_id, kind, url) do update set source = excluded.source, label = excluded.label
+             where project_link.source = any($6::text[])
+               and (project_link.source <> excluded.source or project_link.label is distinct from excluded.label)
            returning id`,
-          [projectId, kind, url, headerOf(key)],
+          [projectId, kind, url, headerOf(key), LINK_SOURCE, IMPORTER_LINK_SOURCES],
         );
-        counts.links_written += inserted.length;
+        counts.links_written += written.length;
       }
       const removed = await rows(
         `delete from public.project_link
-          where project_id = $1 and kind = $2 and source = 'masterdata' and ($3::text is null or url <> $3::text)
+          where project_id = $1 and kind = $2
+            and source = any(case when $3::text is null then $5::text[] else $4::text[] end)
+            and ($3::text is null or url <> $3::text)
           returning id`,
-        [projectId, kind, url],
+        [projectId, kind, url, IMPORTER_LINK_SOURCES, [LINK_SOURCE]],
       );
       counts.links_removed += removed.length;
     }
 
-    /* --------------------------------------- i. responsibility, both encodings */
-    const projectName = (await one(`select name from public.projects where id = $1`, [projectId]))?.name ?? projectId;
-    for (const [role, kind, personId, resolved, share, sort] of [
-      ["responsible", v.responsible_kind ?? null, v.responsible_person_id ?? null, responsibleResolved, 100, 0],
-      ["replacement", v.replacement_kind ?? null, v.replacement_person_id ?? null, replacementResolved, 0, 1],
+    /* -------------------------------------- i. responsibility, every encoding */
+    // One decision per role, applied to project_responsibility,
+    // person_assignments and (for the responsible) projects.owner_person_id +
+    // lead. See "THE THREE RESPONSIBILITY ENCODINGS" in the header.
+    const project = await one(`select name, logged_hours, owner_person_id from public.projects where id = $1`, [projectId]);
+    const projectName = project?.name ?? projectId;
+    const note = (role, kind, text) => responsibilityNotes.push({ sheet_row: v.sheet_row ?? null, project_id: projectId, role, kind, note: text });
+    // The responsible another process holds, if any -- needed by the
+    // replacement's self-cover guard below as well as by its own branch.
+    const heldResponsible = await rows(
+      `select person_id, source from public.project_responsibility
+        where project_id = $1 and role = 'responsible' and source <> $2 order by person_id`,
+      [projectId, RESPONSIBILITY_SOURCE],
+    );
+    for (const [role, kind, personId, resolved] of [
+      ["responsible", v.responsible_kind ?? null, v.responsible_person_id ?? null, responsibleResolved],
+      ["replacement", v.replacement_kind ?? null, v.replacement_person_id ?? null, replacementResolved],
     ]) {
-      if (kind === "doctor" || kind === "other") {
-        counts.responsibility_left_alone += 1;
-        responsibilityNotes.push({ sheet_row: v.sheet_row ?? null, project_id: projectId, role, kind, note: `the sheet names ${kind === "doctor" ? "the company doctor (DOC)" : "OTHER"}, not a person; existing ${role} rows left alone` });
+      const isResponsible = role === "responsible";
+      const share = isResponsible ? 100 : 0;
+      const sort = isResponsible ? 0 : 1;
+      const sheetSays = resolved ? `names ${personId}` : kind === "person" ? "names a person that did not resolve" : kind ? `says ${kind === "doctor" ? "DOC" : "OTHER"}` : "names nobody";
+
+      /* -- provenance: a role written by the handover RPC is not ours ------ */
+      const held = isResponsible ? heldResponsible : await rows(
+        `select person_id, source from public.project_responsibility
+          where project_id = $1 and role = $2 and source <> $3 order by person_id`,
+        [projectId, role, RESPONSIBILITY_SOURCE],
+      );
+      if (held.length) {
+        counts.responsibility_held_elsewhere += 1;
+        const agrees = resolved && held.length === 1 && held[0].person_id === personId;
+        note(role, kind, `${role} is held by ${held.map((h) => `${h.person_id} (source ${h.source})`).join(", ")}; the sheet ${agrees ? "agrees" : sheetSays}; left alone in every encoding${agrees ? "" : " -- the approved handover wins until the sheet is updated"}`);
         continue;
       }
+      // Nobody may be their own cover (the rule decide_project_responsible_change
+      // enforces): a sheet that names the change_control responsible as the
+      // replacement would resurrect exactly that through this door.
+      if (!isResponsible && resolved && heldResponsible.some((h) => h.person_id === personId)) {
+        counts.responsibility_left_alone += 1;
+        note(role, kind, `the sheet names ${personId} as replacement, but ${personId} holds the responsible role by change_control; a person cannot be their own cover, so the replacement rows are left alone`);
+        continue;
+      }
+
+      /* -- a person we could not match: the sheet names someone ------------ */
       if (kind === "person" && !resolved) {
         counts.responsibility_left_alone += 1;
-        responsibilityNotes.push({ sheet_row: v.sheet_row ?? null, project_id: projectId, role, kind, note: personId ? `person ${personId} is not in public.people; existing ${role} rows left alone` : `the ${role} name matched no person at staging time; existing ${role} rows left alone` });
+        note(role, kind, personId ? `person ${personId} is not in public.people; existing ${role} rows left alone` : `the ${role} name matched no person at staging time; existing ${role} rows left alone`);
         continue;
       }
-      // kind null: the sheet names nobody for this role, so the role is
-      // cleared in both encodings; kind person + resolved: enforced in both.
-      await db.query(
+
+      /* -- DOC / OTHER / empty: no colleague holds the role ---------------- */
+      if (!resolved) {
+        const goneRoles = await rows(
+          `delete from public.project_responsibility where project_id = $1 and role = $2 and source = $3 returning person_id`,
+          [projectId, role, RESPONSIBILITY_SOURCE],
+        );
+        const goneAssignments = await rows(
+          isResponsible
+            ? `delete from public.person_assignments where project_id = $1 and share_percent = 100 returning person_id`
+            : `delete from public.person_assignments where project_id = $1 and share_percent = 0 and sort_order = 1 returning person_id`,
+          [projectId],
+        );
+        let ownerCleared = false;
+        if (isResponsible && project?.owner_person_id) {
+          await db.query(`update public.projects set owner_person_id = null, lead = 'n/a' where id = $1`, [projectId]);
+          ownerCleared = true;
+        }
+        if (goneRoles.length || goneAssignments.length || ownerCleared) {
+          counts.responsibility_cleared += 1;
+          const who = [...new Set([...goneRoles, ...goneAssignments].map((r) => r.person_id).concat(ownerCleared ? [project.owner_person_id] : []))].sort();
+          note(role, kind, `the sheet ${sheetSays} for ${role}; ${who.join(", ")} removed from that role in every encoding`);
+        }
+        continue;
+      }
+
+      /* -- a resolved person: this one, and nobody else, in every encoding - */
+      const replacedRoles = await rows(
         `delete from public.project_responsibility
-          where project_id = $1 and role = $2 and ($3::text is null or person_id <> $3::text)`,
-        [projectId, role, resolved ? personId : null],
+          where project_id = $1 and role = $2 and source = $3 and person_id <> $4 returning person_id`,
+        [projectId, role, RESPONSIBILITY_SOURCE, personId],
       );
-      const remembered = await rows(
-        `delete from public.person_assignments
-          where project_id = $1 and share_percent = $2::numeric and sort_order = $3::integer
-          returning logged_hours`,
-        [projectId, share, sort],
-      );
-      if (!resolved) continue;
       await db.query(
         `insert into public.project_responsibility (project_id, person_id, role, source, order_no)
-         values ($1, $2, $3, 'masterdata', $1)
-         on conflict (project_id, person_id, role) do update set source = 'masterdata', order_no = excluded.order_no`,
-        [projectId, personId, role],
+         values ($1, $2, $3, $4, $1)
+         on conflict (project_id, person_id, role) do update set order_no = excluded.order_no`,
+        [projectId, personId, role, RESPONSIBILITY_SOURCE],
       );
       counts.responsibility_rows += 1;
-      // logged_hours is NOT NULL on person_assignments and is refreshed by the
-      // hours pipeline, not by the sheet: the responsible row keeps the figure
-      // it had, a brand-new row starts at the column's only lawful empty value.
-      const kept = role === "responsible" ? remembered.map((r) => r.logged_hours).find((h) => h !== null && h !== undefined) ?? null : null;
-      await db.query(
-        `insert into public.person_assignments (person_id, project_id, project_name, logged_hours, tasks_count, share_percent, sort_order)
-         values ($1, $2, $3, coalesce($4::numeric, 0), 0, $5::numeric, $6::integer)`,
-        [personId, projectId, projectName, kept, share, sort],
+      // Every share-100 row of the project that is not this person's 100/0 row
+      // goes (a different holder; the RPC's 100/sort>=1 shape from before the
+      // role table existed); for the replacement, every other 0/1 cover.
+      const replacedAssignments = await rows(
+        isResponsible
+          ? `delete from public.person_assignments
+              where project_id = $1 and share_percent = 100 and not (person_id = $2 and sort_order = 0)
+              returning person_id, logged_hours`
+          : `delete from public.person_assignments
+              where project_id = $1 and share_percent = 0 and sort_order = 1 and person_id <> $2
+              returning person_id, logged_hours`,
+        [projectId, personId],
       );
+      const kept = await rows(
+        `update public.person_assignments set project_name = $3
+          where project_id = $1 and person_id = $2 and share_percent = $4::numeric and sort_order = $5::integer
+          returning id`,
+        [projectId, personId, projectName, share, sort],
+      );
+      if (kept.length === 0) {
+        // logged_hours is NOT NULL. This person's own deleted row (a 100/N
+        // shape) keeps its figure; otherwise the August convention applies:
+        // the responsible row carries the project's logged total when that is
+        // measured, the replacement row 0. Never another person's hours.
+        const own = replacedAssignments.find((r) => r.person_id === personId)?.logged_hours;
+        const hours = own ?? (isResponsible ? project?.logged_hours ?? null : 0);
+        await db.query(
+          `insert into public.person_assignments (person_id, project_id, project_name, logged_hours, tasks_count, share_percent, sort_order)
+           values ($1, $2, $3, coalesce($4::numeric, 0), 0, $5::numeric, $6::integer)`,
+          [personId, projectId, projectName, hours, share, sort],
+        );
+        counts.assignment_rows_inserted += 1;
+      }
       counts.assignment_rows += 1;
+      if (isResponsible) {
+        await db.query(`update public.projects set owner_person_id = $2, lead = $3 where id = $1`, [projectId, personId, v.responsible_name ?? personId]);
+      }
+      const previous = [...new Set([...replacedRoles, ...replacedAssignments].map((r) => r.person_id).filter((p) => p !== personId))].sort();
+      if (previous.length || (isResponsible && project?.owner_person_id && project.owner_person_id !== personId)) {
+        counts.responsibility_changed += 1;
+        const from = [...new Set([...previous, ...(isResponsible && project?.owner_person_id && project.owner_person_id !== personId ? [project.owner_person_id] : [])])].sort();
+        note(role, kind, `${role} changes from ${from.join(", ")} to ${personId} in every encoding`);
+      }
     }
   }
 
@@ -509,7 +679,23 @@ export async function promoteBatch(db, { batchId, apply = false, now = new Date(
   // Everything the sheet once gave us and no longer lists, by either key.
   // Marked, never deleted; the mirror on project_order keeps the two lifecycle
   // columns telling one story.
+  //
+  // Bounded: a sheet that lost half its rows (a filter left on, a tab
+  // half-pasted) is a broken export, not 120 ended contracts. The would-be
+  // count is measured first and the batch refused above the share the caller
+  // allows -- the dry run shows the figure, and --allow-mass-historical is
+  // the operator's explicit answer to it.
   const known = [...knownKeys];
+  const exposure = await one(
+    `select count(*) filter (where not (masterdata_key = any($2::text[])) and not (project_id = any($2::text[])))::int as would_mark,
+            count(*)::int as active
+       from public.project_masterdata
+      where source_system = $1 and lifecycle_status <> 'historical'`,
+    [SOURCE_SYSTEM, known],
+  );
+  if (exposure.would_mark > maxHistoricalShare * exposure.active) {
+    throw new Error(`batch ${batchId} would mark ${exposure.would_mark} of ${exposure.active} active masterdata rows historical, more than the allowed ${Math.round(maxHistoricalShare * 100)}%; refusing -- check the sheet, then pass --allow-mass-historical if that is really what happened`);
+  }
   const marked = await rows(
     `update public.project_masterdata
         set lifecycle_status = 'historical',

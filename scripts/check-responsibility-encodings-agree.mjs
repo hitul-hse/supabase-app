@@ -27,6 +27,20 @@
 // each for Thorsten and Hendryk, 3 for Stephan. A mislabel, not a
 // disappearance, which is why this is a pinned tolerance and not a failure.
 //
+// SINCE 2026-09-10 the masterdata sheet promote (scripts/lib/masterdata-
+// promote.mjs, gated by check-masterdata-promote.mjs) maintains BOTH tables per
+// role from the sheet, so the 28 are expected to shrink on the first --apply
+// -- lower KNOWN_GAP then. A promote writes a role only when the sheet resolves
+// it to a person, clears it when the sheet says DOC / OTHER / nothing (that
+// removes a gap project's orphan cover rather than leaving it beside a new
+// responsible row), and leaves it alone when the sheet names a person the
+// staging step could not match. That last case is the ONE state a promote can
+// leave that check 4 below calls a changed diagnosis: an APPROVED record whose
+// replacement name matched nobody, on a project whose only cover is an August
+// 0/1 assignment. The promote report lists it under responsibility_notes
+// ("matched no person ... left alone"); the remedy is to resolve the name
+// (public.people or the sheet) and promote again, not to lower this check.
+//
 // The gate does not decide which table wins -- that is a data-ownership call.
 // It records the disagreement with an explicit tolerance so it cannot grow
 // unnoticed, and it fails outright on the one thing that is unambiguously wrong:

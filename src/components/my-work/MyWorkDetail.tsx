@@ -204,6 +204,7 @@ export function MyWorkDetail({
   contractHours,
   budgetsWithheld,
   onClose,
+  variant = "panel",
 }: {
   /** The selected row, with its `detail` (or null) and `contacts`. */
   project: MyProject;
@@ -217,6 +218,15 @@ export function MyWorkDetail({
   budgetsWithheld: boolean;
   /** Clears the selection (the same toggle the row name uses). */
   onClose: () => void;
+  /*
+    "panel" is the sticky column beside the table; "dialog" is the same content
+    inside ModalShell, which owns the surface's position. The only difference is
+    where it sits: a dialog must not stick to a viewport it already covers, and
+    it caps its own height so a long order scrolls inside the dialog rather than
+    growing it past the screen. Everything shown is identical, so a reader who
+    has seen one has seen the other.
+  */
+  variant?: "panel" | "dialog";
 }) {
   const t = useTranslations("myWork");
   const locale = useLocale();
@@ -279,7 +289,11 @@ export function MyWorkDetail({
       as="section"
       id={PANEL_ID}
       aria-label={project.name}
-      className="lg:sticky lg:top-4"
+      className={
+        variant === "dialog"
+          ? "max-h-[85vh] overflow-y-auto overscroll-contain"
+          : "lg:sticky lg:top-4"
+      }
     >
       <CardHeader
         title={project.name}

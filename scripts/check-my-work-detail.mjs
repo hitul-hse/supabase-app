@@ -157,21 +157,36 @@ check(
 
 /* ------------------------------------------------------------ 2. width */
 
-console.log("\n--- 2. a first load is unchanged; the panel is a sibling, on selection only\n");
+console.log("\n--- 2. a first load is unchanged; the detail is a modal, on selection only\n");
 
 check(
   "MyWorkTables imports the panel from its own module rather than defining it inline",
   /import \{ MyWorkDetail \} from "\.\/MyWorkDetail"/.test(tables) && !/function MyWorkDetail/.test(tables),
 );
 check(
-  "the panel mounts only when a row is selected",
-  /\{selectedRow \? \(\s*<MyWorkDetail/.test(tables),
-  "an unconditional <MyWorkDetail /> would change the first-load layout the scroll-budget gate measures",
+  "the detail mounts only when a row is selected",
+  /\{selectedRow \? \(\s*<ModalShell[\s\S]{0,400}<MyWorkDetail/.test(tables),
+  "an unconditional dialog would change the first-load layout the scroll-budget gate measures",
 );
 check(
-  "the two-column grid exists only while a row is selected; otherwise a plain column",
-  /selectedRow\s*\?\s*"grid [^"]*lg:grid-cols-\[[^"]*\]"\s*:\s*"flex [^"]*flex-col"/.test(tables),
-  "the grid must not be the default: it would take width from a table that clears 1280px by a few pixels",
+  "the detail opens as a modal, not beside the table (hitul, 2026-09-10)",
+  /<ModalShell\b/.test(tables) && /variant="dialog"/.test(tables) && /import \{ ModalShell[^}]*\} from "@\/components\/ui\/ModalShell"/.test(tables),
+  "ModalShell owns the scrim, the scroll lock, Escape and the focus trap; a hand-rolled overlay owns none of them",
+);
+check(
+  "the table's wrapper never becomes a two-column grid",
+  !/lg:grid-cols-\[minmax\(0,1fr\)_minmax\(18rem,20rem\)\]/.test(tables),
+  "the table keeps its full width at every size now that the detail is a dialog",
+);
+check(
+  "the dialog is dismissed through the same selectProject the row uses",
+  /onDismiss=\{\(\) => selectProject\(selectedRow\.id\)\}/.test(tables),
+  "a dialog that closed without clearing ?project= would reopen on the next render",
+);
+check(
+  "the dialog scales out of the point that was pressed",
+  /dialogOriginFromPoint\(event\.clientX, event\.clientY\)/.test(tables) && /origin=\{dialogOrigin\}/.test(tables),
+  "null origin is valid and scales from the centre, so a keyboard selection still opens",
 );
 check(
   "the selection resolves against the UNFILTERED project list",
@@ -179,18 +194,29 @@ check(
   "a shared link with ?project= and a role filter must still open the linked project",
 );
 check(
-  "the panel is a Card that sticks beside the list (UI-CONVENTIONS rule 4)",
-  /<Card[\s\S]{0,200}className="lg:sticky lg:top-4"/.test(detail),
+  "the detail still renders as a panel when asked, and caps its height as a dialog",
+  /variant === "dialog"[\s\S]{0,120}max-h-\[85vh\] overflow-y-auto/.test(detail) && /"lg:sticky lg:top-4"/.test(detail),
+  "a long order scrolls inside the dialog instead of growing it past the screen",
 );
 check(
-  "the panel is a sibling of the DataTable, not a child of its Card",
+  "the detail is rendered outside the DataTable, never inside its Card",
   (() => {
     const a = tables.indexOf("<DataTable<MyProject>");
     const close = tables.indexOf("/>", a);
     const b = tables.indexOf("<MyWorkDetail");
     return a > 0 && close > a && b > close;
   })(),
-  "Card-in-Card is banned by the design gate; the detail follows the table's closing tag",
+  "Card-in-Card is banned by the design gate; the dialog follows the table's closing tag",
+);
+check(
+  "the CUSTOMER column and its button agree at every breakpoint",
+  (() => {
+    const col = /key: "customer",[\s\S]{0,1200}?className: "([^"]+)"/.exec(tables)?.[1] ?? "";
+    const btn = /key: "customer",[\s\S]{0,3000}?className="block ([^"]+)"/.exec(tables)?.[1] ?? "";
+    const cap = (s, prefix) => (new RegExp(`${prefix}max-w-\\[([0-9.]+)rem\\]`).exec(s) ?? [])[1];
+    return cap(col, "") === cap(btn, "") && cap(col, "2xl:") === cap(btn, "2xl:") && cap(col, "2xl:") !== undefined;
+  })(),
+  "a button allowed to grow wider than its cell overflows it: from 1536px up, long customer names printed across the PROJECT column (hitul's screen, 2026-09-10)",
 );
 
 /**

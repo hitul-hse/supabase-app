@@ -1,0 +1,41 @@
+# Supabase CLI project configuration.
+#
+# WHY THIS FILE EXISTS, AND WHY IT IS ONLY THIS SHORT
+# ---------------------------------------------------
+# It was written on 2026-09-10 by the security review of the masterdata
+# pipeline (docs/security/2026-09-10-masterdata-pipeline-review.md, finding 6).
+#
+# supabase/functions/masterdata-sheet-drop/index.ts documents, at the top of the
+# file, that a caller must present
+#
+#     Authorization: Bearer <anon key>      the gateway's JWT check (verify_jwt)
+#
+# and the repository set that nowhere. There was no config.toml, no deploy
+# script and no workflow that deploys the function, so `verify_jwt` was whatever
+# the last hand-run `supabase functions deploy` happened to leave it as, and a
+# single `--no-verify-jwt` would have removed the layer with nothing to notice
+# and no diff to review. The flag is now recorded where a CLI deploy reads it,
+# and scripts/check-masterdata-security.mjs asserts it stays true.
+#
+# BE CLEAR ABOUT WHAT THIS BUYS. The anon key is public by design -- it is
+# shipped to every browser and it is written into the Apps Script's properties
+# (docs/masterdata/apps-script-push.gs, step 3). So verify_jwt does NOT
+# authenticate the caller: anyone who can read the app's JavaScript can satisfy
+# it. It keeps an unauthenticated internet scanner off the function, and that is
+# all. The ONLY authentication on this endpoint is the shared secret compared at
+# index.ts:70. The review says so plainly rather than letting the comment imply
+# a second factor that does not exist.
+#
+# AND WHAT IT CANNOT PROVE. This pins intent for the next CLI deploy. It says
+# nothing about the setting on the function deployed on 2026-09-10, which is a
+# dashboard fact. Confirming that one is an item in the review's deferred list.
+#
+# Nothing in this repository runs the Supabase CLI today -- migrations are
+# pasted by hand and the app deploys through Vercel -- so this file is
+# deliberately the two keys the flag needs and no more. Adding storage, auth or
+# db sections here would describe a local stack nobody starts, and would drift.
+
+project_id = "wdbedblvyrfqwypngghs"
+
+[functions.masterdata-sheet-drop]
+verify_jwt = true

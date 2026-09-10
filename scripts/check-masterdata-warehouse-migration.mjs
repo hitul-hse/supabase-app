@@ -147,6 +147,75 @@ check("contacts of another project are invisible", !seenContacts.includes("10234
 const asService = await one(`select (select count(*)::int from public.project_masterdata) md, (select count(*)::int from public.project_contact) c`);
 check("service role (bypassrls) sees every row — the fixture is real", asService.md === 2 && asService.c === 2, `${asService.md} / ${asService.c}`);
 
+/* ------------------------------------------------- every persona, not just one
+ * Added by the 2026-09-10 security review (docs/security/2026-09-10-masterdata-
+ * pipeline-review.md, finding 3). Until then this block seeded exactly ONE
+ * profile -- an active `employee` who owned a project -- and asserted owner-sees
+ * / stranger-does-not. That leaves the four cases that decide the real audience
+ * of `project_contact` untested: `exec`, who the predicate admits to EVERY row
+ * unconditionally; `dept_head`, admitted department-wide whether or not they
+ * have touched the order; a pure `person_assignments` assignee, who owns
+ * nothing; and a DEACTIVATED account, whose revocation is structural rather than
+ * written down anywhere in this migration.
+ *
+ * project_contact holds third-party personal data, so "who can read it" is the
+ * question this gate exists to answer, and a policy comment is not an answer.
+ * These assertions make the audience a measured fact.
+ */
+await db.exec(`
+  update public.projects set department = 'OPERATIONS' where id = '10110_00358_104_01';
+  update public.projects set department = 'SALES'      where id = '10234_00103_104_01';
+  -- md-head and md-third are DIFFERENT people on purpose. The first draft of
+  -- this fixture gave the dept_head and the assignee the same person_id, so the
+  -- dept_head reached the other department's row through the ASSIGNMENT branch
+  -- and the department assertion failed for a reason that had nothing to do
+  -- with departments. One variable at a time, or the test measures the fixture.
+  insert into public.people (id, name) values ('md-head', 'Head'), ('md-third', 'Third');
+  -- An assignee with no ownership and no department claim: the fourth branch of
+  -- can_view_project(), isolated.
+  insert into public.person_assignments (person_id, project_id, project_name, logged_hours, tasks_count, share_percent, sort_order)
+    values ('md-third', '10234_00103_104_01', 'Someone else''s order', 1, 1, 100, 1);
+  insert into auth.users (id, email) values
+    ('22222222-2222-2222-2222-222222222222', 'exec@example.com'),
+    ('33333333-3333-3333-3333-333333333333', 'depthead@example.com'),
+    ('44444444-4444-4444-4444-444444444444', 'assignee@example.com'),
+    ('55555555-5555-5555-5555-555555555555', 'gone@example.com');
+  insert into public.app_user_profile (user_id, person_id, role_key, department, is_active) values
+    ('22222222-2222-2222-2222-222222222222', 'md-owner', 'exec',      'OPERATIONS', true),
+    ('33333333-3333-3333-3333-333333333333', 'md-head',  'dept_head', 'OPERATIONS', true),
+    ('44444444-4444-4444-4444-444444444444', 'md-third', 'employee',  'OPERATIONS', true),
+    -- Same role as the exec above, deactivated: the only difference is is_active.
+    ('55555555-5555-5555-5555-555555555555', 'md-owner', 'exec',      'OPERATIONS', false);
+`);
+
+/** What one signed-in user can actually SELECT from the two tables. */
+const readAs = async (uuid) => {
+  await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub', '${uuid}', false);`);
+  const md = (await all(`select project_id from public.project_masterdata order by 1`)).map((r) => r.project_id);
+  const contacts = (await all(`select project_id from public.project_contact order by 1`)).map((r) => r.project_id);
+  await db.exec(`reset role`);
+  return { md, contacts };
+};
+
+const OWNED = "10110_00358_104_01";
+const OTHER = "10234_00103_104_01";
+
+const asExec = await readAs("22222222-2222-2222-2222-222222222222");
+check("exec reads EVERY masterdata row — the first branch admits all projects", asExec.md.length === 2, asExec.md.join(", ") || "(none)");
+check("exec reads EVERY customer contact, company-wide — this is the real audience of the personal data", asExec.contacts.length === 2, asExec.contacts.join(", ") || "(none)");
+
+const asDeptHead = await readAs("33333333-3333-3333-3333-333333333333");
+check("a dept_head reads the contacts of every project in THEIR department, touched or not", asDeptHead.contacts.includes(OWNED), asDeptHead.contacts.join(", ") || "(none)");
+check("a dept_head does NOT reach another department's contacts", !asDeptHead.contacts.includes(OTHER), asDeptHead.contacts.join(", "));
+
+const asAssignee = await readAs("44444444-4444-4444-4444-444444444444");
+check("a plain assignee — owning nothing — reads the assigned project's contacts", asAssignee.contacts.includes(OTHER), asAssignee.contacts.join(", ") || "(none)");
+check("and reaches nothing they are neither assigned to nor own", !asAssignee.contacts.includes(OWNED), asAssignee.contacts.join(", "));
+
+const asDeactivated = await readAs("55555555-5555-5555-5555-555555555555");
+check("a DEACTIVATED exec reads no masterdata row — is_active revokes, it does not merely hide", asDeactivated.md.length === 0, asDeactivated.md.join(", ") || "(none)");
+check("a DEACTIVATED exec reads no customer contact either", asDeactivated.contacts.length === 0, asDeactivated.contacts.join(", ") || "(none)");
+
 /* ------------------------------------------------------ neighbours untouched */
 const foundationTables = await one(`select count(*)::int n from information_schema.tables where table_schema in ('crm','projects','stg') and table_type='BASE TABLE'`);
 check("no new table in crm/projects/stg (the foundation gate's 17 still hold)", foundationTables.n === 17, `${foundationTables.n}`);

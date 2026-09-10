@@ -38,18 +38,43 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadEnv } from "./lib/gate-env.mjs";
+
+/*
+ * The two children are resolved against THIS file, not against the working
+ * directory. They were "scripts/import-masterdata-sheet-staging.mjs" as typed,
+ * which node resolves against cwd: run the timer from anywhere but the repo
+ * root and it dies on MODULE_NOT_FOUND, and run it from a directory someone
+ * else can write to and node executes THEIR scripts/import-masterdata-sheet-
+ * staging.mjs with this rig's service-role key and database url in its
+ * environment. Found by the 2026-09-10 security review (finding 9).
+ */
+const sibling = (name) => fileURLToPath(new URL(name, import.meta.url));
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const NO_PROMOTE = process.argv.includes("--no-promote");
 const FORCE_PROMOTE = process.argv.includes("--promote");
 const BUCKET = "masterdata-sheet";
 const PREFIX = "V1";
-const MAX_HEARTBEAT_AGE_H = Number(process.env.MASTERDATA_MAX_HEARTBEAT_AGE_H || 3);
 const SOURCE_SYSTEM = "MASTERDATA_SHEET_V1";
-const TARGET = resolve(process.env.MASTERDATA_SHEET_XLSX || ".local/import/masterdata-sheet.xlsx");
 
+/*
+ * loadEnv() FIRST, because these two settings are read from it.
+ *
+ * Both were `process.env.X` and were evaluated ABOVE the `const env =
+ * loadEnv()` line, which meant a value set in .env.local was silently ignored
+ * and the default used instead -- with nothing printed to say so. For
+ * MASTERDATA_SHEET_XLSX the puller's own override at the spawn below hid it;
+ * for MAX_HEARTBEAT_AGE_H nothing hid it, so the threshold of the dead-man
+ * switch was a no-op whenever it was configured in the file rather than in the
+ * environment. A switch whose threshold cannot be set is the failure this
+ * repository calls silence read as success. Found by the 2026-09-10 security
+ * review (docs/security/2026-09-10-masterdata-pipeline-review.md, finding 8).
+ */
 const env = loadEnv();
+const MAX_HEARTBEAT_AGE_H = Number(env.MASTERDATA_MAX_HEARTBEAT_AGE_H || 3);
+const TARGET = resolve(env.MASTERDATA_SHEET_XLSX || ".local/import/masterdata-sheet.xlsx");
 const url = (env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "");
 const key = env.SUPABASE_SERVICE_ROLE_KEY || "";
 if (!url || !key) {
@@ -99,6 +124,37 @@ if (!conn) {
   console.error("FAIL: SUPABASE_DB_URL is required for the importer");
   process.exit(3);
 }
+/*
+ * THE SAME REFUSAL THE OTHER TWO CLIs ALREADY MAKE, and it was missing here.
+ *
+ * import-masterdata-sheet-staging.mjs:89 and promote-masterdata-sheet.mjs:91
+ * both refuse when SUPABASE_DB_URL is not the project NEXT_PUBLIC_SUPABASE_URL
+ * names, so the WRITE path was already safe -- the children re-derive the ref
+ * and stop. What was not safe is the decision made in THIS file, above those
+ * children, out of the query twenty lines down: "is this export already
+ * staged?" is asked of whichever database SUPABASE_DB_URL happens to name,
+ * while the bucket was read from whichever project NEXT_PUBLIC_SUPABASE_URL
+ * names. Point them at two projects -- a restored snapshot during an incident,
+ * two projects in one .env.local -- and a matching file_hash in the wrong
+ * stg.import_batch makes this job print "nothing new to stage" and exit 0. The
+ * dead-man switch then reports success while the real warehouse goes stale,
+ * which is the exact failure this pipeline's dead-man switch exists to prevent.
+ *
+ * Found by the 2026-09-10 security review (finding 2). The substring test is
+ * deliberately identical to the two existing copies rather than better: the
+ * ref sits in the HOSTNAME of the direct url and in the USERNAME of the
+ * session-pooler url, and one shared parser for both is a change to three live
+ * scripts. The review proposes it and this does not pre-empt it.
+ */
+const projectRef = /^https:\/\/([a-z0-9]+)\.supabase\.co/.exec(env.NEXT_PUBLIC_SUPABASE_URL || "")?.[1] ?? null;
+if (!projectRef) {
+  console.error("FAIL: NEXT_PUBLIC_SUPABASE_URL is missing or not a Supabase URL");
+  process.exit(3);
+}
+if (!conn.includes(projectRef)) {
+  console.error(`FAIL: the database connection is not the project NEXT_PUBLIC_SUPABASE_URL names (${projectRef}); refusing -- the bucket and the batch table would be two different projects`);
+  process.exit(1);
+}
 const client = new pg.Client({ connectionString: conn, ssl: { rejectUnauthorized: false } });
 await client.connect();
 const newest = (await client.query(
@@ -127,7 +183,7 @@ mkdirSync(dirname(TARGET), { recursive: true });
 writeFileSync(TARGET, bytes);
 console.log(`downloaded ${bytes.byteLength} bytes to ${TARGET}`);
 
-const args = ["scripts/import-masterdata-sheet-staging.mjs", ...(DRY_RUN ? ["--dry-run"] : [])];
+const args = [sibling("./import-masterdata-sheet-staging.mjs"), ...(DRY_RUN ? ["--dry-run"] : [])];
 const run = spawnSync(process.execPath, args, {
   stdio: ["inherit", "pipe", "inherit"],
   encoding: "utf8",
@@ -152,7 +208,7 @@ function parseJsonTail(text) {
 /** Promote one staged batch for real; returns the exit status to propagate. */
 function promote(batchId) {
   console.log(`promoting batch ${batchId} ...`);
-  const p = spawnSync(process.execPath, ["scripts/promote-masterdata-sheet.mjs", "--apply", "--batch", batchId], {
+  const p = spawnSync(process.execPath, [sibling("./promote-masterdata-sheet.mjs"), "--apply", "--batch", batchId], {
     stdio: "inherit",
     env: { ...process.env, ...env },
   });

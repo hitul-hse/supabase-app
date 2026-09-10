@@ -175,32 +175,115 @@ if (!env.SUPABASE_DB_URL) {
     }
     check(true, "an unhandled frequency is observed, not silently converted (see note above if non-empty)");
 
-    /* 4. Cross-check against the independently-documented percentage field,
-     *    for rows where both it and a maximum-hours reference are present.
-     *    Two vendor fields agreeing is exactly what established the unit in
-     *    the first place (vault Factorial data plan §4) and should be
-     *    re-proved every run, not assumed permanent. */
+    /* 4a. The invariant that actually decides whether the hub is right:
+     *     every stored contract_hours IS the converted working_hours of the
+     *     contract row it came from. This was implied by checks 1-3 and never
+     *     stated, so the only live assertion about the figure's correctness
+     *     was the percentage cross-check below -- which, it turned out, was
+     *     testing a vendor field against another vendor field and blaming us
+     *     for the difference. Stated directly, it has teeth: a conversion that
+     *     drifts by one hour for one person fails here. */
+    const { rows: stored } = await c.query(
+      `select p.name, p.contract_hours, v.working_hours_centihours, v.working_hours_frequency, v.working_week_days
+         from public.people p
+         join crm.factorial_contract_version v on v.factorial_employee_id = p.factorial_employee_id
+        where p.contract_hours is not null and v.is_active`,
+    );
+    const computable = [];
+    const unverifiable = [];
+    for (const r of stored) {
+      const expected = contractWeeklyHours(r);
+      (expected === null ? unverifiable : computable).push({ ...r, expected });
+    }
+    const drifted = computable.filter((r) => Math.abs(Number(r.contract_hours) - r.expected) > 0.01);
+    if (unverifiable.length > 0) {
+      /* Not drift, and not a pass either: the hub holds a figure the stored
+       * contract row cannot justify. Measured 2026-09-10: two people are on a
+       * "day" frequency with working_week_days NULL, so 8 h/day is all the
+       * warehouse knows -- yet one is stored at 40 (five days) and the other at
+       * 32 (four). The day count is real and came from Factorial at import
+       * time; crm.factorial_contract_version simply does not keep it, so
+       * nothing here can re-derive either figure. Naming them is the honest
+       * answer until the sync stores the field (ticket, not a silent pass). */
+      console.log(`  note  ${unverifiable.length} stored contract(s) cannot be re-derived from their contract row:`);
+      for (const r of unverifiable) {
+        console.log(`  note    ${r.name}: stored ${Number(r.contract_hours)} h/week from ${r.working_hours_centihours / 100} h per ${r.working_hours_frequency}` +
+          `, working_week_days ${r.working_week_days === null ? "NULL — the day count the figure implies is not stored" : r.working_week_days}`);
+      }
+    }
+    check(drifted.length === 0,
+      "every re-derivable contract_hours is exactly the converted working_hours of its own contract row",
+      computable.length === 0 ? `no stored contract can be re-derived (${stored.length} row(s), each missing a field the conversion needs)`
+        : drifted.length ? `DRIFTED: ${drifted.map((r) => `${r.name} stored ${Number(r.contract_hours)} against ${r.expected}`).join(", ")}`
+          : `${computable.length} of ${stored.length} row(s) match their source exactly`);
+    /* An unverifiable row is reported above, and asserted here as a COUNT the
+     * suite can see move: a third person losing their day count should not
+     * slip in as one more quiet note. */
+    check(unverifiable.length <= 2,
+      "no MORE than the two known contracts are unverifiable from their own row",
+      unverifiable.length ? `${unverifiable.length}: ${unverifiable.map((r) => r.name).join(", ")}` : "none");
+
+    /* 4b. Cross-check against the independently-documented percentage field.
+     *
+     *     WHAT THIS USED TO GET WRONG (measured 2026-09-10). It divided
+     *     contract_hours by maximum_weekly_hours_centihours and compared the
+     *     result with working_time_percentage_in_cents, on the assumption that
+     *     the maximum is the COMPANY's full-time week. In this tenant it is
+     *     not: of 23 active contract versions only 7 carry the field at all,
+     *     and in 5 of those it equals the person's OWN weekly hours -- so a
+     *     20-hour colleague on a stated 50% divided out to 100% and the gate
+     *     reported the hub as wrong about five people who were all stored
+     *     correctly. One row carries 8 against 40 real hours, which no reading
+     *     makes a full-time week.
+     *
+     *     So the denominator is used only where it CAN be a full-time week:
+     *     inside FULL_TIME_RANGE, and strictly greater than the person's own
+     *     hours unless they are full time themselves (a maximum equal to the
+     *     person's own hours makes the ratio 100% by construction and proves
+     *     nothing). Everything else is REPORTED, not failed -- it is a fact
+     *     about Factorial's data, and the note names the people so it can be
+     *     fixed there. */
     const { rows: crossCheck } = await c.query(
       `select p.name, p.contract_hours,
-              v.working_time_percentage_in_cents, v.maximum_weekly_hours_centihours
+              v.working_time_percentage_in_cents, v.maximum_weekly_hours_centihours,
+              v.working_hours_centihours
          from public.people p
          join crm.factorial_contract_version v on v.factorial_employee_id = p.factorial_employee_id
         where p.contract_hours is not null
           and v.working_time_percentage_in_cents is not null
           and v.maximum_weekly_hours_centihours is not null
-          and v.maximum_weekly_hours_centihours > 0`,
+          and v.maximum_weekly_hours_centihours > 0
+          and v.is_active`,
     );
-    const TOLERANCE_PERCENT_POINTS = 5;
-    const mismatches = crossCheck.filter((r) => {
+    const FULL_TIME_RANGE = [30, 48];
+    const usable = [];
+    const unusable = [];
+    for (const r of crossCheck) {
       const fullTimeHours = r.maximum_weekly_hours_centihours / 100;
-      const impliedPercent = (Number(r.contract_hours) / fullTimeHours) * 100;
+      const ownHours = r.working_hours_centihours / 100;
+      const plausible = fullTimeHours >= FULL_TIME_RANGE[0] && fullTimeHours <= FULL_TIME_RANGE[1];
+      const informative = fullTimeHours > ownHours || Math.abs(fullTimeHours - ownHours) < 0.01
+        ? fullTimeHours >= ownHours : false;
+      (plausible && informative ? usable : unusable).push({ ...r, fullTimeHours, ownHours });
+    }
+    const TOLERANCE_PERCENT_POINTS = 5;
+    const mismatches = usable.filter((r) => {
+      const impliedPercent = (Number(r.contract_hours) / r.fullTimeHours) * 100;
       const statedPercent = r.working_time_percentage_in_cents / 100;
       return Math.abs(impliedPercent - statedPercent) > TOLERANCE_PERCENT_POINTS;
     });
+    if (unusable.length > 0) {
+      console.log(`  note  ${unusable.length} contract version(s) carry a maximum_weekly_hours that cannot serve as a full-time week`);
+      for (const r of unusable) {
+        console.log(`  note    ${r.name}: maximum ${r.fullTimeHours} h against ${r.ownHours} own hours at ${r.working_time_percentage_in_cents / 100}% ` +
+          `-- ${Math.abs(r.fullTimeHours - r.ownHours) < 0.01 ? "the maximum is the person's own hours, so the ratio is 100% by construction" : "outside " + FULL_TIME_RANGE.join("-") + " h"}`);
+      }
+      console.log("  note  these are Factorial's own fields disagreeing with each other; the hub's figure is checked by 4a above.");
+    }
     check(mismatches.length === 0,
-      `contract_hours agrees with working_time_percentage_in_cents within ${TOLERANCE_PERCENT_POINTS} points`,
-      crossCheck.length === 0 ? "no rows carry both fields yet — nothing to cross-check"
-        : mismatches.length ? `MISMATCH: ${mismatches.map((r) => r.name).join(", ")}` : `${crossCheck.length} row(s) agree`);
+      `contract_hours agrees with working_time_percentage_in_cents within ${TOLERANCE_PERCENT_POINTS} points, where the percentage has a usable denominator`,
+      usable.length === 0 ? `no row carries a usable full-time reference (${crossCheck.length} carry the fields, ${unusable.length} unusable) — nothing to cross-check`
+        : mismatches.length ? `MISMATCH: ${mismatches.map((r) => r.name).join(", ")}` : `${usable.length} row(s) agree`);
 
     /* 5. Non-uniformity, the plan's own headline signal that data is
      *    actually flowing -- but only once enough people are populated that

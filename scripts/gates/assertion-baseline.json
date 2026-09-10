@@ -123,7 +123,7 @@
     "check:anon-grants": 4,
     "check:anon-grants-migration": 35,
     "check:factorial-contract-migration": 17,
-    "check:factorial-contract-hours": 27,
+    "check:factorial-contract-hours": 29,
     "check:offboarding": 60,
     "check:offboarding-leonie": 46,
     "check:operations-role": 70,

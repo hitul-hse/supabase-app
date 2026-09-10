@@ -158,6 +158,42 @@ const PRESENCE_ONLY = [
   },
 ];
 
+/*
+ * NAMED SO THE ABSENCE IS NOT AN OVERSIGHT, BUT OUT OF REACH OF THIS MECHANISM.
+ *
+ * This gate compares a sha256 of the rig's copy against a registry of what was
+ * last pushed to GitHub ACTIONS, and it asserts against the live repository
+ * secret list. A credential whose homes are not GitHub Actions cannot be
+ * reached by it at all -- there is nothing to list and nothing to compare.
+ * Putting one in MAPPED or in PRESENCE_ONLY would make this gate RED FOREVER,
+ * because both assert `exists as a repository secret`, and a permanently red
+ * gate is a gate people learn to skip.
+ *
+ * So these are PRINTED, not asserted -- which is the honest form of the rule
+ * stated at the top of this file: an unexplained absence from this file is
+ * indistinguishable from an oversight. Added by the 2026-09-10 masterdata
+ * security review (docs/security/2026-09-10-masterdata-pipeline-review.md,
+ * finding 5). Adding a name here changes no assertion count.
+ */
+const NOT_IN_GITHUB = [
+  {
+    name: "MASTERDATA_DROP_SECRET",
+    homes: [
+      "the Apps Script Script Property DROP_SECRET (docs/masterdata/apps-script-push.gs:19)",
+      "the Supabase edge function's env MASTERDATA_DROP_SECRET (supabase/functions/masterdata-sheet-drop/index.ts:67)",
+      "~/.config/hse/masterdata-drop.env on the rig -- the copy a human retypes from, read by NO code",
+    ],
+    detected_by:
+      "not by this gate, and it does not need to be for the first two: a mismatch "
+      + "between them 401s every hourly push, the Apps Script logs the drop's own "
+      + '{"error":"bad secret"} verbatim, the heartbeat stops, and '
+      + "pull-masterdata-sheet.mjs fails after MASTERDATA_MAX_HEARTBEAT_AGE_H (3 h). "
+      + "That names the CAUSE, which is more than the Factorial incident got. The "
+      + "THIRD home is the hole: nothing reads it, so a stale copy there breaks "
+      + "nothing until someone re-sets one of the other two from it.",
+  },
+];
+
 const failures = [];
 let asserted = 0;
 
@@ -169,9 +205,16 @@ const check = (ok, label, detail) => {
 };
 
 const finish = () => {
+  console.log(`\nOUT OF REACH OF THIS GATE, named so the absence is stated rather than assumed:`);
+  for (const n of NOT_IN_GITHUB) {
+    console.log(`  ${n.name} — not a GitHub Actions secret, so there is nothing here to compare.`);
+    for (const h of n.homes) console.log(`      home: ${h}`);
+    console.log(`      drift is ${n.detected_by}`);
+  }
   console.log(
     `\n${asserted} assertion(s) over ${MAPPED.length} value-parity name(s) `
-    + `and ${PRESENCE_ONLY.length} presence-only name(s).`,
+    + `and ${PRESENCE_ONLY.length} presence-only name(s); `
+    + `${NOT_IN_GITHUB.length} name(s) reported without assertion.`,
   );
   console.log(`\n${failures.length === 0 ? "PASS" : `FAIL (${failures.length})`}`);
   if (failures.length) for (const f of failures) console.log(`  - ${f}`);

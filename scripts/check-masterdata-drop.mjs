@@ -41,7 +41,49 @@ check(/export\?format=xlsx/.test(gs) && /getLastUpdated\(\)/.test(gs), "Apps Scr
 check(/getProperty\("DROP_SECRET"\)/.test(gs) && !/DROP_SECRET"\s*,\s*"/.test(gs), "Apps Script: the secret comes from Script Properties, not a literal");
 check(/"x-heartbeat":\s*"1"/.test(gs), "Apps Script: sends a heartbeat when the sheet is unchanged");
 const manifest = JSON.parse(read("docs/masterdata/apps-script-manifest.json"));
-check(Array.isArray(manifest.oauthScopes) && manifest.oauthScopes.every((s) => /readonly|external_request|script\.scriptapp/.test(s)) && !manifest.oauthScopes.some((s) => /\/auth\/(drive|spreadsheets)$/.test(s)), "Apps Script manifest: read-only Drive scope, no full drive or spreadsheets write scope", manifest.oauthScopes.join(" "));
+/*
+ * AN EXACT SET, NOT A PATTERN. Until the 2026-09-10 security review this read
+ *
+ *   manifest.oauthScopes.every((s) => /readonly|external_request|script\.scriptapp/.test(s))
+ *   && !manifest.oauthScopes.some((s) => /\/auth\/(drive|spreadsheets)$/.test(s))
+ *
+ * and the review ran it against candidate manifests. `every` is a SUBSTRING
+ * test, so every scope Google publishes ending in `.readonly` satisfied it --
+ * gmail.readonly (all mail), contacts.readonly, calendar.readonly and
+ * admin.directory.user.readonly (the whole Workspace directory) each PASSED
+ * when added beside the real three. Worse, `[].every()` is vacuously true, so
+ * emptying oauthScopes -- which makes Apps Script infer scopes at authorisation
+ * time from whatever the code happens to call -- also PASSED. That is the
+ * plausible-looking edit, not the obviously hostile one.
+ *
+ * This script holds the drop secret and already has a consented token, so a
+ * widened scope is a widened blast radius with no second prompt. Adding one
+ * must therefore be a reviewable diff to THIS list that names the scope and
+ * says which call needs it. See docs/security/2026-09-10-masterdata-pipeline-
+ * review.md, finding 1.
+ */
+const ALLOWED_SCOPES = [
+  // DriveApp.getFileById(SHEET_ID).getLastUpdated() -- the modified time that
+  // decides push vs heartbeat -- and the token for the xlsx export URL.
+  "https://www.googleapis.com/auth/drive.readonly",
+  // UrlFetchApp: the export GET to docs.google.com and the POST to the drop.
+  "https://www.googleapis.com/auth/script.external_request",
+  // installHourlyTrigger(): list, delete and create this script's own triggers.
+  "https://www.googleapis.com/auth/script.scriptapp",
+];
+const scopes = Array.isArray(manifest.oauthScopes) ? manifest.oauthScopes : null;
+const sameSet = (a, b) => a.length === b.length && [...a].sort().join("\n") === [...b].sort().join("\n");
+check(
+  scopes !== null && sameSet(scopes, ALLOWED_SCOPES),
+  "Apps Script manifest: exactly the three scopes this design needs, no more and no fewer",
+  scopes === null
+    ? "oauthScopes is missing or is not an array — Apps Script would infer scopes at authorisation time"
+    : [
+      scopes.filter((s) => !ALLOWED_SCOPES.includes(s)).map((s) => `NOT ALLOWED: ${s}`).join(" "),
+      ALLOWED_SCOPES.filter((s) => !scopes.includes(s)).map((s) => `MISSING: ${s}`).join(" "),
+      scopes.join(" ") || "(empty)",
+    ].filter(Boolean).join(" | "),
+);
 
 // ---- 2. the drop function
 const fn = read("supabase/functions/masterdata-sheet-drop/index.ts");

@@ -263,7 +263,8 @@
     "check:masterdata-drop": "node scripts/check-masterdata-drop.mjs",
     "check:masterdata-warehouse-migration": "node scripts/check-masterdata-warehouse-migration.mjs",
     "import:masterdata-sheet": "node scripts/import-masterdata-sheet-staging.mjs",
-    "pull:masterdata-sheet": "node scripts/pull-masterdata-sheet.mjs"
+    "pull:masterdata-sheet": "node scripts/pull-masterdata-sheet.mjs",
+    "masterdata:chain-check": "node scripts/masterdata-chain-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

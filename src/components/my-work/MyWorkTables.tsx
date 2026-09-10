@@ -61,7 +61,8 @@
  * The width those three freed is what pays for five link columns instead of
  * one -- see the block that builds them.
  */
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { DataTable, cmpNum, cmpText, type Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -69,6 +70,7 @@ import { Button } from "@/components/ui/Button";
 import { FilterChip } from "@/components/ui/Field";
 import { Pill, Segmented } from "@/components/ui/Segmented";
 import { IconCross } from "@/components/nav-icons";
+import { ModalShell, dialogOriginFromPoint, type DialogOrigin } from "@/components/ui/ModalShell";
 import { useUrlState, type UrlPatch } from "@/components/url-state";
 import {
   LINK_DESTINATION,
@@ -210,9 +212,26 @@ export function MyWorkTables({
    * step: ten of these in the history would bury the page the reader arrived
    * from under ten identical-looking entries.
    */
+  /*
+    Where the dialog grows from. ModalShell scales the panel out of the point
+    the reader last pressed, so the fields appear to come out of the row rather
+    than out of the middle of the screen (APPLE_REF motion: an object that
+    appears from nowhere reads as a page change, not a detail view). Null is a
+    valid value -- it scales from the centre -- so a keyboard selection, which
+    has no point, still opens correctly.
+  */
+  const [dialogOrigin, setDialogOrigin] = useState<DialogOrigin | null>(null);
+  /*
+    Selecting a project both writes ?project= and remembers where the press
+    landed, so the dialog can scale out of that point. A React MouseEvent is
+    optional: the same callback closes the dialog and clears the URL, and those
+    calls have no point to give.
+  */
   const selectProject = useCallback(
-    (id: string) =>
-      setControls({ ...controls, project: controls.project === id ? null : id }),
+    (id: string, event?: { clientX: number; clientY: number }) => {
+      if (event) setDialogOrigin(dialogOriginFromPoint(event.clientX, event.clientY));
+      setControls({ ...controls, project: controls.project === id ? null : id });
+    },
     [controls, setControls],
   );
   /** Drill from a customer row into its projects: one change, one URL write. */
@@ -275,12 +294,20 @@ export function MyWorkTables({
       {
         key: "customer",
         header: "CUSTOMER",
-        // 12rem, matching the cap on the button below. The two must agree: a
+        // 10.5rem, matching the cap on the button below. The two must agree: a
         // wider cell than the button can fill would truncate a name early and
-        // leave the gap beside it. 12 rather than 13 buys the PROJECT column
+        // leave the gap beside it. 10.5 rather than 13 buys the PROJECT column
         // 16px at 1280, which is the difference between "Brandschutzkonzept"
         // fitting on one line and breaking mid-word.
-        className: "w-[10.5rem] max-w-[10.5rem]",
+        //
+        // AND THEY MUST AGREE AT EVERY BREAKPOINT (2026-09-10). The button
+        // relaxes to 18rem at 2xl so a wide monitor shows more of the name; the
+        // COLUMN did not, so from 1536px up the button was allowed 288px inside
+        // a 168px cell and long names ran straight across the PROJECT column --
+        // "Kirby Group Engineering (Germany) GmbH" printed over the order name
+        // beside it. Seen on hitul's screen, not on any of the widths the
+        // scroll-budget gate measures.
+        className: "w-[10.5rem] max-w-[10.5rem] 2xl:w-[18rem] 2xl:max-w-[18rem]",
         compare: (a, b) => cmpText(a.customer, b.customer),
         descFirst: false,
         title: "The canonical legal entity this project is booked under",
@@ -368,7 +395,7 @@ export function MyWorkTables({
           */
           <button
             type="button"
-            onClick={() => selectProject(r.id)}
+            onClick={(event) => selectProject(r.id, event)}
             aria-pressed={selectedProject === r.id}
             title={
               selectedProject === r.id
@@ -912,16 +939,14 @@ export function MyWorkTables({
           a few pixels (check-table-scroll-budget pins this route on first
           load). Selecting a row turns the wrapper into a two-column grid at
           `lg` with the panel beside the list and sticky (UI-CONVENTIONS rule
-          4); below `lg` the panel stacks under the table. The panel is a
-          SIBLING Card of the DataTable's Card, never a child of it.
+          4). CHANGED 2026-09-10, hitul: "instead of showing the information on
+          side dialogue it should open the popup". The detail is a modal now, so
+          the table keeps its full width at every size and the fields arrive over
+          the row rather than beside it. The wrapper is therefore always the
+          plain column it used to be only when nothing was selected -- one less
+          layout for the scroll-budget gate to measure.
         */
-        <div
-          className={
-            selectedRow
-              ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,20rem)]"
-              : "flex min-w-0 flex-col"
-          }
-        >
+        <div className="flex min-w-0 flex-col">
           <DataTable<MyProject>
             rows={filteredProjects}
             columns={projectColumns}
@@ -994,20 +1019,37 @@ export function MyWorkTables({
             }
           />
           {/*
-            The sheet's purple fields for the selected row. Contract hours go
-            through the SAME hours() as every table cell, already redacted at
-            the query, so the panel cannot print a figure the row could not.
-            Contacts ride on the row object and are rendered here only: no
-            column, no CSV (check-my-work-detail.mjs).
+            The sheet's purple fields for the selected row, in a modal. Contract
+            hours go through the SAME hours() as every table cell, already
+            redacted at the query, so the dialog cannot print a figure the row
+            could not. Contacts ride on the row object and are rendered here
+            only: no column, no CSV (check-my-work-detail.mjs).
+
+            ModalShell owns the scrim, the scroll lock, Escape, the focus trap
+            and the return of focus; `origin` makes it scale out of the row that
+            was clicked rather than out of the middle of the screen. Closing
+            clears ?project= through the same selectProject the row uses, so the
+            URL and the dialog can never disagree.
           */}
-          {selectedRow ? (
-            <MyWorkDetail
-              project={selectedRow}
-              contractHours={hours(selectedRow.contractHours)}
-              budgetsWithheld={budgetsWithheld}
-              onClose={() => selectProject(selectedRow.id)}
-            />
-          ) : null}
+          <AnimatePresence>
+            {selectedRow ? (
+              <ModalShell
+                key={selectedRow.id}
+                label={selectedRow.name}
+                onDismiss={() => selectProject(selectedRow.id)}
+                origin={dialogOrigin}
+                panelClassName="w-full max-w-lg"
+              >
+                <MyWorkDetail
+                  project={selectedRow}
+                  contractHours={hours(selectedRow.contractHours)}
+                  budgetsWithheld={budgetsWithheld}
+                  onClose={() => selectProject(selectedRow.id)}
+                  variant="dialog"
+                />
+              </ModalShell>
+            ) : null}
+          </AnimatePresence>
         </div>
       ) : (
         <DataTable<MyCustomer>

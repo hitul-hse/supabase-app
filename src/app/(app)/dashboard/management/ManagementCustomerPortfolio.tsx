@@ -184,7 +184,20 @@ function CustomerDetail({ row, onClose }: { row: CustomerPortfolioRow; onClose: 
         <button type="button" onClick={onClose} className="font-mono text-[10px] text-[var(--text-faint)] hover:text-[var(--critical)]">{t("close")}</button>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <div><p className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]">{t("masterData")}</p><p className="mt-1 text-[12px] text-[var(--text-primary)]">{row.customer}</p><p className="text-[11px] text-[var(--text-muted)]">{t("legalEntity", { name: row.legalEntity })}</p></div>
+        <div><p className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]">{t("masterData")}</p><p className="mt-1 text-[12px] text-[var(--text-primary)]">{row.customer}</p><p className="text-[11px] text-[var(--text-muted)]">{t("legalEntity", { name: row.legalEntity })}</p>
+          {/*
+            The way out of the roll-up and into the customer itself. Rendered
+            only when this entity's active orders resolve to EXACTLY ONE Lexware
+            number: /customers/[number] is keyed on that number (ADR-001) and 4
+            entities carry several, so a link from a row that cannot name one
+            would open a different customer from the one on screen. The absence
+            says why rather than leaving a gap nobody can explain.
+          */}
+          {row.customerNumber !== null ? (
+            <p className="text-[11px]"><Link href={`/customers/${row.customerNumber}`} className="text-[var(--accent)] underline-offset-2 hover:underline">{t("customerProfile", { number: row.customerNumber })}</Link></p>
+          ) : (
+            <p className="text-[11px] text-[var(--text-faint)]">{t("customerProfileNa")}</p>
+          )}</div>
         <div><p className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]">{t("locations")}</p><p className="mt-1 text-[11px] text-[var(--text-muted)]">{row.locationsAvailable ? row.locations.join(", ") || tm("values.none") : t("locationsNa")}</p></div>
         <div><p className="font-mono text-[10px] tracking-[0.08em] text-[var(--text-faint)]">{t("risks")}</p><p className="mt-1 text-[11px] text-[var(--text-muted)]">{row.risks.length > 0 ? translateList(tm, row.risks).join(" · ") : t("noRisks")}</p></div>
       </div>

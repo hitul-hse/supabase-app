@@ -1068,6 +1068,19 @@ const SCALE_OWNED = [
   // roles, so it is on the ratchet from its first commit.
   "src/components/my-work/MyWorkDetail.tsx",
   "src/components/my-work/RoleBadge.tsx",
+  // The customer profile (2026-09-10, HSEHU-72/73). Born on the roles, so the
+  // whole route is on the ratchet from its first commit rather than being
+  // added later once someone notices a raw pixel size.
+  "src/app/(app)/customers/[number]/page.tsx",
+  "src/app/(app)/customers/[number]/loading.tsx",
+  "src/components/customer/parts.tsx",
+  "src/components/customer/CustomerIdentityCard.tsx",
+  "src/components/customer/CustomerLocations.tsx",
+  "src/components/customer/CustomerContacts.tsx",
+  "src/components/customer/CustomerOrdersTable.tsx",
+  "src/components/customer/CustomerCare.tsx",
+  "src/components/customer/CustomerLinks.tsx",
+  "src/components/customer/CustomerMasterRecord.tsx",
   "src/components/DrillDialog.tsx",
   "src/components/EmptyState.tsx",
   "src/components/LoadingSkeleton.tsx",

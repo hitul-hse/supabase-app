@@ -305,8 +305,16 @@ check(
   reachable.length ? `REACHABLE: ${reachable.join(", ")}` : `${pages.length} routes accounted for`,
 );
 check(
-  "the two allow-listed routes are the intended ones",
-  allowedByList.slice().sort().join(",") === "/my-work,/profile",
+  "the allow-listed routes are the intended ones",
+  /*
+   * /customers/[number] joined the list on 2026-09-10 with the customer profile
+   * (HSEHU-72/73). It is NOT a widening: the page renders exactly the orders
+   * can_view_project() already lets this role see on /my-work, keyed on the
+   * five-digit Lexware number, and it carries no nav item. Written out in full
+   * rather than loosened to a prefix test, so the next addition still has to be
+   * argued here.
+   */
+  allowedByList.slice().sort().join(",") === "/customers/[number],/my-work,/profile",
   allowedByList.join(", "),
 );
 check(

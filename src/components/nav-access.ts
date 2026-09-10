@@ -55,6 +55,15 @@ export interface NavItemLike {
  * the duration of the trial. No Overview, People, Projects, Timesheets,
  * TrackingTime Dashboard or Leave.
  *
+ * `/customers` was added on 2026-09-10 with the customer profile (HSEHU-72/73).
+ * It is not a widening of that decision: `/customers/[number]` renders exactly
+ * the orders `can_view_project()` already lets the reader see on /my-work, keyed
+ * on the five-digit Lexware number, and it is the page the operations
+ * consultants are the primary audience for. Without this one array element
+ * `enforceRoleRouteAccess` redirects all six operations accounts to /my-work and
+ * the page is invisible to precisely the people it was built for. There is no
+ * nav item: the route is reached by clicking a customer name.
+ *
  * `/profile` is on the list and is the one entry that is a judgement call rather
  * than a transcription of that decision, so it is called out here rather than
  * left to be discovered. It is not a nav item and carries no business data: it
@@ -66,7 +75,7 @@ export interface NavItemLike {
  * needs to change.
  */
 export const ROLE_ROUTE_ALLOWLIST: Readonly<Record<string, readonly string[]>> = {
-  operations: ["/my-work", "/profile"],
+  operations: ["/my-work", "/profile", "/customers"],
 };
 
 /**

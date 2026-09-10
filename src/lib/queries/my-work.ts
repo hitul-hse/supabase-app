@@ -209,6 +209,17 @@ export type MyProject = {
  * null here is rendered as an absence, never as 0, "Nein" or an empty string.
  */
 export type MyProjectDetail = {
+  /**
+   * The five-digit Lexware customer number this order is booked under.
+   *
+   * The IDENTITY, per ADR-001, and the key /customers/[number] is built on. It
+   * rides on the sheet row rather than on the project because that is where it
+   * is stored (`public.project_masterdata.customer_number`, under the same
+   * `can_view_project()` policy as everything else here), and because 20 of 242
+   * live orders have no sheet row at all and therefore no number — null, never
+   * an invented one.
+   */
+  customerNumber: string | null;
   /** The name the sheet displays for the customer (Kunde Anzeigename). */
   customerDisplayName: string | null;
   /** The customer's legal name as written in the sheet. */
@@ -306,6 +317,18 @@ export const LINK_ORDER: MyLink["kind"][] = [
 export type MyCustomer = {
   /** Canonical entity id, or null when only the text name is known. */
   entityId: string | null;
+  /**
+   * The five-digit Lexware number this group resolves to, or null.
+   *
+   * NULL WHENEVER IT IS NOT EXACTLY ONE, and that is the whole point. The group
+   * is keyed on `customer_legal_entity_id`, and 3 legal entities carry two to
+   * four Lexware numbers each — one account per billing relationship — while 20
+   * orders carry no number at all. A link built from "the first number we saw"
+   * would send the reader to a customer this row is not about, so a group whose
+   * orders disagree, or carry none, gets no link and keeps the in-table drill
+   * it always had. ADR-001: exact keys, never a plausible one.
+   */
+  customerNumber: string | null;
   customer: string;
   /**
    * The free-text spellings folded into this entity, when more than one.
@@ -497,6 +520,7 @@ function toDetail(
   const nameFor = (kind: PersonKind | null, id: string | null) =>
     kind === "person" && id ? (nameById.get(id) ?? null) : null;
   return {
+    customerNumber: textOrNull(m.customer_number),
     customerDisplayName: textOrNull(m.customer_display_name),
     customerName: textOrNull(m.customer_name),
     language: m.language === 1 ? "de" : m.language === 2 ? "en" : null,
@@ -596,6 +620,7 @@ type LinkRowLite = {
  */
 type MasterdataRowLite = {
   project_id: string;
+  customer_number: string | null;
   customer_display_name: string | null;
   customer_name: string | null;
   language: number | null;
@@ -635,7 +660,7 @@ type PersonNameRowLite = {
 };
 
 const MASTERDATA_COLUMNS =
-  "project_id, customer_display_name, customer_name, language, street, postal_code, city, " +
+  "project_id, customer_number, customer_display_name, customer_name, language, street, postal_code, city, " +
   "contract_start, contract_end, responsible_kind, replacement_kind, responsible_person_id, " +
   "replacement_person_id, service_role, min_onsite_time, travel_flat_rate, travel_flat_rate_text, " +
   "travel_as_project_time, travel_as_project_time_text, file_storage, lifecycle_status, last_seen_at";
@@ -1255,13 +1280,20 @@ export function assembleMyWork(
    * customer each and were counted as six. Grouping on the free-text string
    * would show Mathias 43 customers when he has 40.
    */
-  const byCustomer = new Map<string, MyCustomer & { aliasSet: Set<string>; serviceSet: Set<string> }>();
+  const byCustomer = new Map<
+    string,
+    MyCustomer & { aliasSet: Set<string>; serviceSet: Set<string>; numberSet: Set<string> }
+  >();
   for (const r of rows) {
     const key = r.customerEntityId ?? `text:${r.customer}`;
     let c = byCustomer.get(key);
     if (!c) {
       c = {
         entityId: r.customerEntityId,
+        // Resolved below, once every project of the group has been seen: one
+        // number means one customer, anything else means no link.
+        customerNumber: null,
+        numberSet: new Set<string>(),
         /*
          * Seeded with the CANONICAL name only, i.e. empty when the only thing
          * available is a free-text spelling. Seeding with the text would pin
@@ -1288,6 +1320,10 @@ export function assembleMyWork(
     // The free-text spelling, NOT the canonical name: collecting the latter
     // would add the same string 54 times and never reveal a merge.
     c.aliasSet.add(r.customerText);
+    // The sheet's number for THIS order. A project with no sheet row adds
+    // nothing rather than adding a blank, so an unnumbered order among numbered
+    // ones does not by itself cost the group its link.
+    if (r.detail?.customerNumber) c.numberSet.add(r.detail.customerNumber);
     c.projectCount += 1;
     c.roleCounts[r.role] += 1;
     if (rank(r.role) < rank(c.topRole)) c.topRole = r.role;
@@ -1301,10 +1337,14 @@ export function assembleMyWork(
     c.projects.push(r);
   }
 
-  const customers: MyCustomer[] = [...byCustomer.values()].map(({ aliasSet, serviceSet, ...c }) => {
+  const customers: MyCustomer[] = [...byCustomer.values()].map(
+    ({ aliasSet, serviceSet, numberSet, ...c }) => {
     const aliases = [...aliasSet].sort();
     return {
       ...c,
+      // Exactly one, or none. See MyCustomer.customerNumber for why a group
+      // spanning two Lexware numbers gets no link rather than an arbitrary one.
+      customerNumber: numberSet.size === 1 ? [...numberSet][0] : null,
       services: [...serviceSet].sort(),
       /*
        * Display name.
@@ -1334,7 +1374,8 @@ export function assembleMyWork(
       loggedHours: round1(c.loggedHours),
       myLoggedHours: round1(c.myLoggedHours),
     };
-  });
+    },
+  );
 
   // Customers you LEAD come first: those are the ones where a question lands
   // on your desk rather than someone else's.

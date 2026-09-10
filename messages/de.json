@@ -658,7 +658,9 @@
         "linkNa": "{label}: n/a",
         "linksNote": "Im aktuellen Projekt-Read-Model sind keine belastbaren URL-Felder für diese Linktypen vorhanden.",
         "replacementNa": "Replacement: n/a",
-        "replacementTitle": "Replacement benötigt ein bestätigtes servicebezogenes Modell"
+        "replacementTitle": "Replacement benötigt ein bestätigtes servicebezogenes Modell",
+        "customerProfile": "Kundenprofil {number}",
+        "customerProfileNa": "Kundenprofil: keine eindeutige Kundennummer"
       }
     },
     "multiService": {
@@ -2148,5 +2150,176 @@
       "source": "Aus dem Stammdatenblatt, Stand {when}",
       "sourceUndated": "Aus dem Stammdatenblatt"
     }
+  },
+  "customer": {
+    "header": {
+      "fallbackTitle": "Kunde {number}",
+      "metaAll": "KUNDENNUMMER {number} · ALLE AUFTRÄGE",
+      "metaVisible": "KUNDENNUMMER {number} · NUR SICHTBARE AUFTRÄGE"
+    },
+    "identity": {
+      "title": "Kunde",
+      "qualifier": "AUS DEM STAMMDATENBLATT",
+      "legalName": "FIRMENNAME",
+      "group": "KONZERN",
+      "language": "SPRACHE",
+      "spellings": "AUCH GESCHRIEBEN ALS",
+      "number": "KUNDENNUMMER"
+    },
+    "language": {
+      "de": "Deutsch",
+      "en": "English"
+    },
+    "tiles": {
+      "orders": "AUFTRÄGE",
+      "ordersHintAll": "im Stammdatenblatt",
+      "ordersHintVisible": "für dich sichtbar",
+      "running": "LAUFENDE VERTRÄGE",
+      "runningHint": "von {total} · Stand heute",
+      "runningHintUnknown": "von {total} · {unknown} ohne Enddatum",
+      "contract": "VERTRAGSSTUNDEN",
+      "contractHint": "über {measured} von {total} Aufträgen",
+      "contractNone": "für keinen Auftrag hinterlegt",
+      "withheld": "nicht freigegeben",
+      "withheldHint": "Deine Rolle sieht keine Vertragsstunden",
+      "logged": "STUNDEN GELOGGT",
+      "loggedHint": "gemessen für {measured} von {total} Aufträgen · Stand {when}",
+      "loggedNone": "für keinen Auftrag gemessen"
+    },
+    "banner": {
+      "endedLabel": "ALLE VERTRÄGE BEENDET",
+      "ended": "Der letzte Vertrag lief am {date} aus.",
+      "historicalLabel": "HISTORISCH",
+      "historical": "{count} Aufträge stehen nicht mehr im Stammdatenblatt.",
+      "both": "Der letzte Vertrag lief am {date} aus; {count} Aufträge stehen nicht mehr im Stammdatenblatt."
+    },
+    "locations": {
+      "title": "Standorte",
+      "count": "{count} ADRESSEN",
+      "orders": "AUFTRÄGE {codes}",
+      "none": "Keine Adresse hinterlegt"
+    },
+    "orders": {
+      "title": "Aufträge",
+      "hint": "Stand {when}",
+      "search": "Aufträge durchsuchen…",
+      "termRange": "{start} – {end}",
+      "empty": "Kein sichtbarer Auftrag für diese Kundennummer.",
+      "col": {
+        "service": "LEISTUNG",
+        "serviceTitle": "Leistungsnummer und -name aus dem Stammdatenblatt, unverändert übernommen.",
+        "responsible": "VERANTWORTLICH",
+        "term": "LAUFZEIT",
+        "termTitle": "Vertragsbeginn bis Vertragsende. Sortiert nach Vertragsende; Aufträge ohne Enddatum stehen immer am Ende.",
+        "status": "STATUS",
+        "contract": "VERTRAGSSTUNDEN",
+        "logged": "GELOGGT",
+        "loggedTitle": "Stunden aller Personen auf diesem Auftrag, Stand {when}. Ohne TrackingTime-Verknüpfung bleibt die Zelle leer."
+      },
+      "status": {
+        "running": "LAUFEND",
+        "ended": "BEENDET",
+        "unknownEnd": "ENDE UNBEKANNT",
+        "historical": "HISTORISCH"
+      },
+      "footnote": {
+        "visibility": "Diese Seite zeigt nur Aufträge, die du sehen darfst. Es können weitere existieren.",
+        "hours": "Stunden sind für {measured} von {total} Aufträgen bekannt; die Summe ist eine Untergrenze, nicht das Ganze.",
+        "hoursNone": "Für keinen dieser Aufträge sind Stunden gemessen.",
+        "budgets": "Vertragsstunden sind für deine Rolle nicht freigegeben und stehen deshalb nicht in dieser Tabelle.",
+        "unnumbered": "{count} weitere Aufträge desselben Rechtsträgers tragen keine Kundennummer und stehen nicht in dieser Liste.",
+        "siblingsLead": "Derselbe Rechtsträger führt weitere Kundennummern:",
+        "terms": "Leistungsbedingungen – Mindestzeit vor Ort, Anfahrt, Reisezeit – stehen am einzelnen Auftrag, nicht hier.",
+        "truncated": "Ein Teil der Daten konnte nicht vollständig gelesen werden; die Zahlen sind Untergrenzen."
+      }
+    },
+    "contacts": {
+      "title": "Ansprechpartner beim Kunden",
+      "qualifier": "PERSONENBEZOGENE DATEN",
+      "privacy": "Nur zu Aufträgen, die du sehen darfst. Nicht im Export.",
+      "onOrders": "Genannt bei {codes}",
+      "noName": "Name nicht hinterlegt",
+      "none": "Kein Ansprechpartner hinterlegt"
+    },
+    "care": {
+      "title": "Betreuung",
+      "qualifier": "LAUT STAMMDATENBLATT",
+      "responsible": "VERANTWORTLICH",
+      "replacement": "VERTRETUNG",
+      "onOrders": "{codes}",
+      "none": "Niemand hinterlegt",
+      "summary": "{count} Personen",
+      "gap": "{count} von {total} Aufträgen haben keinen benannten Verantwortlichen.",
+      "noneNamed": "Auf keinem dieser Aufträge ist jemand als verantwortlich benannt."
+    },
+    "people": {
+      "doctor": "Betriebsarzt",
+      "other": "Sonstige",
+      "unknown": "Name nicht verfügbar"
+    },
+    "links": {
+      "title": "Links",
+      "qualifier": "JE ZIEL EINMAL",
+      "onOrders": "{codes}",
+      "fileStorage": "DATEIABLAGE",
+      "none": "Keine Links hinterlegt",
+      "summary": "{count} Links"
+    },
+    "crm": {
+      "title": "Kundenstammsatz",
+      "qualifier": "LEXWARE · NUR GESCHÄFTSFÜHRUNG",
+      "withheldLabel": "NICHT FREIGEGEBEN",
+      "withheldBody": "Der kanonische Kundenstammsatz ist der Geschäftsführung vorbehalten. Diese Seite zeigt dir auch nicht, ob es ihn gibt. Alles darüber stammt aus dem Stammdatenblatt.",
+      "none": "Zu dieser Kundennummer gibt es keinen Kundenstammsatz.",
+      "unavailable": "Der Kundenstammsatz konnte nicht gelesen werden. Das ist ein Fehler, keine Sperre.",
+      "reviewRequired": "PRÜFUNG OFFEN",
+      "field": {
+        "displayName": "ANZEIGENAME",
+        "billingName": "RECHNUNGSNAME",
+        "billingAddress": "RECHNUNGSANSCHRIFT",
+        "vatId": "UST-IDNR.",
+        "legalEntity": "RECHTSTRÄGER",
+        "legalForm": "RECHTSFORM",
+        "country": "LAND",
+        "lifecycle": "LEBENSZYKLUS",
+        "review": "PRÜFSTATUS",
+        "locations": "STANDORTE (CRM)",
+        "aliases": "ALIASE"
+      },
+      "summary": {
+        "withheld": "Nicht freigegeben",
+        "none": "Kein Stammsatz",
+        "unavailable": "Nicht lesbar",
+        "present": "Lexware"
+      }
+    },
+    "empty": {
+      "invisible": {
+        "title": "Für diese Kundennummer ist dir kein Auftrag sichtbar",
+        "description": "Sichtbar sind Aufträge, bei denen du verantwortlich, Vertretung oder zugewiesen bist. Ob es die Nummer gibt, sagt diese Seite nicht.",
+        "action": "Zu meiner Arbeit"
+      },
+      "unknown": {
+        "title": "Kundennummer {number} ist unbekannt",
+        "description": "Weder im Kundenstammsatz noch in der Auftragswelt gibt es diese Nummer. Tippfehler – oder der Import hat sie noch nicht erreicht.",
+        "action": "Zur Import-Prüfung"
+      },
+      "noOrders": {
+        "title": "Kunde ohne Auftrag",
+        "description": "Die Nummer steht im Kundenstammsatz, trägt aber keinen Serviceauftrag. Der Stammsatz steht unten."
+      },
+      "unchecked": {
+        "title": "Kein Auftrag zu Kundennummer {number}",
+        "description": "In der Auftragswelt gibt es zu dieser Nummer nichts. Ob sie im Kundenstammsatz steht, konnte diese Seite nicht prüfen."
+      },
+      "failed": {
+        "title": "Das Kundenprofil konnte nicht geladen werden",
+        "description": "Die Abfrage ist fehlgeschlagen; statt einer Teilansicht wird nichts angezeigt. Neu laden – bleibt es, prüft ein Administrator die Logs.",
+        "action": "Neu laden"
+      }
+    },
+    "source": "Aus dem Stammdatenblatt, Stand {when}",
+    "sourceUndated": "Aus dem Stammdatenblatt",
+    "loading": "Kundenprofil wird geladen"
   }
 }

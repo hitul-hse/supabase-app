@@ -105,7 +105,7 @@
     "check:data-hygiene-paging": 46,
     "check:data-hygiene-claims": 18,
     "check:data-hygiene-discriminates": 18,
-    "check:data-hygiene-disclosure": 0,
+    "check:data-hygiene-disclosure": 14,
     "check:data-hygiene-audit-findings": 13,
     "test:factorial-minimisation": 1,
     "check:no-absolute-paths": 1,

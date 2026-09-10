@@ -85,13 +85,15 @@ export type ReviewCaseType =
    * exactly why a row cannot be promoted. ORDER_KEY_REVIEW is a service row
    * whose key is not usable (duplicate, missing language, old and new key
    * naming different customers, or an old key the warehouse never saw);
-   * NEW_SERVICE is a service the warehouse has not got yet; CUSTOMER_NOT_IN_
-   * WAREHOUSE is a Lexware number with services but no legal entity;
-   * PARKED_CONTACT is a customer from the contacts tab with no service and no
-   * warehouse row -- kept, not reviewed.
+   * PERSON_REVIEW is a responsible or replacement name that matched nobody or
+   * two people; CUSTOMER_NOT_IN_WAREHOUSE is a Lexware number with services
+   * but no legal entity; PARKED_CONTACT is a customer from the contacts tab
+   * with no service and no warehouse row -- kept, not reviewed. A row that is
+   * merely NEW is not a case since 2026-09-10: the promote inserts a clean new
+   * service without a reviewer, so newness alone never reaches this queue.
    */
   | "ORDER_KEY_REVIEW"
-  | "NEW_SERVICE"
+  | "PERSON_REVIEW"
   | "CUSTOMER_NOT_IN_WAREHOUSE"
   | "PARKED_CONTACT";
 export type ReviewStatus = "OPEN" | "IN_REVIEW" | "RESOLVED" | "DEFERRED" | "REJECTED";
@@ -169,6 +171,25 @@ function isSheetRecord(record: ImportRecord) {
 }
 
 const ORDER_KEY_FLAGS = ["DUPLICATE_ORDER_KEY", "DUPLICATE_OLD_KEY", "MISSING_LANGUAGE", "KEY_FORMULA_MISMATCH", "KEY_PREFIX_MISMATCH", "UNKNOWN_OLD_KEY"];
+const PERSON_FLAGS = ["UNMATCHED_RESPONSIBLE", "UNMATCHED_RESPONSIBLE_AMBIGUOUS", "UNMATCHED_REPLACEMENT", "UNMATCHED_REPLACEMENT_AMBIGUOUS"];
+/*
+ * The importer's blocking set (scripts/lib/masterdata-sheet.mjs BLOCKING_FLAGS),
+ * copied here because a server query module does not import from scripts/.
+ * check-import-review-honesty.mjs asserts the two lists are identical, so the
+ * page cannot drift from the promote step's idea of what blocks a row.
+ * CUSTOMER_NOT_IN_WAREHOUSE counts only while the record has no legal-entity
+ * candidate: the promote re-judges it against the customers that exist now.
+ */
+const BLOCKING_FLAGS = [...ORDER_KEY_FLAGS, ...PERSON_FLAGS, "CUSTOMER_NOT_IN_WAREHOUSE"];
+
+function blockingFlagsOf(record: ImportRecord) {
+  return sheetFlags(record).filter((flag) => BLOCKING_FLAGS.includes(flag) && !(flag === "CUSTOMER_NOT_IN_WAREHOUSE" && record.candidate_legal_entity_id));
+}
+
+/** A contacts-tab row with no service in the sheet and no warehouse row: kept, not a decision. Only a VALID row can be parked. */
+function isParkedContact(record: ImportRecord) {
+  return isSheetRecord(record) && record.validation_status === "valid" && sheetFlags(record).includes("NO_SERVICE_ROW") && !record.candidate_legal_entity_id;
+}
 
 /**
  * A sheet record that resolved cleanly is not a case: nothing about it needs
@@ -177,10 +198,12 @@ const ORDER_KEY_FLAGS = ["DUPLICATE_ORDER_KEY", "DUPLICATE_OLD_KEY", "MISSING_LA
  */
 function isCleanSheetRecord(record: ImportRecord) {
   if (!isSheetRecord(record)) return false;
-  if (record.review_status !== "unreviewed" || record.validation_status !== "valid") return false;
-  const flags = sheetFlags(record);
-  if (flags.includes("NO_SERVICE_ROW") && !record.candidate_legal_entity_id) return false; // parked, shown as such
-  return record.resolution_status === "matched";
+  if (record.validation_status !== "valid") return false;
+  // rejected / in_review are a person's decisions; review_required is the
+  // importer's own stamp and is re-judged from the flags, as the promote does.
+  if (record.review_status === "rejected" || record.review_status === "in_review") return false;
+  if (isParkedContact(record)) return false; // parked, shown as such
+  return blockingFlagsOf(record).length === 0;
 }
 
 function isOperationalLocationRecord(record: ImportRecord) {
@@ -249,11 +272,11 @@ function hasLexwareReferenceConflict(records: ImportRecord[]) {
 
 function caseType(records: ImportRecord[]): ReviewCase["case_type"] {
   if (records.some(isSheetRecord)) {
-    const flags = new Set(records.flatMap(sheetFlags));
-    if (ORDER_KEY_FLAGS.some((flag) => flags.has(flag))) return "ORDER_KEY_REVIEW";
-    if (flags.has("CUSTOMER_NOT_IN_WAREHOUSE")) return "CUSTOMER_NOT_IN_WAREHOUSE";
-    if (flags.has("NEW_SERVICE")) return "NEW_SERVICE";
-    if (flags.has("NO_SERVICE_ROW") && records.every((record) => !record.candidate_legal_entity_id)) return "PARKED_CONTACT";
+    const blocking = new Set(records.flatMap(blockingFlagsOf));
+    if (ORDER_KEY_FLAGS.some((flag) => blocking.has(flag))) return "ORDER_KEY_REVIEW";
+    if (blocking.has("CUSTOMER_NOT_IN_WAREHOUSE")) return "CUSTOMER_NOT_IN_WAREHOUSE";
+    if (PERSON_FLAGS.some((flag) => blocking.has(flag))) return "PERSON_REVIEW";
+    if (records.every(isParkedContact)) return "PARKED_CONTACT";
     return "CUSTOMER_MASTER_REVIEW";
   }
   const text = JSON.stringify(records).toUpperCase();
@@ -290,7 +313,7 @@ function hasUnclearLegalEntity(record: ImportRecord) {
 
 function priorityFor(reviewCase: Pick<ReviewCase, "case_type" | "records">): ReviewPriority {
   if (reviewCase.case_type === "ORDER_KEY_REVIEW") return "P0";
-  if (reviewCase.case_type === "NEW_SERVICE" || reviewCase.case_type === "CUSTOMER_NOT_IN_WAREHOUSE") return "P1";
+  if (reviewCase.case_type === "PERSON_REVIEW" || reviewCase.case_type === "CUSTOMER_NOT_IN_WAREHOUSE") return "P1";
   if (reviewCase.case_type === "PARKED_CONTACT") return "P2";
   const text = JSON.stringify(reviewCase.records).toUpperCase();
   if (
@@ -318,7 +341,13 @@ function reviewReasonFor(reviewCase: Pick<ReviewCase, "case_type" | "resolution_
   if (reviewCase.case_type === "ORDER_KEY_REVIEW") {
     return `Auftragsschlüssel nicht verwendbar: ${[...new Set(reviewCase.records.flatMap(sheetFlags).filter((flag) => ORDER_KEY_FLAGS.includes(flag)))].join(" · ")} — im Sheet korrigieren, dann erneut importieren.`;
   }
-  if (reviewCase.case_type === "NEW_SERVICE") return "Service ist im Warehouse noch nicht vorhanden (kein alter Schlüssel). Vor dem Einfügen fachlich bestätigen.";
+  if (reviewCase.case_type === "PERSON_REVIEW") {
+    return `Verantwortliche Person oder Vertretung konnte keiner Person zugeordnet werden: ${[...new Set(reviewCase.records.flatMap(sheetFlags).filter((flag) => PERSON_FLAGS.includes(flag)))].join(" · ")} — Namen im Sheet oder in den Personen prüfen.`;
+  }
+  if (reviewCase.case_type === "CUSTOMER_MASTER_REVIEW" && reviewCase.records.some(isSheetRecord)) {
+    // the importer wrote the exact errors and flags; a canned sentence would be less true
+    return reviewCase.records.map((record) => record.review_reason).filter(Boolean).join(" · ") || "Zeile aus dem Stammdatenblatt konnte nicht verarbeitet werden.";
+  }
   if (reviewCase.case_type === "CUSTOMER_NOT_IN_WAREHOUSE") return "Lexware-Kundennummer hat Services im Sheet, aber keine Legal Entity im Warehouse. Kunde anlegen oder Nummer prüfen.";
   if (reviewCase.case_type === "PARKED_CONTACT") return "Kontakt ohne Service im Sheet und ohne Warehouse-Zeile — geparkt, keine Entscheidung nötig.";
   if (reviewCase.case_type === "LEXWARE_REFERENCE_CONFLICT") return "Eine Lexware-Kundennummer verweist auf mehrere Legal-Entity-Kandidaten.";
@@ -331,6 +360,10 @@ function reviewReasonFor(reviewCase: Pick<ReviewCase, "case_type" | "resolution_
 }
 
 function documentedResolution(reviewCase: Pick<ReviewCase, "case_name" | "case_key" | "records">) {
+  // The notes below record decisions taken on the August workbook. A sheet row
+  // whose customer name merely contains one of those names is not decided by
+  // them -- deciding anything by name similarity is what ADR-001 forbids.
+  if (reviewCase.records.some(isSheetRecord)) return null;
   const text = `${reviewCase.case_name} ${reviewCase.case_key} ${JSON.stringify(reviewCase.records)}`.toUpperCase();
   if (text.includes("PBS GERMANY OPERATIONS") && (text.includes("10284") || text.includes("10285"))) {
     return "PBS Germany Operations GmbH: eine Legal Entity; Lexware-Referenzen 10284 und 10285 bleiben erhalten.";
@@ -522,6 +555,22 @@ export async function getCustomerMasterImportReview(
       readAllRecords(db, batch.id),
     ]);
     const { records, capped } = recordsResult;
+    // A staging verdict is as old as its batch. Customers the warehouse did not
+    // know at staging time may exist now (the promote creates them from the
+    // contacts tab), so the legal-entity link is completed from the customer
+    // master as it is NOW -- in memory only; stg is never written by this page.
+    const unresolvedNumbers = [...new Set(records.filter((r) => isSheetRecord(r) && !r.candidate_legal_entity_id && r.source_customer_number).map((r) => String(r.source_customer_number)))];
+    if (unresolvedNumbers.length) {
+      const known = await db.query<{ customer_number: string; legal_entity_id: string | null }>(
+        `select customer_number, legal_entity_id from crm.lexware_customer where customer_number = any($1::text[])`,
+        [unresolvedNumbers],
+      );
+      const byNumber = new Map(known.rows.map((r) => [String(r.customer_number), r.legal_entity_id]));
+      for (const r of records) {
+        const entity = byNumber.get(String(r.source_customer_number ?? ""));
+        if (isSheetRecord(r) && !r.candidate_legal_entity_id && entity) { r.candidate_legal_entity_id = entity; r.resolution_status = "matched"; }
+      }
+    }
     const notBilling = records.filter((record) => !isBillingOnlyRecord(record));
     const reviewRecords = notBilling.filter((record) => !isCleanSheetRecord(record));
     const cleanRecords = notBilling.length - reviewRecords.length;
@@ -550,7 +599,9 @@ export async function getCustomerMasterImportReview(
       sheetCounts: sheetResult.rows,
       caseTypeCounts,
       recordsRead: records.length,
-      recordsCapped: capped,
+      // A batch of exactly RECORD_CEILING rows fills every page and is complete;
+      // without the measured total, a full read cannot be called complete.
+      recordsCapped: capped && (metricsResult.rows[0]?.record_count === undefined || records.length < Number(metricsResult.rows[0].record_count)),
       cleanRecords,
       error: null,
     };

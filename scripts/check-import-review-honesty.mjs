@@ -20,6 +20,7 @@
  */
 import { readFileSync } from "node:fs";
 import { record } from "./lib/gate-result.mjs";
+import { BLOCKING_FLAGS as IMPORTER_BLOCKING } from "./lib/masterdata-sheet.mjs";
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
@@ -40,7 +41,7 @@ check(/async function readAllRecords\(/.test(query) && /limit \$2 offset \$3/.te
 check(/if \(page\.rows\.length < RECORD_PAGE\) return \{ records, capped: false \}/.test(query), "the loop stops on a short page, not on a fixed count");
 check(/return \{ records, capped: true \}/.test(query) && /RECORD_CEILING/.test(query), "a batch beyond the ceiling is reported as capped, not truncated silently");
 check(/recordsRead: number;\s*recordsCapped: boolean;\s*cleanRecords: number;/.test(query), "the read model exposes recordsRead, recordsCapped and cleanRecords");
-check(/recordsRead: records\.length,\s*recordsCapped: capped,\s*cleanRecords,/.test(query), "the success path fills the three honest counts from what was actually read");
+check(/recordsRead: records\.length,[\s\S]{0,400}recordsCapped: capped && [\s\S]{0,200}cleanRecords,/.test(query), "the success path fills the three honest counts from what was actually read");
 const emptyReturns = (query.match(/recordsRead: 0,\s*recordsCapped: false,\s*cleanRecords: 0,/g) || []).length;
 check(emptyReturns === 2, "the no-batch and error paths report zero read, not undefined", `${emptyReturns} of 2`);
 
@@ -54,14 +55,27 @@ const union = [...query.matchAll(/^\s+\| "([A-Z_]+)"/gm)].map((m) => m[1]);
 const pageList = /const REVIEW_CASE_TYPES: ReviewCaseType\[\] = \[([^\]]+)\]/.exec(page);
 const listed = pageList ? [...pageList[1].matchAll(/"([A-Z_]+)"/g)].map((m) => m[1]) : [];
 check(union.length >= 10 && listed.length === union.length && union.every((t) => listed.includes(t)), "every case type in the union is offered by the page's filter", `union ${union.length}, page ${listed.length}`);
-for (const type of ["ORDER_KEY_REVIEW", "NEW_SERVICE", "CUSTOMER_NOT_IN_WAREHOUSE", "PARKED_CONTACT"]) {
+for (const type of ["ORDER_KEY_REVIEW", "PERSON_REVIEW", "CUSTOMER_NOT_IN_WAREHOUSE", "PARKED_CONTACT"]) {
   check(union.includes(type) && new RegExp(`case_type === "${type}"`).test(query), `${type} exists and has a review reason`);
 }
 check(/const ORDER_KEY_FLAGS = \["DUPLICATE_ORDER_KEY", "DUPLICATE_OLD_KEY", "MISSING_LANGUAGE", "KEY_FORMULA_MISMATCH", "KEY_PREFIX_MISMATCH", "UNKNOWN_OLD_KEY"\]/.test(query), "the key flags the importer writes are the ones the page classifies as ORDER_KEY_REVIEW");
 check(/case_type === "ORDER_KEY_REVIEW"\) return "P0"/.test(query), "an unusable order key is P0");
+// ---- the page's blocking set is the importer's, byte for byte (review of 2026-09-10: the ladder had assumed the old set)
+const pageBlocking = (() => {
+  const o = /const ORDER_KEY_FLAGS = \[([^\]]+)\]/.exec(query), p = /const PERSON_FLAGS = \[([^\]]+)\]/.exec(query);
+  const list = (m) => (m ? [...m[1].matchAll(/"([A-Z_]+)"/g)].map((x) => x[1]) : []);
+  return new Set([...list(o), ...list(p), "CUSTOMER_NOT_IN_WAREHOUSE"]);
+})();
+check(/const BLOCKING_FLAGS = \[\.\.\.ORDER_KEY_FLAGS, \.\.\.PERSON_FLAGS, "CUSTOMER_NOT_IN_WAREHOUSE"\]/.test(query), "the page composes its blocking set from the key flags, the person flags and the customer flag");
+check(pageBlocking.size === IMPORTER_BLOCKING.size && [...IMPORTER_BLOCKING].every((f) => pageBlocking.has(f)), "the page's blocking set equals the importer's BLOCKING_FLAGS", `page ${[...pageBlocking].sort().join(",")} vs importer ${[...IMPORTER_BLOCKING].sort().join(",")}`);
+check(!/"NEW_SERVICE"/.test(query) && !/"NEW_SERVICE"/.test(page), "newness is not a case: a clean new service is promoted without a reviewer");
+check(/function isParkedContact\(record: ImportRecord\) \{[\s\S]{0,200}validation_status === "valid"/.test(query), "only a VALID contacts row can be parked; a defective one stays a case");
+check(/if \(reviewCase\.records\.some\(isSheetRecord\)\) return null;/.test(query), "the August workbook's documented resolutions never decide a sheet row by name");
+check(/recordsCapped: capped && \(metricsResult\.rows\[0\]\?\.record_count === undefined \|\| records\.length < Number\(metricsResult\.rows\[0\]\.record_count\)\)/.test(query), "a batch of exactly the ceiling is complete, not capped; a missing total cannot be called complete");
+check(/function isCleanSheetRecord[\s\S]{0,600}return blockingFlagsOf\(record\)\.length === 0;/.test(query) && /review_status === "rejected" \|\| record\.review_status === "in_review"/.test(query), "clean = valid, no blocking flag, and no person's decision against it; review_required is re-judged like the promote does");
 check(/case_type === "PARKED_CONTACT"\) return "DEFERRED"/.test(query), "a parked contact is DEFERRED, not an open case");
 check(/return `order:\$\{record\.source_external_id \?\? record\.row_number\}`/.test(query), "a sheet service row is its own case, keyed by its order number");
-check(/function isCleanSheetRecord/.test(query) && /resolution_status === "matched"/.test(query), "clean = valid, unreviewed and matched; nothing else is left out");
+check(/function isCleanSheetRecord/.test(query) && /function blockingFlagsOf/.test(query), "clean is decided by the blocking flags, the same rule the promote applies; nothing else is left out");
 
 console.log(failures ? `FAIL (${failures})` : "PASS");
 process.exit(failures ? 1 : 0);

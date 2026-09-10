@@ -600,7 +600,9 @@
       "pairTitle": "This many projects fail together if this pair is absent at the same time",
       "pairSize": "×{count} in the pair",
       "cover": "{responsible} · Cover: {replacement}",
-      "samePerson": " (the same person)"
+      "samePerson": " (the same person)",
+      "pagerNoun": "cases",
+      "pagerNav": "Broken cover pages"
     },
     "portfolio": {
       "title": "Customer portfolio",

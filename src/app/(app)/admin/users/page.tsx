@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { IconWarning, IconArrowRight } from "@/components/nav-icons";
+import { NumberedPager } from "@/components/NumberedPager";
 import { SyncBar } from "@/components/SyncBar";
 import { createClient } from "@/utils/supabase/server";
 import { requirePermission, userHasPermission } from "@/utils/supabase/require-profile";
@@ -13,7 +14,28 @@ import { UserRow } from "./UserRow";
 
 export type AppRoleRow = { role_key: string; display_name: string; seniority: number };
 
-export default async function AdminUsersPage() {
+/**
+ * UI-CONVENTIONS rule 1: an account console is worked account by account --
+ * invite, re-invite, change role, remove -- so it pages at 10.
+ *
+ * WHY IT NOW PAGES AT ALL (2026-09-10). It rendered every profile, so the height
+ * of this page was however many accounts happen to exist. That is the defect
+ * check-table-scroll-budget.mjs exists to catch, and it caught it: 4,910px =
+ * 5.82 screens at 390px, against a pinned budget of 5.5 that was itself recorded
+ * as DEBT ("Measured 5.25. The user list renders a card per user at phone
+ * width"). It had grown past its own debt pin without anyone noticing, which is
+ * exactly what pinning one notch above the measurement is for.
+ *
+ * This is the same class of bug the same gate found in the risks tab's cover
+ * worklist on the same run: a long list that is not a <table>, so only the
+ * document-height assertion can see it.
+ */
+const ACCOUNTS_PER_PAGE = 10;
+
+/** `?page=N`, 1-based, like the numbers on screen. */
+type SearchParams = Promise<{ page?: string }>;
+
+export default async function AdminUsersPage({ searchParams }: { searchParams: SearchParams }) {
   // Permission keys, not role strings. These two decisions were previously
   // `["exec", "dept_head"]` and `roleKey === "exec"`, which meant the
   // "Manage User Accounts" toggles in /admin/roles were shown, saved, and
@@ -59,9 +81,31 @@ export default async function AdminUsersPage() {
   }
 
   const activeCount = profiles.filter(p => p.isActive).length;
-  // Counted over the profiles actually listed, not over auth.users, so it agrees with
-  // the rows on screen rather than with accounts the page does not show.
+  // Counted over every profile, not over the page on screen: the header states the
+  // size of the whole account list, and the pager below states which slice of it is
+  // rendered (UI-CONVENTIONS rule 6).
   const neverSignedIn = profiles.filter((p) => signedInByUserId.get(p.userId) === false).length;
+
+  /*
+   * NEWEST FIRST, and the page's working order rather than the query's.
+   *
+   * listUserProfiles returns oldest-first. On a console whose first control is
+   * the invite form, the account you just created is the one you came back to
+   * look at -- and with a page size, oldest-first would put every new account on
+   * the last page, where nobody looks. `created_at` is an ISO timestamp, so a
+   * string compare is a time compare.
+   */
+  const ordered = [...profiles].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const pageCount = Math.max(1, Math.ceil(ordered.length / ACCOUNTS_PER_PAGE));
+  /*
+   * Clamped, never 404 (UI-CONVENTIONS rule 2): accounts get removed, so a
+   * bookmark to page 3 of a list that shrank shows the last page instead of an
+   * empty one. An unparsable value is page 1.
+   */
+  const params = await searchParams;
+  const currentPage = Math.min(pageCount, Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1));
+  const firstShown = (currentPage - 1) * ACCOUNTS_PER_PAGE;
+  const shown = ordered.slice(firstShown, firstShown + ACCOUNTS_PER_PAGE);
 
   return (
     <div className="flex flex-col">
@@ -120,7 +164,7 @@ export default async function AdminUsersPage() {
               NO ACCOUNTS YET
             </div>
           ) : (
-            profiles.map((p) => (
+            shown.map((p) => (
               <UserRow
                 key={p.userId}
                 userId={p.userId}
@@ -137,6 +181,24 @@ export default async function AdminUsersPage() {
                 hasSignedIn={signedInByUserId.has(p.userId) ? signedInByUserId.get(p.userId)! : null}
               />
             ))
+          )}
+
+          {/* The house pager (rule 3), server-rendered links so the back button,
+              a refresh and a pasted link all land on the same accounts. The count
+              line says what the ten are ten OF, so a bounded list is not misread
+              as the whole roster. */}
+          {profiles.length > 0 && (
+            <NumberedPager
+              page={currentPage}
+              pageCount={pageCount}
+              countLine={
+                `${firstShown + 1}–${firstShown + shown.length} OF ${ordered.length} ACCOUNTS`
+                + (pageCount > 1 ? ` · PAGE ${currentPage} OF ${pageCount}` : "")
+              }
+              navLabel="Account pages"
+              labels={{ prev: "PREV", next: "NEXT", pageLabel: (n) => `Accounts, page ${n}` }}
+              hrefFor={(n) => (n === 1 ? "/admin/users" : `/admin/users?page=${n}`)}
+            />
           )}
         </Card>
       </div>

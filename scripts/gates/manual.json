@@ -40,9 +40,15 @@
     },
     {
       "file": "scripts/check-employee-ownership-live.mjs",
-      "why": "Compiles the real getEmployeeOwnershipOverview with swc and runs it against live data, so the printed numbers are the numbers the page computes. Read-only.",
-      "requires": ["SUPABASE_SERVICE_ROLE_KEY"],
+      "why": "Compiles the real getEmployeeOwnershipOverview with swc and runs it against live data, so the printed numbers are the numbers the page computes. Read-only. Without SUPABASE_DB_URL its customer-mapping assertion reports NOT RUN rather than failing: that mapping is read over a direct Postgres connection, so a missing connection string makes every assignment read as unmapped.",
+      "requires": ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_DB_URL (for the customer-mapping assertion only)"],
       "run": "node scripts/check-employee-ownership-live.mjs"
+    },
+    {
+      "file": "scripts/check-management-data.mjs",
+      "why": "Pins the management dashboard's DATA contract against the live database: the order book is real, TT links are lawful under ADR-001 exact-key rules, the heaviest order's displayed hours equal the sum of its TrackingTime entries, and the imported contract periods are still there. Every figure was established by the 2026-08-23 audit round, and only the live database can say whether a sync or import has since regressed one. It was reachable from an npm script and nothing else, so nothing ran it; registering it puts it in the pre-release sweep with the other live-database gates.",
+      "requires": ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+      "run": "npm run check:management-data"
     },
     {
       "file": "scripts/check-my-work-as-mathias.mjs",

@@ -4,18 +4,53 @@
  * replacement fix: compiled from the actual TS source (swc), fed by the
  * service-role client (the query is read-only), so the numbers below are the
  * numbers the page computes.
+ *
+ * WHAT IT NEEDS, AND WHAT IT SAYS WHEN THAT IS ABSENT
+ * ---------------------------------------------------
+ * A service-role key and the project URL, plus this repo's own node_modules for
+ * next's swc compiler. No browser, no running app, no session.
+ *
+ * It used to take the credentials from a .env.local in the WORKING DIRECTORY,
+ * read unguarded. Absent -- in every git worktree and on any runner -- that is
+ * an ENOENT at module evaluation: the gate died before its first assertion and
+ * printed `RESULT pass=0 fail=0 notrun=0`, the exact line a gate prints when it
+ * checked nothing. Exporting the credentials into the environment did not help,
+ * because the file was the only thing it read.
+ *
+ * So: environment first, .env.local second (lib/gate-env.mjs), and a missing
+ * credential is a stated NOT RUN (exit 3), never a crash and never a silence.
+ * This gate is registered in scripts/gates/manual.json rather than chained into
+ * test:db, so exiting 3 stops nothing.
+ *
+ * Run: node scripts/check-employee-ownership-live.mjs
  */
 import { join, resolve } from "node:path";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
 import { createClient } from "@supabase/supabase-js";
-import { record } from "./lib/gate-result.mjs";
+import { loadEnv } from "./lib/gate-env.mjs";
+import { record, recordNotRun, notRun } from "./lib/gate-result.mjs";
 
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-  const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-  if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+const env = loadEnv();
+const missing = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].filter((k) => !env[k]);
+if (missing.length) {
+  notRun(`no live database to read: ${missing.join(" and ")} ${missing.length > 1 ? "are" : "is"} not`
+    + " in the environment or in a .env.local. The query this compiles is read-only; export them"
+    + " and it runs.");
 }
+
+/*
+ * The compiled management-customer-mapping.ts opens its OWN pg Pool straight
+ * from process.env, and loadEnv() deliberately does not export what it read. So
+ * hand it across, exactly as check-data-hygiene-audit-findings.mjs does.
+ *
+ * Without it that module returns `available: false`, which the ownership query
+ * turns into "every assignment is a mapping issue" -- and the last assertion
+ * below then FAILS. A missing connection string is not a broken mapping, so the
+ * assertion is recorded as not-run instead, further down.
+ */
+if (env.SUPABASE_DB_URL) process.env.SUPABASE_DB_URL ??= env.SUPABASE_DB_URL;
 
 await loadBindings();
 const dir = resolve(mkdtempSync(join("node_modules", ".ownership-check-")));
@@ -77,7 +112,7 @@ const ownershipFile = await compile("src/lib/queries/management-employee-ownersh
 });
 
 const { getEmployeeOwnershipOverview } = require(ownershipFile);
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
@@ -113,11 +148,28 @@ const withRepl = sampleProjects.filter((p) => p.replacementPerson !== null).leng
 check("drilldown projects carry replacement names", withRepl > 0, `${withRepl}/${sampleProjects.length} for ${withProjects[0]?.person}`);
 const totalMappingIssues = rows.reduce((s, r) => s + r.customerMappingIssues, 0);
 const totalOpen = rows.reduce((s, r) => s + r.openProjects, 0);
-check(
-  "customer mapping is no longer all-missing",
-  totalOpen > 0 && totalMappingIssues < totalOpen,
-  `${totalMappingIssues} issues over ${totalOpen} open assignments`,
-);
+/*
+ * This one assertion needs a SECOND credential: the customer mapping is read
+ * over a direct Postgres connection (ADR-002 §2 keeps crm and projects out of
+ * PostgREST), so with no SUPABASE_DB_URL the mapping is `available: false` and
+ * every open assignment is counted as an issue. Asserting anyway would report a
+ * red gate for a credential this environment simply does not have -- crying
+ * wolf, which is how a red suite gets ignored. Not-run is the honest third
+ * answer, and it is never counted as a pass.
+ */
+if (!process.env.SUPABASE_DB_URL && !process.env.DATABASE_URL) {
+  recordNotRun(
+    "customer mapping: needs SUPABASE_DB_URL (the mapping is read over a direct Postgres"
+    + " connection, not PostgREST). Without it every assignment reads as unmapped, which is"
+    + " the credential missing rather than the mapping being broken.",
+  );
+} else {
+  check(
+    "customer mapping is no longer all-missing",
+    totalOpen > 0 && totalMappingIssues < totalOpen,
+    `${totalMappingIssues} issues over ${totalOpen} open assignments`,
+  );
+}
 
 rmSync(dir, { recursive: true, force: true });
 console.log(failed === 0 ? "\nOWNERSHIP QUERY: live data flows correctly" : `\nOWNERSHIP QUERY: ${failed} FAILURES`);

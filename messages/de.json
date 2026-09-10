@@ -600,7 +600,9 @@
       "pairTitle": "So viele Projekte fallen gemeinsam aus, wenn dieses Paar gleichzeitig fehlt",
       "pairSize": "×{count} im Paar",
       "cover": "{responsible} · Vertretung: {replacement}",
-      "samePerson": " (dieselbe Person)"
+      "samePerson": " (dieselbe Person)",
+      "pagerNoun": "Fälle",
+      "pagerNav": "Seiten der defekten Vertretungen"
     },
     "portfolio": {
       "title": "Customer Portfolio",

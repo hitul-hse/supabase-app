@@ -5,19 +5,44 @@
  * Every number here was established by the 2026-08-23 audit and data round:
  * if a sync, import, or migration regresses one, this gate names it before a
  * user sees fiction.
+ *
+ * WHAT IT NEEDS, AND WHAT IT SAYS WHEN THAT IS ABSENT
+ * ---------------------------------------------------
+ * A service-role key and the project URL, for the live database. Nothing else:
+ * no browser, no running app, no session.
+ *
+ * It used to take them from a .env.local in the WORKING DIRECTORY, read
+ * unguarded. Absent -- on CI, and in every git worktree, neither of which has
+ * one -- that is an ENOENT the moment the module evaluates, so the gate died
+ * before its first assertion and printed `RESULT pass=0 fail=0 notrun=0`. That
+ * line is the shape of a gate that checked nothing, and read from stdout alone
+ * it is indistinguishable from one that had nothing to check. Worse, exporting
+ * the credentials into the environment did not help: the file was the only
+ * thing it would read.
+ *
+ * So: environment first, .env.local second (lib/gate-env.mjs), and a missing
+ * credential is a stated NOT RUN (exit 3) rather than a crash or a silence.
+ * This gate is not in the test:db && chain, so notRun() is the right helper --
+ * exiting 3 here stops nothing.
+ *
+ * Run: npm run check:management-data
  */
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
-import { record } from "./lib/gate-result.mjs";
+import { loadEnv } from "./lib/gate-env.mjs";
+import { record, recordNotRun, notRun } from "./lib/gate-result.mjs";
 
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-  const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-  if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+const env = loadEnv();
+const missing = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].filter((k) => !env[k]);
+if (missing.length) {
+  notRun(`no live database to check against: ${missing.join(" and ")} ${missing.length > 1 ? "are" : "is"}`
+    + " not in the environment or in a .env.local. Export them (or run from a checkout that has"
+    + " the file) and this gate asserts against the live database.");
 }
-const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+
+const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
-const timeDb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const timeDb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   db: { schema: "time" }, auth: { persistSession: false },
 });
 
@@ -241,7 +266,14 @@ const { count: entities } = await db.schema("crm").from("legal_entity").select("
   (r) => (r.error ? { count: null } : r),
 );
 if (entities === null) {
-  console.log("  note: crm not readable via REST with this key; skipping entity counts (expected when exposure stays locked down)");
+  /*
+   * This used to be a bare console.log, so the assertion simply vanished from
+   * the count: the gate reported seven passes whether it had checked the
+   * entities or not. A skipped assertion is the third answer, and the RESULT
+   * line has to carry it -- that is the whole subject of lib/gate-result.mjs.
+   */
+  recordNotRun("legal entities: crm is not readable over PostgREST with this key, which is"
+    + " expected while ADR-002 keeps its exposure locked down");
 } else {
   check("legal entities present", entities >= 100, `${entities}`);
 }

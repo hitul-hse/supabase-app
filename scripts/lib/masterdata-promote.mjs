@@ -201,7 +201,15 @@ export function promotability(record, { knownCustomers = null } = {}) {
   if (record.validation_status !== "valid") reasons.push("INVALID");
   if (record.review_status === "approved") {
     // reviewer's call: flags are information now
-  } else if (record.review_status === "unreviewed") {
+  } else if (record.review_status === "unreviewed" || record.review_status === "review_required") {
+    // 'review_required' is the staging importer's OWN verdict, computed from
+    // these same flags with the blocking set of its day; nobody else writes
+    // that value (the review page has no write path). Re-judging it from the
+    // flags with today's blocking set and today's customers is the same rule
+    // applied with current knowledge -- a row flagged NEW_SERVICE before that
+    // flag stopped blocking, or CUSTOMER_NOT_IN_WAREHOUSE before the customer
+    // was created, goes live without a re-staging. 'rejected' and 'in_review'
+    // are a person's decisions and are honoured below.
     for (const f of flags) {
       // The staging verdict is as old as the batch. A customer the warehouse
       // did not know then may have been created since -- by promoteCustomers

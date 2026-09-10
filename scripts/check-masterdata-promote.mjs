@@ -447,13 +447,17 @@ console.log("check-masterdata-promote: the promote step against the real schema 
   const mkc = (flags, customer_number) => ({ validation_status: "valid", review_status: "unreviewed", raw_payload: { flags, values: { customer_number } } });
   const blocked = promotability(mkc(["NEW_SERVICE", "CUSTOMER_NOT_IN_WAREHOUSE"], "10345"));
   check("an unreviewed record with a blocking flag is skipped for exactly that flag", !blocked.promotable && j(blocked.reasons) === j(["CUSTOMER_NOT_IN_WAREHOUSE"]), j(blocked.reasons));
+  check("a 'review_required' row is re-judged from its flags (the importer's own verdict, recomputed with today's rules): NEW_SERVICE alone no longer blocks, a real defect still does, and 'rejected' is a person's decision that stands",
+    promotability({ validation_status: "valid", review_status: "review_required", raw_payload: { flags: ["NEW_SERVICE"] } }).promotable
+    && !promotability({ validation_status: "valid", review_status: "review_required", raw_payload: { flags: ["MISSING_LANGUAGE"] } }).promotable
+    && !promotability({ validation_status: "valid", review_status: "rejected", raw_payload: { flags: [] } }).promotable);
   check("CUSTOMER_NOT_IN_WAREHOUSE is re-judged against the customers that exist now: once the number is known, the stale staging verdict no longer blocks",
     promotability(mkc(["CUSTOMER_NOT_IN_WAREHOUSE"], "10345"), { knownCustomers: new Set(["10345"]) }).promotable
     && !promotability(mkc(["CUSTOMER_NOT_IN_WAREHOUSE"], "10345"), { knownCustomers: new Set(["10346"]) }).promotable);
   check("an unreviewed record with only informational flags is promotable", promotability(mk("valid", "unreviewed", ["ENDED_BUT_OPEN", "PHONE_STORED_AS_NUMBER"])).promotable);
   const inv = promotability(mk("invalid", "approved", []));
   check("an invalid record is never promotable, approved or not", !inv.promotable && inv.reasons.includes("INVALID"));
-  check("rejected / review_required / in_review are honoured as decisions not yet taken", ["rejected", "review_required", "in_review"].every((s) => !promotability(mk("valid", s, [])).promotable));
+  check("rejected / in_review are honoured as a person's decisions; review_required (the importer's own verdict) is re-judged from its flags", ["rejected", "in_review"].every((s) => !promotability(mk("valid", s, [])).promotable) && promotability(mk("valid", "review_required", [])).promotable);
   check("the sheet's link rows carry source 'masterdata_sheet', distinct from the August workbook's default 'masterdata'", LINK_SOURCE === "masterdata_sheet", LINK_SOURCE);
   check("sheet_modified comes from the file_name's ' @ <ISO>' suffix when present, else received_at",
     sheetModifiedOf({ file_name: "masterdata-sheet.xlsx @ 2026-09-09T12:57:12Z", received_at: "2026-09-10T00:00:00Z" }) === "2026-09-09T12:57:12.000Z"

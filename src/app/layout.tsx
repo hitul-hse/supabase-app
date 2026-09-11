@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { getLocale } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -63,6 +64,28 @@ export default async function RootLayout({
 }) {
   // Cookie-based locale (no URL routing) -- see src/i18n/request.ts.
   const locale = await getLocale();
+  /*
+   * THE MESSAGES BELONG HERE, NOT ONLY IN (app)/layout.tsx.
+   *
+   * Every route outside the (app) group -- /access-pending, /portal, /auth/*,
+   * /demo, /video -- rendered with no NextIntlClientProvider above it. Any
+   * client component under them that calls useTranslations() therefore threw at
+   * render time, and the whole route answered 500.
+   *
+   * That is not hypothetical. /access-pending renders LogoutButton, which is a
+   * client component calling useTranslations("common"), and production logged
+   * six 500s on that route on 2026-09-11 at 16:32. It is the page an account
+   * with no role is redirected to, so the person who saw the crash was somebody
+   * signing in for the first time, being told nothing at all instead of "ask an
+   * admin to provision your access". /portal has the same shape and had simply
+   * not been opened.
+   *
+   * Providing the messages at the root fixes every such route at once. The
+   * (app) layout keeps its own provider: nesting two with the same messages is
+   * a no-op, and removing the inner one would be a change to the working app
+   * made for tidiness rather than for a reason.
+   */
+  const messages = await getMessages();
   return (
     <html
       lang={locale}
@@ -90,7 +113,9 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full font-sans bg-[var(--page)] text-[var(--text-primary)]">
-        {children}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

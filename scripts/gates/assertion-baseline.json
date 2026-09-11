@@ -135,6 +135,7 @@
     "check:unmeasured-hours-migration": 8,
     "check:ypog-ambiguity-migration": 8,
     "check:paste-sql-2": 5,
+    "check:paste-sql-4": 16,
     "check:redirect-guard-logic": 32,
     "check:feature-reachable": 18,
     "check:overview-filters": 53,

@@ -113,6 +113,7 @@
     "check:factorial-harvest": 22,
     "check:external-staff": 12,
     "check:i18n-key-references": 2,
+    "check:intl-provider-coverage": 8,
     "check:i18n-system-health": 12,
     "check:i18n-management": 32,
     "check:i18n-time-projects-people": 31,

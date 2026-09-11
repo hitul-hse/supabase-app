@@ -58,11 +58,13 @@
  *   - promoting the same batch twice changes nothing; a dry run (rollback)
  *     leaves nothing.
  *
- * THE FIXTURE IS BUILT THE WAY THE IMPORTER BUILDS IT: sheet cells go through
- * normaliseServiceRow() from scripts/lib/masterdata-sheet.mjs and then through
- * a replica of the importer's resolution step (order_resolution, person kinds
- * and ids, the flags, classify()). If the staged payload's shape drifts, this
- * gate is meant to break.
+ * THE FIXTURE IS BUILT BY THE IMPORTER'S OWN CODE: sheet cells go through
+ * normaliseServiceRow() and then resolveStagedRecords() from
+ * scripts/lib/masterdata-sheet.mjs -- the function the hourly importer calls
+ * (order_resolution, person kinds and ids, the flags, classify()). It replaced
+ * a hand-kept replica of the importer's loop (2026-09-11, issue #94), so the
+ * staged payload's shape is the importer's by construction; an assertion below
+ * refuses a return of the replica.
  *
  * The world: supabase/schema.sql plus the migrations the promote step writes
  * through, in order -- customer-master foundation, legal-entity fields, the
@@ -83,7 +85,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { record } from "./lib/gate-result.mjs";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
 import {
-  SERVICE_COLUMNS, SERVICE_SHEET_NAME, normaliseServiceRow, flagDuplicateKeys, classify, personSentinel, setClock,
+  SERVICE_COLUMNS, normaliseServiceRow, flagDuplicateKeys, setClock, indexPeopleByFirstName, resolveStagedRecords,
 } from "./lib/masterdata-sheet.mjs";
 import { promoteBatch, promotability, sheetModifiedOf, SOURCE_SYSTEM, LINK_SOURCE } from "./lib/masterdata-promote.mjs";
 
@@ -305,54 +307,23 @@ const ROW_D_CONFLICT = () => sheetRow(16, {
 });
 
 /**
- * The importer's resolution step (import-masterdata-sheet-staging.mjs, the
- * "for (const entry of services)" loop), replicated: exact-key customer and
- * order resolution, first-name person resolution with DOC/OTHER sentinels,
- * then classify(). Kept in step with the importer by hand; the payload shape
- * it produces is what promoteBatch reads.
+ * Stage sheet rows exactly as the importer does: normaliseServiceRow and
+ * flagDuplicateKeys, then resolveStagedRecords() -- the SAME function the
+ * hourly importer (import-masterdata-sheet-staging.mjs) calls, so the payload
+ * shape promoteBatch reads here cannot drift from production's. Only the
+ * inputs are the fixture's: the lexware map (crm.lexware_customer is empty in
+ * this world) and a reviewer's decision per sheet row, applied afterwards the
+ * way a person's approval on /customer-master/import-review would be.
  */
-const firstName = (s) => String(s ?? "").toLowerCase().replace(/[\u200b-\u200d\ufeff]/g, "").replace(/\s+/g, " ").trim().split(" ")[0];
 async function stageLikeTheImporter(db, rows, { fileName, hash, reviewOverrides = {} }) {
   const lexware = new Map([["10110", ENTITY_A], ["10234", ENTITY_B]]);
   const orderNumbers = new Set((await db.query(`select order_number from projects.project_order`)).rows.map((r) => r.order_number));
-  const people = new Map();
-  for (const r of (await db.query(`select id, name from public.people where is_active`)).rows) {
-    const f = firstName(r.name);
-    people.set(f, people.has(f) ? "AMBIGUOUS" : r.id);
+  const people = indexPeopleByFirstName((await db.query(`select id, name from public.people where is_active`)).rows);
+  const services = flagDuplicateKeys(rows.map(normaliseServiceRow));
+  const { records } = resolveStagedRecords({ services, lexware, orderNumbers, people });
+  for (const r of records) {
+    if (reviewOverrides[r.sheet_row]) r.review_status = reviewOverrides[r.sheet_row];
   }
-  const entries = flagDuplicateKeys(rows.map(normaliseServiceRow));
-  const records = entries.map((entry, i) => {
-    const v = entry.values;
-    const legalEntityId = v.customer_number ? lexware.get(v.customer_number) ?? null : null;
-    if (v.customer_number && !legalEntityId) entry.flags.push("CUSTOMER_NOT_IN_WAREHOUSE");
-    if (v.order_number && orderNumbers.has(v.order_number)) v.order_resolution = "new_key";
-    else if (v.order_number_old && orderNumbers.has(v.order_number_old)) v.order_resolution = "legacy_key";
-    else if (v.order_number_old) { v.order_resolution = "unknown"; entry.flags.push("UNKNOWN_OLD_KEY"); }
-    else v.order_resolution = "new";
-    for (const [nameKey, idKey, kindKey, flag, who] of [
-      ["responsible_name", "responsible_person_id", "responsible_kind", "UNMATCHED_RESPONSIBLE", "RESPONSIBLE"],
-      ["replacement_name", "replacement_person_id", "replacement_kind", "UNMATCHED_REPLACEMENT", "REPLACEMENT"],
-    ]) {
-      const sentinel = personSentinel(v[nameKey]);
-      if (sentinel) { v[idKey] = null; v[kindKey] = sentinel; entry.flags.push(`${who}_${sentinel.toUpperCase()}`); continue; }
-      const f = v[nameKey] ? firstName(v[nameKey]) : null;
-      const hit = f ? people.get(f) ?? null : null;
-      v[idKey] = hit && hit !== "AMBIGUOUS" ? hit : null;
-      v[kindKey] = v[nameKey] ? "person" : null;
-      if (f && !v[idKey]) entry.flags.push(hit === "AMBIGUOUS" ? `${flag}_AMBIGUOUS` : flag);
-    }
-    const status = classify({ errors: entry.errors, flags: entry.flags, candidateLegalEntityId: legalEntityId });
-    if (reviewOverrides[v.sheet_row]) status.review_status = reviewOverrides[v.sheet_row];
-    return {
-      row_number: i + 1,
-      source_external_id: v.order_number ?? v.order_number_old ?? `${SERVICE_SHEET_NAME}:${v.sheet_row}`,
-      source_customer_number: v.customer_number,
-      raw_payload: { sheet_name: SERVICE_SHEET_NAME, sheet_row: v.sheet_row, values: v, source_values: entry.source_values, flags: entry.flags },
-      normalized_payload: v,
-      candidate_legal_entity_id: legalEntityId,
-      ...status,
-    };
-  });
   const batch = (await db.query(
     `insert into stg.import_batch (source_system, entity_type, file_name, file_hash, status, started_at, finished_at, row_count, error_count)
      values ($1, 'masterdata_v1', $2, $3, 'completed', now(), now(), $4, 0) returning id`,
@@ -484,6 +455,18 @@ check("fixture: the invariant query sees the seeded world's deliberate defects (
 const BATCH_ROWS = () => [ROW_A(), ROW_C_APPROVED(), ROW_C_UNREVIEWED(), ROW_C_NO_HOURS(), ROW_B_DOC(), ROW_E_EMPTY(), ROW_F_RPC(), ROW_G_GAP(), ROW_H_CHANGED(), ROW_I_OLD_RPC(), ROW_LEGACY_MISSING(), ROW_UNKNOWN_OLD()];
 const REVIEW = { 6: "approved", 7: "unreviewed", 8: "approved", 15: "approved" };
 const staged1 = await stageLikeTheImporter(db, BATCH_ROWS(), { fileName: "masterdata-sheet.xlsx @ 2026-09-10T06:00:00Z", hash: "hash-1", reviewOverrides: REVIEW });
+{
+  // Shape-proof by construction, and kept so: the importer and this gate both
+  // stage through resolveStagedRecords, and neither carries its own copy of the
+  // resolution loop (the order_resolution assignments are its fingerprint).
+  const importer = sql("scripts/import-masterdata-sheet-staging.mjs");
+  const gate = sql("scripts/check-masterdata-promote.mjs");
+  const calls = (src) => /resolveStagedRecords\(\{/.test(src);
+  const replica = (src) => /order_resolution\s*=\s*"(new_key|legacy_key|unknown|new)"/.test(src);
+  check("the fixture is staged by the importer's own resolveStagedRecords(): importer and gate both call it, neither carries a copy of the resolution loop",
+    calls(importer) && calls(gate) && !replica(importer) && !replica(gate),
+    j({ importerCalls: calls(importer), gateCalls: calls(gate), importerReplica: replica(importer), gateReplica: replica(gate) }));
+}
 const rec = (row) => staged1.records.find((r) => r.raw_payload.sheet_row === row);
 const flagsOf = (row) => rec(row).raw_payload.flags;
 check("fixture: the staging replica shaped the records as the importer does (order_resolution, kinds, ids, flags)",

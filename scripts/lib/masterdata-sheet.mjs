@@ -51,6 +51,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { OLD_ORDER_KEY, NEW_ORDER_KEY } from "./order-key.mjs";
 
 export const SERVICE_TAB = "V1 Kunden-Services";
 export const CONTACT_TAB = "Kontakte";
@@ -373,8 +374,10 @@ export function deriveOrderNumber({ customer_number, order_confirmation_number, 
 // The warehouse holds one legacy key with an empty service part ("10905_00357__01")
 // and one with single digits ("10634_0_4_01"); exact-key matching means the string
 // is taken as it is, so the shape check is deliberately loose in the middle.
-export const OLD_KEY = /^\d{5}_\d*_\d*_\d{2}$/;
-export const NEW_KEY = /^\d{5}_\d{5}_\d{4}\.[12]_\d{2}$/;
+// The grammar itself lives in scripts/lib/order-key.mjs, the one parser the
+// TrackingTime bridge and the ADR-001 gates share; these are the same objects.
+export const OLD_KEY = OLD_ORDER_KEY;
+export const NEW_KEY = NEW_ORDER_KEY;
 
 const prefix = (key) => (key ? key.split("_").slice(0, 2).join("_") : null);
 
@@ -573,4 +576,117 @@ export function classify({ errors, flags, candidateLegalEntityId }) {
   const review_status = errors.length || blocking.length ? "review_required" : "unreviewed";
   const review_reason = [...errors, ...flags].join(" · ") || null;
   return { validation_status, validation_error: errors.join("; ") || null, resolution_status, review_status, review_reason };
+}
+
+// ---------------------------------------------------------------- resolution
+
+/*
+ * The staging importer's resolution step, as one pure function. It used to be
+ * an inline loop in scripts/import-masterdata-sheet-staging.mjs, and
+ * scripts/check-masterdata-promote.mjs kept a hand-made replica of it
+ * ("stageLikeTheImporter") to build its fixture -- a replica that had already
+ * drifted (it indexed an empty first name the importer skips). Both now call
+ * this, so the payload the promote gate stages IS the payload the hourly
+ * importer stages. The body is the importer's loop moved verbatim; the
+ * importer's dry-run JSON on the same export is unchanged by the move.
+ *
+ * The database reads stay with the caller (they differ: pg on production, a
+ * fixture world in the gate). This takes their results:
+ *   lexware       Map(customer_number -> legal_entity_id)   crm.lexware_customer
+ *   orderNumbers  Set(order_number)                         projects.project_order
+ *   people        indexPeopleByFirstName(public.people where is_active)
+ */
+
+// People resolve by normalised FIRST NAME, the rule the August importer and
+// import-project-responsibility.mjs already use: the sheet writes full names
+// ("Hendryk Arndt"), public.people carries first names ("Hendryk", id
+// md-hendryk). Two active people sharing a first name make the name
+// ambiguous, and an ambiguous name is unmatched -- never a guess (ADR-001).
+export const firstName = (s) => String(s ?? "").toLowerCase().replace(/[​-‍﻿]/g, "").replace(/\s+/g, " ").trim().split(" ")[0];
+
+/** rows: [{ id, name }] of active people -> Map(first name -> person id | "AMBIGUOUS"). */
+export function indexPeopleByFirstName(rows) {
+  const people = new Map();
+  for (const r of rows) {
+    const f = firstName(r.name);
+    if (!f) continue;
+    people.set(f, people.has(f) ? "AMBIGUOUS" : r.id);
+  }
+  return people;
+}
+
+/**
+ * Resolve normalised service and contact entries into staging records.
+ * Mutates each entry's values and flags exactly as the importer always has.
+ * Returns { records, tally, customersWithServices }.
+ */
+export function resolveStagedRecords({ services, contacts = [], lexware, orderNumbers, people }) {
+  const customersWithServices = new Set(services.map((s) => s.values.customer_number).filter(Boolean));
+  const records = [];
+  let rowNumber = 0;
+  const tally = {};
+  const bump = (flag) => { tally[flag] = (tally[flag] ?? 0) + 1; };
+
+  for (const entry of services) {
+    const v = entry.values;
+    const legalEntityId = v.customer_number ? lexware.get(v.customer_number) ?? null : null;
+    if (v.customer_number && !legalEntityId) entry.flags.push("CUSTOMER_NOT_IN_WAREHOUSE");
+    if (v.order_number && orderNumbers.has(v.order_number)) v.order_resolution = "new_key";
+    else if (v.order_number_old && orderNumbers.has(v.order_number_old)) v.order_resolution = "legacy_key";
+    else if (v.order_number_old) { v.order_resolution = "unknown"; entry.flags.push("UNKNOWN_OLD_KEY"); }
+    else v.order_resolution = "new";
+    for (const [nameKey, idKey, kindKey, flag, who] of [
+      ["responsible_name", "responsible_person_id", "responsible_kind", "UNMATCHED_RESPONSIBLE", "RESPONSIBLE"],
+      ["replacement_name", "replacement_person_id", "replacement_kind", "UNMATCHED_REPLACEMENT", "REPLACEMENT"],
+    ]) {
+      const sentinel = personSentinel(v[nameKey]);
+      if (sentinel) {
+        v[idKey] = null;
+        v[kindKey] = sentinel;
+        entry.flags.push(`${who}_${sentinel.toUpperCase()}`);
+        continue;
+      }
+      const f = v[nameKey] ? firstName(v[nameKey]) : null;
+      const hit = f ? people.get(f) ?? null : null;
+      v[idKey] = hit && hit !== "AMBIGUOUS" ? hit : null;
+      v[kindKey] = v[nameKey] ? "person" : null;
+      if (f && !v[idKey]) entry.flags.push(hit === "AMBIGUOUS" ? `${flag}_AMBIGUOUS` : flag);
+    }
+    for (const f of entry.flags) bump(f);
+    const status = classify({ errors: entry.errors, flags: entry.flags, candidateLegalEntityId: legalEntityId });
+    records.push({
+      row_number: ++rowNumber,
+      source_external_id: v.order_number ?? v.order_number_old ?? `${SERVICE_SHEET_NAME}:${v.sheet_row}`,
+      source_customer_number: v.customer_number,
+      raw_payload: { sheet_name: SERVICE_SHEET_NAME, sheet_row: v.sheet_row, values: v, source_values: entry.source_values, flags: entry.flags },
+      normalized_payload: v,
+      candidate_legal_entity_id: legalEntityId,
+      ...status,
+      sheet_row: v.sheet_row,
+      flags: entry.flags,
+    });
+  }
+
+  for (const entry of contacts) {
+    const v = entry.values;
+    const legalEntityId = v.customer_number ? lexware.get(v.customer_number) ?? null : null;
+    const hasServices = v.customer_number ? customersWithServices.has(v.customer_number) : false;
+    if (v.customer_number && !legalEntityId && hasServices) entry.flags.push("CUSTOMER_NOT_IN_WAREHOUSE");
+    if (!hasServices) entry.flags.push("NO_SERVICE_ROW");
+    for (const f of entry.flags) bump(f);
+    const status = classify({ errors: entry.errors, flags: entry.flags, candidateLegalEntityId: legalEntityId });
+    records.push({
+      row_number: ++rowNumber,
+      source_external_id: `${CONTACT_SHEET_NAME}:${v.customer_number ?? `row${v.sheet_row}`}`,
+      source_customer_number: v.customer_number,
+      raw_payload: { sheet_name: CONTACT_SHEET_NAME, sheet_row: v.sheet_row, values: v, source_values: entry.source_values, flags: entry.flags },
+      normalized_payload: v,
+      candidate_legal_entity_id: legalEntityId,
+      ...status,
+      sheet_row: v.sheet_row,
+      flags: entry.flags,
+    });
+  }
+
+  return { records, tally, customersWithServices };
 }

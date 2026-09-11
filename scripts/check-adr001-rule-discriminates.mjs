@@ -14,6 +14,7 @@
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
 import { record, notRunInChain } from "./lib/gate-result.mjs";
+import { MASTERDATA_SERVICE_SQL, indexMasterdata, resolveOrderKey, serviceWordsFor } from "./lib/order-key.mjs";
 
 const env = loadEnv();
 
@@ -32,22 +33,16 @@ await c.connect();
 const { rows: orders } = await c.query("select id, name, customer from public.projects order by id");
 const orderNames = new Map(orders.map((o) => [o.id, o.name]));
 const orderCustomers = new Map(orders.map((o) => [o.id, o.customer]));
+// Both order-number grammars through scripts/lib/order-key.mjs, the reader
+// check-management-data.mjs uses; SERVICE_WORDS lives there too.
+const mdIndex = indexMasterdata((await c.query(MASTERDATA_SERVICE_SQL)).rows);
+const orderKey = (id) => resolveOrderKey(id, mdIndex);
 
 /* ---- the rule, copied verbatim from check-management-data.mjs ---- */
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[\u200b-\u200d\ufeff]/g, "").replace(/\s+/g, " ").trim();
 const strip = (s) => norm(s).replace(/^closed?\s*:\s*/, "").replace(/^\d{5}[_\s]+/, "").trim();
 const head = (s) => strip(s).split(/[/:]/)[0].trim();
 const tokens = (s) => head(s).split(" ").filter(Boolean);
-const SERVICE_WORDS = {
-  101: ["sifa", "ba", "dguv"], 102: ["sifa", "fasi", "praxis"],
-  104: ["sifa", "fasi", "sicherheitstechnische", "safety"], 111: ["sifa"],
-  203: ["ba", "betriebsarzt", "doctor", "health"], 205: ["ba", "betriebsarzt", "arbeitsmedizin", "health", "care"],
-  301: ["kk", "sifa"], 401: ["gbu", "risk", "assessment", "gefaehrdungsbeurteilung"],
-  403: ["support", "hse"], 404: ["hse"], 412: ["psych", "psysch"],
-  501: ["bsb", "brandschutz", "evakuierung", "brandschutzhelfer"],
-  601: ["sigeko", "site"], 605: ["sigeko", "site"], 606: ["sigeko"], 60107: ["sigeko", "site"],
-  701: ["gu", "grundunterweisung", "instruction", "unterweisung"],
-};
 const customerAgrees = (ttName, orderId) => {
   const ttHead = head(ttName);
   const ttTok = tokens(ttName);
@@ -68,8 +63,7 @@ const isUnlawful = (ttName0, orderId) => {
   if (strip(ttName) === strip(orderNames.get(orderId))) return false;
   if (!lexware) return true;
   if (!customerAgrees(ttName, orderId)) return true;
-  const service = /^\d{5}_\d+_(\d+)_\d+$/.exec(orderId)?.[1];
-  const words = SERVICE_WORDS[Number(service)];
+  const words = serviceWordsFor(orderKey(orderId));
   if (words) {
     const hay = strip(ttName).replace(/[^a-z0-9 ]/g, " ");
     if (words.some((w) => new RegExp(`(^| )${w}`).test(hay))) return false;
@@ -98,10 +92,18 @@ mustReject("a different company, acronym form",
   "AWB / 26 SiFA", "10210_00056_104_01");                // TKS
 
 // 2. Right company, but the order belongs to a different service segment.
-const gu = orders.find((o) => /_701_/.test(o.id) && /mirantis/i.test(o.customer ?? ""));
+const gu = orders.find((o) => orderKey(o.id).legacy_service_code === "701" && /mirantis/i.test(o.customer ?? ""));
 if (gu) {
   mustReject("the right customer against the wrong service segment (SiFa name -> GU order)",
     "Mirantis / 26/27 SiFa", gu.id);
+}
+
+// 2b. The masterdata sheet's new grammar (10178_00028_1001.1_01) gets the same
+//     protection: a SiFa name from another company against a new-format order.
+const newFormat = orders.find((o) => orderKey(o.id).grammar === "new" && !customerAgrees("Mbition / 26 SiFa", o.id));
+if (newFormat) {
+  mustReject("a different company against a new-format (masterdata sheet) order",
+    "Mbition / 26 SiFa", newFormat.id);
 }
 
 // 3. A real TT name against an unrelated real order, sampled broadly. This is the

@@ -17,11 +17,16 @@
  *    multiple orders, a TT project whose SERVICE maps to exactly one of those
  *    orders' code families is matched to it. Both keys (customer number,
  *    service family) are exact; only their combination is new.
+ *    Since 2026-09-10 the hub also holds the masterdata sheet's key
+ *    (10178_00028_1001.1_01); its legacy code comes from scripts/lib/order-key.mjs
+ *    (the sheet's exact crosswalk) or is unknown, and a customer with an order
+ *    of unknown code is ambiguous rather than silently narrowed.
  *
  * Anything still ambiguous is REPORTED, not guessed.
  */
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, writeFileSync } from "node:fs";
+import { MASTERDATA_SERVICE_COLUMNS, indexMasterdata, resolveOrderKey } from "./lib/order-key.mjs";
 
 const DRY = process.argv.includes("--dry-run");
 
@@ -59,15 +64,10 @@ const familyFor = (serviceName) => {
   return hits.length === 1 ? hits[0].codes : null;
 };
 
-const codeOf = (orderNo) => {
-  const m = /^\d{5}_\d{5}_(\d+)_/.exec(orderNo);
-  return m ? m[1] : null;
-};
-
-const page = async (client, table, select) => {
+const page = async (client, table, select, orderBy = "id") => {
   const out = [];
   for (let f = 0; ; f += 1000) {
-    const { data, error } = await client.from(table).select(select).order("id").range(f, f + 999);
+    const { data, error } = await client.from(table).select(select).order(orderBy).range(f, f + 999);
     if (error) throw new Error(`${table}: ${error.message}`);
     if (!data?.length) break;
     out.push(...data);
@@ -78,13 +78,18 @@ const page = async (client, table, select) => {
 
 const hub = await page(db, "projects", "id, name");
 const tt = await page(timeDb, "project", "id, name, hub_project_id, service:service_id(name)");
+// Both order-number grammars through one reader (scripts/lib/order-key.mjs). A
+// new-format order (10178_00028_1001.1_01) has no legacy code in its id; it gets
+// one only through the sheet's exact crosswalk, and otherwise stays unknown.
+const mdIndex = indexMasterdata(await page(db, "project_masterdata", MASTERDATA_SERVICE_COLUMNS, "project_id"));
+const codeOf = (orderNo) => resolveOrderKey(orderNo, mdIndex).legacy_service_code;
 
 const ordersByLexware = new Map();
 for (const h of hub) {
-  const m = /^(\d{5})_/.exec(h.id);
-  if (!m) continue;
-  if (!ordersByLexware.has(m[1])) ordersByLexware.set(m[1], []);
-  ordersByLexware.get(m[1]).push(h);
+  const customer = resolveOrderKey(h.id, mdIndex).customer_number;
+  if (!customer) continue;
+  if (!ordersByLexware.has(customer)) ordersByLexware.set(customer, []);
+  ordersByLexware.get(customer).push(h);
 }
 
 const links = [];
@@ -106,6 +111,10 @@ for (const p of tt) {
   // RULE C: disambiguate by service family.
   const family = familyFor(p.service?.name);
   if (!family) { ambiguous.push({ p, why: `no service family for '${p.service?.name ?? "none"}'` }); continue; }
+  // An order whose service code cannot be read could be the right one; leaving
+  // it out of the comparison is how a wrong order starts to look unique.
+  const unreadable = orders.filter((o) => !codeOf(o.id));
+  if (unreadable.length) { ambiguous.push({ p, why: `${unreadable.length} of the customer's orders have no readable service code (e.g. ${unreadable[0].id})` }); continue; }
   const matching = orders.filter((o) => {
     const code = codeOf(o.id);
     return code && family.some((f) => code === f || code.startsWith(f));

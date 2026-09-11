@@ -86,7 +86,27 @@ export const NAV_GROUPS: NavGroup[] = [
         Hiding the entry from anybody would hide a page that is already safe and
         would leave them no way to look a customer up.
       */
-      { href: "/customers",  label: "Customers",       tourId: "tour-customers"  },
+      { href: "/customers",  label: "Customers",       tourId: "tour-customers",
+        /*
+          Every role EXCEPT operations, and the omission is the point.
+          check-operations-role.mjs asserts that an operations account's nav is
+          exactly one item, /my-work, and that is a deliberate scope decision for
+          the trial rather than an accident: no Overview, People, Projects,
+          Timesheets or Leave either.
+
+          The index page itself stays reachable for them -- /customers is on their
+          route allow-list because the profile route needs it, and the index shows
+          only the customers can_view_project() already admits, which is the same
+          set /my-work shows grouped differently. So this hides an entry, not data.
+
+          Whether an operations consultant SHOULD have the entry is a product
+          decision and a fair one to make: the customer profile's own header calls
+          them its primary audience. It is hitul's to make, not this file's. To
+          make it, delete this `roles` key and argue the change in
+          check-operations-role.mjs, which is written to force exactly that
+          conversation.
+        */
+        roles: ["exec", "dept_head", "hr", "employee", "project_manager", "sales"] },
       { href: "/timesheets", label: "Timesheets",      tourId: "tour-timesheets" },
       // The TrackingTime module, deliberately alongside Timesheets rather than
       // replacing it: /timesheets is the Hub's editable weekly grid in hours,

@@ -1,6 +1,6 @@
 {
-  "_comment": "Assertions each gate last evaluated (pass+fail), recorded on a machine WITH live credentials. run-all-gates.mjs turns a gate RED if it runs there and evaluates fewer. It does not compare in CI, where thirteen gates legitimately evaluate fewer because their dependencies are absent. Rewrite deliberately with `npm run gates:baseline`, in the same change that justified the drop, never as a tidy-up.",
-  "updated": "2026-09-10",
+  "_comment": "Assertions each gate last evaluated (pass+fail), recorded on a machine WITH live credentials. run-all-gates.mjs turns a gate RED if it runs there and evaluates fewer. It does not compare in CI, where thirteen gates legitimately evaluate fewer because their dependencies are absent. Rewrite deliberately with `npm run gates:baseline`, in the same change that justified the drop, never as a tidy-up. NOTE: the generator overwrites this line with a shorter default; restore it by hand after a regeneration, or the reason CI is exempt is lost.",
+  "updated": "2026-09-11",
   "unstable": {
     "check:table-scroll-budget": "measures however many production routes it reached; observed 78, 42 and 0 assertions in one evening as the rig's network moved"
   },
@@ -129,12 +129,6 @@
     "check:operations-role": 70,
     "check:budget-column-grants-migration": 10,
     "check:masterdata-source-migration": 15,
-    "check:masterdata-sheet-import": 47,
-    "check:masterdata-drop": 24,
-    "check:masterdata-security": 47,
-    "check:masterdata-warehouse-migration": 42,
-    "check:masterdata-promote": 83,
-    "check:masterdata-customers": 13,
     "check:project-link-migration": 12,
     "check:unmeasured-hours-migration": 8,
     "check:ypog-ambiguity-migration": 8,
@@ -143,9 +137,17 @@
     "check:feature-reachable": 18,
     "check:overview-filters": 53,
     "check:content-width": 9,
-    "check:gates-runnable": 8,
-    "check:my-work-detail": 80,
+    "check:gates-runnable": 10,
+    "check:invite-role-default": 6,
+    "check:masterdata-sheet-import": 47,
+    "check:masterdata-drop": 24,
+    "check:masterdata-security": 47,
+    "check:masterdata-warehouse-migration": 42,
+    "check:masterdata-promote": 83,
+    "check:masterdata-customers": 13,
+    "check:my-work-detail": 84,
     "check:customer-profile": 168,
+    "check:import-review-honesty": 27,
     "test:schema-order": 5,
     "test:approval-error-handling": 6
   }

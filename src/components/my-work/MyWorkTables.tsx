@@ -1060,8 +1060,9 @@ export function MyWorkTables({
             The sheet's purple fields for the selected row, in a modal. Contract
             hours go through the SAME hours() as every table cell, already
             redacted at the query, so the dialog cannot print a figure the row
-            could not. Contacts ride on the row object and are rendered here
-            only: no column, no CSV (check-my-work-detail.mjs).
+            could not. Contacts are NOT on the row object: the dialog fetches
+            them for the one selected order (loadProjectContacts), and renders
+            them there only -- no column, no CSV (check-my-work-detail.mjs).
 
             ModalShell owns the scrim, the scroll lock, Escape, the focus trap
             and the return of focus; `origin` makes it scale out of the row that

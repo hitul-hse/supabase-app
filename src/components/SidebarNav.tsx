@@ -71,6 +71,22 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/my-work",    label: "My Work",         tourId: "tour-my-work"    },
       { href: "/people",     label: "People",          tourId: "tour-people"     },
       { href: "/projects",   label: "Projects",        tourId: "tour-projects"   },
+      /*
+        Directly under Projects, where hitul asked for it on 2026-09-11. The
+        two answer adjacent questions -- Projects is "what work is there",
+        Customers is "who is it for" -- and a consultant who has just failed to
+        find a customer under Projects looks at the next row, not at the top of
+        the list.
+
+        No `roles` key, deliberately. Operations accounts reach it through the
+        route allow-list in nav-access.ts, which already names /customers; every
+        other role is unrestricted. The PAGE is per-reader rather than
+        role-gated: it lists the customers can_view_project() admits, which for
+        a consultant is their own book of work and for an exec is all of them.
+        Hiding the entry from anybody would hide a page that is already safe and
+        would leave them no way to look a customer up.
+      */
+      { href: "/customers",  label: "Customers",       tourId: "tour-customers"  },
       { href: "/timesheets", label: "Timesheets",      tourId: "tour-timesheets" },
       // The TrackingTime module, deliberately alongside Timesheets rather than
       // replacing it: /timesheets is the Hub's editable weekly grid in hours,
@@ -115,7 +131,7 @@ export const NAV_GROUPS: NavGroup[] = [
 // Sidebar labels stay English literals in NAV_GROUPS (greppable by what the
 // default locale shows); these maps carry them to messages/{en,de}.json keys.
 // A label missing here falls back to its English literal rather than crashing.
-const NAV_LABEL_KEYS: Record<string, string> = {"Overview": "overview", "Management": "management", "Team Lead View": "teamLead", "My Work": "myWork", "People": "people", "Projects": "projects", "Timesheets": "timesheets", "TrackingTime Dashboard": "timeDashboard", "Operations Analytics": "operationsAnalytics", "Leave & Time Off": "leave", "Customer Master": "customerMaster", "Data Hygiene": "dataHygiene", "Users & Roles": "usersRoles", "Role Permissions": "rolePermissions", "Budget Alerts": "budgetAlerts", "System Health": "systemHealth"};
+const NAV_LABEL_KEYS: Record<string, string> = {"Overview": "overview", "Management": "management", "Team Lead View": "teamLead", "My Work": "myWork", "People": "people", "Projects": "projects", "Customers": "customers", "Timesheets": "timesheets", "TrackingTime Dashboard": "timeDashboard", "Operations Analytics": "operationsAnalytics", "Leave & Time Off": "leave", "Customer Master": "customerMaster", "Data Hygiene": "dataHygiene", "Users & Roles": "usersRoles", "Role Permissions": "rolePermissions", "Budget Alerts": "budgetAlerts", "System Health": "systemHealth"};
 const NAV_TITLE_KEYS: Record<string, string> = {"ANALYSE": "sections.analyse", "RECORDS": "sections.records", "ADMIN": "sections.admin"};
 
 export function SidebarNav({ roleKey }: { roleKey: string | null }) {

@@ -21,7 +21,8 @@
     "rolePermissions": "Rollenberechtigungen",
     "budgetAlerts": "Budget-Warnungen",
     "factorialIdentity": "Factorial-Identität",
-    "systemHealth": "Systemzustand"
+    "systemHealth": "Systemzustand",
+    "customers": "Kunden"
   },
   "common": {
     "logOut": "Abmelden",
@@ -2325,5 +2326,25 @@
     "source": "Aus dem Stammdatenblatt, Stand {when}",
     "sourceUndated": "Aus dem Stammdatenblatt",
     "loading": "Kundenprofil wird geladen"
+  },
+  "customers": {
+    "title": "Kunden",
+    "metaAll": "{total} KUNDEN · {orders} AUFTRÄGE",
+    "metaVisible": "{total} KUNDEN, DIE SIE SEHEN KÖNNEN · {orders} AUFTRÄGE",
+    "colNumber": "Kundennummer",
+    "colName": "Kunde",
+    "colCity": "Ort",
+    "colLive": "Laufend",
+    "colOrders": "Aufträge",
+    "noName": "Kein Name hinterlegt",
+    "dormant": "Keine laufenden Aufträge",
+    "emptyTitle": "Keine Kunden sichtbar",
+    "emptyDescription": "Auf keinem Auftrag, den Sie sehen können, ist eine Kundennummer hinterlegt. Das ist eine Aussage über Ihre Sichtbarkeit, nicht über die Kundenliste.",
+    "truncated": "Die Leseobergrenze wurde erreicht. Die Zahlen unten sind Untergrenzen.",
+    "pagerNav": "Kundenseiten",
+    "pagerPrev": "Zurück",
+    "pagerNext": "Weiter",
+    "pagerPage": "Kunden, Seite {n}",
+    "pagerCount": "SEITE {page} VON {pageCount} · {total} KUNDEN"
   }
 }

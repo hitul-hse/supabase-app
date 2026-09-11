@@ -377,6 +377,19 @@ export function IconLogout({ className }: IconProps) {
   );
 }
 
+/** Customers — a building with a door, the place the work is done. */
+export function IconCustomers({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M2.75 14.25V3.75a1 1 0 0 1 1-1h5.5a1 1 0 0 1 1 1v10.5" />
+      <path d="M10.25 6.75h2a1 1 0 0 1 1 1v6.5" />
+      <path d="M1.5 14.25h13" />
+      <path d="M5.25 5.75h1M5.25 8.25h1M7.75 5.75h1M7.75 8.25h1" />
+      <path d="M6.25 14.25v-2.5h1.5v2.5" />
+    </Svg>
+  );
+}
+
 /** Registry keyed by nav href, so SidebarNav stays declarative. */
 export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/": IconHome,
@@ -385,6 +398,7 @@ export const NAV_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   "/my-work": IconMyWork,
   "/people": IconPeople,
   "/projects": IconProjects,
+  "/customers": IconCustomers,
   "/timesheets": IconTimesheets,
   "/time/dashboard": IconTrackingTime,
   "/operations-analytics": IconOperationsAnalytics,

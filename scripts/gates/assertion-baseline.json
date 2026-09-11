@@ -147,6 +147,7 @@
     "check:masterdata-customers": 13,
     "check:my-work-detail": 84,
     "check:customer-profile": 168,
+    "check:customers-index": 61,
     "check:import-review-honesty": 27,
     "test:schema-order": 5,
     "test:approval-error-handling": 6

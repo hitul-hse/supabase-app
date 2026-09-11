@@ -143,7 +143,7 @@ const server = createServer((req, res) => {
   send([]);
 });
 
-if (!(await listenOrSkip(server, PORT))) process.exit(0);
+if (!(await listenOrSkip(server, PORT))) notRun(`port ${PORT} is already in use`);
 
 // A dedicated dist dir. The shared .next is never moved: parallel sessions run
 // their own servers out of it, and on Windows renaming it hits EPERM whenever a

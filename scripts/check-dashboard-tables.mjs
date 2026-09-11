@@ -31,7 +31,7 @@
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
 import fs, { existsSync, rmSync } from "node:fs";
-import { record } from "./lib/gate-result.mjs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 // `next build` appends its dist dir's type paths to tsconfig.json's "include".
 // With a probe distDir that pollutes the SHARED config with entries naming a
@@ -354,7 +354,7 @@ const server = createServer((req, res) => {
   send({}, 404);
 });
 
-if (!(await listenOrSkip(server, PORT))) process.exit(0);
+if (!(await listenOrSkip(server, PORT))) notRun(`port ${PORT} is already in use`);
 console.log(`stub Supabase on http://localhost:${PORT}`);
 
 /*
@@ -380,7 +380,7 @@ console.log(`stub Supabase on http://localhost:${PORT}`);
  * one.
  */
 const appPortProbe = createServer();
-if (!(await listenOrSkip(appPortProbe, APP_PORT))) process.exit(0);
+if (!(await listenOrSkip(appPortProbe, APP_PORT))) notRun(`port ${APP_PORT} is already in use`);
 await new Promise((r) => appPortProbe.close(r));
 
 // ── The real Next.js server, built against the stub ────────────────────────

@@ -92,6 +92,7 @@ export async function getManagementDataQuality(
         schema(supabase, "time")
           .from("project")
           .select("hub_project_id, source_id, service:service_id(id)")
+          .order("id", { ascending: true })
           .range(from, to),
       ),
       readCustomerMasterLinks(supabase),

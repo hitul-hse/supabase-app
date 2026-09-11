@@ -318,7 +318,7 @@ const server = createServer((req, res) => {
   send({}, 404);
 });
 
-if (!(await listenOrSkip(server, PORT))) process.exit(0);
+if (!(await listenOrSkip(server, PORT))) notRun(`port ${PORT} is already in use`);
 console.log(`stub Supabase on http://localhost:${PORT}`);
 
 // ── The real Next.js server, built and run against the stub ────────────────
@@ -353,7 +353,7 @@ const APP_PORT = 3111;
       `      measuring it would report the app broken when it is not.`,
     );
     server.close();
-    process.exit(0);
+    notRun(`port ${APP_PORT} is already in use by a different process`);
   }
   await new Promise((r) => probe.close(r));
 }

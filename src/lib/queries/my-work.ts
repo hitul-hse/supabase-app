@@ -192,13 +192,15 @@ export type MyProject = {
    * object would be a second place to forget it.
    */
   detail: MyProjectDetail | null;
-  /**
-   * The customer's two contact persons for this order, from
-   * `public.project_contact`. Personal data of third parties: shown for the one
-   * selected row, never in a list column, never in the CSV export -- every
-   * `Column.csv` on the tables omits them, and check-my-work-detail.mjs pins it.
+  /*
+   * NO CONTACTS HERE, deliberately (issue #90, 2026-09-11). This row is
+   * serialised into MyWorkTables' props and shipped to the browser for every
+   * project on the page, and the customer's contact persons are personal data
+   * of third parties. They are read for the ONE selected order, on selection,
+   * through `fetchProjectContacts` behind the `loadProjectContacts` server
+   * action -- which is what the migration's comment on public.project_contact
+   * promised all along. check-my-work-detail.mjs pins the absence.
    */
-  contacts: MyContact[];
 };
 
 /**
@@ -927,46 +929,68 @@ async function fetchMyMasterdata(
 }
 
 /**
- * The customer contacts on this person's projects, from public.project_contact.
+ * One order's contact rows in the reader's terms: slot order, the sheet's "-"
+ * folded to null, and an all-empty slot dropped.
  *
- * Personal data of third parties, under the same `can_view_project(project_id)`
- * policy as everything else here. It is read for the whole book of work in one
- * round rather than per selection because the page is server-rendered and
- * has no per-row endpoint; what keeps it out of the LIST is the UI contract
- * (never a column, never a CSV field), pinned by check-my-work-detail.mjs.
- * Degrades to no contacts, for the same reason `fetchMyLinks` does.
+ * A contact row with a slot outside {1, 2} is dropped rather than rendered:
+ * the check constraint should make it impossible, and a third "contact" the
+ * sheet has no column for is a fixture error, not a fact.
  */
-async function fetchMyContacts(
-  supabase: SupabaseTyped,
-  projectIds: string[],
-): Promise<{ rows: ContactRowLite[]; truncated: boolean }> {
-  if (projectIds.length === 0) return { rows: [], truncated: false };
+function foldContacts(rows: ContactRowLite[]): MyContact[] {
+  const list: MyContact[] = [];
+  for (const c of rows) {
+    if (c.slot !== 1 && c.slot !== 2) continue;
+    // Fold the sheet's "-" BEFORE the empty-slot test. Unfolded, a "-" name
+    // rendered as a contact called "-", a "-" phone as a dead tel: link (the
+    // href strips it to "tel:") and a "-" e-mail as "mailto:-". The importer
+    // leaves contact cells as written, so this is the only fold they get.
+    const name = textOrNull(c.name);
+    const phone = textOrNull(c.phone);
+    const email = textOrNull(c.email);
+    // A slot with nothing in it is the sheet's empty column, not a contact --
+    // and "-" in all three cells is the same empty column written by hand.
+    if (!name && !phone && !email) continue;
+    list.push({ slot: c.slot, name, phone, email });
+  }
+  return list.sort((a, b) => a.slot - b.slot);
+}
 
+/**
+ * The customer's contact persons on ONE order, from public.project_contact.
+ *
+ * Personal data of third parties, so it is read for the one selected order at
+ * a time -- the promise the migration's comment on the table makes -- and never
+ * for the book of work: the panel calls this through the `loadProjectContacts`
+ * server action when a row is opened, so the page payload carries no contacts
+ * at all. Same `can_view_project(project_id)` policy as everything else here,
+ * through the caller's own cookie-bound client; a project the caller may not
+ * see returns no rows, exactly as the table would to them directly.
+ *
+ * Bounded and ordered: the primary key is (project_id, slot) and slot is 1 or
+ * 2, so ten rows is a ceiling that can never clip, and `.order()` comes before
+ * `.range()` like every other paged read in this module.
+ *
+ * A failed read says so (`failed: true`) instead of degrading to an empty
+ * list: the panel prints "could not load" rather than "no contact recorded",
+ * because an error that reads as "nothing there" is the lie this project has
+ * paid for most often.
+ */
+export async function fetchProjectContacts(
+  supabase: SupabaseTyped,
+  projectId: string,
+): Promise<{ contacts: MyContact[]; failed: boolean }> {
   try {
-    const rows: ContactRowLite[] = [];
-    let truncated = false;
-    const CHUNK = 200;
-    for (let i = 0; i < projectIds.length; i += CHUNK) {
-      const slice = projectIds.slice(i, i + CHUNK);
-      if (slice.length === 0) continue;
-      const page = await fetchAllPaged<ContactRowLite>(
-        (from, to) =>
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (supabase as any)
-            .from("project_contact")
-            .select("project_id, slot, name, phone, email")
-            .in("project_id", slice)
-            .order("project_id")
-            .order("slot")
-            .range(from, to),
-        { maxPages: Math.max(1, Math.ceil(slice.length / PAGE) + 1) },
-      );
-      truncated = truncated || page.truncated;
-      rows.push(...page.rows);
-    }
-    return { rows, truncated };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("project_contact")
+      .select("project_id, slot, name, phone, email")
+      .eq("project_id", projectId)
+      .order("slot")
+      .range(0, 9);
+    if (error) return { contacts: [], failed: true };
+    return { contacts: foldContacts((data ?? []) as ContactRowLite[]), failed: false };
   } catch {
-    return { rows: [], truncated: false };
+    return { contacts: [], failed: true };
   }
 }
 
@@ -1093,12 +1117,12 @@ export function assembleMyWork(
    * positional parameters: check-my-work-scoping.mjs exercises this function
    * with four arguments and must keep type-checking, and a tenth positional
    * `[]` after a boolean is the kind of call nobody can read back. Everything
-   * in here defaults to empty, which yields `detail: null` and no contacts --
-   * the same result as a project the sheet does not know.
+   * in here defaults to empty, which yields `detail: null` -- the same result
+   * as a project the sheet does not know. Contacts are not an input: they are
+   * read per selected order (fetchProjectContacts), never for the whole page.
    */
   options: {
     masterdata?: MasterdataRowLite[];
-    contacts?: ContactRowLite[];
     personNames?: PersonNameRowLite[];
   } = {},
 ): MyWork {
@@ -1153,11 +1177,8 @@ export function assembleMyWork(
     list.sort((a, b) => LINK_ORDER.indexOf(a.kind) - LINK_ORDER.indexOf(b.kind));
   }
 
-  // The sheet's row per project (1:1 by primary key, so a Map is exact), the
-  // names its person ids resolve to, and the contacts folded per project in
-  // slot order. A contact row with a slot outside {1, 2} is dropped rather than
-  // rendered: the check constraint should make it impossible, and a third
-  // "contact" the sheet has no column for is a fixture error, not a fact.
+  // The sheet's row per project (1:1 by primary key, so a Map is exact) and
+  // the names its person ids resolve to.
   const masterdataByProject = new Map<string, MasterdataRowLite>();
   for (const m of options.masterdata ?? []) {
     if (m.project_id) masterdataByProject.set(m.project_id, m);
@@ -1166,24 +1187,6 @@ export function assembleMyWork(
   for (const p of options.personNames ?? []) {
     if (p.id && p.name) nameById.set(p.id, p.name);
   }
-  const contactsByProject = new Map<string, MyContact[]>();
-  for (const c of options.contacts ?? []) {
-    if (!c.project_id || (c.slot !== 1 && c.slot !== 2)) continue;
-    // Fold the sheet's "-" BEFORE the empty-slot test. Unfolded, a "-" name
-    // rendered as a contact called "-", a "-" phone as a dead tel: link (the
-    // href strips it to "tel:") and a "-" e-mail as "mailto:-". The importer
-    // leaves contact cells as written, so this is the only fold they get.
-    const name = textOrNull(c.name);
-    const phone = textOrNull(c.phone);
-    const email = textOrNull(c.email);
-    // A slot with nothing in it is the sheet's empty column, not a contact --
-    // and "-" in all three cells is the same empty column written by hand.
-    if (!name && !phone && !email) continue;
-    const list = contactsByProject.get(c.project_id) ?? [];
-    list.push({ slot: c.slot, name, phone, email });
-    contactsByProject.set(c.project_id, list);
-  }
-  for (const list of contactsByProject.values()) list.sort((a, b) => a.slot - b.slot);
 
   const rows: MyProject[] = [];
   for (const p of projects) {
@@ -1249,7 +1252,6 @@ export function assembleMyWork(
       services: projectServices,
       links: projectLinks,
       detail: toDetail(masterdataByProject.get(p.id) ?? null, nameById),
-      contacts: contactsByProject.get(p.id) ?? [],
     });
   }
 
@@ -1517,12 +1519,13 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
     ];
     // Neither depends on the other -- same round-trip reasoning as the
     // assignments/responsibilities pair above.
-    const [projects, services, links, masterdata, contacts] = await Promise.all([
+    // The customer contacts are NOT in this round: they are read per selected
+    // order, on selection, so the page payload carries none of them.
+    const [projects, services, links, masterdata] = await Promise.all([
       fetchMyProjects(supabase, personId, projectIds),
       fetchMyServices(supabase, projectIds),
       fetchMyLinks(supabase, projectIds),
       fetchMyMasterdata(supabase, projectIds),
-      fetchMyContacts(supabase, projectIds),
     ]);
 
     /*
@@ -1557,7 +1560,7 @@ export async function getMyWork(supabase: SupabaseTyped): Promise<MyWork> {
       // Panel data only. Its truncation is not folded into `truncated` above:
       // that flag warns that the LIST and the TOTALS may understate, and a
       // clipped detail read cannot move either.
-      { masterdata: masterdata.rows, contacts: contacts.rows, personNames: personNames.rows },
+      { masterdata: masterdata.rows, personNames: personNames.rows },
     );
   } catch {
     // A failed read must NOT render as "you have no work": that is the same

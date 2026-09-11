@@ -142,6 +142,7 @@ export async function getEmployeeOwnershipOverview(
           .from("project")
           .select("hub_project_id, source_id, service:service_id(name)")
           .not("hub_project_id", "is", null)
+          .order("id", { ascending: true })
           .range(from, to),
       ),
       readManagementCustomerMappings(),

@@ -115,7 +115,7 @@ export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): P
       projectsSelect(supabase, "id, code, name, contract_hours, status, owner_person_id", canSeeBudgets),
       supabase.from("people").select("id, name"),
       supabase.from("person_assignments").select("person_id, project_id"),
-      fetchAllPaged<Record<string, unknown>>((from, to) => schema(supabase, "time").from("project").select("hub_project_id, source_id, service:service_id(name)").range(from, to)),
+      fetchAllPaged<Record<string, unknown>>((from, to) => schema(supabase, "time").from("project").select("hub_project_id, source_id, service:service_id(name)").order("id", { ascending: true }).range(from, to)),
       readManagementCustomerMappings(),
     ]);
     if (!projects || !people || !assignments || timeProjects.truncated) return emptyModel();

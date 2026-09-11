@@ -110,6 +110,7 @@ export async function getManagementMultiServiceMatrix(
         schema(supabase, "time")
           .from("project")
           .select("hub_project_id, source_id, service:service_id(name)")
+          .order("id", { ascending: true })
           .range(from, to),
       ),
       readManagementCustomerMappings(),

@@ -310,11 +310,28 @@ check(
    * /customers/[number] joined the list on 2026-09-10 with the customer profile
    * (HSEHU-72/73). It is NOT a widening: the page renders exactly the orders
    * can_view_project() already lets this role see on /my-work, keyed on the
-   * five-digit Lexware number, and it carries no nav item. Written out in full
-   * rather than loosened to a prefix test, so the next addition still has to be
-   * argued here.
+   * five-digit Lexware number. Written out in full rather than loosened to a
+   * prefix test, so the next addition still has to be argued here.
+   *
+   * /customers, the index, joined on 2026-09-11 (HSEHU-80), and this comment is
+   * that argument. It is the same non-widening for the same reason: the list is
+   * built by reading project_masterdata on the reader's OWN session, so it can
+   * only ever contain customers this role already sees on /my-work, grouped by
+   * customer instead of by order. No new row reaches them.
+   *
+   * It became reachable as a consequence rather than a choice: `/customers` has
+   * been on this allow-list since 2026-09-10 because the PROFILE route needs it,
+   * and prefix matching on a segment boundary admits the index at the same time.
+   * Removing it would take the profile away too.
+   *
+   * The NAV ENTRY is the separate question, and the answer is no: the entry
+   * carries a `roles` key that omits operations, so the two assertions above --
+   * one nav item, and it is /my-work -- still hold. That keeps the trial scope
+   * exactly as it was decided. The customer profile's own header calls
+   * operations consultants its primary audience, so giving them the entry is a
+   * fair change to argue; it is just not one this file may make on its own.
    */
-  allowedByList.slice().sort().join(",") === "/customers/[number],/my-work,/profile",
+  allowedByList.slice().sort().join(",") === "/customers,/customers/[number],/my-work,/profile",
   allowedByList.join(", "),
 );
 check(

@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # Use the knowledge graph first
 
 This project is mapped into a graphify knowledge graph committed at
-`graphify-out/` (6,050 nodes / 8,546 edges / 563 communities, built from
+`graphify-out/` (about 8,000 nodes and 13,200 edges across roughly 550 communities, built from
 tree-sitter AST so it is deterministic and costs nothing to rebuild).
 
 **Before grepping or opening files to answer a question about this codebase,

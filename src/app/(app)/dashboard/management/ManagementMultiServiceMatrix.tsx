@@ -14,6 +14,14 @@
  *
  * The service column labels (DGUV V2 SiFa, SiGeKo, Betriebsarzt …) are the
  * names of the services sold and stay as they are in both languages.
+ *
+ * WIDE BY DESIGN, AND PINNED (issue #99). Every count column is `compact`, which
+ * took the table from 1,694px to 1,534px at 1280 -- and it still scrolls
+ * sideways, because its width is those seven header captions, not the one-digit
+ * counts under them. check-table-width.mjs pins it at its measured width so it
+ * cannot grow. What would make it fit is short service codes in the header with
+ * the full name in the tooltip, which changes the words on screen and is the
+ * owner's call rather than a spacing fix.
  */
 import { useTranslations } from "next-intl";
 import { DataTable, cmpNum, cmpText, type Column } from "@/components/data-table/DataTable";
@@ -60,6 +68,9 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
       key,
       header: label.toUpperCase(),
       align: "right" as const,
+      // A one- or two-digit count under a header; the narrow gutter is the
+      // Column type's own case for `compact`.
+      compact: true,
       compare: (a: ManagementMultiServiceRow, b: ManagementMultiServiceRow) => a.services[key] - b.services[key],
       cell: (row: ManagementMultiServiceRow) => (
         <span className="font-mono tabular-nums text-[var(--text-secondary)]">
@@ -73,6 +84,7 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
       key: "activeServiceCount",
       header: t("columns.services"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.activeServiceCount - b.activeServiceCount,
       cell: (row) => <span className="font-mono tabular-nums text-[var(--text-primary)]">{row.activeServiceCount}</span>,
       csv: (row) => row.activeServiceCount,
@@ -82,6 +94,7 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
       key: "projectCount",
       header: t("columns.projects"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.projectCount - b.projectCount,
       cell: (row) => <span className="font-mono tabular-nums text-[var(--text-secondary)]">{row.projectCount}</span>,
       csv: (row) => row.projectCount,
@@ -90,6 +103,7 @@ export function ManagementMultiServiceMatrix({ model }: { model: ManagementMulti
       key: "contractHours",
       header: t("columns.contractHours"),
       align: "right",
+      compact: true,
       compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
       cell: (row) => (
         <span className="font-mono tabular-nums text-[var(--text-secondary)]">

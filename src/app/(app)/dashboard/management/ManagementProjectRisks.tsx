@@ -52,13 +52,31 @@ function RatingPill({ rating }: { rating: ManagementProjectRiskRow["rating"] }) 
  * so hovering reads it out, and the drilldown below the table renders it in
  * full. A wrapped list inside a cell is the same information at eight times the
  * height.
+ *
+ * THE PREVIEW IS SHORT ON PURPOSE (issue #99). The three list columns were
+ * 15-17rem each and were most of why this table measured 1,293px in a 993px card
+ * at 1280 (check-table-width.mjs): ~750px of every row spent on the tails of name
+ * lists whose full text is in the tooltip and in the panel below anyway. `cap` is
+ * the span's width, two rem inside the cell's own `max-w` (the px-4 gutter), so
+ * the count and the first name show and the table fits without scrolling.
  */
-function ListCell({ items, noun, empty }: { items: string[]; noun: string; empty: string }) {
+function ListCell({
+  items,
+  noun,
+  empty,
+  cap,
+}: {
+  items: string[];
+  noun: string;
+  empty: string;
+  /** A literal Tailwind max-width class, so the build can see it. */
+  cap: "max-w-[9rem]" | "max-w-[7.5rem]";
+}) {
   if (items.length === 0) return <span className="text-[var(--text-faint)]">{empty}</span>;
   return (
     <span
       title={items.join(", ")}
-      className="block max-w-[16rem] truncate text-[var(--text-muted)]"
+      className={`block ${cap} truncate text-[var(--text-muted)]`}
     >
       <span className="font-mono tabular-nums text-[var(--text-secondary)]">{items.length}</span>{" "}
       {noun} · {items.join(", ")}
@@ -200,9 +218,16 @@ export function ManagementProjectRisks({ rows }: { rows: ManagementProjectRiskRo
       key: "count",
       header: t("columns.count"),
       align: "right",
+      compact: true,
       compare: (a, b) => cmpNum(a.count, b.count),
+      // The figure the row is about and the default sort, so it reads at full
+      // contrast; "n/a" stays faint, because an unknown is not a finding.
       cell: (row) => (
-        <span className="font-mono tabular-nums text-[var(--text-secondary)]">
+        <span
+          className={`font-mono tabular-nums ${
+            row.count === null ? "text-[var(--text-faint)]" : "text-[var(--text-primary)]"
+          }`}
+        >
           {row.count === null ? na : row.count}
         </span>
       ),
@@ -211,6 +236,7 @@ export function ManagementProjectRisks({ rows }: { rows: ManagementProjectRiskRo
     {
       key: "rating",
       header: t("columns.rating"),
+      compact: true,
       className: "w-[7rem]",
       compare: (a, b) => cmpText(a.rating, b.rating),
       descFirst: false,
@@ -221,7 +247,7 @@ export function ManagementProjectRisks({ rows }: { rows: ManagementProjectRiskRo
     {
       key: "projects",
       header: t("columns.projects"),
-      className: "max-w-[17rem]",
+      className: "max-w-[11rem]",
       compare: (a, b) => a.affectedProjects.length - b.affectedProjects.length,
       cell: (row) =>
         row.count === null ? (
@@ -231,6 +257,7 @@ export function ManagementProjectRisks({ rows }: { rows: ManagementProjectRiskRo
             items={row.affectedProjects.map((project) => project.project)}
             noun={t("nouns.projects")}
             empty={tm("values.none")}
+            cap="max-w-[9rem]"
           />
         ),
       csv: (row) =>
@@ -241,13 +268,18 @@ export function ManagementProjectRisks({ rows }: { rows: ManagementProjectRiskRo
     {
       key: "responsible",
       header: t("columns.responsible"),
-      className: "max-w-[15rem]",
+      className: "max-w-[9.5rem]",
       compare: (a, b) => a.responsible.length - b.responsible.length,
       cell: (row) =>
         row.count === null ? (
           <span className="text-[var(--text-faint)]">{na}</span>
         ) : (
-          <ListCell items={translateList(tm, row.responsible)} noun={t("nouns.people")} empty={notAssigned} />
+          <ListCell
+            items={translateList(tm, row.responsible)}
+            noun={t("nouns.people")}
+            empty={notAssigned}
+            cap="max-w-[7.5rem]"
+          />
         ),
       csv: (row) => (row.count === null ? na : translateList(tm, row.responsible).join(" | ") || notAssigned),
       search: (row) => row.responsible.join(" "),
@@ -255,13 +287,18 @@ export function ManagementProjectRisks({ rows }: { rows: ManagementProjectRiskRo
     {
       key: "services",
       header: t("columns.service"),
-      className: "max-w-[15rem]",
+      className: "max-w-[9.5rem]",
       compare: (a, b) => a.services.length - b.services.length,
       cell: (row) =>
         row.count === null ? (
           <span className="text-[var(--text-faint)]">{na}</span>
         ) : (
-          <ListCell items={translateList(tm, row.services)} noun={t("nouns.services")} empty={notAssigned} />
+          <ListCell
+            items={translateList(tm, row.services)}
+            noun={t("nouns.services")}
+            empty={notAssigned}
+            cap="max-w-[7.5rem]"
+          />
         ),
       csv: (row) => (row.count === null ? na : translateList(tm, row.services).join(" | ") || notAssigned),
       search: (row) => row.services.join(" "),
@@ -270,6 +307,7 @@ export function ManagementProjectRisks({ rows }: { rows: ManagementProjectRiskRo
       key: "contractHours",
       header: t("columns.contractHours"),
       align: "right",
+      compact: true,
       compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
       cell: (row) => (
         <span className="font-mono tabular-nums text-[var(--text-secondary)]">

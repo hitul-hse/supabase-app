@@ -486,7 +486,17 @@ export default async function OverviewPage({
             people: teams.length,
           })}
         >
-        <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] xl:grid-cols-2">
+        {/*
+          SIDE BY SIDE FROM 1440, not from `xl` (1280). At 1280 with the sidebar
+          open each queue got 491px, and both tables need more than that --
+          check-table-width.mjs measured 526px (over budget) and 539px
+          (utilisation) in German -- so each scrolled sideways and hid the
+          BURN / UTILISATION figures it exists to show, which is the failure
+          the column caps in OverviewQueues.tsx were written against. Stacked
+          between 1280 and 1439, each gets the full 995px; from 1440 each gets
+          ~571px and they fit side by side again, as before.
+        */}
+        <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] min-[1440px]:grid-cols-2">
           {overBudgetProjects === null ? (
             /*
               Withheld or unreadable, NOT empty. An empty queue here would read

@@ -126,6 +126,7 @@
     "check:factorial-contract-hours": 29,
     "check:offboarding": 60,
     "check:offboarding-leonie": 46,
+    "check:owners-are-active": 3,
     "check:operations-role": 70,
     "check:budget-column-grants-migration": 10,
     "check:masterdata-source-migration": 15,

@@ -120,6 +120,7 @@
     "check:budget-visibility-migration": 34,
     "check:budget-permission-enforced": 16,
     "check:no-name-matching": 6,
+    "check:privileged-server-actions": 9,
     "check:anon-grants": 4,
     "check:anon-grants-migration": 35,
     "check:factorial-contract-migration": 17,

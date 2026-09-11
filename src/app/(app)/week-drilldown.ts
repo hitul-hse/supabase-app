@@ -2,6 +2,7 @@
 
 import { Client } from "pg";
 import { createClient } from "@/utils/supabase/server";
+import { PERMISSIONS } from "@/lib/permissions";
 import { NO_TEAM } from "@/lib/queries/overview-live";
 
 /**
@@ -36,10 +37,45 @@ export async function getWeekDrilldown(
     byProject: [],
   };
 
-  /* Same gate as the page itself: signed-in users only. */
+  /*
+   * A SIGNED-IN SESSION IS NOT ENOUGH, and this used to think it was.
+   *
+   * The night security audit of 2026-09-11 rated this the only blocking finding
+   * it produced. This action reads `time.entry` and `time.member` over
+   * SUPABASE_DB_URL, which connects as the owner role with row-level security
+   * OFF, and it used to admit anybody `getUser()` recognised. A server action is
+   * a public POST endpoint, and an OAuth sign-in with no profile row keeps its
+   * session (src/app/auth/callback/route.ts) and passes
+   * `enforceRoleRouteAccess` (src/utils/supabase/require-profile.ts). So exactly
+   * the accounts RLS shuts out of everything else could read the top eight
+   * people per team, by name, with their hours, for any week.
+   *
+   * The sibling action `projects/project-drilldown.ts` had always required a
+   * permission before doing the same kind of read. One of the two was wrong and
+   * it was not that one.
+   *
+   * WHY `timesheets:read_all` AND NOT ALSO `projects:read_all`. The sibling asks
+   * for both. This one deliberately asks for one, and the difference is not an
+   * oversight: what leaks here is named people's hours, and `timesheets:read_all`
+   * is precisely the permission for reading everybody's hours. It admits exec and
+   * hr, both of whom read company hours as their job. Adding `projects:read_all`
+   * would protect nothing further -- byProject is the same timesheet rows grouped
+   * differently -- and would take the drilldown away from hr, who should have it.
+   * A permission added for symmetry rather than for a reason is a permission
+   * nobody can later argue with.
+   *
+   * `app_user_has_permission` resolves through the caller's own profile via
+   * auth.uid(), so an account without an active profile row gets false here and
+   * never reaches the connection below.
+   */
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ...empty, error: "Not authenticated." };
+
+  const { data: canReadAllTime } = await supabase.rpc("app_user_has_permission", {
+    p_key: PERMISSIONS.TIMESHEETS_READ_ALL,
+  });
+  if (canReadAllTime !== true) return { ...empty, error: "Not permitted." };
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
     return { ...empty, error: "Bad week key." };
@@ -122,8 +158,15 @@ export async function getWeekDrilldown(
       })),
     };
   } catch (e) {
-    const m = e && typeof e === "object" && "message" in e ? (e as { message: string }).message : String(e);
-    return { ...empty, error: m };
+    /*
+     * The database's own message used to be returned to the browser. A Postgres
+     * error names schemas, tables, columns and sometimes the failing statement,
+     * which hands a caller a map of the warehouse for free -- and this endpoint
+     * is reachable by anyone signed in. It is logged where the operator can read
+     * it and the caller gets a sentence.
+     */
+    console.error("getWeekDrilldown failed", e);
+    return { ...empty, error: "The week could not be read." };
   } finally {
     try { await db.end(); } catch { /* already closed */ }
   }

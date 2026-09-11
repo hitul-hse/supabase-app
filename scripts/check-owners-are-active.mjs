@@ -50,16 +50,36 @@
  * granted on day one is how a gate becomes decoration.
  */
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 import pg from "pg";
 
 const env = loadEnv();
 if (!env.SUPABASE_DB_URL) {
-  console.log("SKIP: no SUPABASE_DB_URL — this gate reads the live roster");
-  process.exit(0);
+  /*
+   * Not `process.exit(0)`. An exit 0 here says "passed" to anything reading the
+   * exit code, when what happened is that the gate never ran. "Did not run" is a
+   * third answer and the protocol in lib/gate-result.mjs exists to say it. This
+   * file had the bare exit, which is the same defect
+   * check-gates-runnable-on-ci.mjs was written to hunt.
+   *
+   * `notRunInChain`, not `notRun`: this gate is inside the `test:db` && chain,
+   * where notRun's exit 3 would stop npm here and silence every gate after it.
+   * The first version of this fix used notRun and check-gates-runnable-on-ci
+   * caught it immediately, which is the gate doing exactly its job.
+   */
+  notRunInChain("no SUPABASE_DB_URL — this gate reads the live roster");
 }
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
+  /*
+   * `record` is what produces the RESULT line the runner reads. Without it this
+   * gate printed three PASS lines and exited 0 having told run-all-gates.mjs
+   * nothing, so the runner called it RED -- correctly, because a gate that
+   * cannot say whether it checked anything is indistinguishable from one that
+   * checked nothing.
+   */
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? `\n        ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

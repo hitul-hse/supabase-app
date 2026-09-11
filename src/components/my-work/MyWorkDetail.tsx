@@ -44,7 +44,14 @@
  *
  * The two customer contacts are personal data of third parties. They render
  * here, for the one selected order, and nowhere else: no list column carries
- * them and no `Column.csv` exports them. check-my-work-detail.mjs pins both.
+ * them and no `Column.csv` exports them. They are not even in the page's
+ * payload: this panel asks the `loadProjectContacts` server action for the
+ * one project it shows, when it shows it (issue #90), so a browser that never
+ * opens a row never holds a contact. check-my-work-detail.mjs pins all three.
+ *
+ * While that read is in flight the section says so, and a failed read says
+ * "could not load" -- never "no contact recorded", which is a statement about
+ * the sheet, not about the network.
  *
  * HONEST NULLS
  * ------------
@@ -71,7 +78,7 @@
  * banner states whichever holds, or both, and "today" for the comparison is
  * the Berlin date, like every other stamp on the panel.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Card, CardDivider, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -81,6 +88,7 @@ import {
   type MyProject,
   type PersonKind,
 } from "@/lib/queries/my-work";
+import { loadProjectContacts, type ProjectContactsResult } from "@/app/(app)/my-work/actions";
 import { LINK_ICON } from "./link-icons";
 
 /** The house glyph for a missing value (DESIGN.md §Data tables 6) -- never 0, never blank. */
@@ -147,17 +155,26 @@ function Row({
   label,
   children,
   mono = false,
+  stacked = false,
 }: {
   label: string;
   children: React.ReactNode;
   /** Figures and codes set in the mono role; prose in the callout role. */
   mono?: boolean;
+  /**
+   * Label on its own line, value under it at the full width of the panel.
+   * For rows whose value is free text: side by side, a label as long as
+   * REISEZEIT ALS PROJEKTZEIT left the value about 100px in the 20rem panel
+   * and a sentence broke mid-word. Short facts (dates, a name) stay side by
+   * side, where the right-aligned column is what makes them scannable.
+   */
+  stacked?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-1">
+    <div className={stacked ? "flex flex-col gap-0.5 py-1" : "flex items-baseline justify-between gap-3 py-1"}>
       <dt className="flex-none t-label text-[var(--text-faint)]">{label}</dt>
       <dd
-        className={`min-w-0 text-right [overflow-wrap:anywhere] ${
+        className={`min-w-0 ${stacked ? "text-left" : "text-right"} [overflow-wrap:anywhere] ${
           mono ? "fig" : "t-callout"
         } text-[var(--text-primary)]`}
       >
@@ -206,7 +223,7 @@ export function MyWorkDetail({
   onClose,
   variant = "panel",
 }: {
-  /** The selected row, with its `detail` (or null) and `contacts`. */
+  /** The selected row, with its `detail` (or null). Contacts are fetched here, not carried. */
   project: MyProject;
   /**
    * Contract hours ALREADY formatted by the tables' `hours()`, so the two
@@ -230,7 +247,41 @@ export function MyWorkDetail({
 }) {
   const t = useTranslations("myWork");
   const locale = useLocale();
-  const { detail, contacts, links } = project;
+  const { detail, links } = project;
+
+  /*
+   * The contacts for THIS project, asked for when it is shown. The answer is
+   * stored with the id it answers, so a panel re-used for another project
+   * (the "panel" variant is not remounted per row) reads as loading until its
+   * own answer arrives, instead of showing the previous order's people for a
+   * moment. Only asked when the sheet has a row for the order: without one the
+   * contacts section is not rendered, and a read nobody sees is not made.
+   */
+  const [contactsFor, setContactsFor] = useState<{
+    projectId: string;
+    result: ProjectContactsResult;
+  } | null>(null);
+  const hasSheetRow = detail !== null;
+  useEffect(() => {
+    if (!hasSheetRow) return;
+    let cancelled = false;
+    loadProjectContacts(project.id)
+      .then((result) => {
+        if (cancelled) return;
+        setContactsFor({ projectId: project.id, result });
+      })
+      .catch(() => {
+        // A thrown action (network gone, server restarted) is a failed read,
+        // and says so; it is not "no contact recorded".
+        if (cancelled) return;
+        setContactsFor({ projectId: project.id, result: { contacts: [], failed: true } });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id, hasSheetRow]);
+  const contactsResult = contactsFor !== null && contactsFor.projectId === project.id ? contactsFor.result : null;
+  const contacts = contactsResult?.contacts ?? [];
 
   /*
    * Below `lg` the grid is one column and the panel sits UNDER a bounded
@@ -402,13 +453,16 @@ export function MyWorkDetail({
           <CardDivider />
 
           <Section title={t("detail.delivery.title")}>
-            <Row label={t("detail.delivery.minOnsite")}>
+            {/* Stacked, all three: these are the rows whose values are the
+                sheet's free text ("nach Absprache mit dem Kunden"), and one
+                shape per section reads as a form rather than a zig-zag. */}
+            <Row label={t("detail.delivery.minOnsite")} stacked>
               <Value value={detail.minOnsiteTime} />
             </Row>
-            <Row label={t("detail.delivery.travelFlatRate")}>
+            <Row label={t("detail.delivery.travelFlatRate")} stacked>
               <Value value={yesNo(detail.travelFlatRate, detail.travelFlatRateText)} />
             </Row>
-            <Row label={t("detail.delivery.travelAsProjectTime")}>
+            <Row label={t("detail.delivery.travelAsProjectTime")} stacked>
               <Value value={yesNo(detail.travelAsProjectTime, detail.travelAsProjectTimeText)} />
             </Row>
           </Section>
@@ -416,7 +470,20 @@ export function MyWorkDetail({
 
           <Section title={t("detail.contacts.title")} list={contacts.length !== 0}>
             {contacts.length === 0 ? (
-              <p className="t-callout text-[var(--text-faint)]">{t("detail.contacts.none")}</p>
+              /* Three different sentences for three different facts: still
+                 asking, could not ask, asked and the sheet has nobody. */
+              <p
+                aria-live="polite"
+                className={`t-callout ${
+                  contactsResult?.failed ? "text-[var(--text-muted)]" : "text-[var(--text-faint)]"
+                }`}
+              >
+                {contactsResult === null
+                  ? t("detail.contacts.loading")
+                  : contactsResult.failed
+                    ? t("detail.contacts.failed")
+                    : t("detail.contacts.none")}
+              </p>
             ) : (
               contacts.map((c) => (
                 <div key={c.slot} className="flex flex-col py-1">

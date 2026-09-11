@@ -40,6 +40,12 @@
  * 7. MARKUP. Every <dl> the panel renders holds dt/dd groups and nothing
  *    else: an empty state is a sentence outside the list, and a link is a
  *    dt/dd pair, not a <div> around an <a>. jsx-a11y does not catch this.
+ * 3b. ONE ORDER AT A TIME (2026-09-11, issue #90). The contacts are not in
+ *    the page payload at all: the panel asks a server action for the one
+ *    selected project, under the same can_view_project() RLS, and says
+ *    "loading" and "could not load" in words distinct from "none recorded".
+ * 8. WRAP. The delivery-terms rows stack label over value, so a long label
+ *    cannot squeeze a free-text value into breaking mid-word.
  *
  * NEGATIVE CONTROLS at the end re-run the load-bearing regexes against
  * deliberately broken inputs and fail if any of them still passes. A gate
@@ -255,7 +261,6 @@ const fnBody = (name) => {
 };
 for (const [fn, table, orderCol] of [
   ["fetchMyMasterdata", "project_masterdata", "project_id"],
-  ["fetchMyContacts", "project_contact", "project_id"],
   ["fetchPersonNames", "org_chart_nodes", "id"],
 ]) {
   const body = fnBody(fn);
@@ -294,13 +299,122 @@ check(
   })(),
 );
 check(
-  "assembleMyWork keeps its positional parameters and takes the sheet inputs as ONE trailing options object",
-  /canSeeBudgets = true,\s*options: \{\s*masterdata\?: MasterdataRowLite\[\];\s*contacts\?: ContactRowLite\[\];\s*personNames\?: PersonNameRowLite\[\];\s*\} = \{\},\s*\): MyWork/.test(query),
-  "check-my-work-scoping calls it with four arguments and must keep type-checking",
+  "assembleMyWork keeps its positional parameters and takes the sheet inputs as ONE trailing options object, with no contacts in it",
+  /canSeeBudgets = true,\s*options: \{\s*masterdata\?: MasterdataRowLite\[\];\s*personNames\?: PersonNameRowLite\[\];\s*\} = \{\},\s*\): MyWork/.test(query),
+  "check-my-work-scoping calls it with four arguments and must keep type-checking; contacts are no longer an input of the page",
+);
+
+/* ------------------------------------ 3b. contacts: one order, on selection */
+
+console.log("\n--- 3b. contacts are read for ONE selected order, on selection, never in the page payload\n");
+
+/*
+ * The migration's own comment on public.project_contact promises the contacts
+ * are read "for one selected order at a time". Until 2026-09-11 the page read
+ * them for the WHOLE book of work and serialised every one of them into the
+ * client component's props, so the browser held every contact of every order
+ * whether or not a row was ever opened. The shape pinned here: the page
+ * payload carries no contacts at all, and the panel asks a server action for
+ * the one project it is showing, under the same can_view_project() RLS.
+ */
+const typeBody = (name) => sliceBetween(query, `export type ${name} = {`, "\n};");
+const myProjectType = typeBody("MyProject");
+const CONTACTS_PROP = /^\s*contacts\??:/m;
+check(
+  "the row the page serialises (MyProject) has no contacts field",
+  myProjectType !== null && /detail: MyProjectDetail \| null;/.test(myProjectType) && !CONTACTS_PROP.test(myProjectType),
+  "the sheet's detail rides on the row; the third parties' contacts must not",
+);
+const getMyWorkBody = fnBody("getMyWork");
+check(
+  "getMyWork reads no contacts (no project_contact, no fetchMyContacts)",
+  getMyWorkBody !== null && !/contact/i.test(getMyWorkBody),
+  "anything getMyWork returns is rendered into MyWorkTables' props and shipped to every browser that opens /my-work",
 );
 check(
-  "the sheet's fields ride on the row as `detail` and `contacts`",
-  /detail: MyProjectDetail \| null;/.test(query) && /contacts: MyContact\[\];/.test(query),
+  "the book-of-work contacts read is gone entirely",
+  !/fetchMyContacts/.test(query),
+  "a dead bulk reader is one import away from coming back",
+);
+check(
+  "project_contact is read in exactly one place in the query module",
+  (query.match(/\.from\("project_contact"\)/g) ?? []).length === 1,
+);
+const contactsFn = (() => {
+  const start = query.indexOf("export async function fetchProjectContacts(");
+  if (start === -1) return null;
+  const end = query.indexOf("\n}\n", start);
+  return end === -1 ? null : query.slice(start, end);
+})();
+check("fetchProjectContacts(supabase, projectId) exists and is exported", contactsFn !== null);
+check(
+  "  it reads project_contact through the caller's own client, never the service role",
+  contactsFn !== null && /\.from\("project_contact"\)/.test(contactsFn) && !/SERVICE_ROLE|service_role|createServiceClient/.test(contactsFn),
+  "can_view_project() is the whole permission model for these rows; a service key would bypass it",
+);
+check(
+  "  it is keyed on ONE project id (.eq), never a list (.in)",
+  contactsFn !== null && /\.eq\("project_id", projectId\)/.test(contactsFn) && !/\.in\(/.test(contactsFn),
+);
+check(
+  "  it orders before ranging",
+  contactsFn !== null && /\.from\("project_contact"\)[\s\S]{0,260}\.order\("slot"\)[\s\S]{0,120}\.range\(/.test(contactsFn),
+  "house rule: .order() before .range() on every paged read",
+);
+check(
+  "  a failed read says FAILED, distinct from 'no contact recorded'",
+  contactsFn !== null && /\} catch \{[\s\S]*failed: true/.test(contactsFn) && /failed: false/.test(contactsFn),
+  "a failed read rendered as an empty list is this project's most expensive recurring bug",
+);
+check(
+  "  its rows go through the one '-' fold (foldContacts), not around it",
+  contactsFn !== null && /foldContacts\(/.test(contactsFn),
+);
+
+const ACTION = "src/app/(app)/my-work/actions.ts";
+const actionExists = existsSync(join(REPO, ACTION));
+check("the contacts action lives beside the page", actionExists, ACTION);
+const action = actionExists ? stripComments(read(ACTION)) : "";
+check(
+  "  it is a server action module",
+  /^\s*"use server";/.test(action),
+);
+check(
+  "  it authenticates the session before reading, and uses the cookie-bound client",
+  /import \{ createClient \} from "@\/utils\/supabase\/server";/.test(action) &&
+    /getSignedInUser\(supabase\)/.test(action) &&
+    /if \(!user\) return/.test(action) &&
+    action.indexOf("getSignedInUser(") < action.indexOf("fetchProjectContacts(supabase"),
+  "a server action is a public endpoint; RLS still decides, but an anonymous call should not reach the query",
+);
+check(
+  "  it never reaches for the service role or a raw Postgres connection",
+  actionExists && !/SERVICE_ROLE|service_role|createServiceClient|from "pg"|SUPABASE_DB_URL/.test(action),
+);
+check(
+  "  it validates the project id before using it",
+  /typeof projectId !== "string"/.test(action) && /projectId\.length (?:>|>=) \d+/.test(action),
+);
+
+check(
+  "the panel fetches the contacts for the selected project, in an effect keyed on project.id",
+  /import \{ loadProjectContacts[^}]*\} from "@\/app\/\(app\)\/my-work\/actions";/.test(detail) &&
+    /loadProjectContacts\(project\.id\)/.test(detail) &&
+    /\}, \[project\.id(?:, hasSheetRow)?\]\);/.test(detail.slice(detail.indexOf("loadProjectContacts(project.id)"))),
+  "keyed on the id so opening another order asks again; hasSheetRow skips the read when the section is not rendered",
+);
+check(
+  "  a response for a project no longer shown is dropped",
+  /let cancelled = false;/.test(detail) && /if \(cancelled\) return;/.test(detail) && /return \(\) => \{\s*cancelled = true;\s*\};/.test(detail),
+  "select A then B quickly: A's late answer must not print A's contacts under B's name",
+);
+check(
+  "  loading and failed are stated, each distinct from 'no contact recorded'",
+  /t\("detail\.contacts\.loading"\)/.test(detail) && /t\("detail\.contacts\.failed"\)/.test(detail) && /t\("detail\.contacts\.none"\)/.test(detail),
+);
+check(
+  "  the panel never reads contacts off the row it was handed",
+  !/project\.contacts|\{[^}]*\bcontacts\b[^}]*\} = project;/.test(detail),
 );
 
 /* ---------------------------------------------------------- 4. honesty */
@@ -489,6 +603,31 @@ check(
   /<div key=\{c\.slot\} className="[^"]*">\s*<dt\b/.test(detail),
 );
 
+/* ------------------------------------------------------------ 8. wrap */
+
+console.log("\n--- 8. the delivery terms stack label over value, so free text never breaks mid-word\n");
+
+/*
+ * REISEZEIT ALS PROJEKTZEIT / TRAVEL TIME IS PROJECT TIME are the longest dt
+ * on the panel. Side by side, a flex-none label that long left the value
+ * about 100px in the 20rem panel, and free text ("nach Absprache mit dem
+ * Kunden") broke mid-word under [overflow-wrap:anywhere]. The delivery terms
+ * are the rows whose values are free text, so they stack: the label on its
+ * own line, the value under it at the full width of the panel.
+ */
+check(
+  "Row has a stacked form: a column, label over value, value left-aligned",
+  /stacked = false/.test(detail) &&
+    /stacked \? "flex flex-col gap-0\.5 py-1"/.test(detail) &&
+    /stacked \? "text-left" : "text-right"/.test(detail),
+);
+const deliveryRows = [...detail.matchAll(/<Row label=\{t\("detail\.delivery\.(\w+)"\)\}([^>]*)>/g)];
+check(
+  "every delivery-terms row renders stacked",
+  deliveryRows.length === 3 && deliveryRows.every((m) => /\bstacked\b/.test(m[2])),
+  deliveryRows.map((m) => `${m[1]}${/\bstacked\b/.test(m[2]) ? " (stacked)" : " (side by side)"}`).join(", "),
+);
+
 /* --------------------------------------------- the page: design tokens */
 
 console.log("\n--- house tokens\n");
@@ -540,11 +679,24 @@ console.log("\n--- negative controls: the load-bearing regexes can go red\n");
   );
 }
 {
-  const unordered = `async function fetchMyContacts(\n  try {\n    (supabase as any).from("project_contact").select("x").in("project_id", slice).range(from, to)\n  } catch {\n    return { rows: [], truncated: false };\n  }\n}`;
+  const unordered = `export async function fetchProjectContacts(\n  try {\n    (supabase as any).from("project_contact").select("x").eq("project_id", projectId).range(0, 9)\n  } catch {\n    return { contacts: [], failed: true };\n  }\n}`;
   check(
     "[control] a read that ranges without ordering WOULD be caught",
-    !/\.from\("project_contact"\)[\s\S]{0,260}\.order\("project_id"\)[\s\S]{0,120}\.range\(/.test(unordered),
+    !/\.from\("project_contact"\)[\s\S]{0,260}\.order\("slot"\)[\s\S]{0,120}\.range\(/.test(unordered),
   );
+}
+{
+  const typed = `export type MyProject = {\n  detail: MyProjectDetail | null;\n  contacts: MyContact[];\n};`;
+  const body = sliceBetween(typed, "export type MyProject = {", "\n};");
+  check("[control] contacts back on the serialised row WOULD be caught", body !== null && CONTACTS_PROP.test(body));
+}
+{
+  const bulk = `export async function getMyWork(supabase) {\n  const [a, contacts] = await Promise.all([x(), fetchMyContacts(supabase, ids)]);\n}`;
+  check("[control] getMyWork reading contacts again WOULD be caught", /contact/i.test(bulk));
+}
+{
+  const leaky = `const { detail, contacts, links } = project;`;
+  check("[control] the panel reading contacts off the row WOULD be caught", /\{[^}]*\bcontacts\b[^}]*\} = project;/.test(leaky));
 }
 {
   const extraColumn = `${projectBlock ?? ""}\n{ key: "phone", header: "PHONE", csv: (r) => "", cell: (r) => null },`;

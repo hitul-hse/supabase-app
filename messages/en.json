@@ -21,7 +21,8 @@
     "rolePermissions": "Role Permissions",
     "budgetAlerts": "Budget Alerts",
     "factorialIdentity": "Factorial Identity",
-    "systemHealth": "System Health"
+    "systemHealth": "System Health",
+    "customers": "Customers"
   },
   "common": {
     "logOut": "Log out",
@@ -2325,5 +2326,25 @@
     "source": "From the masterdata sheet, as of {when}",
     "sourceUndated": "From the masterdata sheet",
     "loading": "Loading the customer profile"
+  },
+  "customers": {
+    "title": "Customers",
+    "metaAll": "{total} CUSTOMERS · {orders} ORDERS",
+    "metaVisible": "{total} CUSTOMERS YOU CAN SEE · {orders} ORDERS",
+    "colNumber": "Customer number",
+    "colName": "Customer",
+    "colCity": "City",
+    "colLive": "Live",
+    "colOrders": "Orders",
+    "noName": "No name recorded",
+    "dormant": "No live orders",
+    "emptyTitle": "No customers visible",
+    "emptyDescription": "None of the orders you can see carries a customer number. That is a statement about your visibility, not about the customer list.",
+    "truncated": "The read ceiling was reached. Every figure below is a floor.",
+    "pagerNav": "Customer pages",
+    "pagerPrev": "Previous",
+    "pagerNext": "Next",
+    "pagerPage": "Customers, page {n}",
+    "pagerCount": "PAGE {page} OF {pageCount} · {total} CUSTOMERS"
   }
 }

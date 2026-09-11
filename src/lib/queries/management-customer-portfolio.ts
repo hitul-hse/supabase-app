@@ -47,6 +47,18 @@ export type CustomerPortfolioProject = {
 
 export type CustomerPortfolioRow = {
   legalEntityId: string;
+  /**
+   * The five-digit Lexware number this entity's active orders resolve to, or
+   * null when they resolve to none or to more than one.
+   *
+   * This panel groups on the legal entity; `/customers/[number]` is keyed on the
+   * Lexware number (ADR-001), and the two are NOT the same grain — 4 entities
+   * carry several numbers, one Lexware account per billing relationship. A link
+   * built from "the first number on the pile" would open a different customer
+   * from the one the row describes, so a row that cannot name exactly one number
+   * gets no link at all.
+   */
+  customerNumber: string | null;
   customer: string;
   legalEntity: string;
   locations: string[];
@@ -72,6 +84,8 @@ type Project = { id: string; code: string; name: string; contract_hours: number 
 type Person = { id: string; name: string };
 type Assignment = { person_id: string; project_id: string | null };
 type TimeProject = { hub_project_id: string | null; source_id: string | null; service: { name: string } | null };
+/** One masterdata row, read only for the Lexware number it carries. */
+type MasterdataNumber = { project_id: string; customer_number: string | null };
 
 // The generated types cover public only; these schemas are read through the same
 // typed server client and never receive writes from this query.
@@ -111,12 +125,27 @@ export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): P
   const canSeeBudgets = await canReadBudgets(supabase);
 
   try {
-    const [{ data: projects }, { data: people }, { data: assignments }, timeProjects, customerMappings] = await Promise.all([
+    const [{ data: projects }, { data: people }, { data: assignments }, timeProjects, customerMappings, masterdataNumbers] = await Promise.all([
       projectsSelect(supabase, "id, code, name, contract_hours, status, owner_person_id", canSeeBudgets),
       supabase.from("people").select("id, name"),
       supabase.from("person_assignments").select("person_id, project_id"),
       fetchAllPaged<Record<string, unknown>>((from, to) => schema(supabase, "time").from("project").select("hub_project_id, source_id, service:service_id(name)").order("id", { ascending: true }).range(from, to)),
       readManagementCustomerMappings(),
+      /*
+       * The Lexware number per order, so a row can link to the customer profile.
+       * `public.project_masterdata` is under can_view_project(), so this read
+       * cannot widen the panel; it only lets a row say WHICH customer it is.
+       *
+       * `.order()` before `.range()`, per the house rule. REPORTED, NOT FIXED
+       * HERE: the `time.project` read directly above ranges with no order at
+       * all, and `house/paged-read-needs-order` has been warning about it since
+       * before this change. It is a real defect (overlapping pages silently
+       * drop rows) but it belongs to the service mapping, not to this ticket.
+       */
+      fetchAllPaged<MasterdataNumber>((from, to) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("project_masterdata").select("project_id, customer_number").order("project_id").range(from, to),
+      ),
     ]);
     if (!projects || !people || !assignments || timeProjects.truncated) return emptyModel();
 
@@ -129,6 +158,10 @@ export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): P
       const name = peopleById.get(assignment.person_id);
       if (name) names.push(name);
       assignmentsByProject.set(assignment.project_id, names);
+    }
+    const numberByProject = new Map<string, string>();
+    for (const row of masterdataNumbers.rows) {
+      if (row.project_id && row.customer_number) numberByProject.set(row.project_id, row.customer_number);
     }
     const timeByProject = new Map<string, TimeProject[]>();
     for (const timeProject of timeProjects.rows as TimeProject[]) {
@@ -181,8 +214,12 @@ export async function getManagementCustomerPortfolio(supabase: SupabaseTyped): P
       })).sort((left, right) => left.service.localeCompare(right.service, "de"));
       if (serviceHoursIncomplete) risks.add("Mehrfach-Service-Zuordnung: Stunden nicht eindeutig verteilbar");
       if (projectDetails.some((project) => project.contractHours === null)) risks.add("Vertragsstunden unvollständig");
+      // Exactly one Lexware number across this entity's active orders, or none.
+      // See CustomerPortfolioRow.customerNumber for why anything else is null.
+      const entityNumbers = unique(entityProjects.map((project) => numberByProject.get(project.id) ?? null));
       return {
         legalEntityId: entity.id,
+        customerNumber: entityNumbers.length === 1 ? entityNumbers[0] : null,
         customer: entity.legalName,
         legalEntity: entity.legalName,
         locations: [],

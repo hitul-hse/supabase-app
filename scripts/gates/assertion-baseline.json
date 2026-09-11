@@ -60,7 +60,7 @@
     "test:lint-scope": 13,
     "test:no-mockup-people": 44,
     "test:timesheet-truth": 12,
-    "test:design-system": 510,
+    "test:design-system": 576,
     "test:org-chart": 33,
     "test:member-hierarchy-migration": 10,
     "test:time-org-chart-view": 7,
@@ -145,6 +145,7 @@
     "check:content-width": 9,
     "check:gates-runnable": 8,
     "check:my-work-detail": 80,
+    "check:customer-profile": 168,
     "test:schema-order": 5,
     "test:approval-error-handling": 6
   }

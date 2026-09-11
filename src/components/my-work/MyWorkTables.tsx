@@ -61,6 +61,7 @@
  * The width those three freed is what pays for five link columns instead of
  * one -- see the block that builds them.
  */
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
@@ -684,14 +685,40 @@ export function MyWorkTables({
           // cell it sits in buys nothing and truncates a name while the space
           // to show it sits empty alongside.
           <div className="flex min-w-0 max-w-[18rem] flex-col gap-0.5">
-            <button
-              type="button"
-              onClick={() => drillInto(r.customer)}
-              title={`Show this customer's ${r.projectCount} project${r.projectCount === 1 ? "" : "s"}`}
-              className="block truncate text-left t-callout text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
-            >
-              {r.customer}
-            </button>
+            {/*
+              THE NAME NOW OPENS THE CUSTOMER, and only when it can say WHICH
+              customer. `customerNumber` is the single distinct five-digit
+              Lexware number across this group's orders and is null when the
+              group carries none or more than one -- 3 legal entities carry two
+              to four numbers each, and a link built from "the first one we saw"
+              would open a customer this row is not about (ADR-001).
+
+              The in-table drill is NOT replaced by it: the MY PROJECTS count
+              beside this cell carries the same `drillInto` for every row,
+              numbered or not, so no behaviour was removed to add one.
+
+              --accent, unlike the filter button next to it, because this one
+              NAVIGATES. A reader has to be able to tell "goes somewhere" from
+              "filters here" before they click, not after.
+            */}
+            {r.customerNumber !== null ? (
+              <Link
+                href={`/customers/${r.customerNumber}`}
+                title={`Open the customer profile for ${r.customer} (${r.customerNumber})`}
+                className="block truncate text-left t-callout text-[var(--accent)] underline-offset-2 hover:underline"
+              >
+                {r.customer}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => drillInto(r.customer)}
+                title={`Show this customer's ${r.projectCount} project${r.projectCount === 1 ? "" : "s"}`}
+                className="block truncate text-left t-callout text-[var(--text-primary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
+              >
+                {r.customer}
+              </button>
+            )}
             {/* The merge, shown rather than assumed: "GEPLAHN-T" and
                 "GEPLAHN-T GmbH" are one legal entity, and folding them silently
                 leaves a customer count nobody can reconcile. */}
@@ -733,9 +760,20 @@ export function MyWorkTables({
             .join(" / "),
         cell: (r) => (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="fig text-[var(--text-secondary)]">
+            {/*
+              The drill lives here now, on the count, so it survives for every
+              row -- including the ones whose name became a link to the customer
+              profile. It was on the name alone before, and moving it without
+              replacing it would have cost the table its filter.
+            */}
+            <button
+              type="button"
+              onClick={() => drillInto(r.customer)}
+              title={`Show this customer's ${r.projectCount} project${r.projectCount === 1 ? "" : "s"}`}
+              className="fig text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
+            >
               {r.projectCount}
-            </span>
+            </button>
             {ROLE_ORDER.filter((x) => r.roleCounts[x] > 0).map((x) => (
               <span key={x} className="flex flex-none items-center gap-1">
                 <span className="fig text-[var(--text-muted)]">

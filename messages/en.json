@@ -658,7 +658,9 @@
         "linkNa": "{label}: n/a",
         "linksNote": "The current project read model has no reliable URL fields for these link types.",
         "replacementNa": "Replacement: n/a",
-        "replacementTitle": "Replacement needs a confirmed service-related model"
+        "replacementTitle": "Replacement needs a confirmed service-related model",
+        "customerProfile": "Customer profile {number}",
+        "customerProfileNa": "Customer profile: no single customer number"
       }
     },
     "multiService": {
@@ -2148,5 +2150,180 @@
       "source": "From the masterdata sheet, updated {when}",
       "sourceUndated": "From the masterdata sheet"
     }
+  },
+  "customer": {
+    "header": {
+      "fallbackTitle": "Customer {number}",
+      "metaAll": "CUSTOMER NUMBER {number} · ALL ORDERS",
+      "metaVisible": "CUSTOMER NUMBER {number} · ONLY ORDERS YOU MAY SEE"
+    },
+    "identity": {
+      "title": "Customer",
+      "qualifier": "FROM THE MASTERDATA SHEET",
+      "legalName": "LEGAL NAME",
+      "group": "CORPORATE GROUP",
+      "language": "LANGUAGE",
+      "spellings": "ALSO WRITTEN AS",
+      "number": "CUSTOMER NUMBER"
+    },
+    "language": {
+      "de": "German",
+      "en": "English"
+    },
+    "tiles": {
+      "orders": "ORDERS",
+      "ordersHintAll": "in the masterdata sheet",
+      "ordersHintVisible": "visible to you",
+      "running": "RUNNING CONTRACTS",
+      "runningHint": "of {total} · as of today",
+      "runningHintUnknown": "of {total} · {unknown} with no end date",
+      "contract": "CONTRACT HOURS",
+      "contractHint": "across {measured} of {total} orders",
+      "contractNone": "not set on any order",
+      "withheld": "withheld",
+      "withheldHint": "Your role does not see contract hours",
+      "logged": "HOURS LOGGED",
+      "loggedHint": "measured for {measured} of {total} orders · as of {when}",
+      "loggedNone": "not measured for any order"
+    },
+    "banner": {
+      "endedLabel": "ALL CONTRACTS ENDED",
+      "ended": "The last contract ended on {date}.",
+      "historicalLabel": "HISTORICAL",
+      "historical": "{count, plural, one {# order is} other {# orders are}} no longer carried in the masterdata sheet.",
+      "both": "The last contract ended on {date}; {count, plural, one {# order is} other {# orders are}} no longer in the sheet."
+    },
+    "locations": {
+      "title": "Locations",
+      "count": "{count, plural, one {# ADDRESS} other {# ADDRESSES}}",
+      "orders": "ORDERS {codes}",
+      "none": "No address recorded"
+    },
+    "orders": {
+      "title": "Orders",
+      "hint": "as of {when}",
+      "search": "Search orders…",
+      "termRange": "{start} – {end}",
+      "empty": "No visible order for this customer number.",
+      "col": {
+        "service": "SERVICE",
+        "serviceTitle": "Service number and name from the masterdata sheet, taken as written.",
+        "responsible": "RESPONSIBLE",
+        "term": "TERM",
+        "termTitle": "Contract start to end. Sorted by end date; orders with no end date always sort last.",
+        "status": "STATUS",
+        "contract": "CONTRACT HOURS",
+        "logged": "LOGGED",
+        "loggedTitle": "Hours by everyone on this order, as of {when}. With no TrackingTime link the cell stays empty."
+      },
+      "status": {
+        "running": "RUNNING",
+        "ended": "ENDED",
+        "unknownEnd": "END UNKNOWN",
+        "historical": "HISTORICAL"
+      },
+      "footnote": {
+        "visibility": "This page shows only orders you may see. More may exist.",
+        "hours": "Hours are known for {measured} of {total} orders; the total is a floor, not the whole.",
+        "hoursNone": "No hours are measured for any of these orders.",
+        "budgets": "Contract hours are withheld from your role and are therefore not in this table.",
+        "unnumbered": "{count, plural, one {# further order of the same legal entity carries no customer number and is not in this list.} other {# further orders of the same legal entity carry no customer number and are not in this list.}}",
+        "siblingsLead": "The same legal entity carries further customer numbers:",
+        "terms": "Delivery terms – minimum on-site time, travel, travel as project time – are on the order, not here.",
+        "truncated": "Part of the data could not be read in full; the figures are floors."
+      }
+    },
+    "contacts": {
+      "title": "Customer contacts",
+      "qualifier": "PERSONAL DATA",
+      "privacy": "Only for orders you may see. Never exported.",
+      "onOrders": "Named on {codes}",
+      "noName": "No name recorded",
+      "none": "No contact recorded",
+      "unavailable": "The contacts could not be read. That is a failure, not a statement about the customer."
+    },
+    "care": {
+      "title": "Who looks after this",
+      "qualifier": "PER THE MASTERDATA SHEET",
+      "responsible": "RESPONSIBLE",
+      "replacement": "REPLACEMENT",
+      "onOrders": "{codes}",
+      "none": "Nobody recorded",
+      "summary": "{count, plural, one {# person} other {# people}}",
+      "gap": "{count, plural, one {# of {total} orders has} other {# of {total} orders have}} no named responsible.",
+      "gapUnknown": "Whether someone is named responsible on every order could not be checked.",
+      "noneNamed": "Nobody is named responsible on any of these orders."
+    },
+    "people": {
+      "doctor": "Company doctor",
+      "other": "Other",
+      "unknown": "Name not available"
+    },
+    "links": {
+      "title": "Links",
+      "qualifier": "EACH DESTINATION ONCE",
+      "onOrders": "{codes}",
+      "fileStorage": "FILE STORAGE",
+      "none": "No links recorded",
+      "unavailable": "The links could not be read. That is a failure, not a statement about the customer.",
+      "summary": "{count, plural, one {# link} other {# links}}",
+      "summaryUnavailable": "Not readable"
+    },
+    "crm": {
+      "title": "Customer master record",
+      "qualifier": "LEXWARE · EXEC ONLY",
+      "withheldLabel": "WITHHELD",
+      "withheldBody": "The canonical customer master record is restricted to the executive team. This page does not tell you whether one exists either. Everything above comes from the masterdata sheet.",
+      "none": "There is no customer master record for this number.",
+      "unavailable": "The customer master record could not be read. That is a failure, not a restriction.",
+      "reviewRequired": "REVIEW OPEN",
+      "field": {
+        "displayName": "DISPLAY NAME",
+        "billingName": "BILLING NAME",
+        "billingAddress": "BILLING ADDRESS",
+        "vatId": "VAT ID",
+        "legalEntity": "LEGAL ENTITY",
+        "legalForm": "LEGAL FORM",
+        "country": "COUNTRY",
+        "lifecycle": "LIFECYCLE",
+        "review": "REVIEW STATUS",
+        "locations": "LOCATIONS (CRM)",
+        "aliases": "ALIASES"
+      },
+      "summary": {
+        "withheld": "Withheld",
+        "none": "No record",
+        "unavailable": "Not readable",
+        "present": "Lexware"
+      }
+    },
+    "empty": {
+      "invisible": {
+        "title": "No order for this customer number is visible to you",
+        "description": "You see orders where you are responsible, replacement or assigned. Whether this number exists, this page does not say.",
+        "action": "Go to My Work"
+      },
+      "unknown": {
+        "title": "Customer number {number} is unknown",
+        "description": "This number is in neither the customer master nor the order data. A typo — or the import has not reached it yet.",
+        "action": "Go to import review"
+      },
+      "noOrders": {
+        "title": "Customer with no order",
+        "description": "The number is in the customer master but carries no service order. The master record is below."
+      },
+      "unchecked": {
+        "title": "No order for customer number {number}",
+        "description": "There is nothing under this number in the order data. Whether it is in the customer master could not be checked."
+      },
+      "failed": {
+        "title": "The customer profile could not be loaded",
+        "description": "The query failed; nothing is shown rather than a partial view. Reload — if it persists, an administrator checks the logs.",
+        "action": "Reload"
+      }
+    },
+    "source": "From the masterdata sheet, as of {when}",
+    "sourceUndated": "From the masterdata sheet",
+    "loading": "Loading the customer profile"
   }
 }

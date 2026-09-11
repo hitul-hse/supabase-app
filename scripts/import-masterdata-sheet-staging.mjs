@@ -44,10 +44,10 @@
 import { basename, resolve } from "node:path";
 import { loadEnv } from "./lib/gate-env.mjs";
 import {
-  SERVICE_TAB, CONTACT_TAB, SERVICE_SHEET_NAME, CONTACT_SHEET_NAME,
+  SERVICE_TAB, CONTACT_TAB, SERVICE_SHEET_NAME,
   SERVICE_COLUMNS, CONTACT_COLUMNS, SERVICE_HEADER_ANCHOR, CONTACT_HEADER_ANCHOR,
   readWorkbook, headerDrift, dataRows, normaliseServiceRow, normaliseContactRow,
-  flagDuplicateKeys, classify, BLOCKING_FLAGS, personSentinel,
+  flagDuplicateKeys, BLOCKING_FLAGS, indexPeopleByFirstName, resolveStagedRecords,
 } from "./lib/masterdata-sheet.mjs";
 
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -104,84 +104,13 @@ try {
   const lexware = new Map((await client.query(`select customer_number, legal_entity_id from crm.lexware_customer`)).rows
     .map((r) => [String(r.customer_number).trim(), r.legal_entity_id]));
   const orderNumbers = new Set((await client.query(`select order_number from projects.project_order`)).rows.map((r) => r.order_number));
-  // People resolve by normalised FIRST NAME, the rule the August importer and
-  // import-project-responsibility.mjs already use: the sheet writes full names
-  // ("Hendryk Arndt"), public.people carries first names ("Hendryk", id
-  // md-hendryk). Two active people sharing a first name make the name
-  // ambiguous, and an ambiguous name is unmatched -- never a guess (ADR-001).
-  const firstName = (s) => String(s ?? "").toLowerCase().replace(/[\u200b-\u200d\ufeff]/g, "").replace(/\s+/g, " ").trim().split(" ")[0];
-  const people = new Map();
-  for (const r of (await client.query(`select id, name from public.people where is_active`)).rows) {
-    const f = firstName(r.name);
-    if (!f) continue;
-    people.set(f, people.has(f) ? "AMBIGUOUS" : r.id);
-  }
+  // People resolve by normalised first name; the rule and its ambiguity
+  // handling live with resolveStagedRecords in lib/masterdata-sheet.mjs.
+  const people = indexPeopleByFirstName((await client.query(`select id, name from public.people where is_active`)).rows);
 
-  const records = [];
-  let rowNumber = 0;
-  const tally = {};
-  const bump = (flag) => { tally[flag] = (tally[flag] ?? 0) + 1; };
-
-  for (const entry of services) {
-    const v = entry.values;
-    const legalEntityId = v.customer_number ? lexware.get(v.customer_number) ?? null : null;
-    if (v.customer_number && !legalEntityId) entry.flags.push("CUSTOMER_NOT_IN_WAREHOUSE");
-    if (v.order_number && orderNumbers.has(v.order_number)) v.order_resolution = "new_key";
-    else if (v.order_number_old && orderNumbers.has(v.order_number_old)) v.order_resolution = "legacy_key";
-    else if (v.order_number_old) { v.order_resolution = "unknown"; entry.flags.push("UNKNOWN_OLD_KEY"); }
-    else v.order_resolution = "new";
-    for (const [nameKey, idKey, kindKey, flag, who] of [
-      ["responsible_name", "responsible_person_id", "responsible_kind", "UNMATCHED_RESPONSIBLE", "RESPONSIBLE"],
-      ["replacement_name", "replacement_person_id", "replacement_kind", "UNMATCHED_REPLACEMENT", "REPLACEMENT"],
-    ]) {
-      const sentinel = personSentinel(v[nameKey]);
-      if (sentinel) {
-        v[idKey] = null;
-        v[kindKey] = sentinel;
-        entry.flags.push(`${who}_${sentinel.toUpperCase()}`);
-        continue;
-      }
-      const f = v[nameKey] ? firstName(v[nameKey]) : null;
-      const hit = f ? people.get(f) ?? null : null;
-      v[idKey] = hit && hit !== "AMBIGUOUS" ? hit : null;
-      v[kindKey] = v[nameKey] ? "person" : null;
-      if (f && !v[idKey]) entry.flags.push(hit === "AMBIGUOUS" ? `${flag}_AMBIGUOUS` : flag);
-    }
-    for (const f of entry.flags) bump(f);
-    const status = classify({ errors: entry.errors, flags: entry.flags, candidateLegalEntityId: legalEntityId });
-    records.push({
-      row_number: ++rowNumber,
-      source_external_id: v.order_number ?? v.order_number_old ?? `${SERVICE_SHEET_NAME}:${v.sheet_row}`,
-      source_customer_number: v.customer_number,
-      raw_payload: { sheet_name: SERVICE_SHEET_NAME, sheet_row: v.sheet_row, values: v, source_values: entry.source_values, flags: entry.flags },
-      normalized_payload: v,
-      candidate_legal_entity_id: legalEntityId,
-      ...status,
-      sheet_row: v.sheet_row,
-      flags: entry.flags,
-    });
-  }
-
-  for (const entry of contacts) {
-    const v = entry.values;
-    const legalEntityId = v.customer_number ? lexware.get(v.customer_number) ?? null : null;
-    const hasServices = v.customer_number ? customersWithServices.has(v.customer_number) : false;
-    if (v.customer_number && !legalEntityId && hasServices) entry.flags.push("CUSTOMER_NOT_IN_WAREHOUSE");
-    if (!hasServices) entry.flags.push("NO_SERVICE_ROW");
-    for (const f of entry.flags) bump(f);
-    const status = classify({ errors: entry.errors, flags: entry.flags, candidateLegalEntityId: legalEntityId });
-    records.push({
-      row_number: ++rowNumber,
-      source_external_id: `${CONTACT_SHEET_NAME}:${v.customer_number ?? `row${v.sheet_row}`}`,
-      source_customer_number: v.customer_number,
-      raw_payload: { sheet_name: CONTACT_SHEET_NAME, sheet_row: v.sheet_row, values: v, source_values: entry.source_values, flags: entry.flags },
-      normalized_payload: v,
-      candidate_legal_entity_id: legalEntityId,
-      ...status,
-      sheet_row: v.sheet_row,
-      flags: entry.flags,
-    });
-  }
+  // The resolution step itself is shared with check-masterdata-promote.mjs, so
+  // the gate's fixture is shaped by exactly this code.
+  const { records, tally } = resolveStagedRecords({ services, contacts, lexware, orderNumbers, people });
 
   const blocking = records.filter((r) => r.review_status === "review_required");
   const invalid = records.filter((r) => r.validation_status === "invalid");

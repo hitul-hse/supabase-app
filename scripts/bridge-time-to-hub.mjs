@@ -102,6 +102,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { MASTERDATA_SERVICE_SQL, indexMasterdata, resolveOrderKey } from "./lib/order-key.mjs";
 
 const APPLY = process.argv.includes("--apply");
 const ENV_PATH = `${REPO_ROOT}/.env.local`;
@@ -472,16 +473,31 @@ for (const p of badCode) {
 //     89 time customers appear in bridged data; 84 map to exactly one hub
 //     customer number, 5 are inconsistent and are therefore not used.
 //
-//   time.service_id  -> the 3-digit SERVICE segment of the order number
+//   time.service_id  -> the order's SERVICE NUMBER (measured 2026-08-26 against
+//     the old 3-digit segment, which is what these figures are in):
 //     service  7 (Grundunterweisung)  -> 701   10/10 = 100%
 //     service  5 (Brandschutzbeauftr.)-> 501    7/7  = 100%
 //     service  1 (SiFa)               -> 104   70/77 =  91%
 //     service  6 (Risk Assessment)    -> 401    5/6  =  83%
 //     service  2 (Betriebsarzt)       -> 205   40/56 =  71%   <- NOT pure
 //
-// An order number is customer_order_SERVICE_seq, so knowing the customer AND the
-// service pins down the order — but only if exactly one hub order has that
-// combination. That is the rule, and it is checked, not assumed.
+// Knowing the customer AND the service pins down the order — but only if exactly
+// one hub order has that combination. That is the rule, and it is checked, not
+// assumed.
+//
+// WHICH SERVICE NUMBER (2026-09-11, issue #94). Since the masterdata sheet went
+// live the hub holds two order-number grammars: 10275_00123_104_01 and the
+// sheet's 10178_00028_1001.1_01. Taking the third underscore segment read the
+// second as "1001.1", so a
+// new-format order could never be learned from or bridged to. Both grammars are
+// now read by scripts/lib/order-key.mjs, and the key compared here is the sheet's
+// authoritative service number (public.project_masterdata.service_number; a
+// new-format id also states it and must agree). The old 3-digit code is NOT
+// converted into one -- 104 is service 1001 in 65 sheet rows and 1000 in 4 -- so
+// an order whose service number cannot be established exactly is "unknown", and
+// GUARD 7 below refuses any customer that has one: that order could be the true
+// answer, and leaving it out of the comparison is how a wrong order starts to
+// look unique.
 //
 // SIX GUARDS, each of which killed real false positives when measured:
 //
@@ -527,16 +543,25 @@ const bridgedTruth = (await c.query(`
   select p.customer_id, p.service_id, p.hub_project_id, p.name
     from time.project p where p.hub_project_id is not null`)).rows;
 
-const custMap = new Map();   // time.customer_id -> Map(hub 5-digit prefix -> count)
-const svcMap = new Map();    // time.service_id  -> Map(hub 3-digit segment -> count)
-const svcWords = new Map();  // hub segment      -> Map(word -> count) seen on the time side
+// Both order-number grammars, one reading: customer number from the id, service
+// number from project_masterdata (or a new-format id that agrees with it).
+const mdIndex = indexMasterdata((await c.query(MASTERDATA_SERVICE_SQL)).rows);
+const orderKey = (id) => resolveOrderKey(String(id), mdIndex);
+
+const custMap = new Map();   // time.customer_id -> Map(hub 5-digit customer number -> count)
+const svcMap = new Map();    // time.service_id  -> Map(hub service number -> count)
+const svcWords = new Map();  // hub service no.  -> Map(word -> count) seen on the time side
+let truthWithoutService = 0;
 for (const b of bridgedTruth) {
-  if (b.customer_id != null) {
-    const pre = String(b.hub_project_id).slice(0, 5);
+  const k = orderKey(b.hub_project_id);
+  if (b.customer_id != null && k.customer_number) {
+    const pre = k.customer_number;
     if (!custMap.has(b.customer_id)) custMap.set(b.customer_id, new Map());
     const m = custMap.get(b.customer_id); m.set(pre, (m.get(pre) ?? 0) + 1);
   }
-  const seg = String(b.hub_project_id).split("_")[2];
+  const seg = k.service_number;
+  // An order whose service number is unknown teaches nothing about services.
+  if (seg === null) { truthWithoutService += 1; continue; }
   if (b.service_id != null) {
     if (!svcMap.has(b.service_id)) svcMap.set(b.service_id, new Map());
     const m = svcMap.get(b.service_id); m.set(seg, (m.get(seg) ?? 0) + 1);
@@ -557,7 +582,9 @@ const takenHub = new Set(bridgedTruth.map((b) => b.hub_project_id));
 console.log(`  learned from the ${bridgedTruth.length} already-bridged rows (ground truth, not assumption):`);
 console.log(`    time.customer -> hub customer number : ${[...custMap.values()].filter((m) => m.size === 1).length}` +
   ` of ${custMap.size} customers map to exactly one (the rest are refused)`);
-console.log("    time.service  -> hub service segment :");
+console.log(`    ${truthWithoutService} bridged row(s) point at an order whose service number is unknown` +
+  ` (no project_masterdata row, or one that contradicts its id) and teach no service mapping`);
+console.log("    time.service  -> hub service number  :");
 for (const [sid, m] of [...svcMap.entries()].sort((a, b) => Number(a[0]) - Number(b[0]))) {
   const tot = [...m.values()].reduce((a, b) => a + b, 0);
   const ranked = [...m.entries()].sort((a, b) => b[1] - a[1]);
@@ -572,6 +599,7 @@ const unbridgedRows = (await c.query(`
     from time.project p left join time.customer tc on tc.id=p.customer_id
    where p.hub_project_id is null order by 7 desc`)).rows;
 const hubRows = (await c.query(`select id, name, customer from public.projects`)).rows;
+const hubKey = new Map(hubRows.map((x) => [x.id, orderKey(x.id)]));
 
 const ruleB = [], ruleBRefused = [];
 for (const p of unbridgedRows) {
@@ -594,16 +622,22 @@ for (const p of unbridgedRows) {
   const ranked = [...sm.entries()].sort((a, b) => b[1] - a[1]);
   const seg = ranked[0][0], purity = ranked[0][1] / tot;
 
-  const matches = hubRows.filter((x) => String(x.id).startsWith(pre + "_") && String(x.id).split("_")[2] === seg);
-  if (matches.length === 0) { no(`customer ${pre} has no hub order in service segment ${seg} — the order is missing upstream`); continue; }
-  if (matches.length > 1) { no(`${matches.length} hub orders share customer ${pre} + segment ${seg} — ambiguous`); continue; }
+  const ofCustomer = hubRows.filter((x) => hubKey.get(x.id).customer_number === pre);
+  // GUARD 7 — an order of this customer whose service number is unknown could be
+  // the true answer; comparing only the orders we can read would make a wrong
+  // one look unique.
+  const unknownSvc = ofCustomer.filter((x) => hubKey.get(x.id).service_number === null);
+  if (unknownSvc.length) { no(`customer ${pre} has ${unknownSvc.length} hub order(s) whose service number is unknown (e.g. ${unknownSvc[0].id}) — undecidable`); continue; }
+  const matches = ofCustomer.filter((x) => hubKey.get(x.id).service_number === seg);
+  if (matches.length === 0) { no(`customer ${pre} has no hub order with service number ${seg} — the order is missing upstream`); continue; }
+  if (matches.length > 1) { no(`${matches.length} hub orders share customer ${pre} + service number ${seg} — ambiguous`); continue; }
   const hx = matches[0];
 
-  // GUARD 6 — if this service also maps to other segments, and the customer has
-  // an order in one of those too, the answer is genuinely undecidable.
+  // GUARD 6 — if this service also maps to other service numbers, and the
+  // customer has an order in one of those too, the answer is genuinely undecidable.
   const rivals = ranked.slice(1).map(([s]) => s)
-    .filter((s) => hubRows.some((x) => String(x.id).startsWith(pre + "_") && String(x.id).split("_")[2] === s));
-  if (rivals.length) { no(`service ${p.service_id} also maps to segment(s) ${rivals.join("/")} and customer ${pre} has an order there too — undecidable`); continue; }
+    .filter((s) => ofCustomer.some((x) => hubKey.get(x.id).service_number === s));
+  if (rivals.length) { no(`service ${p.service_id} also maps to service number(s) ${rivals.join("/")} and customer ${pre} has an order there too — undecidable`); continue; }
 
   // GUARD 2 — do not steal a hub order already bridged elsewhere.
   if (takenHub.has(hx.id)) { no(`hub order ${hx.id} is already bridged to another time.project`); continue; }

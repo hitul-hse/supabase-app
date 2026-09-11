@@ -30,6 +30,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./lib/gate-env.mjs";
 import { record, recordNotRun, notRun } from "./lib/gate-result.mjs";
+import { MASTERDATA_SERVICE_COLUMNS, indexMasterdata, parseOrderKey, resolveOrderKey, serviceWordsFor } from "./lib/order-key.mjs";
 
 const env = loadEnv();
 const missing = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].filter((k) => !env[k]);
@@ -108,8 +109,9 @@ check("no TT link dangles at a missing order", dangling.length === 0, dangling.m
  * The three lawful rules, all exact-key, none of them name similarity:
  *   1. prefix:  the TT name begins with the order's 5-digit Lexware number
  *   2. name:    the TT name normalises to the order's name exactly
- *   3. service: the order's service segment is named in the TT name, AND the
+ *   3. service: the order's service is named in the TT name, AND the
  *               customer agrees via the order's own Lexware number
+ *               (both order-number grammars, via scripts/lib/order-key.mjs)
  *
  * Rule 3 is what links TT "Mbition / 26 SiFa" to order
  * "Mbition / sicherheitstechnische Betreuung 2026": same customer number, and
@@ -138,20 +140,29 @@ for (let f = 0; ; f += 1000) {
 }
 
 /*
- * Service segment -> the abbreviations that name it. Taken from the order-number
- * grammar (customer_order_service_seq), not inferred from the data, so a new
- * spelling cannot silently widen the rule.
+ * Service -> the abbreviations that name it: SERVICE_WORDS in
+ * scripts/lib/order-key.mjs, a fixed table keyed on the legacy service code, not
+ * inferred from the data, so a new spelling cannot silently widen the rule. The
+ * order's code is read by resolveOrderKey for BOTH grammars: from an old id
+ * itself, or -- for the masterdata sheet's new ids (10178_00028_1001.1_01) --
+ * through the sheet's exact service-number crosswalk, and n/a when that is
+ * ambiguous.
  */
-const SERVICE_WORDS = {
-  101: ["sifa", "ba", "dguv"], 102: ["sifa", "fasi", "praxis"],
-  104: ["sifa", "fasi", "sicherheitstechnische", "safety"], 111: ["sifa"],
-  203: ["ba", "betriebsarzt", "doctor", "health"], 205: ["ba", "betriebsarzt", "arbeitsmedizin", "health", "care"],
-  301: ["kk", "sifa"], 401: ["gbu", "risk", "assessment", "gefaehrdungsbeurteilung"],
-  403: ["support", "hse"], 404: ["hse"], 412: ["psych", "psysch"],
-  501: ["bsb", "brandschutz", "evakuierung", "brandschutzhelfer"],
-  601: ["sigeko", "site"], 605: ["sigeko", "site"], 606: ["sigeko"], 60107: ["sigeko", "site"],
-  701: ["gu", "grundunterweisung", "instruction", "unterweisung"],
-};
+const masterdataRows = [];
+let masterdataError = null;
+for (let f = 0; ; f += 1000) {
+  const { data, error } = await db.from("project_masterdata").select(MASTERDATA_SERVICE_COLUMNS).order("project_id").range(f, f + 999);
+  if (error) { masterdataError = error.message; break; }
+  if (!data?.length) break;
+  masterdataRows.push(...data);
+  if (data.length < 1000) break;
+}
+check("project_masterdata is readable (the service source for both order-number grammars)", masterdataError === null,
+  masterdataError ?? `${masterdataRows.length} rows`);
+const mdIndex = indexMasterdata(masterdataRows);
+const unreadableIds = [...orderIds].filter((id) => !parseOrderKey(id));
+check("every order id is in one of the two order-number grammars (old 10275_00123_104_01, new 10178_00028_1001.1_01)",
+  unreadableIds.length === 0, unreadableIds.slice(0, 5).join(", "));
 
 /*
  * TrackingTime names carry two decorations that are not part of the identity and
@@ -196,9 +207,8 @@ const unlawful = ttLinks.filter((t) => {
 
   if (!customerAgrees(ttName, t.hub_project_id)) return true;  // the anchor
 
-  // rule 3: customer agrees AND the order's service segment is named on the TT side.
-  const service = /^\d{5}_\d+_(\d+)_\d+$/.exec(t.hub_project_id)?.[1];
-  const words = SERVICE_WORDS[Number(service)];
+  // rule 3: customer agrees AND the order's service is named on the TT side.
+  const words = serviceWordsFor(resolveOrderKey(t.hub_project_id, mdIndex));
   if (words) {
     const hay = strip(ttName).replace(/[^a-z0-9 ]/g, " ");
     if (words.some((w) => new RegExp(`(^| )${w}`).test(hay))) return false;

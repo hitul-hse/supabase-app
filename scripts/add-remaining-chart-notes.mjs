@@ -7,6 +7,7 @@
 //   the customers donut is share of DELIVERED hours
 //   the dashboard donut is billable / total tracked seconds
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const addImport = (src) =>
   src.replace(
@@ -20,7 +21,7 @@ const insertBefore = (lines, lineNo1Based, block) => {
 
 // ---------------------------------------------------------------- team-lead
 {
-  const path = "C:/Supabase/src/app/(app)/team-lead/TeamLeadCharts.tsx";
+  const path = `${REPO_ROOT}/src/app/(app)/team-lead/TeamLeadCharts.tsx`;
   const src = readFileSync(path, "utf8");
   const eol = src.includes("\r\n") ? "\r\n" : "\n";
   if (src.includes("<ChartNote>")) console.log("TeamLeadCharts: already noted");
@@ -64,7 +65,7 @@ const insertBefore = (lines, lineNo1Based, block) => {
 
 // ------------------------------------------------------- customer portfolio
 {
-  const path = "C:/Supabase/src/app/(app)/projects/CustomerPortfolioCharts.tsx";
+  const path = `${REPO_ROOT}/src/app/(app)/projects/CustomerPortfolioCharts.tsx`;
   const src = readFileSync(path, "utf8");
   const eol = src.includes("\r\n") ? "\r\n" : "\n";
   if (src.includes("<ChartNote>")) console.log("CustomerPortfolioCharts: already noted");

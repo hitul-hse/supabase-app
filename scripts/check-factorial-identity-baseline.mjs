@@ -26,10 +26,11 @@ import pg from "pg";
  * check-factorial-pager.mjs tests it against 12 near-miss addresses.
  */
 import { classifyEmployee, normaliseEmail, SHARED_MAILBOX_RE } from "./lib/factorial.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 /*
  * Env comes from process.env first, then the repo's .env.local -- the shared
- * loader every other gate uses. This file used to read C:/Supabase/.env.local,
+ * loader every other gate uses. This file used to read a drive-letter .env.local,
  * an absolute Windows path from the machine it was written on, which meant the
  * gate could only ever run there: on WSL or CI it crashed with ENOENT before
  * printing a word. A gate that needs live credentials SKIPS without them; it
@@ -184,11 +185,13 @@ console.log("LIVE FINDING: active members logging billable time with no person l
 console.log("=".repeat(78));
 if (activeUnlinked.length === 0) {
   console.log("PASS: none — every non-archived member with hours resolves to a person");
+  record(true);
 } else {
   console.table(activeUnlinked);
   console.log("Each row is billable work that cannot be attributed to a colleague in the hub.");
   console.log("Archived leavers are deliberately excluded above: their hours are historical.");
   failuresLive = activeUnlinked.length;
+  record(false);
 }
 
 /* --------------------------------------------------------- negative controls */
@@ -201,6 +204,7 @@ let failures = 0;
 const mustBe = (label, email, want) => {
   const got = classify(email).status;
   const ok = got === want;
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label} -> ${got}${ok ? "" : ` (wanted ${want})`}`);
   if (!ok) failures += 1;
 };

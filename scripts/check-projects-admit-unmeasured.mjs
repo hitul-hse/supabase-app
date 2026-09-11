@@ -29,9 +29,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 // Repo root resolved from this file, so these paths work on any machine and
-// from any working directory. They were previously hardcoded to C:/Supabase,
+// from any working directory. They were previously hardcoded to a drive-letter path,
 // which existed on exactly one developer's laptop and nowhere else.
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 
@@ -44,7 +45,7 @@ const env = loadEnv();
 // reads like a broken gate rather than an absent credential.
 if (!env.SUPABASE_DB_URL) {
   console.log("SKIP: no SUPABASE_DB_URL, so there is no live database to check");
-  process.exit(0);
+  notRunInChain();
 }
 
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
@@ -52,6 +53,7 @@ await c.connect();
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? `\n        ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

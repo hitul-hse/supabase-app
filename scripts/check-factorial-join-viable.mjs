@@ -19,9 +19,11 @@
 // The point is to answer "will the join work" without harvesting the people.
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -80,6 +82,7 @@ const fetchAll = async (resource) => {
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

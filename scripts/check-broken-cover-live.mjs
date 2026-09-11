@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 if (existsSync(".env.local")) {
   for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -20,7 +21,7 @@ if (existsSync(".env.local")) {
 }
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.SUPABASE_DB_URL) {
   console.log("SKIP: no Supabase credentials, so there is no live database to check");
-  process.exit(0);
+  notRun();
 }
 
 await loadBindings();
@@ -40,6 +41,7 @@ const { getBrokenCover } = require2(modFile);
 
 let failed = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? " ok  " : "FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed += 1;
 };
@@ -89,6 +91,12 @@ check("mutual-cover count matches independent SQL",
  * the first execution. So the assertions below check CONTAINMENT of the known
  * cases and exact agreement with SQL, not a frozen total.
  */
+// RE-PINNED 2026-09-10: the first promote of the masterdata sheet (scripts/
+// promote-masterdata-sheet.mjs) rewrote responsible/replacement from the sheet.
+// Measured on production afterwards: the Thorsten/Stephan pair covers each
+// other on 17 services (was 8), Rency self-covers 65 (was 62; three came from
+// the promote's encoding repair, which gave August 0/1 covers their role row).
+// These are the sheet's facts, not a defect; the pins keep drift visible.
 const KNOWN_MUTUAL = [
   "10274_00117_104_01", "10303_01091_104_01", "10333_00367_104_01", "10345_00196_104_01",
   "10392_00205_104_01", "10450_00236_104_01", "10476_00265_104_01", "10747_00360_401_01",
@@ -100,11 +108,11 @@ check("the 8 known Thorsten/Stephan projects are among the mutual findings",
 const thorstenStephan = result.projects.filter((p) => p.kind === "mutual"
   && ["Thorsten", "Stephan"].includes(p.responsibleName)
   && ["Thorsten", "Stephan"].includes(p.replacementName));
-check("the Thorsten/Stephan pair is exactly the known 8",
-  thorstenStephan.length === 8, `${thorstenStephan.length} found`);
+check("the Thorsten/Stephan pair is exactly the known 17 (8 until the masterdata sheet promote of 2026-09-10)",
+  thorstenStephan.length === 17, `${thorstenStephan.length} found`);
 
-check("Rency's 62 self-cover projects are among the self findings",
-  result.projects.filter((p) => p.kind === "self" && p.responsibleName === "Rency Sebastian").length === 62);
+check("Rency's 65 self-cover projects are among the self findings",
+  result.projects.filter((p) => p.kind === "self" && p.responsibleName === "Rency Sebastian").length === 65);
 
 // pairSize must equal the number of projects in that pair, or the "blast
 // radius" the UI shows is a lie.

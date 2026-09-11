@@ -57,52 +57,38 @@
  *   4. Any table that IS paged states its total ("1-25 of 177"), so a bounded list
  *      is not misread as a truncated one.
  *
- * SKIPS CLEANLY WITHOUT CREDENTIALS. Every route here is behind auth, so with no
- * .env.local there is nothing to measure and the gate exits 0 with a stated reason.
- * CI without secrets stays green; CI with them gets the real verdict. Silence would
- * be worse than either.
+ * REPORTS NOT RUN WITHOUT CREDENTIALS. Every route here is behind auth, so with no
+ * service-role key there is nothing to measure, and the gate says so in its RESULT
+ * line rather than passing. CI without secrets reports NOT RUN; CI with them gets the
+ * real verdict. Silence would be worse than either.
+ *
+ * Credentials come from the ENVIRONMENT first and .env.local second (lib/gate-env.mjs).
+ * It used to read only the file, from the working directory or the directory above this
+ * one -- so in a git worktree, which has no .env.local of its own, this gate could not
+ * run even with every credential exported into its environment. It reported that as a
+ * clean skip, which is how a browser gate stops measuring production without anybody
+ * noticing.
  *
  * Run: npm run check:table-scroll-budget
  */
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
+import { loadEnv } from "./lib/gate-env.mjs";
 
-// Repo root resolved from this file, so these paths work on any machine and
-// from any working directory. They were previously hardcoded to C:/Supabase,
-// which existed on exactly one developer's laptop and nowhere else.
-const REPO = fileURLToPath(new URL("..", import.meta.url));
+const env = loadEnv();
 
-
-const ENV_PATH = join(REPO, ".env.local");
-
-/* ── skip path: no credentials, nothing to measure ─────────────────────── */
-if (!existsSync(".env.local") && !existsSync(ENV_PATH)) {
-  console.log("SKIP: no .env.local, so no session can be minted for these authed routes");
-  process.exit(0);
-}
-
-const env = Object.fromEntries(
-  readFileSync(existsSync(".env.local") ? ".env.local" : ENV_PATH, "utf8")
-    .split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => {
-      const i = l.indexOf("=");
-      return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, "")];
-    }),
-);
-
+/* ── not-run path: no credentials, nothing to measure ──────────────────── */
 if (!env.SUPABASE_SERVICE_ROLE_KEY || !env.NEXT_PUBLIC_SUPABASE_URL) {
-  console.log("SKIP: no service-role key in .env.local, so no session can be minted");
-  process.exit(0);
+  notRunInChain(
+    "no SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_URL in the environment or in a"
+    + " .env.local, so no session can be minted for these authed routes",
+  );
 }
 
 let launchChromium;
 try {
   ({ launchChromium } = await import("./lib/launch-chromium.mjs"));
 } catch {
-  console.log("SKIP: playwright is not installed in this environment");
-  process.exit(0);
+  notRunInChain("playwright is not installed in this environment");
 }
 
 const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
@@ -123,6 +109,36 @@ const ROUTE_BUDGETS = {
   "/projects": 6,
   // Two chart rows plus the grouped breakdown; the same 6 that gate uses.
   "/time/dashboard": 6,
+  /**
+   * NINE bounded finding panels, measured 3,013px = 3.35 screens on production
+   * on 2026-09-10. Pinned at 3.5 as DEBT, in the sense the mobile table below
+   * uses the word: one notch above the measurement, so it cannot grow further
+   * un-noticed, and with the work that clears it named.
+   *
+   * WHY THIS IS NOT THE BUG THIS GATE HUNTS. Nothing on the page is unbounded.
+   * Every panel renders 10 rows with its own pager and states its total, the
+   * biggest table on the route is 10 rows, and all of them pin their headers.
+   * The height IS THE NUMBER OF DISTINCT FINDINGS: the page's own layout note
+   * records 2,546px (2.83 screens) when it had EIGHT panels, and a ninth finding
+   * class has appeared since. A tenth would be the same story again.
+   *
+   * WHAT CLEARS THE LINE: a finding being FIXED, which removes its panel and
+   * takes the height with it. Deleting this entry is then the right edit --
+   * raising the number is not, which is why it is 3.5 and not 4.
+   *
+   * THREE ALTERNATIVES WERE CONSIDERED AND REJECTED, and they are written down
+   * so the next person does not re-run them:
+   *   - A third grid column at `xl`. It works (~2.4 screens) but takes every
+   *     panel at 1440px from ~686px to ~453px wide, and the page's cells already
+   *     truncate at that width by design. Buying height with legibility on the
+   *     primary desktop width is the wrong trade for a report people read.
+   *   - Defaulting the kind filter to PROVEN (6 panels instead of 9). It fits,
+   *     and it hides 54 suspected issues behind a click on the one page in this
+   *     app whose subject is that nothing is silently omitted.
+   *   - Cutting the panels from 10 rows to 8. That is the house queue size
+   *     (UI-CONVENTIONS rule 1) traded away for 300px.
+   */
+  "/data-hygiene": 3.5,
   /**
    * Four stacked ANALYSIS panels, measured on production at 3.67 screens:
    * "Analysis by team" 1,011px, an 8-row board 933px, "Month over month" 749px,
@@ -193,8 +209,19 @@ const MOBILE_ROUTE_BUDGETS = {
   // several full-width review panels; the Pager here is the house reference
   // implementation, so the rows are already bounded and the height is layout.
   "/customer-master/import-review": 7.5,
-  // Measured 5.25. The user list renders a card per user at phone width.
-  "/admin/users": 5.5,
+  /*
+   * /admin/users was here at 5.5, and its line is DELETED rather than raised,
+   * which is what the paragraph above says clearing one means.
+   *
+   * It had grown past its own debt pin -- 5.82 measured on 2026-09-10 against
+   * the 5.5 recorded when it was 5.25 -- because the page rendered one card per
+   * account and nothing capped the count. It now pages at 10 (UI-CONVENTIONS
+   * rule 1) and measures 3.26, inside the house default of 4 with no entry of
+   * its own. Two of the 23 accounts it was rendering are leaked
+   * `ui.usermgmt.*@example.invalid` probes stranded by check-user-management-ui.mjs,
+   * which is worth its own ticket: that gate has no start-of-run sweeper, the
+   * one check-admin-user-writes.mjs grew after it stranded 410.
+   */
   // Measured 4.96. Two chart rows plus the grouped breakdown, the same
   // furniture its pinned desktop budget of 6 documents.
   "/time/dashboard": 5,
@@ -234,6 +261,7 @@ const ROUTES = [
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -255,8 +283,7 @@ const gen = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/generate_
 const linkBody = await gen.json();
 const hashed = linkBody?.properties?.hashed_token ?? linkBody?.hashed_token;
 if (!hashed) {
-  console.log(`SKIP: could not mint a magic link for ${EMAIL} (${gen.status})`);
-  process.exit(0);
+  notRunInChain(`could not mint a magic link for ${EMAIL} (HTTP ${gen.status})`);
 }
 
 const browser = await launchChromium();
@@ -330,10 +357,38 @@ const shapeOf = () => {
 };
 
 try {
-  await page.goto(
+  /*
+   * A NETWORK FAILURE HERE IS "DID NOT RUN", NOT A VERDICT (2026-09-07).
+   *
+   * This navigation threw an uncaught `net::ERR_NETWORK_CHANGED` the moment the rig's
+   * connection moved, and the gate died with zero assertions and a non-zero exit -- read
+   * from outside as a table regression. Three runs the same evening evaluated 78, 42 and
+   * 0 assertions, and only the assertion baseline made that visible at all.
+   *
+   * Production being unreachable says nothing about the tables, so say nothing: NOT RUN,
+   * with the reason. A real page that loads and misbehaves still fails below, loudly.
+   */
+  const signIn = () => page.goto(
     `${SITE}/auth/callback?token_hash=${hashed}&type=magiclink&next=%2F`,
     { waitUntil: "networkidle", timeout: 120_000 },
   );
+  try {
+    await signIn();
+  } catch (first) {
+    const why = String(first?.message ?? first);
+    if (!/net::ERR_|ERR_NETWORK|Timeout .* exceeded|ECONNREFUSED|ENOTFOUND|EAI_AGAIN/i.test(why)) throw first;
+    // One retry, because `ERR_NETWORK_CHANGED` is usually a single interface event (this rig
+    // moves between Wi-Fi, mobile hotspot and a Tailscale interface) and the second attempt
+    // succeeds. Two failures in a row is a real outage, and the gate then proves nothing.
+    console.log(`sign-in hit a network error, retrying once — ${why.split("\n")[0]}`);
+    await new Promise((r) => setTimeout(r, 3000));
+    try {
+      await signIn();
+    } catch (second) {
+      await browser.close();
+      notRunInChain(`could not reach ${SITE} to sign in — ${String(second?.message ?? second).split("\n")[0]}`);
+    }
+  }
   console.log(`signed in as ${EMAIL}, landed on ${page.url()}\n`);
 
   /**

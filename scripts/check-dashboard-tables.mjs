@@ -31,6 +31,7 @@
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
 import fs, { existsSync, rmSync } from "node:fs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 // `next build` appends its dist dir's type paths to tsconfig.json's "include".
 // With a probe distDir that pollutes the SHARED config with entries naming a
@@ -53,6 +54,7 @@ process.on("exit", restoreTsconfig);
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -127,6 +129,52 @@ const TOTAL_SECONDS = entries.reduce((a, e) => a + e.duration_seconds, 0);
 const TOTAL_HOURS = Math.round((TOTAL_SECONDS / 3600) * 10) / 10;
 const ESTIMATED_PROJECTS = projects.filter((p) => p.estimated_hours).length;
 
+/*
+ * time.project_summary, the view the app reads its project catalogue from.
+ *
+ * DERIVED from `projects` and `entries` rather than seeded separately: the view
+ * is a LEFT JOIN aggregate over exactly those two tables, so computing it here
+ * is the only way the picker's 60 options and the report's 60 rows are
+ * guaranteed to be the same 60 projects. A hand-written second seed could drift
+ * from the first and the gate would go green on two datasets that disagree.
+ *
+ * The redaction the real view applies to estimated_hours / burn_percent is not
+ * modelled: this stub answers app_user_has_permission with `true` for everyone,
+ * so the permitted branch is the only one it can represent. Asserting the
+ * withheld branch needs a caller without projects:contracts:read, which is what
+ * check-budget-permission-enforced.mjs does against real SQL.
+ */
+const projectSummary = projects.map((p) => {
+  const own = entries.filter((e) => e.project_id === p.id);
+  const sum = (pick) => own.reduce((a, e) => a + (pick(e) ? e.duration_seconds : 0), 0);
+  const total = sum(() => true);
+  return {
+    project_id: p.id,
+    project_name: p.name,
+    is_billable: p.is_billable,
+    is_archived: false,
+    customer_id: p.customer_id,
+    customer_name: p.customer.name,
+    estimated_hours: p.estimated_hours,
+    total_seconds: total,
+    billable_seconds: sum((e) => e.is_billable),
+    calendar_seconds: sum((e) => e.is_calendar),
+    entry_count: own.length,
+    member_count: new Set(own.map((e) => e.member_id)).size,
+    // max(started_at), not the last row: the seed happens to give each project
+    // one entry, and a stub that quietly depends on that is a trap for the next
+    // person who seeds two.
+    last_activity_at: own.length
+      ? own.reduce((a, e) => (e.started_at > a ? e.started_at : a), own[0].started_at)
+      : null,
+    // nullif(estimated_hours, 0) in the view: no estimate reads as unknown,
+    // never as 0% burn.
+    burn_percent: p.estimated_hours
+      ? Math.round((total / 3600 / p.estimated_hours) * 1000) / 10
+      : null,
+  };
+});
+
 const members = [
   { id: 7, display_name: "Member 7", user_id: USER_ID, weekly_hours: 40 },
   { id: 8, display_name: "Member 8", weekly_hours: 40 },
@@ -149,6 +197,8 @@ const PROFILE = {
 const PORT = 54331;
 const APP_PORT = 3113;
 const requests = [];
+/** Paths in the `time` schema this stub has no route for. Asserted empty. */
+const unknownTimeReads = new Set();
 
 function listenOrSkip(srv, port) {
   return new Promise((resolve) => {
@@ -234,6 +284,23 @@ const server = createServer((req, res) => {
     }
 
     if (url.pathname === "/rest/v1/project") return send(projects);
+    /*
+     * time.project_summary — THE VIEW, which is what the app actually reads.
+     *
+     * getFilterOptions() moved off the base table on 2026-09-03 (3a29428,
+     * "Close the base-table budget leak on time.project.estimated_hours"):
+     * `authenticated` no longer holds a column grant on
+     * time.project.estimated_hours, so the picker's catalogue now comes from
+     * time.project_summary, which serves the column back through the
+     * app_user_has_permission('projects:contracts:read') call inside the view.
+     * This stub was never taught the
+     * new path, and the catch-all below answered it with [] — so the dashboard
+     * rendered with ZERO projects and the gate reported a picker bug that did
+     * not exist. Shaped like the view (schema.sql: `create or replace view
+     * time.project_summary`), with the aggregates folded from the same seeded
+     * entries as everything else, so a row here cannot contradict the report.
+     */
+    if (url.pathname === "/rest/v1/project_summary") return send(projectSummary);
     if (url.pathname === "/rest/v1/customer") return send(customers);
     if (url.pathname === "/rest/v1/member") return send(members);
     if (url.pathname === "/rest/v1/service") return send(services);
@@ -257,7 +324,20 @@ const server = createServer((req, res) => {
         })),
       );
     }
-    if (url.pathname.startsWith("/rest/v1/")) return send([]);
+    if (url.pathname.startsWith("/rest/v1/")) {
+      /*
+       * Answer [] so the page still renders, but RECORD the path.
+       *
+       * "[] because this stub has never heard of that table" and "[] because
+       * there is no data" are the same screen, and that is precisely how the
+       * project_summary move sat here undetected: the app started reading a
+       * view, this catch-all answered every request for it with an empty array,
+       * and the gate blamed the picker. A silent fallback in a test harness is
+       * worse than no harness. See the assertion on unknownTimeReads below.
+       */
+      unknownTimeReads.add(url.pathname);
+      return send([]);
+    }
   }
 
   if (url.pathname === "/rest/v1/app_user_profile") {
@@ -274,8 +354,34 @@ const server = createServer((req, res) => {
   send({}, 404);
 });
 
-if (!(await listenOrSkip(server, PORT))) process.exit(0);
+if (!(await listenOrSkip(server, PORT))) notRun(`port ${PORT} is already in use`);
 console.log(`stub Supabase on http://localhost:${PORT}`);
+
+/*
+ * THE APP PORT IS GUARDED TOO, and the reason is worth the paragraph.
+ *
+ * Only the stub port was checked. If something was already listening on
+ * APP_PORT, `next start` failed to bind and exited, the readiness poll got its
+ * 200 from the STRANGER, and Playwright then drove a server this run never
+ * built -- one whose dist a previous run had already deleted, so nothing
+ * hydrated and every control read as dead. The output was a full run of
+ * plausible, specific, entirely fictional failures: sorting "doesn't reorder",
+ * search "filters nothing", the picker "renders 0 of 60".
+ *
+ * That is worse than a crash, because it is quotable. It was measured three
+ * times on 2026-09-06 while investigating this file, and each time the leaked
+ * server came from an EARLIER commit's copy of this gate (the process-group
+ * kill above landed in #45; before it, every clean run leaked its own server on
+ * Linux). Bisecting across that fix therefore poisons the older side of the
+ * bisect by construction.
+ *
+ * Skip rather than fail, mirroring the stub port: a busy port is a machine
+ * condition, not a defect in the app -- but it must never again be reported as
+ * one.
+ */
+const appPortProbe = createServer();
+if (!(await listenOrSkip(appPortProbe, APP_PORT))) notRun(`port ${APP_PORT} is already in use`);
+await new Promise((r) => appPortProbe.close(r));
 
 // ── The real Next.js server, built against the stub ────────────────────────
 // NEXT_PUBLIC_* are compile-time constants inlined into the server chunks, so
@@ -313,6 +419,14 @@ const app = spawn("npx", ["next", "start", "--port", String(APP_PORT)], {
   env: { ...stubEnv, NEXT_ACCEPTANCE_DIST: REBUILD ? DIST : ".next" },
   shell: true,
   stdio: "pipe",
+  // Its own process group on POSIX, so cleanup can kill the TREE. Under a
+  // shell the listener is a grandchild (sh -> npm -> next-server); killing the
+  // wrapper alone left next-server on the port after every run on Linux, and
+  // the next run then drove that orphan -- serving a build whose dist this
+  // cleanup had already deleted, so nothing hydrated and every control read
+  // as dead (measured 2026-09-05: three consecutive runs, all against a
+  // leaked server from the run before).
+  detached: process.platform !== "win32",
 });
 
 let appLog = "";
@@ -327,8 +441,9 @@ const cleanup = () => {
   try {
     if (process.platform === "win32" && app.pid) {
       spawnSync("taskkill", ["/PID", String(app.pid), "/T", "/F"], { stdio: "ignore" });
-    } else {
-      app.kill("SIGKILL");
+    } else if (app.pid) {
+      // Negative pid: the whole process group, grandchild included.
+      process.kill(-app.pid, "SIGKILL");
     }
   } catch { /* already gone */ }
   try { server.close(); } catch { /* already closed */ }
@@ -534,7 +649,7 @@ try {
   );
   check(
     "the breakdown states the full row count, not a 'top N'",
-    /1–25 of 60/.test(text),
+    /1–25 OF 60/.test(text),
     "the header must say how many rows exist in total, so a page-1 view is never mistaken for everything",
   );
 
@@ -634,8 +749,8 @@ try {
   const searchedText = (await panel("BY PROJECT").innerText()).replace(/\s+/g, " ");
   check(
     "search reports what it filtered from",
-    /filtered from 60/.test(searchedText),
-    "a filtered count with no 'of 60' reads as the whole dataset",
+    /FILTERED FROM 60/.test(searchedText),
+    "a filtered count with no 'OF 60' reads as the whole dataset",
   );
   // Multi-term search must AND, not OR. "Projekt 07 Kunde 3" is Projekt 07 and
   // its own customer, so it stays at one row; swapping in a customer that
@@ -688,7 +803,7 @@ try {
   check("NEXT advances the page", /2 \/ 3/.test(page2), "the pager did not advance");
   check(
     "page 2 shows rows 26–50",
-    /26–50 of 60/.test(page2),
+    /26–50 OF 60/.test(page2),
     "the range line must track the page",
   );
   await pager.getByRole("button", { name: /NEXT/ }).click();
@@ -725,7 +840,7 @@ try {
   const budgetText = (await panel("BUDGET BURN").innerText()).replace(/\s+/g, " ");
   check(
     "budget burn counts every project WITH an estimate",
-    budgetText.includes(`of ${ESTIMATED_PROJECTS}`),
+    budgetText.includes(`OF ${ESTIMATED_PROJECTS}`),
     `expected ${ESTIMATED_PROJECTS} estimated projects, panel says: ${budgetText.slice(0, 160)}`,
   );
   check(
@@ -738,7 +853,7 @@ try {
   const entriesText = (await panel("TIME ENTRIES").innerText()).replace(/\s+/g, " ");
   check(
     "the entry table exposes all 60 entries, not 25",
-    entriesText.includes("of 60"),
+    entriesText.includes("OF 60"),
     `panel says: ${entriesText.slice(0, 160)}`,
   );
 
@@ -771,7 +886,7 @@ try {
   // Only even-indexed entries are billable: 30 of 60.
   check(
     "filtering to billable reaches the query and halves the projects",
-    /1–25 of 30/.test(billableText),
+    /1–25 OF 30/.test(billableText),
     `expected 30 billable projects; page says: ${billableText.slice(0, 220)}`,
   );
 
@@ -799,7 +914,7 @@ try {
   // the unfiltered page below, where all 30 are in scope.
   check(
     "the economics table row count follows the selection",
-    /1–15 of 15/.test(econBody),
+    /1–15 OF 15/.test(econBody),
     `panel says: ${econBody.slice(0, 200)}`,
   );
   await goto("preset=this_month&group=project&bucket=day");
@@ -807,7 +922,7 @@ try {
   const econAll = (await panel("PROJECT ECONOMICS").innerText()).replace(/\s+/g, " ");
   check(
     "unfiltered, the economics table exposes all 30 rows rather than the old 15",
-    /of 30/.test(econAll),
+    /OF 30/.test(econAll),
     `panel says: ${econAll.slice(0, 200)} — a hard-coded limit of 15 was applied at the query before this change`,
   );
 
@@ -965,7 +1080,7 @@ try {
     // Case-insensitive: the chip label is uppercased by CSS, so innerText reads
     // "FILTERED TO" and a case-sensitive match failed while the chip was right
     // there on screen.
-    /filtered to/i.test(afterPick) && /1 project with logged time|1–1 of 1/.test(afterPick),
+    /filtered to/i.test(afterPick) && /1 project with logged time|1–1 OF 1/.test(afterPick),
     `page after the keyboard pick: ${afterPick.slice(afterPick.indexOf("BY PROJECT"), afterPick.indexOf("BY PROJECT") + 160)}`,
   );
 
@@ -989,6 +1104,22 @@ try {
     "the money tiles report this project's revenue, not the whole portfolio's",
     /REVENUE €800\b/.test(afterPick),
     `expected €800 for Projekt 07 alone; panel shows ${afterPick.slice(afterPick.indexOf("REVENUE"), afterPick.indexOf("REVENUE") + 60)}`,
+  );
+
+  // ── 15. The harness itself has to be honest ──────────────────────────────
+  // Every check above reads a rendered page, so each one is only as truthful as
+  // the stub underneath it. The stub answers an unrouted table with [], which is
+  // indistinguishable on screen from "no rows exist" -- so when getFilterOptions
+  // moved from time.project to the time.project_summary VIEW (3a29428), the
+  // picker silently received zero projects and this gate spent every run since
+  // reporting a UI regression that was never in the UI.
+  //
+  // Asserted at the END so it covers every read the whole run made, not only
+  // the first page load.
+  check(
+    "the stub answers every time-schema table the app actually reads",
+    unknownTimeReads.size === 0,
+    `no route for ${[...unknownTimeReads].join(", ")} — the catch-all answered [] and every assertion downstream of that table is measuring the stub, not the app`,
   );
 
   // ── Screenshots, for judging the layout rather than the numbers ──────────

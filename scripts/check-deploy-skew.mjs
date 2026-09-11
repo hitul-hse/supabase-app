@@ -37,9 +37,11 @@
  * covered here.
  */
 import { readFileSync } from "node:fs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -117,6 +119,7 @@ try {
   );
 } catch (err) {
   console.log(`SKIP: could not reach ${SITE} -- ${err instanceof Error ? err.message : String(err)}`);
+  recordNotRun(`could not reach ${SITE} — the live unknown-action probe not evaluated`);
 }
 
 console.log(failed === 0 ? "\nDEPLOY SKEW: all checks passed" : `\n${failed} check(s) failed`);

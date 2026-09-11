@@ -20,11 +20,13 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const sha = (b) => createHash("sha256").update(b).digest("hex");
 
 const run = (script) => new Promise((resolve) => {
-  const p = spawn("node", [script], { cwd: "C:/Supabase", shell: false });
+  const p = spawn("node", [script], { cwd: REPO_ROOT, shell: false });
   let out = "";
   p.stdout.on("data", (d) => (out += d));
   p.stderr.on("data", (d) => (out += d));
@@ -33,7 +35,7 @@ const run = (script) => new Promise((resolve) => {
 });
 
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
 
 /**
  * Break `file` by applying `mutate` to its text, assert `script` notices, then
@@ -52,7 +54,7 @@ const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d
  *     stronger claim than the exit code anyway.
  */
 const provesItCatches = async ({ label, file, script, mutate, expect, assertion }) => {
-  const path = `C:/Supabase/${file}`;
+  const path = `${REPO_ROOT}/${file}`;
   const original = readFileSync(path);
   const before = sha(original);
 
@@ -220,6 +222,24 @@ await provesItCatches({
     ".filter((project) => !project.status && project.logged_hours !== null)",
     ".filter((project) => !project.status)"),
   expect: /FAIL/,
+});
+
+/* -------------------------------------------------- the message catalogues */
+
+await provesItCatches({
+  label: "check-i18n-key-references notices a namespace collision that deletes live keys",
+  file: "messages/en.json",
+  script: "scripts/check-i18n-key-references.mjs",
+  /*
+   * The exact shape of the incident: a new Overview hero band was given the
+   * `overview.hero.*` namespace, which the week drill-down dialog already
+   * owned, and the dialog's ten keys went with it. Renaming `heroBand` back
+   * onto `hero` reproduces that collision in one line. Both halves must go
+   * red -- the dialog's ten keys vanish, and the band's five stop resolving.
+   */
+  mutate: (s) => s.replace('"heroBand": {', '"heroCollision": {')
+                  .replace('"hero": {\n      "dialogLabel"', '"heroBand": {\n      "dialogLabel"'),
+  expect: /overview\.hero\.dialogLabel|FAIL/,
 });
 
 console.log(failures === 0

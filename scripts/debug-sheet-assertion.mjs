@@ -2,8 +2,9 @@
 // one of the three terms is falsy for a reason the message does not print.
 // `translated` is not in the message. Print all three.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/scripts/check-mobile-sheet.mjs";
+const path = `${REPO_ROOT}/scripts/check-mobile-sheet.mjs`;
 let src = readFileSync(path, "utf8");
 
 src = src.replace(

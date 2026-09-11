@@ -8,9 +8,10 @@
 // feature is not a fix.
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -45,7 +46,7 @@ for (const u of users) {
   console.log(`  ${u.role_key.padEnd(9)} ${u.email.padEnd(38)} ${VIEWS.map((v) => `${v}=${before[u.email][v]}`).join("  ")}`);
 }
 
-await c.query(readFileSync("C:/Supabase/supabase/migrations/20260825141000_views_must_not_bypass_rls.sql", "utf8"));
+await c.query(readFileSync(`${REPO_ROOT}/supabase/migrations/20260825141000_views_must_not_bypass_rls.sql`, "utf8"));
 console.log("\nmigration applied\n");
 
 console.log("AFTER (caller's own RLS decides):");

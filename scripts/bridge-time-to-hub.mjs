@@ -101,9 +101,10 @@
  * /timesheets route reading it is a separate problem from this bridge.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const APPLY = process.argv.includes("--apply");
-const ENV_PATH = "C:/Supabase/.env.local";
+const ENV_PATH = `${REPO_ROOT}/.env.local`;
 
 if (!existsSync(ENV_PATH)) {
   console.log("SKIP: no .env.local — this script operates on the live project only.");

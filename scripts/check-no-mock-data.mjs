@@ -29,9 +29,11 @@
 // has to be caught in the source, where the fallback is visible.
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { record } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
   if (!ok) failed = true;
 };
@@ -229,15 +231,27 @@ if (page) {
   );
   const statTile = read("src/components/ui/Card.tsx") ?? "";
   check(
-    'StatTile renders "n/a" for a null value, and no unit beside it',
-    /isMissing\s*\?\s*["']n\/a["']/.test(statTile) && /unit && !isMissing/.test(statTile),
+    'StatTile renders "—" for a null value, and no unit beside it',
+    /isMissing\s*\?\s*["'](?:—|n\/a)["']/.test(statTile) && /unit && !isMissing/.test(statTile),
     "the rule moved into the primitive; if it leaves there, every figure in the app regresses at once",
   );
   // Asserted on stripped source: the file explains this rule in a comment, and
   // matching that comment would let the JSX beneath it regress unnoticed.
+  /*
+   * The utilisation ROW moved out of page.tsx and into OverviewQueues.tsx when
+   * the card became a real ten-row table: `DataTable`'s cell renderers cannot
+   * cross the server boundary, so the presentation shell is its own client
+   * module. The assertion is unchanged in strength -- a person with no
+   * contracted hours must render "n/a", never a 0 % that would read as somebody
+   * idle -- and now covers BOTH nullable figures in the row, because the same
+   * table also prints hours for somebody with no tracked entries at all.
+   */
+  const queuesCode = stripComments(read("src/app/(app)/OverviewQueues.tsx") ?? "");
   check(
     'utilisation renders "n/a", not 0%, with no contract',
-    /team\.percent !== null \? `\$\{team\.percent\}%` : tc\("notAvailable"\)/.test(pageCode) &&
+    /r\.percent === null \?[\s\S]{0,120}?tc\("notAvailable"\)/.test(queuesCode) &&
+      /r\.entryCount === 0 \?[\s\S]{0,120}?tc\("notAvailable"\)/.test(queuesCode) &&
+      !/percent\s*(\?\?|\|\|)\s*0/.test(queuesCode) &&
       enText("common.notAvailable") === "n/a",
     "`${team.percent ?? 0}%` would render an idle-looking 0% for an unknown ratio",
   );

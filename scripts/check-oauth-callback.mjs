@@ -13,12 +13,14 @@
  * strands them on a form for a password they will never have.
  */
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const SOURCE = "src/app/auth/callback/route.ts";
 const src = readFileSync(SOURCE, "utf8");
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -141,9 +143,23 @@ check(
   `setPending@${iSet} < signInWithOAuth@${iCall}`,
 );
 
+/**
+ * Every provider button must be disabled while ANY of them is pending, so a second
+ * click cannot start a second OAuth flow.
+ *
+ * This counted a hard-coded 2 until 2026-09-08, and went red when Microsoft was
+ * removed even though nothing about double-submit had changed. A count tied to the
+ * number of buttons actually rendered asserts the property itself rather than a
+ * snapshot of how many providers existed the day it was written, so it survives a
+ * provider being added or dropped and still fails if a button ships without the
+ * guard.
+ */
+const providerButtons = (buttons.match(/onClick=\{\(\) => signIn\(/g) || []).length;
+const guarded = (buttons.match(/disabled=\{disabled \|\| pending !== null\}/g) || []).length;
 check(
-  "both provider buttons are disabled while any one is pending (no double submit)",
-  (buttons.match(/disabled=\{disabled \|\| pending !== null\}/g) || []).length === 2,
+  "every provider button is disabled while any one is pending (no double submit)",
+  providerButtons > 0 && guarded === providerButtons,
+  `${guarded} guarded of ${providerButtons} provider button(s)`,
 );
 
 // Every early return must clear pending, or the button stays dead and the user
@@ -167,9 +183,20 @@ check(
     /not be clickable during the redirect/.test(buttons),
 );
 
+/**
+ * Microsoft was removed from the product on 2026-09-08 (board ticket 37), so the
+ * old assertion here -- that the component asks for the `azure` provider -- now
+ * describes code that should not exist.
+ *
+ * It is replaced rather than dropped. The failure this guards against is a partial
+ * revert: someone restores the button without restoring the provider-status entry,
+ * the scopes or the gates, and the app offers a sign-in that dead-ends. Asserting
+ * the absence in the source catches that at the same place the old check lived.
+ */
 check(
-  "Microsoft is requested as the `azure` provider, which is what Supabase calls it",
-  /"google" \| "azure"/.test(buttons) && /signIn\("azure"\)/.test(buttons),
+  "the component no longer wires up the removed Microsoft provider",
+  !/azure/.test(buttons.replace(/\/\*[\s\S]*?\*\//g, "")),
+  "Microsoft sign-in was removed; `azure` should appear in comments only, if at all",
 );
 
 console.log(

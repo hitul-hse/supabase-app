@@ -1,8 +1,9 @@
 // Widen the gate's key regex to allow an underscore in the module segment, and
 // record why. CRLF-safe, so it edits by content rather than literal block.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/scripts/check-permissions-rls.mjs";
+const path = `${REPO_ROOT}/scripts/check-permissions-rls.mjs`;
 const src = readFileSync(path, "utf8");
 const eol = src.includes("\r\n") ? "\r\n" : "\n";
 

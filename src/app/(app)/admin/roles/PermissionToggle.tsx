@@ -38,7 +38,7 @@ export function PermissionToggle({ roleKey, permissionKey, initialGranted, canEd
       onClick={handleToggle}
       disabled={!canEdit || isPending}
       title={error ?? (granted ? "Revoke" : "Grant")}
-      className={`h-5 w-5 flex-none rounded-[3px] border transition-all ${
+      className={`h-5 w-5 flex-none rounded-[3px] border control-motion active:scale-[0.94] ${
         isPending
           ? "border-[var(--border)] bg-[var(--border)] opacity-60"
           : granted

@@ -30,9 +30,10 @@
  */
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -247,10 +248,10 @@ for (const [label, vp] of [["iPhone 12 (390x844)", { width: 390, height: 844 }],
   if (vp.width === 390) {
     await page.goto(`${SITE}/dashboard/management?tab=customers`, { waitUntil: "networkidle", timeout: 60000 });
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: "C:/Supabase/tmp-mobile-customers.png", fullPage: false });
+    await page.screenshot({ path: `${REPO_ROOT}/tmp-mobile-customers.png`, fullPage: false });
     await page.goto(`${SITE}/my-work`, { waitUntil: "networkidle", timeout: 60000 });
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: "C:/Supabase/tmp-mobile-mywork.png", fullPage: false });
+    await page.screenshot({ path: `${REPO_ROOT}/tmp-mobile-mywork.png`, fullPage: false });
     console.log("\nscreenshots: tmp-mobile-customers.png, tmp-mobile-mywork.png");
   }
   await ctx.close();

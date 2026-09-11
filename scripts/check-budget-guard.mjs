@@ -22,9 +22,11 @@ import {
   warningMessage,
   DEFAULT_WARN_AT_PERCENT,
 } from "../src/lib/budget-guard.ts";
+import { record } from "./lib/gate-result.mjs";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 };

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NumberedPager } from "@/components/NumberedPager";
 
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge, type Tone } from "@/components/StatusBadge";
@@ -29,7 +30,7 @@ type SearchParams = Promise<{ priority?: string; case_type?: string; status?: st
 const CASES_PER_PAGE = 10;
 
 const REVIEW_PRIORITIES: ReviewPriority[] = ["P0", "P1", "P2"];
-const REVIEW_CASE_TYPES: ReviewCaseType[] = ["LEXWARE_REFERENCE_CONFLICT", "ALIAS_REVIEW", "PROJECT_LOCATION_CANDIDATE", "MULTI_LOCATION_CUSTOMER", "HISTORICAL_SOURCE_REVIEW", "CUSTOMER_MASTER_REVIEW"];
+const REVIEW_CASE_TYPES: ReviewCaseType[] = ["LEXWARE_REFERENCE_CONFLICT", "ALIAS_REVIEW", "PROJECT_LOCATION_CANDIDATE", "MULTI_LOCATION_CUSTOMER", "HISTORICAL_SOURCE_REVIEW", "CUSTOMER_MASTER_REVIEW", "ORDER_KEY_REVIEW", "PERSON_REVIEW", "CUSTOMER_NOT_IN_WAREHOUSE", "PARKED_CONTACT"];
 const REVIEW_STATUSES: ReviewStatus[] = ["OPEN", "IN_REVIEW", "RESOLVED", "DEFERRED", "REJECTED"];
 
 function parseFilter(params: Awaited<SearchParams>): ReviewFilter {
@@ -159,6 +160,7 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
           </div>
         )}
         {data.error && <div role="alert" className="border border-[var(--critical)] bg-[var(--critical-wash)] px-4 py-3 text-sm text-[var(--critical)]">{data.error}</div>}
+        {data.recordsCapped && <div role="alert" className="border border-[var(--critical)] bg-[var(--critical-wash)] px-4 py-3 text-sm text-[var(--critical)]">Nur die ersten {data.recordsRead} von {data.metrics.record_count} Records wurden gelesen. Die Cases unten sind unvollständig.</div>}
 
         <Card tone="hero">
           <CardHeader title="Import overview" qualifier="STG.IMPORT_BATCH · READ ONLY" />
@@ -203,6 +205,7 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
           <Card>
             <CardHeader title="Review cases" qualifier={`${data.cases.length} CASES · ${data.cases.reduce((sum, item) => sum + item.records.length, 0)} RECORDS`} />
             <CardDivider />
+            {data.cleanRecords > 0 && <p className="border-b border-[var(--divider)] px-4 py-2 font-mono text-[10px] text-[var(--text-muted)]">{data.cleanRecords} von {data.recordsRead} Records sind sauber aufgelöst und stehen nicht in der Queue.</p>}
             {data.cases.length === 0 ? <p className="px-4 py-8 text-sm text-[var(--text-muted)]">Keine fachlichen Review Cases für diesen Filter.</p> : <div className="divide-y divide-[var(--divider)]"><div className="hidden grid-cols-[minmax(180px,1.1fr)_minmax(90px,0.5fr)_minmax(120px,0.8fr)_70px_minmax(120px,0.8fr)_minmax(180px,1.2fr)] gap-3 bg-[var(--surface-2)] px-4 py-2 font-mono text-[9px] tracking-[0.08em] text-[var(--text-faint)] lg:grid"><span>CASE TYPE</span><span>PRIORITÄT</span><span>RESOLUTION STATUS</span><span>RECORDS</span><span>BETROFFENE QUELLE</span><span>REVIEW REASON</span></div>{pagedCases.map((reviewCase) => <CaseRow key={reviewCase.case_key} reviewCase={reviewCase} active={selected?.case_key === reviewCase.case_key} href={hrefFor(filter, { case: reviewCase.case_key, page: currentPage })} />)}</div>}
             {pageCount > 1 && <Pager filter={filter} currentPage={currentPage} pageCount={pageCount} total={data.cases.length} pageKey="page" otherPage={dCurrentPage} />}
           </Card>
@@ -225,6 +228,15 @@ export default async function CustomerMasterImportReviewPage({ searchParams }: {
   );
 }
 
+/**
+ * The queue's pager: the shared house pager (UI-CONVENTIONS rule 3) with this
+ * page's German labels and its two-list href arithmetic.
+ *
+ * The window/elide logic and the control geometry used to live here in full and
+ * again, character for character, in data-hygiene. It is `NumberedPager` now —
+ * this file was UI-CONVENTIONS' named reference implementation, so the promotion
+ * moved the reference rather than adding a competitor to it.
+ */
 function Pager({
   filter,
   currentPage,
@@ -242,52 +254,25 @@ function Pager({
   /** The OTHER list's current page, preserved while this one moves. */
   otherPage: number;
 }) {
-  /*
-   * Numbered links with an elided middle: first, last, and a window around the
-   * current page. Server-rendered <Link>s like every other control here, so
-   * back/forward and shareable URLs keep working.
-   */
-  const windowed: (number | "gap")[] = [];
-  for (let n = 1; n <= pageCount; n += 1) {
-    if (n === 1 || n === pageCount || Math.abs(n - currentPage) <= 1) windowed.push(n);
-    else if (windowed[windowed.length - 1] !== "gap") windowed.push("gap");
-  }
-  const pageLink = (n: number, label: string, disabled: boolean, current = false) =>
-    disabled ? (
-      <span key={`${label}-off`} className="border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] text-[var(--text-faint)] opacity-40">{label}</span>
-    ) : (
-      <Link
-        key={`${label}-${n}`}
-        href={hrefFor(filter, {
+  return (
+    <NumberedPager
+      page={currentPage}
+      pageCount={pageCount}
+      countLine={`SEITE ${currentPage} VON ${pageCount} · ${total} CASES`}
+      navLabel="Review-Cases Seiten"
+      labels={{
+        prev: "Zurück",
+        next: "Weiter",
+        pageLabel: (n) => `Review-Cases, Seite ${n}`,
+      }}
+      hrefFor={(n) =>
+        hrefFor(filter, {
           case: null,
           page: pageKey === "page" ? n : otherPage,
           dpage: pageKey === "dpage" ? n : otherPage,
-        })}
-        scroll={false}
-        aria-current={current ? "page" : undefined}
-        className={`border px-2.5 py-1 font-mono text-[10px] transition-colors ${current ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
-      >
-        {label}
-      </Link>
-    );
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--divider)] px-4 py-3">
-      <span className="font-mono text-[10px] text-[var(--text-faint)]">
-        SEITE {currentPage} VON {pageCount} · {total} CASES
-      </span>
-      <nav aria-label="Review-Cases Seiten" className="flex items-center gap-1.5">
-        {pageLink(currentPage - 1, "Zurück", currentPage === 1)}
-        {windowed.map((n, i) =>
-          n === "gap" ? (
-            <span key={`gap-${i}`} className="px-1 font-mono text-[10px] text-[var(--text-faint)]">…</span>
-          ) : (
-            pageLink(n, String(n), false, n === currentPage)
-          ),
-        )}
-        {pageLink(currentPage + 1, "Weiter", currentPage === pageCount)}
-      </nav>
-    </div>
+        })
+      }
+    />
   );
 }
 
@@ -304,7 +289,7 @@ function CaseDetail({ reviewCase }: { reviewCase: ReviewCase }) {
 }
 
 function RecordPayload({ record }: { record: ImportRecord }) {
-  return <details open className="border border-[var(--border)] bg-[var(--surface-2)]"><summary className="cursor-pointer list-none px-3 py-2 text-xs text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"><span className="font-mono text-[10px] text-[var(--accent)]">{recordSheet(record)} · Excel-Zeile {display(record.raw_payload.excel_row_number ?? record.row_number)}</span><span className="ml-2 font-mono text-[10px] text-[var(--text-muted)]">{display(record.source_customer_number ?? record.source_external_id)}</span></summary><div className="border-t border-[var(--divider)] p-3">{record.review_reason && <p className="mb-3 border-l-2 border-[var(--warning)] bg-[var(--warning-wash)] px-3 py-2 text-xs text-[var(--warning)]">{record.review_reason}</p>}<pre className="max-h-[420px] overflow-auto font-mono text-[10px] leading-relaxed text-[var(--text-secondary)]">{JSON.stringify(record.raw_payload, null, 2)}</pre></div></details>;
+  return <details open className="border border-[var(--border)] bg-[var(--surface-2)]"><summary className="cursor-pointer list-none px-3 py-2 text-xs text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"><span className="font-mono text-[10px] text-[var(--accent)]">{recordSheet(record)} · {record.raw_payload.sheet_row ? "Sheet-Zeile" : "Excel-Zeile"} {display(record.raw_payload.sheet_row ?? record.raw_payload.excel_row_number ?? record.row_number)}</span><span className="ml-2 font-mono text-[10px] text-[var(--text-muted)]">{display(record.source_customer_number ?? record.source_external_id)}</span></summary><div className="border-t border-[var(--divider)] p-3">{record.review_reason && <p className="mb-3 border-l-2 border-[var(--warning)] bg-[var(--warning-wash)] px-3 py-2 text-xs text-[var(--warning)]">{record.review_reason}</p>}<pre className="max-h-[420px] overflow-auto font-mono text-[10px] leading-relaxed text-[var(--text-secondary)]">{JSON.stringify(record.raw_payload, null, 2)}</pre></div></details>;
 }
 
 function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {

@@ -22,6 +22,7 @@
 import { readFileSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -29,7 +30,7 @@ for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
   if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
 }
 const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
-if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); process.exit(0); }
+if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); notRun(); }
 
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -37,6 +38,7 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -97,14 +99,25 @@ const rowFingerprint = () =>
      * Surfaces that mark their paged rows (data-ledger-row) are fingerprinted
      * on those alone. The others keep the generic selector.
      */
+    /*
+     * Then REAL TABLE ROWS before the generic list. On /time/dashboard the
+     * generic selector's first ten hits were the billable-split legend links
+     * (`a[href^="/time/dashboard?"]`) above the tables, which correctly do not
+     * change when a table pages -- so the check reported an inert pager on a
+     * working one against production too (measured 2026-09-05). A page that
+     * renders <tbody> rows is fingerprinted on those.
+     */
     const hooked = [...document.querySelectorAll("[data-ledger-row]")];
+    const bodyRows = [...document.querySelectorAll("tbody tr")];
     const candidates = hooked.length
       ? hooked
-      : [
-          ...document.querySelectorAll(
-            'a[href^="/projects/"], a[href^="/time/dashboard?"], tbody tr, [data-task-row], button[class*="border-l-2"]',
-          ),
-        ];
+      : bodyRows.length
+        ? bodyRows
+        : [
+            ...document.querySelectorAll(
+              'a[href^="/projects/"], a[href^="/time/dashboard?"], [data-task-row], button[class*="border-l-2"]',
+            ),
+          ];
     return candidates
       .slice(0, 10)
       .map((el) => (el.textContent ?? "").trim().slice(0, 60))
@@ -137,7 +150,7 @@ try {
     );
 
     // Advancing a page must not make the document taller, and must change the rows.
-    const next = page.locator('button:text-is("NEXT →")').first();
+    const next = page.getByRole("button", { name: /^NEXT( →)?$/ }).first();
     if ((await next.count()) > 0 && await next.isEnabled()) {
       const before = await rowFingerprint();
       await next.click();

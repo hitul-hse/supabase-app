@@ -42,12 +42,18 @@ import { fmtInt, fmtNum } from "@/lib/locale-format";
 /** The five tiles of the totals strip, as the keys a caller supplies drills under. */
 export type ProjectTotalsTile = "projects" | "hours" | "billable" | "over" | "noBudget";
 
-/** Red over budget, amber approaching it, green healthy, grey when unbudgeted. */
+/**
+ * Red over budget, amber approaching it, green healthy, grey when unbudgeted.
+ *
+ * Healthy is --good, not --accent. The accent means interactive/current on
+ * operate pages and nothing else; a green burn bar in the same teal as the
+ * links said "healthy" and "clickable" with one colour (APPLE_REF §8 #5).
+ */
 export function burnColor(percent: number | null): string {
   if (percent === null) return "var(--text-faint)";
   if (percent > 100) return "var(--critical)";
   if (percent >= 85) return "var(--warning)";
-  return "var(--accent)";
+  return "var(--good)";
 }
 
 /**
@@ -68,6 +74,49 @@ export function burnTone(percent: number | null): "neutral" | "good" | "warning"
   if (percent > 100) return "critical";
   if (percent >= 85) return "warning";
   return "good";
+}
+
+/**
+ * The budget posture as a NAMED status, not only as a colour.
+ *
+ * WHY THIS EXISTS. `burnColor` returned --critical / --warning / --good /
+ * --text-faint and the ledger painted the bar and the number with it, and that
+ * was the whole story: nowhere on the page did a word say whether a project was
+ * over budget. APPLE_REF §8 #5 and docs/UI-CONVENTIONS both forbid that in the
+ * same sentence ("Status is never colour alone: icon + text"), and it is simply
+ * unreadable to a red-green reader, in a greyscale print of a board pack, or to
+ * anyone who has not memorised the thresholds.
+ *
+ * The KEY, not the word: the caller renders it in the reader's language through
+ * `projects.ledger.status.*`. The thresholds are `burnTone`'s own, imported
+ * rather than restated, so the status, the bar colour and the facet chip that
+ * selects the same rows cannot drift into three different opinions.
+ */
+export type ProjectStatusKey = "over" | "risk" | "healthy" | "nobudget";
+
+export function projectStatus(percent: number | null): {
+  key: ProjectStatusKey;
+  tone: "critical" | "warning" | "good" | "unknown";
+} {
+  if (percent === null) return { key: "nobudget", tone: "unknown" };
+  if (percent > 100) return { key: "over", tone: "critical" };
+  if (percent >= 85) return { key: "risk", tone: "warning" };
+  return { key: "healthy", tone: "good" };
+}
+
+/**
+ * The tone of a FACET chip's leading dot — the same ladder, plus the one facet
+ * that is not a budget posture at all. "No activity" selects projects with zero
+ * logged hours, which says nothing about their budget, so it takes the faint
+ * rung rather than borrowing a status colour it has not earned.
+ */
+export function facetTone(
+  facet: "over" | "risk" | "healthy" | "nobudget" | "idle",
+): "critical" | "warning" | "good" | "neutral" | "unknown" {
+  if (facet === "idle") return "unknown";
+  return projectStatus(
+    facet === "over" ? 101 : facet === "risk" ? 90 : facet === "healthy" ? 10 : null,
+  ).tone;
 }
 
 /* ------------------------------------------------------------------ list */
@@ -196,8 +245,12 @@ export function ProjectTotalsStrip({
             hint={c.hint}
             tone={c.tone ?? "neutral"}
             // Inside a button the tile must fill it, or the hit target and the
-            // card outline disagree about where the tile ends.
+            // card outline disagree about where the tile ends. `data-interactive`
+            // is what lets the tile LIFT under the cursor: the hover lift is
+            // scoped to cards that respond (globals.css), and a tile that opens
+            // a drill-down does.
             className={drills?.[c.key] ? "h-full" : ""}
+            data-interactive={drills?.[c.key] ? "" : undefined}
           />
         );
         const drill = drills?.[c.key];
@@ -206,7 +259,10 @@ export function ProjectTotalsStrip({
             key={c.key}
             drill={drill}
             id={`projects-${c.key}`}
-            className="card-elev block w-full rounded-[var(--radius-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            // No card-elev on the button itself: the tile inside carries the
+            // elevation, and two shadows on one tile read as a smudge. The press
+            // is a 1.5% scale on pointer-down.
+            className="block w-full rounded-[var(--radius-card)] transition-transform duration-100 active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
             {tile}
           </DrillTrigger>
@@ -258,8 +314,8 @@ export function BurnChart({
   if (points.length === 0) {
     return (
       <Card className="p-5">
-        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
-        <p className="mt-3 font-mono text-[11px] text-[var(--text-faint)]">{wording.empty}</p>
+        <span className="t-title-3 text-[var(--text-primary)]">{wording.title}</span>
+        <p className="mt-3 t-subhead text-[var(--text-faint)]">{wording.empty}</p>
       </Card>
     );
   }
@@ -282,9 +338,9 @@ export function BurnChart({
   return (
     <Card tone="hero" className="flex flex-col gap-3 p-5">
       <div className="flex flex-wrap items-baseline gap-3">
-        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
-        <span className="font-mono text-[10px] text-[var(--text-muted)]">{wording.qualifier}</span>
-        <div className="ml-auto flex items-center gap-4 font-mono text-[10px] text-[var(--text-secondary)]">
+        <span className="t-title-3 text-[var(--text-primary)]">{wording.title}</span>
+        <span className="t-label text-[var(--text-muted)]">{wording.qualifier}</span>
+        <div className="ml-auto flex items-center gap-4 t-label text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5">
             <span className="h-0.5 w-3 bg-[var(--accent)]" /> {wording.logged}
           </span>
@@ -320,7 +376,7 @@ export function BurnChart({
         </svg>
       </div>
 
-      <div className="flex justify-between font-mono text-[10px] text-[var(--text-faint)]">
+      <div className="flex justify-between t-label text-[var(--text-faint)]">
         <span>{points[0].label}</span>
         {points.length > 2 && <span>{points[Math.floor(points.length / 2)].label}</span>}
         <span>{points[points.length - 1].label}</span>
@@ -342,22 +398,22 @@ export function ContributorTable({
   return (
     <Card className="flex flex-col">
       <div className="border-b border-[var(--divider)] px-4 py-3">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
+        <span className="t-title-3 text-[var(--text-primary)]">{wording.title}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="px-4 py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
+        <p className="px-4 py-6 text-center t-subhead text-[var(--text-faint)]">
           {wording.empty}
         </p>
       ) : (
         rows.map((r) => (
           <div
             key={r.memberId}
-            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 text-[12px] last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 t-callout last:border-b-0"
           >
             <span className="truncate text-[var(--text-primary)]">{r.memberName}</span>
-            <span className="flex shrink-0 gap-4 font-mono text-[11px]">
+            <span className="flex shrink-0 gap-4 fig">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
-              <span className="w-16 text-right text-[var(--accent)]">
+              <span className="w-16 text-right text-[var(--text-secondary)]">
                 {fmtNum(r.billableHours, locale, 1)} {wording.billableUnit}
               </span>
               <span className="w-16 text-right text-[var(--text-primary)]">
@@ -385,25 +441,25 @@ export function TaskTable({
   return (
     <Card className="flex flex-col">
       <div className="flex items-baseline justify-between border-b border-[var(--divider)] px-4 py-3">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">{wording.title}</span>
+        <span className="t-title-3 text-[var(--text-primary)]">{wording.title}</span>
         {rows.length > shown.length && (
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">
+          <span className="t-label text-[var(--text-faint)]">
             {wording.topOf(shown.length, rows.length)}
           </span>
         )}
       </div>
       {rows.length === 0 ? (
-        <p className="px-4 py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
+        <p className="px-4 py-6 text-center t-subhead text-[var(--text-faint)]">
           {wording.empty}
         </p>
       ) : (
         shown.map((r) => (
           <div
             key={r.taskName}
-            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 text-[12px] last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-[var(--divider)] px-4 py-2 t-callout last:border-b-0"
           >
             <span className="truncate text-[var(--text-secondary)]">{r.taskName}</span>
-            <span className="flex shrink-0 gap-4 font-mono text-[11px]">
+            <span className="flex shrink-0 gap-4 fig">
               <span className="text-[var(--text-faint)]">{r.entryCount}×</span>
               <span className="w-16 text-right text-[var(--text-primary)]">
                 {fmtNum(r.hours, locale, 1)} {wording.hoursUnit}

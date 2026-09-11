@@ -1,8 +1,19 @@
 # Google and Microsoft sign-in
 
-The login page offers **Continue with Google** and **Continue with Microsoft**
-alongside email/password. The app code is complete and tested; the buttons will
-return an error until each provider is configured in the three places below.
+> **Microsoft sign-in was REMOVED from the product on 2026-09-08** (board ticket 37).
+> The button, the `azure` provider wiring and the build-time flag are all gone from the
+> code. Everything below about Microsoft and Azure is kept as **history**: it records
+> what was built and why it was dropped, so a future decision to add a second provider
+> starts from what was already learned rather than from nothing. Do not follow the
+> Microsoft steps as instructions. The Google half is still current.
+>
+> If the `azure` provider is still enabled in the Supabase project, **disable it**:
+> the application no longer offers, reviews or explains that sign-in path, and
+> `check-sso-providers.mjs` now fails if the project still accepts it.
+
+The login page offers **Continue with Google** alongside email/password. It used to
+offer **Continue with Microsoft** as well; that was removed on 2026-09-08. The Google
+button returns an error until the provider is configured in the three places below.
 
 ## What signing in does and does not do
 

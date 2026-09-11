@@ -7,6 +7,12 @@ import type { ReactNode } from "react";
  * comments yet."), which reads as a dead end rather than an invitation. This
  * gives an empty list a title, a line explaining what would put something
  * here, and somewhere to put the primary action.
+ *
+ * THE COPY IS CAPPED (APPLE_REF §5.9, §8 #28): title one line, description
+ * ≤ 2 lines and ≤ 140 characters, one action. The measure is 70ch so that two
+ * lines hold the full 140 -- at the previous 46ch a capped description still
+ * wrapped to three. Callers own the length; the frame stays because it holds
+ * the slot's geometry the way a skeleton does.
  */
 export function EmptyState({
   title,
@@ -21,11 +27,11 @@ export function EmptyState({
 }) {
   return (
     <div
-      className={`flex flex-col items-center gap-2 border border-dashed border-[var(--border-strong)] px-6 py-10 text-center ${className}`}
+      className={`flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-dashed border-[var(--border-strong)] px-6 py-10 text-center ${className}`}
     >
-      <p className="text-[13px] font-medium text-[var(--text-primary)]">{title}</p>
+      <p className="t-headline text-[var(--text-primary)]">{title}</p>
       {description && (
-        <p className="max-w-[46ch] text-[12px] leading-relaxed text-[var(--text-muted)]">
+        <p className="max-w-[70ch] t-callout t-loose text-[var(--text-muted)]">
           {description}
         </p>
       )}

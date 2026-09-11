@@ -116,7 +116,7 @@ function SetPasswordForm() {
           This invite or reset link is no longer valid. Links can only be used once,
           and they expire.
         </AuthNotice>
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="t-body t-loose text-[var(--text-secondary)]">
           Ask an administrator to send a new invite, or{" "}
           <Link href="/auth/forgot-password" className="text-[var(--accent)] hover:underline">
             request a new reset link
@@ -131,7 +131,7 @@ function SetPasswordForm() {
     return (
       <>
         <AuthHeading eyebrow="HSE HUB / ACCESS" title="Set your password" />
-        <p className="font-mono text-sm text-[var(--text-muted)]">Verifying your link…</p>
+        <p className="t-callout text-[var(--text-muted)]">Verifying your link…</p>
       </>
     );
   }
@@ -139,7 +139,7 @@ function SetPasswordForm() {
   return (
     <>
       <AuthHeading eyebrow="HSE HUB / ACCESS" title="Set your password" />
-      <p className="mb-6 text-sm text-[var(--text-secondary)]">
+      <p className="mb-6 t-body t-loose text-[var(--text-secondary)]">
         Choose a password to finish setting up your account. You&apos;ll use it with
         your email address from now on.
       </p>
@@ -195,7 +195,7 @@ export default function SetPasswordPage() {
   return (
     <AuthShell>
       <Suspense
-        fallback={<p className="font-mono text-sm text-[var(--text-muted)]">Loading…</p>}
+        fallback={<p className="t-callout text-[var(--text-muted)]">Loading…</p>}
       >
         <SetPasswordForm />
       </Suspense>

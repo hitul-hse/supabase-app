@@ -33,6 +33,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 /*
  * Credentials come from the ENVIRONMENT first, then .env.local as a local
@@ -68,15 +69,16 @@ const {
 } = env;
 if (!URL_BASE || !SERVICE) {
   console.log("SKIP: no Supabase credentials");
-  process.exit(0);
+  notRun();
 }
 if (!TT_AUTH || !TT_ACCOUNT) {
   console.log("SKIP: no TrackingTime credentials — cannot compare against the vendor");
-  process.exit(0);
+  notRun();
 }
 
 let failed = false;
 const check = (label, ok, detail) => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}\n        ${detail}`);
   if (!ok) failed = true;
 };

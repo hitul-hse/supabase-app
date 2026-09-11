@@ -12,9 +12,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
+import { record } from "./lib/gate-result.mjs";
 
 // Repo root resolved from this file, so these paths work on any machine and
-// from any working directory. They were previously hardcoded to C:/Supabase,
+// from any working directory. They were previously hardcoded to a drive-letter path,
 // which existed on exactly one developer's laptop and nowhere else.
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 
@@ -23,7 +24,7 @@ const sql = readFileSync(join(REPO, "supabase/migrations/20260826140000_factoria
 const db = await new PGlite();
 
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };
 
 /** Assert a statement is REJECTED. The point of a constraint is what it refuses. */
 const rejects = async (label, stmt) => {

@@ -38,6 +38,16 @@ export type ProjectFilters = {
 export type ProjectFacet = "over" | "risk" | "healthy" | "nobudget" | "idle";
 
 /**
+ * The ledger's sort keys. Here, in a plain module, rather than in
+ * ProjectsLedger.tsx: that file is `"use client"`, and a VALUE imported from a
+ * client module into the server page arrives as a client reference, not an
+ * array -- `SORT_KEYS.includes is not a function` on every /projects request
+ * was how that surfaced. The type lives beside the list for the same reason.
+ */
+export type LedgerSort = "burn" | "hours" | "recent" | "name" | "budget" | "people";
+export const LEDGER_SORTS: LedgerSort[] = ["burn", "hours", "recent", "name", "budget", "people"];
+
+/**
  * The bucket a project with no customer falls into.
  *
  * It is a KEY, not a label: the filter set, the customer options and the

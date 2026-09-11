@@ -119,4 +119,22 @@ docs/discovery/
 # Scratch output from agents and probe scripts: never repo content.
 tmp-*
 .local/
+
+# The overnight research pass writes its findings here before its wrapper moves
+# them to their permanent home. The wrapper's own brief already tells the agent
+# "the name is gitignored" -- which was not true until this line: none of
+# /tmp-*, .tmp-* or tmp-* above matches a leading dot followed by "night", and
+# .git/info/exclude covers only the Claude runtime directories. So the
+# 2026-09-05 run's report sat in `git status` as an untracked file in the repo
+# root, one `git add -A` from being committed. Ignored by prefix, because the
+# next unattended pass will pick a slightly different name.
+.night-*
 .context-bridge/bjoern-files/
+
+# The motion stage's frame-evidence build (scripts/lib/launch-chromium.mjs traces
+# against `next start` of a production dist). Its own distDir so the shared
+# .next is never disturbed, and ignored because Tailwind v4 scans every
+# un-ignored file: an
+# un-ignored dist put binary chunk bytes into the generated CSS and broke every
+# dev page with "Parsing CSS source code failed" (measured 2026-09-05).
+.next-motion/

@@ -35,6 +35,7 @@
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -44,13 +45,14 @@ for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
 const { NEXT_PUBLIC_SUPABASE_URL: URL_BASE, SUPABASE_SERVICE_ROLE_KEY: SERVICE, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON } = env;
 if (!URL_BASE || !SERVICE || !ANON) {
   console.log("SKIP: no live credentials in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 // ── Requirement-tagged reporting ────────────────────────────────────────────
 const results = [];
 let failed = false;
 const req = (id, requirement, check, ok, observed) => {
+  record(ok);
   results.push({ id, requirement, check, ok, observed });
   if (!ok) failed = true;
   console.log(`${ok ? "PASS" : "FAIL"} ${id}  ${check}\n        observed: ${observed}`);
@@ -60,7 +62,7 @@ const admin = createClient(URL_BASE, SERVICE, { auth: { persistSession: false } 
 const probe = await admin.schema("time").from("entry").select("id", { count: "exact" }).limit(1);
 if (probe.error) {
   console.log(`SKIP: the time schema is not reachable — ${probe.error.message}`);
-  process.exit(0);
+  notRun();
 }
 const liveEntries = probe.count ?? 0;
 const liveProjects = (await admin.schema("time").from("project").select("id", { count: "exact" }).limit(1)).count ?? 0;
@@ -74,7 +76,7 @@ const { data: profiles } = await admin
   .from("app_user_profile").select("user_id").eq("role_key", "exec").eq("is_active", true).limit(1);
 if (!profiles?.length) {
   console.log("SKIP: no active exec to sign in as");
-  process.exit(0);
+  notRun();
 }
 const { data: u } = await admin.auth.admin.getUserById(profiles[0].user_id);
 const { data: link } = await admin.auth.admin.generateLink({ type: "magiclink", email: u.user.email });
@@ -84,7 +86,7 @@ const { data: verified } = await anonClient.auth.verifyOtp({
 });
 if (!verified?.session) {
   console.log("SKIP: could not mint a session");
-  process.exit(0);
+  notRun();
 }
 const session = verified.session;
 

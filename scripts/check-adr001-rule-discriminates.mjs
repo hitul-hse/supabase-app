@@ -13,6 +13,7 @@
 
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 
@@ -22,7 +23,7 @@ const env = loadEnv();
 // reads like a broken gate rather than an absent credential.
 if (!env.SUPABASE_DB_URL) {
   console.log("SKIP: no SUPABASE_DB_URL, so there is no live database to check");
-  process.exit(0);
+  notRunInChain();
 }
 
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
@@ -80,6 +81,7 @@ const isUnlawful = (ttName0, orderId) => {
 let failures = 0;
 const mustReject = (label, ttName, orderId) => {
   const rejected = isUnlawful(ttName, orderId);
+  record(rejected);
   console.log(`${rejected ? "PASS" : "FAIL"}: rejects ${label}`);
   if (!rejected) {
     console.log(`        ${JSON.stringify(ttName)} -> ${orderId} (${JSON.stringify(orderNames.get(orderId))}) WAS ACCEPTED`);
@@ -118,6 +120,7 @@ for (let i = 0; i < tt.length; i += 1) {
   if (!isUnlawful(n, o.id)) { accepted += 1; if (examples.length < 3) examples.push(`${JSON.stringify(n)} -> ${o.id}`); }
   if (sampled >= 200) break;
 }
+record(accepted === 0);
 console.log(`${accepted === 0 ? "PASS" : "FAIL"}: rejects all ${sampled} mismatched-company pairings sampled`);
 if (accepted) { console.log(`        ${accepted} accepted, e.g. ${examples.join(" | ")}`); failures += 1; }
 

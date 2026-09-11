@@ -8,15 +8,16 @@
 // Everything runs inside a transaction that is always rolled back.
 import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
 const INSPECT = process.argv.includes("--inspect");
 const POLICY = process.argv.includes("--policy");
-const SNAPSHOT = "C:/Supabase/scripts/.identity-before.json";
+const SNAPSHOT = `${REPO_ROOT}/scripts/.identity-before.json`;
 const SAVE = process.argv.includes("--save-before");
 
 const c = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });

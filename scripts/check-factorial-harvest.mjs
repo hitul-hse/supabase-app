@@ -31,6 +31,7 @@ import {
   CONTRACT_FORBIDDEN_FIELDS,
   projectContract,
 } from "./lib/factorial.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 /*
  * The 54 field names of employees_employee, snapshotted from the OpenAPI spec
@@ -59,6 +60,7 @@ const SPEC_FIELDS = [
 
 let failed = 0;
 const check = (ok, label, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`  ${ok ? "ok  " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
 };
@@ -212,7 +214,7 @@ check(sparseContract.employee_id === undefined && sparseContract.working_hours =
 
 // 7. Live spec drift -- only when a credential exists.
 // Via the shared loader: process.env first (so CI secrets win), then a
-// .env.local found by walking up from this file. The hardcoded C:/Supabase
+// .env.local found by walking up from this file. The hardcoded drive-letter
 // path this replaces could only ever resolve on one Windows machine, so the
 // live half below was dead everywhere else -- silently, as a skip.
 const env = loadEnv();
@@ -221,6 +223,7 @@ const BEARER = env.FACTORIAL_ACCESS_TOKEN ?? env.FACTORIAL_TOKEN ?? "";
 
 if (!KEY && !BEARER) {
   console.log("\n  skip  live spec drift check — no Factorial credential (everything above needed none)");
+  recordNotRun("no Factorial credential — the 2 live spec-drift probes not evaluated", 2);
 } else {
   try {
     const res = await fetch("https://api.factorialhr.com/oas/?version=2026-07-01", {

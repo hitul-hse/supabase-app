@@ -35,9 +35,11 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { inflateSync } from "node:zlib";
+import { record } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -347,9 +349,18 @@ if (heroIdx !== -1) {
   );
   // The reference pairs its centred hero with a headline, not a lone sentence:
   // a 220px mark over one line of small grey text has no anchor between them.
+  //
+  // "Display-sized" is now expressible two ways. This used to demand a literal
+  // `text-[NNpx]`, which was the only way to say it when the check was written;
+  // the type roles landed since, and `t-large` (26/32, 600) and `t-title`
+  // (22/26, 600) ARE the display treatment — APPLE_REF §1.3 rule 4 puts the
+  // display crossover at 22px, and §1.3's table assigns `t-large` to exactly
+  // this hero. Demanding the raw size would now force this one heading to stay
+  // off the scale that check-design-system pushes every other heading onto.
+  // The assertion is the same: a heading, at display size, not body copy.
   check(
     "the hero has a headline, not only body copy",
-    /<h2[^>]*text-\[\d\dpx\]/.test(heroRegion),
+    /<h2[^>]*(?:text-\[\d\dpx\]|\bt-(?:large|title)\b)/.test(heroRegion),
     "hero copy has no display-sized heading",
   );
 }
@@ -714,12 +725,86 @@ check(
   "16px everywhere would coarsen the desktop form for no reason",
 );
 
+/*
+ * HOW THE BUTTON CLASSES ARE OBSERVED, and why it is not a plain string match.
+ *
+ * These two used to be hand-rolled literals, and this gate read them with a
+ * `= "..."` regex. They are now composed through `buttonClass()` — the shared
+ * button vocabulary — so the literal is gone and the regex saw nothing, which
+ * the gate reported as "class not found" and failed. That failure was about the
+ * gate's eyesight, not the buttons: measured in Chromium at 390x844 and
+ * 320x568, both controls render at exactly 44.0px with a resolved
+ * `min-height: 44px`.
+ *
+ * The assertion below is unchanged, deliberately — it is still "does this
+ * control carry the 44px floor on a phone", and it still fails closed if the
+ * class cannot be found at all. What changed is that the gate now RESOLVES a
+ * `buttonClass(variant, size, extra)` call against Button.tsx's own BASE /
+ * SIZES / VARIANTS literals, so it reads the class string the browser actually
+ * receives. A gate that can only see hand-rolled classes would push every
+ * control it guards away from the shared primitive, which is backwards.
+ */
+const BUTTON_C = existsSync(join(root, "src/components/ui/Button.tsx"))
+  ? strip(read("src/components/ui/Button.tsx"))
+  : "";
+
+/** The `"a" + "b" + "c"` run starting at `from`, joined as one class string. */
+const litRun = (src, from) => {
+  const re = /\s*"([^"]*)"\s*(\+)?/y;
+  re.lastIndex = from;
+  const parts = [];
+  let m;
+  while ((m = re.exec(src))) {
+    parts.push(m[1]);
+    if (!m[2]) break;
+  }
+  return parts.join(" ");
+};
+
+/** `const NAME = "..." + "..."` in Button.tsx. */
+const constLit = (name) => {
+  const i = BUTTON_C.search(new RegExp(`const ${name}\\b[^=]*=`));
+  return i < 0 ? "" : litRun(BUTTON_C, BUTTON_C.indexOf("=", i) + 1);
+};
+
+/** `key: "..." + "..."` inside the `const OBJ = { ... }` map in Button.tsx. */
+const objLit = (obj, key) => {
+  const oi = BUTTON_C.search(new RegExp(`const ${obj}\\b`));
+  if (oi < 0) return "";
+  const body = BUTTON_C.slice(oi);
+  const ki = body.search(new RegExp(`\\b${key}\\s*:`));
+  return ki < 0 ? "" : litRun(body, body.indexOf(":", ki) + 1);
+};
+
+/**
+ * The class a control actually gets: a plain string literal if it still has
+ * one, otherwise the resolved `buttonClass(...)` composition. "" if neither,
+ * which keeps the "class not found" failure reachable.
+ */
+const classOf = (src, name) => {
+  const literal = src.match(new RegExp(`${name}\\s*=\\s*\\n?\\s*"([^"]*)"`))?.[1];
+  if (literal) return literal;
+  const call = src.match(
+    new RegExp(`${name}\\s*=\\s*\\n?\\s*buttonClass\\(\\s*"(\\w+)"\\s*,\\s*"(\\w+)"\\s*(?:,\\s*"([^"]*)")?\\s*\\)`),
+  );
+  if (!call) return "";
+  const [, variant, size, extra = ""] = call;
+  return [constLit("BASE"), objLit("SIZES", size), objLit("VARIANTS", variant), extra]
+    .filter(Boolean)
+    .join(" ");
+};
+
 // 44px minimum target: Apple's HIG and WCAG 2.5.8 agree. Measured heights were
 // inputs 37.3px, submit 36px, Google 37.3px, and "Forgot password?" just 18px.
+//
+// `min-h-11` or `max-sm:min-h-11` both satisfy this: the second is the same
+// 44px floor written so it applies only below `sm`, which is what lets the
+// desktop control keep the design system's 32px `md` height. The word-boundary
+// regex matches either.
 for (const [label, cls] of [
   ["input", inputCls],
-  ["submit button", AUTH_C.match(/authButtonClass\s*=\s*\n?\s*"([^"]*)"/)?.[1] ?? ""],
-  ["OAuth button", OAUTH_C.match(/const base\s*=\s*\n?\s*"([^"]*)"/)?.[1] ?? ""],
+  ["submit button", classOf(AUTH_C, "authButtonClass")],
+  ["OAuth button", classOf(OAUTH_C, "const base")],
 ]) {
   check(
     `${label} meets the 44px touch target on phones`,

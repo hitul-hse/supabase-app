@@ -21,9 +21,10 @@
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -42,7 +43,7 @@ await db.exec(`
   create or replace function auth.uid() returns uuid
     language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 `);
-await db.exec(readFileSync("C:/Supabase/supabase/schema.sql", "utf8"));
+await db.exec(readFileSync(`${REPO_ROOT}/supabase/schema.sql`, "utf8"));
 
 const PERM_COLS = "permission_key, display_name, resource, action, description, module_key, sort_order";
 const filePerms = (await db.query(`select ${PERM_COLS} from app_permission order by permission_key`)).rows;
@@ -204,7 +205,7 @@ for (const k of atRisk) {
 
 // --- the code list, which is what the gate actually asserts against ----------
 head("src/lib/permissions.ts");
-const codeKeys = new Set([...readFileSync("C:/Supabase/src/lib/permissions.ts", "utf8")
+const codeKeys = new Set([...readFileSync(`${REPO_ROOT}/src/lib/permissions.ts`, "utf8")
   .matchAll(/"([a-z]+:[a-z_:]+)"/g)].map((m) => m[1]));
 console.log(`   code declares ${codeKeys.size}; live ${liveCatalogue.size}; schema.sql ${fileByKey.size}`);
 console.log(`   in code, not live:       ${[...codeKeys].filter((k) => !liveCatalogue.has(k)).join(", ") || "(none)"}`);
@@ -229,7 +230,7 @@ head("residual gate failure (outside this script's remit)");
 
 const OLD_RE = /"([a-z]+:[a-z_:]+)"/g;
 const WIDE_RE = /"([a-z_]+:[a-z_:]+)"/g;
-const permSrc = readFileSync("C:/Supabase/src/lib/permissions.ts", "utf8");
+const permSrc = readFileSync(`${REPO_ROOT}/src/lib/permissions.ts`, "utf8");
 const grab = (src, re) => new Set([...src.matchAll(re)].map((m) => m[1]));
 
 // Defect 1: the constant is genuinely absent from the code.

@@ -59,12 +59,13 @@
  */
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 
 if (!env.SUPABASE_DB_URL) {
   console.log("SKIP: no SUPABASE_DB_URL, so there is no live database to check");
-  process.exit(0);
+  notRunInChain();
 }
 
 /**
@@ -106,6 +107,7 @@ const ALLOW = [
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

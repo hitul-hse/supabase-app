@@ -19,9 +19,10 @@
 //         SITE=http://localhost:3000 node scripts/measure-page-timing.mjs
 import { readFileSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -166,7 +167,7 @@ for (const r of results) {
   for (const s of top) console.log(`   ${String(s.dur).padStart(5)}ms @${String(s.start).padStart(5)}ms ${(s.type || "").padEnd(10)} ${s.name}`);
 }
 
-writeFileSync("C:/Supabase/.measure-page-timing.json", JSON.stringify(results, null, 2));
+writeFileSync(`${REPO_ROOT}/.measure-page-timing.json`, JSON.stringify(results, null, 2));
 console.log("\nwrote .measure-page-timing.json");
 
 await browser.close();

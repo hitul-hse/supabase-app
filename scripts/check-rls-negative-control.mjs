@@ -4,6 +4,7 @@
 // "old" versions passes, the corresponding test is not actually load-bearing.
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const EXEC = "11111111-1111-1111-1111-111111111111";
 const EMP = "33333333-3333-3333-3333-333333333333";
@@ -66,6 +67,7 @@ async function as(db, uid, sql) {
 
 let failed = false;
 const expectCaught = (name, caught, detail) => {
+  record(caught);
   console.log(`${caught ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
   if (!caught) failed = true;
 };

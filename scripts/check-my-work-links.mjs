@@ -28,11 +28,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { record } from "./lib/gate-result.mjs";
 
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 
 let failures = 0;
 const check = (l, ok, d = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`);
   if (!ok) failures += 1;
 };

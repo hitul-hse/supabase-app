@@ -10,10 +10,12 @@
  * process. The plain-TS module keeps this gate runnable directly.
  */
 import { initialsOf, colorForName } from "../src/lib/avatar-identity.ts";
+import { record } from "./lib/gate-result.mjs";
 
 let failures = 0;
 const eq = (a, b, label) => {
   const ok = a === b;
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label} — got ${JSON.stringify(a)}`);
   if (!ok) failures++;
 };

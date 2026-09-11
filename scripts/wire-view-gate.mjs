@@ -1,7 +1,8 @@
 // Wire the new gate into package.json next to its siblings, and into test:db.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/package.json";
+const path = `${REPO_ROOT}/package.json`;
 const raw = readFileSync(path, "utf8");
 const pkg = JSON.parse(raw);
 

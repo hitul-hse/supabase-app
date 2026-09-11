@@ -8,9 +8,11 @@
  */
 import { readFileSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -20,6 +22,7 @@ const ORPHAN = "10765_00316_701_01";   // no TrackingTime link at all
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
 };

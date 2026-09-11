@@ -22,10 +22,11 @@
  * unit test -- which is why it is not in the test:db chain.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 if (!existsSync(".env.local")) {
   console.log("SKIP: no .env.local — nothing to probe");
-  process.exit(0);
+  notRun();
 }
 
 const env = readFileSync(".env.local", "utf8");
@@ -39,12 +40,13 @@ const key = get("SUPABASE_SERVICE_ROLE_KEY") || get("NEXT_PUBLIC_SUPABASE_ANON_K
 
 if (!url || !key) {
   console.log("SKIP: no Supabase URL/key in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 const headers = { apikey: key, Authorization: `Bearer ${key}` };
 let notReady = 0;
 const report = (ok, name, detail = "") => {
+  record(ok);
   console.log(`${ok ? "READY    " : "NOT READY"} ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) notReady++;
 };

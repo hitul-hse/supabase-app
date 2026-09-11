@@ -18,9 +18,18 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 const PAGE = "src/app/(app)/data-hygiene/page.tsx";
 const QUERY = "src/lib/queries/data-hygiene.ts";
+/*
+ * The pager markup moved into the shared component (docs/UI-CONVENTIONS rule
+ * 3): this page, customer-master/import-review and the projects ledger all
+ * render through it. Sabotaging it there is a STRONGER mutation than
+ * sabotaging one page's private copy was -- it breaks all three pagers at once
+ * and must still be caught.
+ */
+const SHARED_PAGER = "src/components/NumberedPager.tsx";
 
 const MUTATIONS = [
   {
@@ -119,11 +128,15 @@ const MUTATIONS = [
     to: "const hygiene = await getDataHygiene(supabase);",
   },
   {
-    file: PAGE,
+    file: SHARED_PAGER,
     catcher: "fixture",
     why: "drops aria-current from the pager, so a screen reader announces N identical page links",
-    from: 'aria-current={current ? "page" : undefined}',
-    to: "data-current={current}",
+    // Anchored on the LINK branch specifically (only it carries `scroll`), so
+    // this replaces one of the component's two render paths. The gates count
+    // the attribute per path rather than merely finding it, so losing one is
+    // caught instead of hiding behind the other.
+    from: 'scroll={false}\n        aria-current={current ? "page" : undefined}',
+    to: 'scroll={false}\n        data-current={current}',
   },
   /*
    * The five below are claim-classification sabotages. Each one WAS a live bug,
@@ -224,6 +237,7 @@ if (liveSkips) {
 for (const m of MUTATIONS) {
   if (m.catcher === "live" && liveSkips) {
     console.log(`SKIP: needs credentials — ${m.why}`);
+    recordNotRun(`needs credentials — mutation not exercised: ${m.why}`);
     continue;
   }
   const original = readFileSync(m.file, "utf8");
@@ -237,6 +251,7 @@ for (const m of MUTATIONS) {
     : original.includes(m.from.replace(/\n/g, "\r\n")) ? m.from.replace(/\n/g, "\r\n") : null;
 
   if (!needle) {
+    record(false);
     console.log(`FAIL: mutation anchor not found in ${m.file} — ${m.why}`);
     console.log(`        looked for: ${JSON.stringify(m.from.slice(0, 70))}`);
     failures += 1;
@@ -254,6 +269,7 @@ for (const m of MUTATIONS) {
     const byFixture = FIXTURE_GATES.some((g) => runGate(g).exit !== 0);
     const byLive = liveSkips ? false : runGate("live").exit !== 0;
     const caught = byFixture || byLive;
+    record(caught);
     console.log(`${caught ? "PASS" : "FAIL"}: caught by ${
       [byFixture && "fixture", byLive && "live"].filter(Boolean).join(" + ") || "NOTHING"
     } — ${m.why}`);
@@ -267,6 +283,7 @@ for (const m of MUTATIONS) {
 const cleanFixture = FIXTURE_GATES.some((g) => runGate(g).exit !== 0) ? 1 : 0;
 const cleanLive = liveSkips ? 0 : runGate("live").exit;
 const cleanExit = cleanFixture || cleanLive;
+record(cleanExit === 0);
 console.log(`${cleanExit === 0 ? "PASS" : "FAIL"}: every mutation reverted, gates green again`);
 if (cleanExit !== 0) failures += 1;
 

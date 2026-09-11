@@ -28,6 +28,7 @@
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -37,11 +38,12 @@ for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
 const { NEXT_PUBLIC_SUPABASE_URL: URL_BASE, SUPABASE_SERVICE_ROLE_KEY: SERVICE, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON } = env;
 if (!URL_BASE || !SERVICE || !ANON) {
   console.log("SKIP: no live credentials");
-  process.exit(0);
+  notRun();
 }
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -49,7 +51,7 @@ const check = (label, ok, detail = "") => {
 const admin = createClient(URL_BASE, SERVICE, { auth: { persistSession: false } });
 if ((await admin.schema("time").from("entry").select("id").limit(1)).error) {
   console.log("SKIP: time schema unreachable");
-  process.exit(0);
+  notRun();
 }
 
 // Sign in as a real exec, so policies are evaluated exactly as in production.
@@ -57,7 +59,7 @@ const { data: profiles } = await admin
   .from("app_user_profile").select("user_id").eq("role_key", "exec").eq("is_active", true).limit(1);
 if (!profiles?.length) {
   console.log("SKIP: no exec profile");
-  process.exit(0);
+  notRun();
 }
 const { data: u } = await admin.auth.admin.getUserById(profiles[0].user_id);
 const { data: link } = await admin.auth.admin.generateLink({ type: "magiclink", email: u.user.email });
@@ -67,7 +69,7 @@ const { data: sess } = await anon.auth.verifyOtp({
 });
 if (!sess?.session) {
   console.log("SKIP: could not mint a session");
-  process.exit(0);
+  notRun();
 }
 const token = sess.session.access_token;
 

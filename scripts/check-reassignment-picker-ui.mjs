@@ -14,11 +14,13 @@
  *   8. submit stays disabled until a person and a >=3 char reason are given
  */
 import { existsSync, readFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
-const ENV_PATH = "C:/Supabase/.env.local";
+const ENV_PATH = `${REPO_ROOT}/.env.local`;
 if (!existsSync(ENV_PATH)) {
   console.log("SKIP: no .env.local");
-  process.exit(0);
+  notRun();
 }
 const env = Object.fromEntries(
   readFileSync(ENV_PATH, "utf8")
@@ -32,7 +34,7 @@ const env = Object.fromEntries(
 const KEY = env.SUPABASE_SERVICE_ROLE_KEY ?? env.SUPABASE_SERVICE_KEY;
 if (!KEY) {
   console.log("SKIP: no service-role key");
-  process.exit(0);
+  notRun();
 }
 
 let launchChromium;
@@ -40,7 +42,7 @@ try {
   ({ launchChromium } = await import("./lib/launch-chromium.mjs"));
 } catch {
   console.log("SKIP: playwright not installed");
-  process.exit(0);
+  notRun();
 }
 
 const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
@@ -64,6 +66,7 @@ const EMAIL = process.env.GATE_EMAIL ?? "bjoern.schoenemann@hs-experts.com";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -77,7 +80,7 @@ const linkBody = await gen.json();
 const hashed = linkBody?.properties?.hashed_token ?? linkBody?.hashed_token;
 if (!hashed) {
   console.log(`SKIP: could not mint a magic link (${gen.status})`);
-  process.exit(0);
+  notRun();
 }
 
 const browser = await launchChromium();

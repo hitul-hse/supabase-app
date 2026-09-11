@@ -84,6 +84,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const ACTIONS_SRC_PATH = path.join("src", "app", "(app)", "profile", "actions.ts");
 
@@ -92,11 +93,12 @@ const base = process.env.PROFILE_GATE_URL || "http://localhost:3000";
 const res = await fetch(base, { redirect: "manual" }).catch(() => null);
 if (!res) {
   console.log(`SKIP: nothing serving at ${base} — run \`npm run build && npm start\` first`);
-  process.exit(0);
+  notRun();
 }
 
 let failures = 0;
 const check = (ok, label, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
 };

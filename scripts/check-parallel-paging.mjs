@@ -27,6 +27,7 @@ import { pathToFileURL } from "node:url";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 // The report module imports via the "@/" alias, which bare Node cannot resolve.
 const root = process.cwd();
@@ -51,11 +52,12 @@ const URL_BASE = env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 if (!URL_BASE || !KEY) {
   console.log("SKIP: no live credentials in .env.local");
-  process.exit(0);
+  notRun();
 }
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"} | ${label}${!ok && detail ? `\n       ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -67,7 +69,7 @@ const supabase = createClient(URL_BASE, KEY, { auth: { persistSession: false } }
 const probe = await supabase.schema("time").from("entry").select("id").limit(1);
 if (probe.error) {
   console.log(`SKIP: time schema not reachable — ${probe.error.message}`);
-  process.exit(0);
+  notRun();
 }
 
 const { fetchAllEntries, parseFilters, summarise } = await import(

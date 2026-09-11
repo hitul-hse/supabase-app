@@ -35,11 +35,13 @@ import { createRequire } from "node:module";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
+import { record } from "./lib/gate-result.mjs";
 
 await loadBindings();
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -469,10 +471,13 @@ try {
     "state not exposed to assistive tech",
   );
 
-  // The shell must reflect collapse in its own markup.
+  // The shell must reflect collapse in its own markup. It animates on the
+  // shared spring constants now, so that module is compiled and rewritten too.
+  const springsFile = await compile("src/components/animations/springs.ts", "springs.cjs");
   const shellFile = await compile(SHELL_PATH, "shell.cjs", {
     "./SidebarCollapseContext": posix(ctxFile),
     "./sidebar-collapse-shared": posix(sharedFile),
+    "./animations/springs": posix(springsFile),
   });
   const { DesktopSidebarShell } = require(shellFile);
 

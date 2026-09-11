@@ -26,12 +26,14 @@
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   if (!ok) failed = true;
   console.log(`${ok ? "PASS" : "FAIL"} | ${label}${!ok && detail ? `\n       ${detail}` : ""}`);
 };
@@ -307,6 +309,7 @@ const serviceKey =
 
 if (!url || !serviceKey) {
   console.log("SKIP | no Supabase credentials in the environment — source assertions only");
+  recordNotRun("no Supabase credentials — 6 live write-path probes not evaluated", 6);
 } else {
   const rest = async (path, init = {}) => {
     const res = await fetch(`${url}/rest/v1/${path}`, {

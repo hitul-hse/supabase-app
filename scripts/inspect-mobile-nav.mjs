@@ -8,9 +8,10 @@
 // something to blur), and with the More drawer open.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -61,7 +62,7 @@ const bar = await page.evaluate(() => {
 console.log("tab bar as rendered at 390x844:");
 console.log(JSON.stringify(bar, null, 2));
 
-await page.screenshot({ path: "C:/Supabase/tmp-nav-dark.png" });
+await page.screenshot({ path: `${REPO_ROOT}/tmp-nav-dark.png` });
 
 // Light theme, where the contrast maths is tightest.
 const toggled = await page.evaluate(() => {
@@ -71,7 +72,7 @@ const toggled = await page.evaluate(() => {
 });
 await page.waitForTimeout(700);
 console.log(`\ntheme toggle found: ${toggled}`);
-await page.screenshot({ path: "C:/Supabase/tmp-nav-light.png" });
+await page.screenshot({ path: `${REPO_ROOT}/tmp-nav-light.png` });
 
 // The More drawer, which is the other half of "mobile navigation".
 await page.evaluate(() => {
@@ -79,7 +80,7 @@ await page.evaluate(() => {
   more?.click();
 });
 await page.waitForTimeout(800);
-await page.screenshot({ path: "C:/Supabase/tmp-nav-more.png" });
+await page.screenshot({ path: `${REPO_ROOT}/tmp-nav-more.png` });
 
 const drawer = await page.evaluate(() => {
   const d = document.querySelector("[data-testid='mobile-drawer'], aside, [role='dialog']");

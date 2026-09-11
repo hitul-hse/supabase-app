@@ -2,9 +2,10 @@
 // Screenshots plus a structural dump of the Management tab and /my-work.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -82,7 +83,7 @@ for (const [route, name] of [["/dashboard/management", "management"], ["/my-work
     console.log(`${(bl.tag + " " + bl.heading).padEnd(48)} ${bl.kind.padEnd(16)} ${String(bl.rows).padStart(4)} ${String(bl.cols).padStart(4)}`);
   }
 
-  await page.screenshot({ path: `C:/Supabase/tmp-shot-${name}.png`, fullPage: true });
+  await page.screenshot({ path: `${REPO_ROOT}/tmp-shot-${name}.png`, fullPage: true });
   console.log(`\nfull-page screenshot -> tmp-shot-${name}.png`);
 }
 

@@ -8,6 +8,7 @@
 // here fails in the worst direction -- it stays green while coverage shrinks.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { record } from "./lib/gate-result.mjs";
 
 // Public auth routes are read from the middleware's own PUBLIC_ROUTES set
 // rather than hardcoded. Hardcoding them made this check depend on whichever
@@ -86,6 +87,7 @@ for (const path of routes) {
   // A 200 that actually contains the dashboard shell would be a leak.
   const leaked = status === 200 && RECORD_DATA.test(body);
 
+  record(redirected && !leaked);
   if (redirected && !leaked) {
     console.log(`PASS ${path} -> ${status} ${loc}`);
   } else {
@@ -113,6 +115,7 @@ for (const path of publicRoutes) {
   const aliasesToPublicRoute =
     status >= 300 && status < 400 && publicRoutes.includes(loc.split("?")[0]);
 
+  record((status === 200 || aliasesToPublicRoute) && !leaked);
   if ((status === 200 || aliasesToPublicRoute) && !leaked) {
     console.log(
       aliasesToPublicRoute

@@ -1,7 +1,9 @@
 "use client";
 
+import { buttonClass } from "@/components/ui/Button";
+
 /**
- * Google / Microsoft sign-in.
+ * Google sign-in.
  *
  * Both go through Supabase's OAuth flow, which redirects to the provider and
  * back to /auth/callback with a PKCE code. Two details that are easy to get
@@ -16,6 +18,13 @@
  *    validates as a same-site path before using. It is not passed through the
  *    provider, so it cannot be tampered with mid-flight.
  *
+ * Microsoft sign-in was REMOVED on 2026-09-08 at hitul's instruction. It had sat
+ * behind a build-time flag defaulting to off since it was never finished: the Azure
+ * app registration was never created, so the button could not succeed for anyone.
+ * The decision was to drop the provider rather than complete it. Nothing here is
+ * "temporarily disabled" any more, which is why the flag is gone too: a flag that is
+ * never going to be turned on is just a second, quieter way to say no.
+ *
  * These buttons do NOT grant access. OAuth only creates an auth.users row; the
  * app requires a matching app_user_profile that an administrator provisions, so
  * an unknown Google account that signs in successfully still lands on
@@ -25,35 +34,9 @@
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-/** The providers wired up here. Supabase calls Microsoft's provider "azure". */
-type OAuthProvider = "google" | "azure";
-
-/**
- * Is Microsoft sign-in offered at all?
- *
- * WHY A FLAG RATHER THAN DELETING THE BUTTON. Microsoft is deferred, not
- * rejected: enabling it needs an Azure app registration nobody has created yet
- * (see docs/ENABLE-SSO-STEPS.md, Part B). Deleting the code would mean rebuilding
- * the scopes, the provider-key mapping and the pending-state handling later, and
- * those are exactly the details this file exists to get right.
- *
- * WHY IT DEFAULTS TO OFF. Until that registration exists, the button cannot
- * succeed for anybody. The failure is now explained in place rather than dumping
- * the user on raw JSON, which is a real improvement -- but the best version of an
- * unusable control is not a well-explained one, it is its absence. Two sign-in
- * options where one always fails invites every colleague to try the broken one
- * first and quietly wonder whether the app is finished.
- *
- * Google is unaffected: it is offered unconditionally, because its remaining
- * problem is one field in the Google Cloud console rather than a missing
- * integration.
- *
- * TO TURN IT ON, once Part B of the guide is done, set
- * NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN=true and redeploy. Read at module scope
- * because Next inlines NEXT_PUBLIC_* at build time, so there is nothing to
- * re-evaluate per render.
- */
-const MICROSOFT_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN === "true";
+/** The only provider wired up here. Kept as a named type so adding a second one later
+ *  is a change in one place rather than a search for string literals. */
+type OAuthProvider = "google";
 
 function GoogleMark() {
   // Google's brand guidelines require their own four-colour mark, not a tinted
@@ -81,18 +64,6 @@ function GoogleMark() {
   );
 }
 
-function MicrosoftMark() {
-  // Microsoft's four squares, in their specified colours.
-  return (
-    <svg aria-hidden viewBox="0 0 18 18" className="h-4 w-4 flex-none">
-      <path fill="#F25022" d="M1 1h7.6v7.6H1z" />
-      <path fill="#7FBA00" d="M9.4 1H17v7.6H9.4z" />
-      <path fill="#00A4EF" d="M1 9.4h7.6V17H1z" />
-      <path fill="#FFB900" d="M9.4 9.4H17V17H9.4z" />
-    </svg>
-  );
-}
-
 export function OAuthButtons({
   redirectTo,
   disabled = false,
@@ -111,9 +82,10 @@ export function OAuthButtons({
     onError("");
     setPending(provider);
 
-    // What the user calls it, for messages. Supabase's provider key is "azure",
-    // which nobody outside this codebase would recognise in an error.
-    const label = provider === "azure" ? "Microsoft" : "Google";
+    // What the user calls it, for messages. One provider today, but the messages
+    // below are written against this rather than a hardcoded word so a second one
+    // does not require rewriting every string.
+    const label = provider === "google" ? "Google" : provider;
 
     try {
       const supabase = createClient();
@@ -124,10 +96,8 @@ export function OAuthButtons({
         provider,
         options: {
           redirectTo: callback.toString(),
-          // Ask Microsoft for the profile fields we actually display. Google
-          // returns these by default; Azure needs them requested explicitly or
-          // the user arrives with no name or email on their identity.
-          scopes: provider === "azure" ? "email openid profile" : undefined,
+          // Google returns name and email by default, so no explicit scopes are
+          // needed. Azure did need them requested; that requirement left with it.
           /**
            * Navigate ourselves rather than letting supabase-js do it.
            *
@@ -262,11 +232,19 @@ export function OAuthButtons({
     }
   };
 
-  // min-h-11 below sm: this is the first control on the sign-in form, and its
-  // measured height was 37.3px — under the 44px minimum target on the one screen
-  // nobody can skip. Relaxed at sm+, where a pointer is precise.
-  const base =
-    "flex w-full min-h-11 items-center justify-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] disabled:opacity-50 sm:min-h-0";
+  // The house `secondary` button, composed rather than restated: bezel
+  // `--border-strong` on a transparent well, `t-callout` at 500, the press
+  // translate and the full disabled set, all from the one vocabulary
+  // (APPLE_REF §5.7). It had drifted to its own `text-sm` / `px-4 py-2` /
+  // `--border` signature, which made the two controls a user meets before they
+  // are in the product the two that looked least like it.
+  //
+  // `max-sm:min-h-11`: this is the first control on the sign-in form and its
+  // measured height was 37.3px — under the 44px minimum target on the one
+  // screen nobody can skip. A variant utility sorts after `md`'s own
+  // `min-h-[32px]`, so the floor wins below `sm` without depending on class
+  // order; coarse pointers get 44px at any width from the primitive itself.
+  const base = buttonClass("secondary", "md", "w-full max-sm:min-h-11");
 
   return (
     <div className="space-y-2.5">
@@ -279,18 +257,6 @@ export function OAuthButtons({
         <GoogleMark />
         {pending === "google" ? "Redirecting to Google…" : "Continue with Google"}
       </button>
-
-      {MICROSOFT_ENABLED && (
-        <button
-          type="button"
-          onClick={() => signIn("azure")}
-          disabled={disabled || pending !== null}
-          className={base}
-        >
-          <MicrosoftMark />
-          {pending === "azure" ? "Redirecting to Microsoft…" : "Continue with Microsoft"}
-        </button>
-      )}
     </div>
   );
 }

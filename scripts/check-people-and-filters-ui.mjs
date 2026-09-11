@@ -12,11 +12,12 @@
 import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(0);
+  notRun();
 }
 const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -25,6 +26,7 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -113,7 +115,7 @@ try {
     await appending.first().innerText().catch(() => "absent"),
   );
 
-  const next = page.locator('button:text-is("NEXT →")').first();
+  const next = page.getByRole("button", { name: /^NEXT( →)?$/ }).first();
   check("a NEXT control is offered to reach the rest of the roster", (await next.count()) > 0);
 
   const columnHeightBefore = await page.evaluate(() => {
@@ -145,7 +147,7 @@ try {
     `${columnHeightBefore}px -> ${columnHeightAfter}px`,
   );
 
-  const prev = page.locator('button:text-is("← PREV")').first();
+  const prev = page.getByRole("button", { name: /^(← )?PREV$/ }).first();
   check("PREV is offered once past page 1", (await prev.count()) > 0);
   await prev.click();
   await page.waitForTimeout(600);

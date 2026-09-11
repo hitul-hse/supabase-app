@@ -104,8 +104,19 @@ jobs:
       # permission gate), test:backfill and test:verify-query were in test:db
       # but missing from CI, so they never ran on a pull request. Adding a gate
       # to package.json is now enough -- there is no second list to forget.
+      # `npm run test:db` is a single && chain: the FIRST non-zero exit stops it, so one
+      # stale failure early on hides every gate after it and the log still ends in PASS
+      # lines. `npm run gates` runs the same list independently and classifies each gate on
+      # its RESULT line as well as its exit code (PR #52), so a gate that exits 0 having
+      # asserted nothing is red rather than green, and one that cannot reach a dependency
+      # here is NOT RUN rather than either. It also enforces the assertion baseline, so a
+      # gate that quietly evaluates fewer checks than last time is red.
+      #
+      # Until 2026-09-07 the runner printed all of that and then exited 0 regardless, and
+      # nothing called it. Both halves are fixed together: it now fails on red, and this is
+      # the caller.
       - name: Run schema, RLS and unit test gates
-        run: npm run test:db
+        run: npm run gates
 
   # ─── 5. Profile gates ──────────────────────────────────────────────────────
   # The six check:* gates the user-profile feature added. Before this job
@@ -134,13 +145,30 @@ jobs:
         run: npm ci
 
       - name: Run profile gates
+        # Exit 3 means "did not run" under the gate-honesty protocol (PR #52): a gate
+        # that cannot reach its dependency now says so instead of exiting 0 and reading
+        # as a pass. Two of these six deliberately cannot run here -- check:profile-rls
+        # needs live Supabase credentials and check:profile-action-auth needs a server,
+        # neither of which this job provides on purpose. Under `bash -e` an exit of 3
+        # killed the job, which is why master went red the moment the protocol landed.
+        # So: 0 passes, 3 is reported as NOT RUN and does not fail the job, anything
+        # else fails it. Every gate still runs; none is skipped or silenced.
         run: |
-          npm run check:profile-rls
-          npm run check:password-strength
-          npm run check:avatar
-          npm run check:profile-effective-name
-          npm run check:profile-actions
-          npm run check:profile-action-auth
+          set -u
+          failed=0
+          for g in check:profile-rls check:password-strength check:avatar \
+                   check:profile-effective-name check:profile-actions check:profile-action-auth; do
+            echo "── $g"
+            set +e; npm run "$g"; rc=$?; set -e
+            case $rc in
+              0) echo "   PASS   $g" ;;
+              3) echo "   NOT RUN $g (dependency absent in CI, by design)" ;;
+              *) echo "   FAIL   $g (exit $rc)"; failed=$((failed+1)) ;;
+            esac
+          done
+          echo
+          if [ $failed -gt 0 ]; then echo "$failed profile gate(s) failed"; exit 1; fi
+          echo "profile gates: no failures"
 
   # ─── 6. Summary ────────────────────────────────────────────────────────────
   # A single required status check that depends on all jobs. Branch protection

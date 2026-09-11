@@ -34,6 +34,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { registerHooks } from "node:module";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -66,6 +67,7 @@ registerHooks({
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   if (!ok) failed = true;
   console.log(`${ok ? "PASS" : "FAIL"} | ${label}${!ok && detail ? `\n       ${detail}` : ""}`);
 };
@@ -639,6 +641,7 @@ const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!URL_ || !KEY) {
   console.log("\nSKIP | live checks (no Supabase credentials in .env.local)");
+  recordNotRun("no Supabase credentials — the 7 live PostgREST probes not evaluated", 7);
 } else {
   console.log("\n--- live: the two PostgREST constraints still hold -------------------");
 

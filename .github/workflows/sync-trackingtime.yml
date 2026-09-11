@@ -50,6 +50,69 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # FIRST, before checkout, before npm ci, before anything touches data.
+      #
+      # WHY: the same failure shape that hit Factorial on 2026-09-06 -- a key
+      # rotated in one home and not the other -- is available to every credential
+      # this job holds. There it surfaced as an HTTP 401 forty seconds into the
+      # sync step and went unnoticed for 36 hours, because a dead credential and
+      # a vendor outage read identically from the middle of a run.
+      #
+      # TRACKINGTIME'S OWN TRAP MATTERS HERE. This vendor answers failures with
+      # HTTP 200 and puts the real status inside the envelope -- the reason
+      # import-trackingtime.mjs has an `unwrap()` whose comment calls it the most
+      # important function in the file. So the preflight checks BOTH the HTTP
+      # status and response.status, or a 401 would sail through as a 200.
+      #
+      # /me is the cheapest authenticated read the API has. Its body carries the
+      # account holder's name and email, so it is written to a file and parsed;
+      # it is never echoed.
+      - name: "preflight: TrackingTime auth"
+        env:
+          TRACKINGTIME_AUTH: ${{ secrets.TRACKINGTIME_AUTH }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${TRACKINGTIME_AUTH:-}" ]; then
+            echo "TRACKINGTIME_AUTH is not set -- add it as a repository secret."
+            exit 1
+          fi
+
+          body="$(mktemp)"
+          http=$(curl -sS -o "$body" -w '%{http_code}' \
+            -H "Authorization: Basic $TRACKINGTIME_AUTH" \
+            -H 'Accept: application/json' \
+            -H 'User-Agent: HSE Hub Preflight (info@hs-experts.com)' \
+            'https://api.trackingtime.co/api/v4/me' \
+            || echo 000)
+          envelope=$(jq -r '.response.status // empty' "$body" 2>/dev/null || true)
+          rm -f "$body"
+
+          echo "GET /api/v4/me -> HTTP $http, envelope status ${envelope:-none}"
+
+          case "$http:$envelope" in
+            401:*|403:*|*:401|*:403)
+              echo ""
+              echo "TrackingTime rejected this repository's TRACKINGTIME_AUTH"
+              echo "(HTTP $http, envelope ${envelope:-none})."
+              echo "The credential was rotated somewhere else and never pushed here."
+              echo ""
+              echo "Fix it from the machine that holds the current value:"
+              echo "  node scripts/set-sync-secrets.mjs --only TRACKINGTIME_AUTH"
+              echo "  node scripts/check-secret-parity.mjs"
+              exit 1
+              ;;
+            2*)
+              echo "credential accepted."
+              ;;
+            *)
+              # Not fatal: a 5xx or an unreachable host is the vendor having a
+              # bad minute, and the sync step reports that on its own terms.
+              echo "note: unexpected status, not an auth failure. Continuing;"
+              echo "      the sync step will report whatever it actually hits."
+              ;;
+          esac
+
       - uses: actions/checkout@v4
 
       - name: Setup Node
@@ -62,6 +125,7 @@ jobs:
         run: npm ci
 
       - name: Sync
+        id: sync
         env:
           TRACKINGTIME_AUTH: ${{ secrets.TRACKINGTIME_AUTH }}
           TRACKINGTIME_ACCOUNT_ID: ${{ secrets.TRACKINGTIME_ACCOUNT_ID }}
@@ -128,7 +192,19 @@ jobs:
         # (one at 104% of contract showing 89%) after a week of clean syncs.
         # Recomputed from source every night, so a stale figure now means a
         # failed run, which is visible, rather than a forgotten step, which is not.
-        if: success()
+        #
+        # Gated on the IMPORT, not on parity. This was `if: success()`, which
+        # also required the parity step above to pass -- and parity has been red
+        # since 2026-09-01 (runs 33590885045, 33719528216, 33855363772,
+        # 33955014142 all show this step "skipped"), so the refresh never ran once
+        # and public.projects.logged_hours stayed frozen at a 2026-09-02 hand-run
+        # while the pages kept rendering it. A parity failure means our copy of
+        # time.entry disagrees with the vendor's; that is a reason to look at the
+        # import, not to leave the orders describing Wednesday, because every
+        # other page already shows the same copy bounded at now() and the 2026-09-02
+        # decision is that this column agrees with those pages. A failed import
+        # still blocks it: partial data must not be folded into the orders.
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

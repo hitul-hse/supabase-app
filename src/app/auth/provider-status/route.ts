@@ -38,8 +38,10 @@ import { proxiedOrigin } from "@/utils/proxied-origin";
  * to describe.
  */
 
-/** The providers the app offers. Supabase calls Microsoft "azure". */
-const PROVIDERS = new Set(["google", "azure"]);
+/** The providers the app offers. Microsoft ("azure") was removed on 2026-09-08;
+ *  a request naming it is now rejected like any other unknown provider rather
+ *  than probed, so a stale link cannot quietly resurrect a dead sign-in path. */
+const PROVIDERS = new Set(["google"]);
 
 /**
  * Signatures of the provider-side failures worth naming, with the fix.

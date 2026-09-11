@@ -43,6 +43,7 @@
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { record } from "./lib/gate-result.mjs";
 
 const DIRS = ["src/app/(app)/time", "src/app/(app)/projects", "src/app/(app)/people"];
 const NAMESPACES = { timeDashboard: 60, time: 10, projects: 90, people: 60 };
@@ -51,6 +52,7 @@ const FORMAT_MODULE = "@/lib/locale-format";
 
 let failures = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
 };
@@ -279,6 +281,11 @@ const DELIBERATE = new Set([
   //                (AUFZEICHNUNGEN) vs the timesheet tab listing individual
   //                entries (Einträge).
   "records",
+  //   "Next"     — the pager's forward step, a verb (WEITER), vs the adjective
+  //                in the contract panel's "next period" (nächste). The pager
+  //                said "NEXT →" until the arrow glyph left the catalogue for
+  //                an icon, which is what exposed the homonym.
+  "next",
 ]);
 const byEnglish = new Map();
 for (const [k, v] of flat(en)) {

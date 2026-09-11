@@ -3,9 +3,11 @@
 // bar's rather than merely described as such.
 import { readFileSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -25,6 +27,7 @@ const mint = async () => {
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -175,7 +178,7 @@ check("sheet layers OVER the tab bar (edge-anchored, not floated above it)",
 check("sheet has no dead space below its content", layering.deadSpace <= 24,
   `${layering.deadSpace}px of blank sheet below the last element`);
 
-await page.screenshot({ path: "C:/Supabase/tmp-sheet-open.png" });
+await page.screenshot({ path: `${REPO_ROOT}/tmp-sheet-open.png` });
 
 // It must close again, and by tapping the backdrop as well as the button.
 await page.mouse.click(195, 80);

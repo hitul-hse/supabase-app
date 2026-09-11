@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NumberedPager } from "@/components/NumberedPager";
 
 import { IconArrowRight, IconCheck, IconWarning } from "@/components/nav-icons";
 import { MobileDisclosure } from "@/components/MobileDisclosure";
@@ -838,92 +839,48 @@ function Pager({
   const noun = SUBJECT[finding.subjectKind];
   const rowEnd = finding.rowStart + shown - 1;
 
-  const linkTo = (n: number) => hrefFor(kind, { ...pages, [finding.key]: n });
-
-  // First, last, and a one-step window around the current page; everything else
-  // elides. A pager listing 40 page numbers is a second list to read.
-  const windowed: (number | "gap")[] = [];
-  for (let n = 1; n <= finding.pageCount; n += 1) {
-    if (n === 1 || n === finding.pageCount || Math.abs(n - finding.page) <= 1) windowed.push(n);
-    else if (windowed[windowed.length - 1] !== "gap") windowed.push("gap");
-  }
-
-  const pageLink = (n: number, label: string, disabled: boolean, current = false) =>
-    disabled ? (
-      /* `aria-disabled`, not `aria-hidden`: hidden, a screen-reader user is
-         never told the control exists, so there is no way to tell "no next
-         page" from "this pager has no next button". */
-      <span
-        key={`${label}-off`}
-        aria-disabled="true"
-        className="border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-faint)] opacity-40"
-      >
-        {label}
-      </span>
-    ) : (
-      <Link
-        key={`${label}-${n}`}
-        href={linkTo(n)}
-        scroll={false}
-        aria-current={current ? "page" : undefined}
-        aria-label={`${finding.title}, page ${n}`}
-        className={`border px-2 py-0.5 font-mono text-[10px] tabular-nums transition-colors ${
-          current
-            ? "border-[var(--accent)] bg-[var(--accent-wash)] text-[var(--accent)]"
-            : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-        }`}
-      >
-        {label}
-      </Link>
-    );
-
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--divider)] px-4 py-2">
-      {/*
-        A stacked column, not a wrapping row. Wrapping was tried and measured
-        WORSE (2,533px to 2,575px): at 575px these three strings wrap onto three
-        lines anyway and add the row gap on top of it.
-      */}
-      <div className="flex min-w-0 flex-col gap-0.5">
-        {/*
-          The range, in the form the scroll-budget gate reads out of the rendered
-          text: a paged table that does not state its total is indistinguishable
-          from a complete one (DESIGN.md rule 7).
-        */}
-        <span className="font-mono text-[10px] tracking-[0.04em] text-[var(--text-faint)]">
-          {finding.rowStart}–{rowEnd} OF {finding.count} {noun.many.toUpperCase()}
-          {finding.pageCount > 1 && ` · PAGE ${finding.page} OF ${finding.pageCount}`}
-        </span>
-        {/* Only while there IS a rest. On the last page `hidden` is still large
-            -- it is the whole finding minus this page -- so the unguarded form
-            told a reader at the end of the queue to keep paging. */}
-        {hidden > 0 && finding.page < finding.pageCount && (
-          <span className="font-mono text-[9px] text-[var(--text-faint)]">
-            showing {shown} of {finding.count} here — page through for the rest
+    <NumberedPager
+      page={finding.page}
+      pageCount={finding.pageCount}
+      navLabel={`${finding.title} pages`}
+      labels={{
+        prev: "PREV",
+        next: "NEXT",
+        pageLabel: (n) => `${finding.title}, page ${n}`,
+      }}
+      hrefFor={(n) => hrefFor(kind, { ...pages, [finding.key]: n })}
+      countLine={
+        /*
+          A stacked column, not a wrapping row. Wrapping was tried and measured
+          WORSE (2,533px to 2,575px): at 575px these three strings wrap onto three
+          lines anyway and add the row gap on top of it.
+        */
+        <span className="flex min-w-0 flex-col gap-0.5">
+          {/*
+            The range, in the form the scroll-budget gate reads out of the rendered
+            text: a paged table that does not state its total is indistinguishable
+            from a complete one (DESIGN.md rule 7).
+          */}
+          <span className="font-mono text-[10px] tracking-[0.04em] text-[var(--text-faint)]">
+            {finding.rowStart}–{rowEnd} OF {finding.count} {noun.many.toUpperCase()}
+            {finding.pageCount > 1 && ` · PAGE ${finding.page} OF ${finding.pageCount}`}
           </span>
-        )}
-        {severeCount > 0 && (
-          <span className="font-mono text-[9px] text-[var(--critical)]">
-            {severeCount} barred {severeCount === 1 ? "row is" : "rows are"} the serious ones
-          </span>
-        )}
-      </div>
-
-      {finding.pageCount > 1 && (
-        <nav aria-label={`${finding.title} pages`} className="flex flex-wrap items-center gap-1">
-          {pageLink(finding.page - 1, "PREV", finding.page === 1)}
-          {windowed.map((n, i) =>
-            n === "gap" ? (
-              <span key={`gap-${i}`} aria-hidden className="px-0.5 font-mono text-[10px] text-[var(--text-faint)]">
-                …
-              </span>
-            ) : (
-              pageLink(n, String(n), false, n === finding.page)
-            ),
+          {/* Only while there IS a rest. On the last page `hidden` is still large
+              -- it is the whole finding minus this page -- so the unguarded form
+              told a reader at the end of the queue to keep paging. */}
+          {hidden > 0 && finding.page < finding.pageCount && (
+            <span className="font-mono text-[9px] text-[var(--text-faint)]">
+              showing {shown} of {finding.count} here — page through for the rest
+            </span>
           )}
-          {pageLink(finding.page + 1, "NEXT", finding.page === finding.pageCount)}
-        </nav>
-      )}
-    </div>
+          {severeCount > 0 && (
+            <span className="font-mono text-[9px] text-[var(--critical)]">
+              {severeCount} barred {severeCount === 1 ? "row is" : "rows are"} the serious ones
+            </span>
+          )}
+        </span>
+      }
+    />
   );
 }

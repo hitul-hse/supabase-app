@@ -43,18 +43,20 @@
 import pg from "pg";
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, recordNotRun, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 const ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const canReview = Boolean(env.REVIEW_EMAIL && env.REVIEW_PW && ANON);
 const canService = Boolean(env.SUPABASE_SERVICE_ROLE_KEY);
 if (!env.SUPABASE_DB_URL || !env.NEXT_PUBLIC_SUPABASE_URL || !(canReview || canService)) {
-  console.log("SKIP: need SUPABASE_DB_URL, NEXT_PUBLIC_SUPABASE_URL and either REVIEW_EMAIL+REVIEW_PW (with the anon key) or SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(0);
+  notRunInChain("need SUPABASE_DB_URL, NEXT_PUBLIC_SUPABASE_URL and either REVIEW_EMAIL+REVIEW_PW"
+    + " (with the anon key) or SUPABASE_SERVICE_ROLE_KEY");
 }
 
 let failures = 0;
 const ok = (pass, label, detail = "") => {
+  record(pass);
   console.log(`${pass ? "PASS" : "FAIL"}: ${label}`);
   if (!pass) { if (detail) console.log(`        ${detail}`); failures += 1; }
 };
@@ -71,17 +73,46 @@ left join time.project t on t.hub_project_id = p.id
 group by p.id, p.name, p.code, p.customer, p.status, p.contract_hours
 order by p.contract_hours desc nulls last, p.id`;
 
-// B-budgets.mjs SQL_PAIRS, verbatim.
+/*
+ * B-budgets.mjs SQL_PAIRS, with ONE deliberate departure from the verbatim copy:
+ * the estimate is read from time.project, not from time.project_summary.
+ *
+ * WHY, AND WHY "VERBATIM" HAD STOPPED MEANING "THE AUDIT'S ANSWER" (2026-09-10)
+ * ----------------------------------------------------------------------------
+ * project_summary.estimated_hours is masked in the view itself:
+ *
+ *     (case when (select public.app_user_has_permission('projects:contracts:read'))
+ *           then p.estimated_hours end)::numeric(10,2)   -- supabase/schema.sql
+ *
+ * A direct SUPABASE_DB_URL connection carries no app_user, so it reads NULL for
+ * all 384 rows -- measured. The classification below then treats every null as
+ * "no budget set" and skips the pair, so this side reported 0 disagreements over
+ * 187 paired orders. The page, read as the exec, reported 33 worth 2,404.3 h.
+ *
+ * The consequence was worse than a wrong number. In the canonical run -- no
+ * REVIEW_* credentials, so the page side is read with the service role, which
+ * also holds no permission -- BOTH sides read null, the panel showed "clean",
+ * this side computed 0, and the gate asserted that 0 agreed with 0 and passed.
+ * A green assertion in which neither side could see the column it reconciles is
+ * this project's own recurring bug wearing a lab coat.
+ *
+ * time.project.estimated_hours is the column the view masks, so reading it here
+ * gives the figure a permitted caller sees: 33 orders and 2,404.3 h, matching
+ * both the page's exec read and check B's own 1 Sep 2026 headline. The
+ * project_summary join stays, because the audit's inner join -- "only TT
+ * projects that have a summary row" -- is part of the pairing rule.
+ */
 const SQL_B = `
 select p.id as project_id, p.name as project_name, p.status, p.contract_hours,
-       ps.project_id as time_project_id, ps.project_name as tt_name, ps.estimated_hours, ps.total_seconds,
+       ps.project_id as time_project_id, ps.project_name as tt_name,
+       t.estimated_hours, ps.total_seconds,
        ps.is_archived as tt_archived,
        count(*) over (partition by p.id) as tt_rows_for_hub,
-       sum(ps.estimated_hours) over (partition by p.id) as tt_estimate_sum_for_hub
+       sum(t.estimated_hours) over (partition by p.id) as tt_estimate_sum_for_hub
 from public.projects p
 join time.project t on t.hub_project_id = p.id
 join time.project_summary ps on ps.project_id = t.id
-order by abs(coalesce(p.contract_hours,0) - coalesce(ps.estimated_hours,0)) desc, p.id`;
+order by abs(coalesce(p.contract_hours,0) - coalesce(t.estimated_hours,0)) desc, p.id`;
 
 // D-customers.mjs SQL_LE_DRIFT, verbatim.
 const SQL_D = `
@@ -100,11 +131,27 @@ select f.id, f.person_id, f.external_id, f.match_method, f.matched_email, f.is_a
 from crm.factorial_person_reference f left join public.people p on p.id = f.person_id order by f.match_method, p.name`;
 
 const db = new pg.Client({ connectionString: env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false }, statement_timeout: 120000 });
-await db.connect();
-await db.query("set default_transaction_read_only = on");
-await db.query("set statement_timeout = '120s'");
+/*
+ * AN UNREACHABLE DATABASE IS "DID NOT RUN", NOT A VERDICT.
+ *
+ * This connect used to be unguarded, so a paused project, a rotated password or
+ * a dropped connection killed the gate at module scope: zero assertions, exit 1,
+ * and `RESULT pass=0 fail=0 notrun=0` -- the line a gate prints when it checked
+ * NOTHING, and indistinguishable from one that had nothing to check. Whether
+ * the panels agree with the audit is unknowable without the audit's own side, so
+ * the honest answer is to say the gate did not run and why.
+ */
+try {
+  await db.connect();
+  await db.query("set default_transaction_read_only = on");
+  await db.query("set statement_timeout = '120s'");
+} catch (e) {
+  notRunInChain(`cannot reach Postgres over SUPABASE_DB_URL, so the audit's own SQL cannot be run`
+    + ` to compare the panels against — ${String(e?.message ?? e).split("\n")[0]}`);
+}
 
 const truth = {};
+let sqlFailed = false;
 try {
   const a = (await db.query(SQL_A)).rows.filter((r) => Number(r.tt_project_count) === 0);
   truth.unlinked_hub_project = {
@@ -147,9 +194,24 @@ try {
     count: e.filter((r) => !r.person_id || r.people_factorial_id !== r.external_id).length,
     total: e.length,
   };
+} catch (e) {
+  /*
+   * A QUERY THAT FAILS IS A VERDICT, unlike the connection above.
+   *
+   * The four statements are the audit's own SQL, copied verbatim. Reaching the
+   * database and then failing to run them means a table, column or view the
+   * audit depends on has moved -- which is a real finding about this repo, not
+   * an absent dependency. It used to be an uncaught throw with zero assertions;
+   * now it is one recorded failure that names the statement.
+   */
+  ok(false, "the audit's own SQL still runs against Postgres", String(e?.message ?? e).split("\n")[0]);
+  sqlFailed = true;
 } finally {
   await db.end();
 }
+// Outside the finally, so the connection is closed first: every comparison below
+// reads `truth`, which a failed statement leaves half-built.
+if (sqlFailed) process.exit(1);
 console.log(`        postgres: ${JSON.stringify(truth)}`);
 
 /* ------------------------------------------------- the page's reader -------- */
@@ -159,7 +221,18 @@ let as;
 if (canReview) {
   supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
   const { error } = await supabase.auth.signInWithPassword({ email: env.REVIEW_EMAIL, password: env.REVIEW_PW });
-  if (error) { console.log(`FAIL: review sign-in refused (${error.message})`); process.exit(1); }
+  /*
+   * A SESSION IS A DEPENDENCY, and a refused one is NOT RUN.
+   *
+   * This printed a bare "FAIL:" line and exited 1 without recording anything, so
+   * its RESULT line read `pass=0 fail=0 notrun=0` -- a gate that says FAIL in
+   * prose and nothing at all in the one place a runner reads. A rotated password
+   * or a locked review account says nothing about whether the panels reconcile,
+   * so the gate reports that it could not run, with the reason, and is never
+   * counted as green.
+   */
+  if (error) notRunInChain(`the review account (${env.REVIEW_EMAIL}) could not sign in, so the page`
+    + ` side cannot be read as the exec — ${error.message}`);
   as = "the review account (exec)";
 } else {
   supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -170,7 +243,21 @@ console.log(`        page side read as: ${as}`);
 // withDb() reads process.env directly; loadEnv() does not export what it read.
 process.env.SUPABASE_DB_URL ??= env.SUPABASE_DB_URL;
 const { getDataHygiene, AUDIT_PROBES } = await import("../src/lib/queries/data-hygiene.ts");
-const h = await getDataHygiene(supabase);
+/*
+ * A READER THAT THROWS IS THE SUBJECT FAILING, so it is asserted, not excused.
+ *
+ * `getDataHygiene` is the exec's page. If it throws, the page is broken for the
+ * reader it was built for, and that is precisely what this gate is here to
+ * notice -- but as an uncaught rejection it was a crash with zero assertions,
+ * which reads from outside as "the gate is broken" rather than "the page is".
+ */
+let h;
+try {
+  h = await getDataHygiene(supabase);
+} catch (e) {
+  ok(false, "the reader produced a report", `it threw: ${String(e?.message ?? e).split("\n")[0]}`);
+  process.exit(1);
+}
 ok(!h.unavailable, "the reader produced a report", `unavailable=${h.unavailableReason}`);
 if (h.unavailable) process.exit(1);
 
@@ -205,9 +292,39 @@ function outcome(key) {
 for (const key of Object.keys(AUDIT_PROBES)) {
   const t = truth[key];
   const where = outcome(key);
+
   ok(where !== "missing", `${key}: the probe ran, or says why it did not`,
     "neither a finding, nor in clean, nor in skipped -- a probe that vanished without trace");
   if (where === "missing") continue;
+
+  /*
+   * THE PAGE SIDE HAS TO BE ABLE TO SEE THE COLUMN BEFORE ITS ANSWER MEANS
+   * ANYTHING.
+   *
+   * budget_disagreement compares contracted hours against the TrackingTime
+   * estimate, and time.project_summary.estimated_hours is withheld by the view
+   * from any caller without projects:contracts:read (supabase/schema.sql; see
+   * SQL_B's note). The service role holds no app_user permissions at all, so
+   * when this gate falls back to it the panel reads every estimate as null,
+   * reports "clean", and agrees with a truth side that used to be blind in
+   * exactly the same way. That agreement was a vacuous pass and it is the reason
+   * this branch exists.
+   *
+   * With the truth side now reading the unmasked column, comparing it against a
+   * page deliberately withholding budgets would just invert the lie into a false
+   * failure. Neither is a verdict, so this states the third answer and says what
+   * would make it run: REVIEW_EMAIL + REVIEW_PW, an exec who can see budgets.
+   */
+  if (key === "budget_disagreement" && !canReview) {
+    recordNotRun(
+      "budget_disagreement: the page side is being read with the SERVICE ROLE, which holds no"
+      + " app_user permission, so time.project_summary withholds estimated_hours from it and the"
+      + " panel can only report 'clean'. Postgres sees "
+      + `${t.count} disagreement(s) worth ${t.hours} h. Set REVIEW_EMAIL and REVIEW_PW to read the`
+      + " page as the exec it is written for, and this reconciles for real.",
+    );
+    continue;
+  }
 
   if (where === "skipped") {
     const s = skipped.get(key);

@@ -21,11 +21,16 @@
     "rolePermissions": "Role Permissions",
     "budgetAlerts": "Budget Alerts",
     "factorialIdentity": "Factorial Identity",
-    "systemHealth": "System Health"
+    "systemHealth": "System Health",
+    "customers": "Customers"
   },
   "common": {
     "logOut": "Log out",
-    "switchLanguage": "Sprache: Deutsch",
+    "language": {
+      "label": "Language",
+      "current": "Language: {language}",
+      "choose": "Choose language"
+    },
     "notAvailable": "n/a",
     "sync": {
       "label": "SYNC",
@@ -39,7 +44,20 @@
       "rows": "{count} ROWS"
     },
     "show": "SHOW",
-    "hide": "HIDE"
+    "hide": "HIDE",
+    "replayTour": "Replay tour",
+    "signingOut": "Signing out…",
+    "profile": "Profile",
+    "accountMenu": "Account menu — {name}",
+    "themeToDark": "Switch to dark theme",
+    "themeToLight": "Switch to light theme",
+    "error": {
+      "title": "This page couldn't load",
+      "description": "The data behind this screen failed to load. This is usually temporary — trying again often resolves it. If it keeps happening, the reference below helps trace the cause.",
+      "tryAgain": "Try again",
+      "backToOverview": "Back to Overview",
+      "ref": "REF {digest}"
+    }
   },
   "overview": {
     "title": "Overview",
@@ -126,6 +144,14 @@
       "nothingLogged": "Nothing logged.",
       "footer": "TOP 8 EACH, BY HOURS · SAME SCOPE AS THE CHART · FUTURE-DATED ENTRIES EXCLUDED"
     },
+    "heroBand": {
+      "kicker": "LATEST WEEK · {week} · TRACKINGTIME",
+      "headline": "The week is {share} billable",
+      "noWeek": "No week has hours yet",
+      "hint": "{across} across {period} · {billable} billable of {total} logged · {people} people on the roster",
+      "caption": "BILLABLE SHARE · LATEST WEEK",
+      "figureLabel": "Billable share in the latest week"
+    },
     "billableShare": {
       "title": "Billable share",
       "legend": "BILLABLE %",
@@ -142,7 +168,23 @@
       "nobodyTeam": "Nobody with {team} recorded has logged time.",
       "noMembers": "No members with logged time.",
       "basis": "BASIS",
-      "basisNote": "Tracked hours against a nominal 40-hour week, across the weeks each person was active. TrackingTime holds no contracted hours. These percentages are all-time, not for the selected period — the per-person view is not date-bounded."
+      "basisNote": "Tracked hours against a nominal 40-hour week, across the weeks each person was active. TrackingTime holds no contracted hours. These percentages are all-time, not for the selected period — the per-person view is not date-bounded.",
+      "columns": {
+        "person": "PERSON",
+        "team": "TEAM",
+        "hours": "HOURS",
+        "utilisation": "UTILISATION",
+        "status": "STATUS"
+      },
+      "qualifier": "LOWEST FIRST",
+      "status": {
+        "overCapacity": "Over capacity",
+        "low": "Low",
+        "onTrack": "On track",
+        "noActivity": "No activity",
+        "notMeasured": "Not measured"
+      },
+      "teamNote": "TEAM reads — when nobody recorded one. HOURS and UTILISATION read n/a when there is nothing to measure — no tracked entries, or no contracted hours — never a 0 that would read as somebody idle. STATUS calls a person low under 60 % and over capacity above 110 %, the same cut the gauge below uses."
     },
     "disclosure": {
       "title": "Billable split & utilisation",
@@ -193,6 +235,25 @@
         "burn": "BURN"
       },
       "budgetWithheld": "WITHHELD"
+    },
+    "overBudget": {
+      "title": "Over budget",
+      "columns": {
+        "project": "PROJECT",
+        "customer": "CUSTOMER",
+        "burn": "BURN",
+        "over": "OVER"
+      },
+      "hours": "{hours} h",
+      "underTenth": "< 0.1 h",
+      "qualifier": "WORST FIRST",
+      "footnote": "Burn is logged hours as a share of the estimate; OVER is the hours past it. The same projects the PROJECTS OVER BUDGET tile counts — every active project with a budget above zero and more hours logged than budgeted, planned time excluded. Some estimates are placeholders: the BUDGET BURN chart on Projects drops estimates under 10 h, this list keeps them so that it names exactly the projects the tile counts.",
+      "empty": "No active project with a budget has more hours logged than budgeted.",
+      "withheld": "Budgets are not visible to your role, so which projects are over budget cannot be shown."
+    },
+    "queues": {
+      "title": "Over budget and utilisation",
+      "summary": "{overBudget} projects over budget · {people} people, lowest utilisation first"
     }
   },
   "drill": {
@@ -203,8 +264,8 @@
     "fetching": "Fetching…",
     "nothingLogged": "Nothing logged.",
     "page": "PAGE {page} / {count}",
-    "back": "← BACK",
-    "next": "NEXT →",
+    "back": "BACK",
+    "next": "NEXT",
     "noProject": "(no project)",
     "noCustomer": "(no customer)",
     "noTask": "(no task)",
@@ -540,7 +601,9 @@
       "pairTitle": "This many projects fail together if this pair is absent at the same time",
       "pairSize": "×{count} in the pair",
       "cover": "{responsible} · Cover: {replacement}",
-      "samePerson": " (the same person)"
+      "samePerson": " (the same person)",
+      "pagerNoun": "cases",
+      "pagerNav": "Broken cover pages"
     },
     "portfolio": {
       "title": "Customer portfolio",
@@ -596,7 +659,9 @@
         "linkNa": "{label}: n/a",
         "linksNote": "The current project read model has no reliable URL fields for these link types.",
         "replacementNa": "Replacement: n/a",
-        "replacementTitle": "Replacement needs a confirmed service-related model"
+        "replacementTitle": "Replacement needs a confirmed service-related model",
+        "customerProfile": "Customer profile {number}",
+        "customerProfileNa": "Customer profile: no single customer number"
       }
     },
     "multiService": {
@@ -1550,19 +1615,19 @@
     "truncated": "This portfolio exceeds the reporting ceiling, so the hours below cover only the most recent entries. Totals per project may be understated.",
     "empty": {
       "title": "No projects yet",
-      "description": "Nothing has been imported from TrackingTime yet. The nightly sync populates this list; you can also run it manually with `npm run sync:trackingtime`."
+      "description": "Nothing has been imported from TrackingTime yet. The nightly sync fills this list; `npm run sync:trackingtime` runs it by hand."
     },
     "noAccess": {
       "title": "You don't have access to the project portfolio",
-      "description": "Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is visible under Time. An administrator can grant wider access under Role Permissions.",
-      "action": "Go to Time →"
+      "description": "Viewing every project needs the 'View All Projects' permission, which your role doesn't hold. Your own project time is under Time.",
+      "action": "Go to Time"
     },
     "filters": {
       "searchLabel": "Search projects by name, customer or code",
       "searchPlaceholder": "Search projects…",
-      "all": "All",
-      "billable": "Billable",
-      "nonBillable": "Non-bill.",
+      "all": "ALL",
+      "billable": "BILLABLE",
+      "nonBillable": "NON-BILLABLE",
       "clear": "Clear",
       "countAll": "{count} PROJECTS",
       "countOf": "{shown} OF {total}",
@@ -1572,7 +1637,8 @@
         "healthy": "HEALTHY",
         "nobudget": "NO BUDGET",
         "idle": "NO ACTIVITY"
-      }
+      },
+      "billableGroup": "Billing filter"
     },
     "customer": {
       "label": "CUSTOMER",
@@ -1628,7 +1694,7 @@
       }
     },
     "ledger": {
-      "title": "PROJECT LEDGER",
+      "title": "Project ledger",
       "count": "{count} PROJECTS",
       "empty": {
         "title": "No projects match",
@@ -1649,8 +1715,25 @@
         "logged": "LOGGED",
         "consumed": "CONSUMED",
         "people": "PEOPLE",
-        "last": "LAST"
-      }
+        "last": "LAST",
+        "code": "CODE",
+        "billable": "BILLABLE",
+        "hours": "HOURS",
+        "burn": "BURN",
+        "status": "STATUS"
+      },
+      "billable": {
+        "yes": "Billable",
+        "no": "Non-billable"
+      },
+      "status": {
+        "over": "Over budget",
+        "risk": "At risk",
+        "healthy": "Healthy",
+        "nobudget": "No budget"
+      },
+      "csvTitle": "Download these projects as CSV, with the current filter and sort applied",
+      "pagerNav": "Project ledger pages"
     },
     "health": {
       "title": "Portfolio health",
@@ -1715,7 +1798,7 @@
       },
       "meta": "{customer}{code} · {entries} ENTRIES",
       "noCustomer": "NO CUSTOMER",
-      "allProjects": "← All projects",
+      "allProjects": "All projects",
       "pills": {
         "archived": "ARCHIVED",
         "billable": "BILLABLE",
@@ -1922,22 +2005,346 @@
     "range": "{from, number}–{to, number} OF {count, number} {noun}",
     "perPage": "PER PAGE",
     "all": "ALL",
-    "prev": "← PREV",
-    "next": "NEXT →",
+    "prev": "PREV",
+    "next": "NEXT",
     "srAll": "Showing all {count, number} {noun}",
-    "srRange": "Showing {from, number} to {to, number} of {count, number} {noun}, page {page, number} of {pages, number}"
+    "srRange": "Showing {from, number} to {to, number} of {count, number} {noun}, page {page, number} of {pages, number}",
+    "pageOf": "PAGE {page, number} OF {pages, number}",
+    "goToPage": "Page {page, number}"
   },
   "dataTable": {
-    "noRows": "no rows",
-    "allRows": "all {count, number} rows",
-    "range": "{from, number}–{to, number} of {count, number}",
-    "filteredFrom": "filtered from {count, number}",
+    "noRows": "NO ROWS",
+    "allRows": "ALL {count, number} ROWS",
+    "range": "{from, number}–{to, number} OF {count, number}",
+    "filteredFrom": "FILTERED FROM {count, number}",
     "searchPlaceholder": "Search rows…",
     "clearSearch": "Clear search",
     "showEveryRow": "Show every row",
     "rowsPerPage": "{count, number} rows per page",
     "all": "ALL",
     "csvTitle": "Download these rows as CSV, with the current filter and sort applied",
-    "empty": "Nothing to show."
+    "empty": "Nothing to show.",
+    "searchLabel": "Search {title}",
+    "rowsPerPageGroup": "Rows per page",
+    "noMatch": "No row matches “{query}”.",
+    "clearTheSearch": "Clear the search",
+    "prev": "PREV",
+    "next": "NEXT",
+    "pagesOf": "{title} pages",
+    "goToPage": "{title}, page {page, number}"
+  },
+  "myWork": {
+    "header": {
+      "linkedTo": "LINKED TO {name}"
+    },
+    "summary": {
+      "led": {
+        "label": "CUSTOMERS I LEAD",
+        "hint": "responsible or owner"
+      },
+      "customers": {
+        "label": "CUSTOMERS TOTAL",
+        "hint": "canonical entities"
+      },
+      "projects": {
+        "label": "MY PROJECTS",
+        "hint": "on any rung"
+      },
+      "hours": {
+        "label": "HOURS · TEAM",
+        "hint": "all people"
+      },
+      "services": {
+        "label": "SERVICES KNOWN",
+        "hintAll": "of your projects ({source})",
+        "hintOf": "of {total} projects ({source})"
+      }
+    },
+    "views": {
+      "label": "View",
+      "projects": "PROJECTS",
+      "customers": "CUSTOMERS"
+    },
+    "filters": {
+      "role": "MY ROLE",
+      "all": "ALL",
+      "clearCustomer": "Clear the customer filter"
+    },
+    "tables": {
+      "projects": "My projects",
+      "customers": "My customers",
+      "coverage": "{measured} OF {total} MEASURED",
+      "coverageTitle": "Hours are known for {measured} of {total} projects, so this total is a floor, not the whole.",
+      "emptyFiltered": "No rows match this role or customer filter. Clear it above.",
+      "emptyCustomers": "No customers are assigned to you"
+    },
+    "empty": {
+      "browseProjects": "Browse all projects",
+      "reload": "Reload",
+      "unlinked": {
+        "title": "Your account isn't linked to a person record yet",
+        "description": "Work is attributed through a person record, and this account has none yet. An administrator can link one under Users & Roles."
+      },
+      "loadFailed": {
+        "title": "Your work couldn't be loaded",
+        "description": "The projects query failed, so nothing is shown rather than a partial list. Reload; if it persists, an administrator can check the logs."
+      },
+      "none": {
+        "title": "No projects are assigned to you",
+        "description": "Nothing names {name} as responsible, owner, replacement or assignee yet. Once a project lead assigns you, it appears here."
+      }
+    },
+    "detail": {
+      "close": "Clear the selection",
+      "empty": "No masterdata for this order yet.",
+      "withheld": "withheld",
+      "historical": {
+        "label": "HISTORICAL",
+        "endedLabel": "CONTRACT ENDED",
+        "ended": "The contract ended on {date}.",
+        "gone": "This order is no longer in the masterdata sheet.",
+        "both": "The contract ended on {date} and the order is no longer in the masterdata sheet."
+      },
+      "service": {
+        "title": "SERVICE",
+        "customer": "CUSTOMER",
+        "customerName": "LEGAL NAME",
+        "language": "LANGUAGE",
+        "address": "ADDRESS",
+        "contractStart": "CONTRACT START",
+        "contractEnd": "CONTRACT END",
+        "contractHours": "CONTRACT HOURS"
+      },
+      "language": {
+        "de": "Deutsch",
+        "en": "English"
+      },
+      "people": {
+        "title": "PEOPLE",
+        "responsible": "RESPONSIBLE",
+        "role": "ROLE",
+        "replacement": "REPLACEMENT",
+        "doctor": "Company doctor",
+        "other": "Other",
+        "unknown": "Name not available",
+        "responsibleTitle": "Named in the masterdata sheet as responsible for this order",
+        "replacementTitle": "Named in the masterdata sheet as the replacement for this order"
+      },
+      "delivery": {
+        "title": "DELIVERY TERMS",
+        "minOnsite": "MIN. TIME ON SITE",
+        "travelFlatRate": "TRAVEL FLAT RATE",
+        "travelAsProjectTime": "TRAVEL TIME IS PROJECT TIME",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "contacts": {
+        "title": "CUSTOMER CONTACTS",
+        "slot": "CONTACT {slot}",
+        "none": "No contact recorded"
+      },
+      "links": {
+        "title": "LINKS",
+        "fileStorage": "FILE STORAGE",
+        "none": "No links recorded"
+      },
+      "source": "From the masterdata sheet, updated {when}",
+      "sourceUndated": "From the masterdata sheet"
+    }
+  },
+  "customer": {
+    "header": {
+      "fallbackTitle": "Customer {number}",
+      "metaAll": "CUSTOMER NUMBER {number} · ALL ORDERS",
+      "metaVisible": "CUSTOMER NUMBER {number} · ONLY ORDERS YOU MAY SEE"
+    },
+    "identity": {
+      "title": "Customer",
+      "qualifier": "FROM THE MASTERDATA SHEET",
+      "legalName": "LEGAL NAME",
+      "group": "CORPORATE GROUP",
+      "language": "LANGUAGE",
+      "spellings": "ALSO WRITTEN AS",
+      "number": "CUSTOMER NUMBER"
+    },
+    "language": {
+      "de": "German",
+      "en": "English"
+    },
+    "tiles": {
+      "orders": "ORDERS",
+      "ordersHintAll": "in the masterdata sheet",
+      "ordersHintVisible": "visible to you",
+      "running": "RUNNING CONTRACTS",
+      "runningHint": "of {total} · as of today",
+      "runningHintUnknown": "of {total} · {unknown} with no end date",
+      "contract": "CONTRACT HOURS",
+      "contractHint": "across {measured} of {total} orders",
+      "contractNone": "not set on any order",
+      "withheld": "withheld",
+      "withheldHint": "Your role does not see contract hours",
+      "logged": "HOURS LOGGED",
+      "loggedHint": "measured for {measured} of {total} orders · as of {when}",
+      "loggedNone": "not measured for any order"
+    },
+    "banner": {
+      "endedLabel": "ALL CONTRACTS ENDED",
+      "ended": "The last contract ended on {date}.",
+      "historicalLabel": "HISTORICAL",
+      "historical": "{count, plural, one {# order is} other {# orders are}} no longer carried in the masterdata sheet.",
+      "both": "The last contract ended on {date}; {count, plural, one {# order is} other {# orders are}} no longer in the sheet."
+    },
+    "locations": {
+      "title": "Locations",
+      "count": "{count, plural, one {# ADDRESS} other {# ADDRESSES}}",
+      "orders": "ORDERS {codes}",
+      "none": "No address recorded"
+    },
+    "orders": {
+      "title": "Orders",
+      "hint": "as of {when}",
+      "search": "Search orders…",
+      "termRange": "{start} – {end}",
+      "empty": "No visible order for this customer number.",
+      "col": {
+        "service": "SERVICE",
+        "serviceTitle": "Service number and name from the masterdata sheet, taken as written.",
+        "responsible": "RESPONSIBLE",
+        "term": "TERM",
+        "termTitle": "Contract start to end. Sorted by end date; orders with no end date always sort last.",
+        "status": "STATUS",
+        "contract": "CONTRACT HOURS",
+        "logged": "LOGGED",
+        "loggedTitle": "Hours by everyone on this order, as of {when}. With no TrackingTime link the cell stays empty."
+      },
+      "status": {
+        "running": "RUNNING",
+        "ended": "ENDED",
+        "unknownEnd": "END UNKNOWN",
+        "historical": "HISTORICAL"
+      },
+      "footnote": {
+        "visibility": "This page shows only orders you may see. More may exist.",
+        "hours": "Hours are known for {measured} of {total} orders; the total is a floor, not the whole.",
+        "hoursNone": "No hours are measured for any of these orders.",
+        "budgets": "Contract hours are withheld from your role and are therefore not in this table.",
+        "unnumbered": "{count, plural, one {# further order of the same legal entity carries no customer number and is not in this list.} other {# further orders of the same legal entity carry no customer number and are not in this list.}}",
+        "siblingsLead": "The same legal entity carries further customer numbers:",
+        "terms": "Delivery terms – minimum on-site time, travel, travel as project time – are on the order, not here.",
+        "truncated": "Part of the data could not be read in full; the figures are floors."
+      }
+    },
+    "contacts": {
+      "title": "Customer contacts",
+      "qualifier": "PERSONAL DATA",
+      "privacy": "Only for orders you may see. Never exported.",
+      "onOrders": "Named on {codes}",
+      "noName": "No name recorded",
+      "none": "No contact recorded",
+      "unavailable": "The contacts could not be read. That is a failure, not a statement about the customer."
+    },
+    "care": {
+      "title": "Who looks after this",
+      "qualifier": "PER THE MASTERDATA SHEET",
+      "responsible": "RESPONSIBLE",
+      "replacement": "REPLACEMENT",
+      "onOrders": "{codes}",
+      "none": "Nobody recorded",
+      "summary": "{count, plural, one {# person} other {# people}}",
+      "gap": "{count, plural, one {# of {total} orders has} other {# of {total} orders have}} no named responsible.",
+      "gapUnknown": "Whether someone is named responsible on every order could not be checked.",
+      "noneNamed": "Nobody is named responsible on any of these orders."
+    },
+    "people": {
+      "doctor": "Company doctor",
+      "other": "Other",
+      "unknown": "Name not available"
+    },
+    "links": {
+      "title": "Links",
+      "qualifier": "EACH DESTINATION ONCE",
+      "onOrders": "{codes}",
+      "fileStorage": "FILE STORAGE",
+      "none": "No links recorded",
+      "unavailable": "The links could not be read. That is a failure, not a statement about the customer.",
+      "summary": "{count, plural, one {# link} other {# links}}",
+      "summaryUnavailable": "Not readable"
+    },
+    "crm": {
+      "title": "Customer master record",
+      "qualifier": "LEXWARE · EXEC ONLY",
+      "withheldLabel": "WITHHELD",
+      "withheldBody": "The canonical customer master record is restricted to the executive team. This page does not tell you whether one exists either. Everything above comes from the masterdata sheet.",
+      "none": "There is no customer master record for this number.",
+      "unavailable": "The customer master record could not be read. That is a failure, not a restriction.",
+      "reviewRequired": "REVIEW OPEN",
+      "field": {
+        "displayName": "DISPLAY NAME",
+        "billingName": "BILLING NAME",
+        "billingAddress": "BILLING ADDRESS",
+        "vatId": "VAT ID",
+        "legalEntity": "LEGAL ENTITY",
+        "legalForm": "LEGAL FORM",
+        "country": "COUNTRY",
+        "lifecycle": "LIFECYCLE",
+        "review": "REVIEW STATUS",
+        "locations": "LOCATIONS (CRM)",
+        "aliases": "ALIASES"
+      },
+      "summary": {
+        "withheld": "Withheld",
+        "none": "No record",
+        "unavailable": "Not readable",
+        "present": "Lexware"
+      }
+    },
+    "empty": {
+      "invisible": {
+        "title": "No order for this customer number is visible to you",
+        "description": "You see orders where you are responsible, replacement or assigned. Whether this number exists, this page does not say.",
+        "action": "Go to My Work"
+      },
+      "unknown": {
+        "title": "Customer number {number} is unknown",
+        "description": "This number is in neither the customer master nor the order data. A typo — or the import has not reached it yet.",
+        "action": "Go to import review"
+      },
+      "noOrders": {
+        "title": "Customer with no order",
+        "description": "The number is in the customer master but carries no service order. The master record is below."
+      },
+      "unchecked": {
+        "title": "No order for customer number {number}",
+        "description": "There is nothing under this number in the order data. Whether it is in the customer master could not be checked."
+      },
+      "failed": {
+        "title": "The customer profile could not be loaded",
+        "description": "The query failed; nothing is shown rather than a partial view. Reload — if it persists, an administrator checks the logs.",
+        "action": "Reload"
+      }
+    },
+    "source": "From the masterdata sheet, as of {when}",
+    "sourceUndated": "From the masterdata sheet",
+    "loading": "Loading the customer profile"
+  },
+  "customers": {
+    "title": "Customers",
+    "metaAll": "{total} CUSTOMERS · {orders} ORDERS",
+    "metaVisible": "{total} CUSTOMERS YOU CAN SEE · {orders} ORDERS",
+    "colNumber": "Customer number",
+    "colName": "Customer",
+    "colCity": "City",
+    "colLive": "Live",
+    "colOrders": "Orders",
+    "noName": "No name recorded",
+    "dormant": "No live orders",
+    "emptyTitle": "No customers visible",
+    "emptyDescription": "None of the orders you can see carries a customer number. That is a statement about your visibility, not about the customer list.",
+    "truncated": "The read ceiling was reached. Every figure below is a floor.",
+    "pagerNav": "Customer pages",
+    "pagerPrev": "Previous",
+    "pagerNext": "Next",
+    "pagerPage": "Customers, page {n}",
+    "pagerCount": "PAGE {page} OF {pageCount} · {total} CUSTOMERS"
   }
 }

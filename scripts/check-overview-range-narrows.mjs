@@ -21,6 +21,7 @@
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 try {
@@ -30,11 +31,11 @@ try {
   }
 } catch {
   console.log("SKIP: no .env.local");
-  process.exit(0);
+  notRun();
 }
 if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(0);
+  notRun();
 }
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -42,6 +43,7 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -85,7 +87,7 @@ const { data: allWeeks, error: weeksErr } = await admin
   .order("week_start");
 if (weeksErr) {
   console.log(`SKIP: time.org_week unavailable (${weeksErr.message})`);
-  process.exit(0);
+  notRun();
 }
 
 /** The page snaps a range outwards to whole ISO weeks; so does this. */

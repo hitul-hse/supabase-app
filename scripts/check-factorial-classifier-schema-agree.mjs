@@ -23,9 +23,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { classifyEmployee } from "./lib/factorial.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 // Repo root resolved from this file, so these paths work on any machine and
-// from any working directory. They were previously hardcoded to C:/Supabase,
+// from any working directory. They were previously hardcoded to a drive-letter path,
 // which existed on exactly one developer's laptop and nowhere else.
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 
@@ -34,7 +35,7 @@ const sql = readFileSync(join(REPO, "supabase/migrations/20260826140000_factoria
 const db = await new PGlite();
 
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
 
 await db.exec(`
   create schema crm; create schema auth;

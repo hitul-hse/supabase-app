@@ -28,6 +28,7 @@
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -35,12 +36,13 @@ for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
   if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
 }
 const { NEXT_PUBLIC_SUPABASE_URL: URL_BASE, SUPABASE_SERVICE_ROLE_KEY: SERVICE, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON } = env;
-if (!URL_BASE || !SERVICE || !ANON) { console.log("SKIP: no credentials"); process.exit(0); }
+if (!URL_BASE || !SERVICE || !ANON) { console.log("SKIP: no credentials"); notRun(); }
 
 const admin = createClient(URL_BASE, SERVICE, { auth: { persistSession: false } });
 
 let failed = false;
 const check = (label, ok, detail) => {
+  record(ok);
   console.log(`${ok ? "PASS" : "WARN"}: ${label}\n        ${detail}`);
   if (!ok) failed = true;
 };

@@ -3,6 +3,7 @@
 // it as a fact.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const walk = (dir, out = []) => {
   for (const n of readdirSync(dir)) {
@@ -13,7 +14,7 @@ const walk = (dir, out = []) => {
   return out;
 };
 
-const files = walk("C:/Supabase/src").filter((f) => /\.(ts|tsx)$/.test(f) && !/database\.types/.test(f));
+const files = walk(`${REPO_ROOT}/src`).filter((f) => /\.(ts|tsx)$/.test(f) && !/database\.types/.test(f));
 
 // Follow the call chain outward from the two accessors.
 const trace = (fnName) => {
@@ -25,10 +26,10 @@ const trace = (fnName) => {
     if (!re.test(s)) continue;
     if (new RegExp(`(export\\s+)?async\\s+function\\s+${fnName}\\b`).test(s)) {
       // still record if it also calls itself elsewhere, but mark the definition
-      callers.push({ file: f.replace("C:/Supabase/", ""), role: "defines" });
+      callers.push({ file: f.replace(`${REPO_ROOT}/`, ""), role: "defines" });
       continue;
     }
-    callers.push({ file: f.replace("C:/Supabase/", ""), role: "calls" });
+    callers.push({ file: f.replace(`${REPO_ROOT}/`, ""), role: "calls" });
   }
   return callers;
 };
@@ -47,7 +48,7 @@ for (const f of files) {
   const lines = s.split("\n");
   lines.forEach((l, i) => {
     if (/getBillableValues|getProjectBudgetStatus|billableValue|budgetStatus/.test(l)) {
-      console.log(`   ${f.replace("C:/Supabase/", "")}:${i + 1}  ${l.trim().slice(0, 100)}`);
+      console.log(`   ${f.replace(`${REPO_ROOT}/`, "")}:${i + 1}  ${l.trim().slice(0, 100)}`);
     }
   });
 }

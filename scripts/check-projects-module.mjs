@@ -34,11 +34,13 @@ import { createRequire } from "node:module";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 await loadBindings();
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -149,10 +151,32 @@ const { createTranslator } = require("next-intl");
 const messages = JSON.parse(readFileSync(${JSON.stringify(resolve("messages/en.json"))}, "utf8"));
 module.exports = { __esModule: true, useTranslations: (namespace) => createTranslator({ locale: "en", messages, namespace }) };`,
   );
+  // The dialog's chrome is the house Button and its motion the shared spring
+  // constants; both are compiled for real. framer-motion itself resolves from
+  // node_modules (the temp dir sits inside it) and renders its initial pose
+  // through renderToStaticMarkup like any other component.
+  const springsFile = await compile("src/components/animations/springs.ts", "springs.cjs");
+  // The two shared overlay shells the dialog and the pickers now delegate to:
+  // ModalShell owns the scrim, the dialog spring, the focus trap and the
+  // scroll lock; PopoverPanel owns a dropdown's arrival and departure. Both
+  // are compiled for real rather than stubbed -- they are small, and a stub
+  // would keep this gate green if the real one started throwing during a
+  // server render (which is exactly what `renderToStaticMarkup` does here).
+  const modalShellFile = await compile("src/components/ui/ModalShell.tsx", "ModalShell.cjs", {
+    "@/components/animations/springs": posix(springsFile),
+  });
+  const popoverFile = await compile("src/components/ui/Popover.tsx", "Popover.cjs", {
+    "@/components/animations/springs": posix(springsFile),
+  });
+  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
   const drillFile = await compile("src/components/DrillDialog.tsx", "DrillDialog.cjs", {
       "@/lib/locale-format": posix(formatFile),
     "next-intl": posix(intlStub),
     "next/link": posix(linkStub),
+    "@/components/ui/Button": posix(buttonFile),
+    "@/components/animations/springs": posix(springsFile),
+    "@/components/ui/ModalShell": posix(modalShellFile),
   });
   // The ledger's LOGGED popup asks the server; outside a request the action is
   // never called (the dialog opens on click), so an unresolvable stub is enough.
@@ -189,16 +213,49 @@ module.exports = {
 
   const emptyStateFile = await compile("src/components/EmptyState.tsx", "EmptyState.cjs", {
       "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+  // The shared icon set. Field's select caret and the key caps draw from it, as
+  // do the ledger's and the explorer's carets -- compiled once and mapped
+  // wherever a relative or aliased import names it, because an unmapped import
+  // kills the whole gate rather than one check.
+  const iconsFile = await compile("src/components/nav-icons.tsx", "nav-icons.cjs");
+  /*
+   * The status vocabulary the ledger's STATUS cell and the facet chips' tone
+   * dots share (APPLE_REF §8 #5: status is never colour alone). Compiled for
+   * real rather than stubbed -- it is a dozen lines with no dependencies, and a
+   * stub would let this gate stay green while the real component threw. Field
+   * imports it for `FilterChip`'s optional tone, so it has to exist first.
+   */
+  const statusDotFile = await compile("src/components/ui/StatusDot.tsx", "StatusDot.cjs");
+  /* The fixed 0-100 meter the burn cell draws. Dependency-free, same reasoning. */
+  const meterFile = await compile("src/components/ui/Meter.tsx", "Meter.cjs");
   const fieldFile = await compile("src/components/ui/Field.tsx", "Field.cjs", {
-      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
-  const buttonFile = await compile("src/components/ui/Button.tsx", "Button.cjs", {
-      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub) });
+      "@/lib/locale-format": posix(formatFile), "next/link": posix(linkStub),
+      "@/components/ui/StatusDot": posix(statusDotFile),
+      "../nav-icons": posix(iconsFile), "./Popover": posix(popoverFile) });
+  // The segmented skin the billable trough wears. Its Link is never rendered
+  // here (only the class exports are used), but the module still imports it.
+  const segmentedFile = await compile("src/components/ui/Segmented.tsx", "Segmented.cjs", {
+      "next/link": posix(linkStub) });
+  // The URL mirror the explorer's filters and the ledger's sort and page go
+  // through (2026-09-05, APPLE_REF §8 #16). Compiled for real: outside a
+  // request `useSearchParams()` returns null and the hook is plain component
+  // state, which is exactly the first paint this gate asserts on. Its
+  // `next/navigation` import resolves from node_modules like framer-motion.
+  /*
+   * The house pager (docs/UI-CONVENTIONS rule 3), shared with the two
+   * server-rendered queues. Its only import is `next/link`, which is already
+   * stubbed here.
+   */
+  const numberedPagerFile = await compile("src/components/NumberedPager.tsx", "NumberedPager.cjs", {
+      "next/link": posix(linkStub) });
+  const urlStateFile = await compile("src/components/url-state.ts", "url-state.cjs");
   // Added when the mobile work wrapped the explorer's panels in a disclosure.
   // Compiled rather than stubbed: it is small and dependency-free, and a stub
   // would keep this gate green if the real component started throwing.
   const mobileDisclosureFile = await compile("src/components/MobileDisclosure.tsx", "MobileDisclosure.cjs", {
       "@/lib/locale-format": posix(formatFile),
       "next-intl": posix(intlStub),
+      "./nav-icons": posix(iconsFile),
     });
 
   const insightsFile = await compile("src/app/(app)/projects/project-insights.ts", "project-insights.cjs", {
@@ -216,6 +273,18 @@ module.exports = {
       "@/components/EmptyState": posix(emptyStateFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/Pager": posix(pagerStub),
+      // The page-size trough and the CSV button moved into the card header, and
+      // the foot is the shared numbered pager now. All three are compiled for
+      // real: an unmapped alias kills the whole gate rather than one check.
+      "@/components/ui/Button": posix(buttonFile),
+      "@/components/ui/Segmented": posix(segmentedFile),
+      "@/components/ui/Meter": posix(meterFile),
+      "@/components/ui/StatusDot": posix(statusDotFile),
+      "@/components/NumberedPager": posix(numberedPagerFile),
+      "@/components/url-state": posix(urlStateFile),
+      // The sort-key list moved to the plain insights module (a value from a
+      // "use client" file is a client reference on the server page).
+      "./project-insights": posix(insightsFile),
       // The ledger table is a Card now, so the gate needs the real module here
       // too -- an unmapped alias kills the whole gate rather than one check.
       "@/components/ui/Card": posix(cardFile),
@@ -233,8 +302,11 @@ module.exports = {
   const noopChild = join(dir, "noop-child.cjs");
   writeFileSync(noopChild, `module.exports = new Proxy({}, { get: () => () => null });`);
   const customerSelectFile = await compile("src/app/(app)/projects/CustomerMultiSelect.tsx", "CustomerMultiSelect.cjs", {
-      "@/lib/locale-format": posix(formatFile),
     "@/lib/locale-format": posix(formatFile),
+    // The select's caret, tick and key caps come from the shared sets now.
+    "@/components/ui/Field": posix(fieldFile),
+    "@/components/nav-icons": posix(iconsFile),
+    "@/components/ui/Popover": posix(popoverFile),
   });
   const explorer = require(
     await compile("src/app/(app)/projects/ProjectsExplorer.tsx", "ProjectsExplorer.cjs", {
@@ -248,6 +320,8 @@ module.exports = {
       "./CustomerMultiSelect": posix(customerSelectFile),
       "@/components/ui/Field": posix(fieldFile),
       "@/components/ui/Button": posix(buttonFile),
+      "@/components/ui/Segmented": posix(segmentedFile),
+      "@/components/url-state": posix(urlStateFile),
       "@/components/MobileDisclosure": posix(mobileDisclosureFile),
       "@/components/DrillDialog": posix(drillFile),
       "next-intl": posix(intlStub),
@@ -406,15 +480,24 @@ module.exports = {
   // Untouched project, which HAS a 50h budget) is correct and must survive —
   // asserting "no 0% anywhere" would have demanded the wrong behaviour.
   //
-  // Doubled because the ledger renders BOTH layouts into the markup — a mobile
-  // card list and a desktop grid, one hidden by CSS at any viewport. Counting
-  // raw occurrences without accounting for that reads as a bug in the page when
-  // it is really a bug in the assertion.
+  // SIX, not four. Two rows × three cells that state the same absence:
+  //   desktop BUDGET  n/a   (was "—" until the row was made to spell one absence
+  //                         one way: BUDGET said "—", BURN said "n/a" and STATUS
+  //                         said "No budget" — three spellings of one fact in
+  //                         three adjacent cells)
+  //   desktop BURN    n/a
+  //   mobile  burn    n/a   (the mobile card has no BUDGET cell; it writes the
+  //                         word "No budget" in its figure row instead)
+  // The ledger renders BOTH layouts into the markup — a mobile card list and a
+  // desktop grid, one hidden by CSS at any viewport. Counting raw occurrences
+  // without accounting for that reads as a bug in the page when it is really a
+  // bug in the assertion. RETARGETED, not relaxed: still an exact count, and
+  // still the same property (a missing budget never renders a plausible 0%).
   const naCount = (tableHtml.match(/n\/a/g) ?? []).length;
   check(
     "a project without a budget renders 'n/a', not '0%'",
-    naCount === 4,
-    `${naCount} occurrences across the mobile and desktop layouts (2 rows × 2)`,
+    naCount === 6,
+    `${naCount} occurrences: 2 unbudgeted rows × (desktop BUDGET + desktop BURN + mobile burn)`,
   );
   check(
     "a genuine 0% burn is still shown as 0%, not hidden as n/a",
@@ -582,15 +665,33 @@ module.exports = {
   // py-1 rather than py-2.5. Asserted on the shipped source rather than the
   // rendered HTML because Tailwind classes are the only place the value lives.
   const ledgerSrc = readFileSync("src/app/(app)/projects/ProjectsLedger.tsx", "utf8");
-  const rowClass = /grid min-w-\[900px\] grid-cols-12 items-center[^"]*/.exec(ledgerSrc)?.[0] ?? "";
+  /*
+   * The row's class string, wherever the column template lives.
+   *
+   * It used to be a literal `grid min-w-[900px] grid-cols-12 items-center …`,
+   * and the eight-column re-cut moved the template into the `LEDGER_GRID`
+   * constant and interpolated it, so a regex anchored on `grid-cols-12` matched
+   * NOTHING and both assertions below failed on an empty string rather than on
+   * the row. Anchored on the parts that describe the row itself -- it is a grid,
+   * it is min-width-bounded, its cells are centred -- so the next change to the
+   * column list does not silently blind this check again. `[^`"]*` because the
+   * class is now a template literal, not a quoted string.
+   */
+  const rowClass = /grid \$\{LEDGER_GRID\} min-w-\[[^\]]+\] items-center[^`"]*/.exec(ledgerSrc)?.[0] ?? "";
   check(
     "REGRESSION 6: the desktop row keeps its compact vertical padding",
     /\bpy-1\b/.test(rowClass) && !/\bpy-2\.5\b/.test(rowClass),
     rowClass.slice(0, 90),
   );
+  // t-callout, the 12px row step of the type scale (APPLE_REF §1.3; the raw
+  // `text-[12px]` it replaced is still accepted, and the 12.5px half-step
+  // before that was retired with the rest of the fractional sizes). The intent
+  // is unchanged: the name stays at row-text size, never a caption size
+  // (t-subhead / t-label / a raw 10-11px), however tight the row gets.
   check(
     "the project name keeps its readable size despite the tighter row",
-    /text-\[12\.5px\]/.test(rowClass),
+    /(?:\bt-callout\b|text-\[12px\])/.test(rowClass) &&
+      !/text-\[1[01]px\]|\bt-subhead\b|\bt-label\b/.test(rowClass),
     "the one column people actually read must not shrink",
   );
   check(
@@ -751,13 +852,17 @@ module.exports = {
   // Uneven card heights are what made the old row look broken: only two of five
   // cells had a sub-label, so three were visibly shorter.
   /*
-   * TWO faint spans per tile, not one: StatTile paints the label faint AND the
-   * hint faint, so "has a hint" is "has a second faint span". A tile missing
-   * its hint measures 1 and is caught -- which a mere presence test would not
-   * do, because the label alone satisfies it.
+   * The hint is StatTile's one `t-subhead` + `--text-muted` span (APPLE_REF
+   * §5.5: caption faint, value primary, hint muted). Before the type roles the
+   * hint was faint like the label, so "has a hint" was "has a second faint
+   * span"; that form is still accepted so an older tile is not misread. A tile
+   * missing its hint matches neither and is caught -- which a mere presence
+   * test would not do, because the label alone satisfies it.
    */
   const tilesWithHint = tileSlices.filter(
-    (t) => (t.match(/text-\[var\(--text-faint\)\]/g) ?? []).length >= 2,
+    (t) =>
+      /t-subhead text-\[var\(--text-muted\)\]/.test(t) ||
+      (t.match(/text-\[var\(--text-faint\)\]/g) ?? []).length >= 2,
   ).length;
   check(
     "every tile carries a hint line, so heights match",
@@ -883,6 +988,7 @@ module.exports = {
 
   if (!existsSync(".env.local")) {
     console.log("\nSKIPPED the live probe — no .env.local (expected in CI).");
+    recordNotRun("no .env.local — the 2 live project-budget probes not evaluated", 2);
   } else {
     const env = { ...process.env };
     for (const line of readFileSync(".env.local", "utf8").split("\n")) {
@@ -892,6 +998,7 @@ module.exports = {
 
     if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
       console.log("\nSKIPPED the live probe — credentials absent.");
+      recordNotRun("no Supabase credentials — the 2 live project-budget probes not evaluated", 2);
     } else {
       const { createClient } = await import("@supabase/supabase-js");
       const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {

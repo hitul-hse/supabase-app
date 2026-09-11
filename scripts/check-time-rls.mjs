@@ -27,6 +27,7 @@
 // Run: node scripts/check-time-rls.mjs
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const db = await new PGlite();
 
@@ -51,6 +52,7 @@ const OTHER = "44444444-4444-4444-4444-444444444444";
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   if (!ok) failed = true;
   console.log(`${ok ? "PASS" : "FAIL"} | ${label}${!ok && detail ? `\n       ${detail}` : ""}`);
 };

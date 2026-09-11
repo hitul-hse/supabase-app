@@ -20,9 +20,11 @@
 // the live database, and check-table-scroll-budget drives the deployed pages in
 // a browser. Claiming this file renders anything would overstate it.
 import { readFileSync, existsSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

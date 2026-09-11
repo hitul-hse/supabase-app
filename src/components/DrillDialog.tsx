@@ -1,8 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { AnimatePresence } from "framer-motion";
+import { buttonClass } from "@/components/ui/Button";
+import { ModalShell, dialogOriginFrom, type DialogOrigin } from "@/components/ui/ModalShell";
 
 /**
  * The house answer to "what is behind this number?" — one dialog shape shared
@@ -75,26 +85,39 @@ const TONE: Record<NonNullable<DrillRow["tone"]>, string> = {
   muted: "var(--text-faint)",
 };
 
-const chrome =
-  "rounded-[var(--radius-sm)] border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-40";
+/** The dialog's own controls (ESC, BACK, NEXT) are ghost Buttons, like every pager's. */
+const chrome = buttonClass("ghost", "sm", "font-mono tracking-[0.06em] disabled:opacity-40");
 
-export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => void }) {
+/**
+ * The dialog's origin is the shell's (ModalShell): the trigger's centre as an
+ * offset from the viewport centre, so the panel emerges from the element that
+ * opened it and returns there. Re-exported under the drill names because four
+ * callers import them from here.
+ */
+export type DrillOrigin = DialogOrigin;
+export const drillOriginFrom = dialogOriginFrom;
+
+export function DrillDialog({
+  drill,
+  onClose,
+  origin = null,
+  returnFocusTo = null,
+}: {
+  drill: Drill;
+  onClose: () => void;
+  /** The trigger's centre relative to the viewport centre; absent, the dialog scales from the middle. */
+  origin?: DrillOrigin | null;
+  /**
+   * Where focus goes when the dialog closes. `DrillTrigger` passes its button;
+   * a caller that opens the dialog from its own state may leave this out, and
+   * the element that was active when the dialog mounted (the button just
+   * clicked, in every browser that focuses buttons on click) is used instead.
+   */
+  returnFocusTo?: RefObject<HTMLElement | null> | null;
+}) {
   const t = useTranslations("drill");
   const [page, setPage] = useState(0);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    // The page behind must not scroll while the dialog owns the viewport.
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [onClose]);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   // Reset paging when a different drill opens in the same mount -- the
   // adjust-state-during-render pattern, not an effect (react-hooks rule).
@@ -111,136 +134,148 @@ export function DrillDialog({ drill, onClose }: { drill: Drill; onClose: () => v
   const hasSections = (drill.sections?.length ?? 0) > 0;
   const empty = !drill.loading && !drill.error && !hasSections && rows.length === 0;
 
+  /*
+    The scrim, the spring, the focus trap, the scroll lock, Escape and the
+    exit all live in ModalShell (APPLE_REF §6.2 "Dialog"): panel 0.35 spring
+    from the trigger's offset, scrim 200 ms, exit 150 ms along the same path.
+    This component is the drill CONTENT -- the header, the rows and the pager
+    -- and the one law that the rows sum to the headline.
+  */
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(10, 14, 15, 0.66)", backdropFilter: "blur(4px)" }}
-      onClick={onClose}
-      role="presentation"
+    <ModalShell
+      label={t("dialogLabel", { title: drill.title })}
+      onDismiss={onClose}
+      origin={origin}
+      returnFocusTo={returnFocusTo}
+      initialFocusTo={closeRef}
+      panelProps={{ "data-drill-dialog": "", "data-check": drill.check }}
+      panelClassName={`card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface-raised)] ${
+        hasSections ? "max-w-2xl" : "max-w-xl"
+      }`}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("dialogLabel", { title: drill.title })}
-        data-drill-dialog
-        data-check={drill.check}
-        className={`rise-in card-elev-raised w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--border-strong)] bg-[var(--surface)] ${
-          hasSections ? "max-w-2xl" : "max-w-xl"
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
-          <div className="min-w-0">
-            <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-              {drill.kicker}
+      <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
+        <div className="min-w-0">
+          <span className="t-label text-[var(--text-faint)]">
+            {drill.kicker}
+          </span>
+          {/*
+            Title above the figure, not below it. APPLE_REF §5.8 sets the
+            dialog title in t-title-2 (17) and the headline figure in fig-md
+            (15): the title is the larger of the two, so it reads first, and
+            the figure answers it. The old order had a 26px figure over a
+            13px title -- the number you tapped, restated -- and the reader
+            met the answer before the question.
+          */}
+          <div className="mt-0.5 t-title-2 text-[var(--text-primary)]">{drill.title}</div>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span
+              className="fig-md text-[var(--text-primary)]"
+              data-drill-headline
+              data-value={drill.headlineValue}
+            >
+              {drill.headline}
             </span>
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span
-                className="font-mono text-[26px] font-semibold leading-none text-[var(--text-primary)]"
-                data-drill-headline
-                data-value={drill.headlineValue}
-              >
-                {drill.headline}
-              </span>
-              {drill.subline && (
-                <span className="font-mono text-[11px] text-[var(--text-secondary)]">{drill.subline}</span>
-              )}
-            </div>
-            <div className="mt-1 text-[13px] font-medium text-[var(--text-primary)]">{drill.title}</div>
+            {drill.subline && (
+              <span className="fig text-[var(--text-secondary)]">{drill.subline}</span>
+            )}
           </div>
-          <button type="button" onClick={onClose} autoFocus aria-label={t("close")} className={chrome}>
-            {t("esc")}
-          </button>
         </div>
+        <button ref={closeRef} type="button" onClick={onClose} aria-label={t("close")} className={chrome}>
+          {t("esc")}
+        </button>
+      </div>
 
-        <div className="px-5 py-4">
-          {drill.loading && (
-            <p className="py-8 text-center font-mono text-[11px] text-[var(--text-faint)]">{t("fetching")}</p>
-          )}
-          {drill.error && (
-            <p className="py-6 text-center text-sm text-[var(--critical)]">{drill.error}</p>
-          )}
-          {empty && (
-            <p className="py-6 text-center font-mono text-[11px] text-[var(--text-faint)]">
-              {t("nothingLogged")}
-            </p>
-          )}
+      <div className="px-5 py-4">
+        {drill.loading && (
+          <p className="py-8 text-center t-subhead text-[var(--text-faint)]">{t("fetching")}</p>
+        )}
+        {drill.error && (
+          <p className="py-6 text-center t-callout text-[var(--critical)]">{drill.error}</p>
+        )}
+        {empty && (
+          <p className="py-6 text-center t-subhead text-[var(--text-faint)]">
+            {t("nothingLogged")}
+          </p>
+        )}
 
-          {!drill.loading && !drill.error && hasSections && (
-            <div className="stagger grid grid-cols-1 gap-5 sm:grid-cols-2">
-              {drill.sections!.map((section) => (
-                <div key={section.title} data-drill-section>
-                  <h3 className="mb-2 font-mono text-[10px] tracking-[0.12em] text-[var(--text-faint)]">
-                    {section.title}
-                  </h3>
-                  {section.rows.length === 0 ? (
-                    <p className="font-mono text-[11px] text-[var(--text-faint)]">{t("nothingLogged")}</p>
-                  ) : (
-                    <RowList rows={section.rows} />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+        {!drill.loading && !drill.error && hasSections && (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {drill.sections!.map((section) => (
+              <div key={section.title} data-drill-section>
+                <h3 className="mb-2 t-label text-[var(--text-faint)]">
+                  {section.title}
+                </h3>
+                {section.rows.length === 0 ? (
+                  <p className="t-subhead text-[var(--text-faint)]">{t("nothingLogged")}</p>
+                ) : (
+                  <RowList rows={section.rows} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
-          {!drill.loading && !drill.error && !hasSections && rows.length > 0 && (
-            <RowList rows={visible} scaleTo={rows} stagger />
-          )}
+        {!drill.loading && !drill.error && !hasSections && rows.length > 0 && (
+          <RowList rows={visible} scaleTo={rows} />
+        )}
 
-          {!hasSections && pageCount > 1 && (
-            <div className="mt-4 flex items-center justify-between border-t border-[var(--divider)] pt-3">
-              <button
-                type="button"
-                disabled={safePage === 0}
-                onClick={() => setPage(safePage - 1)}
-                className={chrome}
-                data-drill-prev
-              >
-                {t("back")}
-              </button>
-              <span
-                className="font-mono text-[10px] text-[var(--text-faint)]"
-                data-drill-page={safePage + 1}
-                data-drill-pages={pageCount}
-              >
-                {t("page", { page: safePage + 1, count: pageCount })}
-              </span>
-              <button
-                type="button"
-                disabled={safePage >= pageCount - 1}
-                onClick={() => setPage(safePage + 1)}
-                className={chrome}
-                data-drill-next
-              >
-                {t("next")}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {drill.footer && (
-          <div className="border-t border-[var(--border)] px-5 py-3 font-mono text-[10px] text-[var(--text-faint)]">
-            {drill.footer}
+        {!hasSections && pageCount > 1 && (
+          <div className="mt-4 flex items-center justify-between border-t border-[var(--divider)] pt-3">
+            <button
+              type="button"
+              disabled={safePage === 0}
+              onClick={() => setPage(safePage - 1)}
+              className={chrome}
+              data-drill-prev
+            >
+              {t("back")}
+            </button>
+            <span
+              className="t-label text-[var(--text-faint)]"
+              data-drill-page={safePage + 1}
+              data-drill-pages={pageCount}
+            >
+              {t("page", { page: safePage + 1, count: pageCount })}
+            </span>
+            <button
+              type="button"
+              disabled={safePage >= pageCount - 1}
+              onClick={() => setPage(safePage + 1)}
+              className={chrome}
+              data-drill-next
+            >
+              {t("next")}
+            </button>
           </div>
         )}
       </div>
-    </div>
+
+    {drill.footer && (
+      <div className="border-t border-[var(--border)] px-5 py-3 t-label text-[var(--text-faint)]">
+        {drill.footer}
+      </div>
+    )}
+    </ModalShell>
   );
 }
 
+/*
+ * No stagger on the rows. Ten rows staggered on top of the 0.25s bar delay
+ * landed the last bar ~1.3s after the dialog opened (measured); the panel
+ * itself has already arrived on the spring, and the figures are what the
+ * reader opened it for. Every bar draws in 0.4s from the moment it mounts.
+ */
 function RowList({
   rows,
   scaleTo,
-  stagger = false,
 }: {
   rows: DrillRow[];
   /** Bars scale to the largest row of the WHOLE list, not the visible page. */
   scaleTo?: DrillRow[];
-  stagger?: boolean;
 }) {
   const max = Math.max(1, ...(scaleTo ?? rows).map((row) => Math.abs(row.magnitude)));
   return (
-    <ul className={`${stagger ? "stagger " : ""}flex flex-col gap-2.5`}>
+    <ul className="flex flex-col gap-2.5">
       {rows.map((row) => {
         const width = row.percent ?? Math.max(2, (Math.abs(row.magnitude) / max) * 100);
         const colour = TONE[row.tone ?? "accent"];
@@ -256,21 +291,28 @@ function RowList({
         );
         return (
           <li key={`${row.name}·${row.sub ?? ""}`} data-drill-row data-value={row.magnitude}>
-            <div className="flex items-baseline justify-between gap-2 text-[12px]">
+            <div className="flex items-baseline justify-between gap-2 t-callout">
               <span
                 className={`min-w-0 truncate ${row.tone === "muted" ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}`}
               >
                 {name}
                 {row.sub && <span className="ml-2 text-[var(--text-faint)]">{row.sub}</span>}
               </span>
-              <span className="flex-none font-mono text-[11px] tabular-nums text-[var(--text-secondary)]">
+              <span className="flex-none fig text-[var(--text-secondary)]">
                 {row.value}
               </span>
             </div>
             <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
               <div
                 className="bar-grow h-full rounded-full"
-                style={{ width: `${Math.min(100, width)}%`, background: colour }}
+                style={{
+                  width: `${Math.min(100, width)}%`,
+                  background: colour,
+                  // The house bar-grow is 0.7s after a 0.25s delay; inside a
+                  // dialog that has already arrived, 0.4s from frame 0.
+                  animationDuration: "400ms",
+                  animationDelay: "0ms",
+                }}
               />
             </div>
           </li>
@@ -302,14 +344,25 @@ export function DrillTrigger({
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "type" | "children">) {
   const t = useTranslations("drill");
   const [open, setOpen] = useState(false);
+  const [origin, setOrigin] = useState<DrillOrigin | null>(null);
+  // The dialog returns focus here on every dismissal (DrillDialog `dismiss`,
+  // §5.8): the ref is passed rather than read, so the element is resolved at
+  // close time, not at render.
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
   const label = t("open", { title: drill.title });
+  const openFrom = (e: MouseEvent<HTMLButtonElement>) => {
+    // Captured on the click, not at render: the tile may have scrolled.
+    setOrigin(drillOriginFrom(e.currentTarget));
+    setOpen(true);
+  };
   return (
     <>
       <button
         {...rest}
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openFrom}
         aria-haspopup="dialog"
         aria-label={label}
         title={label}
@@ -318,7 +371,13 @@ export function DrillTrigger({
       >
         {children}
       </button>
-      {open && <DrillDialog drill={drill} onClose={close} />}
+      {/* AnimatePresence keeps the dialog mounted through its exit, so Esc
+          plays the entrance in reverse and a re-tap mid-exit re-targets. */}
+      <AnimatePresence>
+        {open && (
+          <DrillDialog drill={drill} onClose={close} origin={origin} returnFocusTo={triggerRef} />
+        )}
+      </AnimatePresence>
     </>
   );
 }

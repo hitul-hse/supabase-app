@@ -7,9 +7,10 @@
 // it, it is one file away.
 import { readFileSync, writeFileSync } from "node:fs";
 import pg from "pg";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const env = Object.fromEntries(
-  readFileSync("C:/Supabase/.env.local", "utf8").split(/\r?\n/)
+  readFileSync(`${REPO_ROOT}/.env.local`, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
@@ -44,11 +45,11 @@ const backup = [
   ...chunks,
 ].join("\n");
 
-writeFileSync("C:/Supabase/docs/netflix-demo-data-backup-2026-08-25.sql", backup, "utf8");
+writeFileSync(`${REPO_ROOT}/docs/netflix-demo-data-backup-2026-08-25.sql`, backup, "utf8");
 console.log(`backed up ${rows.length} rows -> docs/netflix-demo-data-backup-2026-08-25.sql`);
 
 // 2. Apply the drop.
-const migration = readFileSync("C:/Supabase/supabase/migrations/20260825140000_drop_netflix_demo_data.sql", "utf8");
+const migration = readFileSync(`${REPO_ROOT}/supabase/migrations/20260825140000_drop_netflix_demo_data.sql`, "utf8");
 await c.query(migration);
 console.log("migration applied");
 

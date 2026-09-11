@@ -3,6 +3,7 @@
 // defined at the point of use. This is the class of bug that made the previous
 // schema.sql unrunnable on a fresh project.
 const fs = require("fs");
+const { record } = require("./lib/gate-result.mjs");
 
 const sql = fs.readFileSync("supabase/schema.sql", "utf8");
 const lines = sql.split(/\r?\n/);
@@ -112,6 +113,7 @@ if (problems.length) {
 }
 
 for (const a of assertions) {
+  record(a.ok);
   console.log(`${a.ok ? "PASS" : "FAIL"}: ${a.name}`);
   if (!a.ok) failed = true;
 }

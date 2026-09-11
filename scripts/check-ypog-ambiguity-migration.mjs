@@ -6,11 +6,13 @@
  */
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
-const sql = readFileSync("C:/Supabase/supabase/migrations/20260826130000_ypog_berlin_alias.sql", "utf8");
+const sql = readFileSync(`${REPO_ROOT}/supabase/migrations/20260826130000_ypog_berlin_alias.sql`, "utf8");
 const db = await new PGlite();
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? ` — ${d}` : ""}`); if (!ok) failures += 1; };
 
 await db.exec(`
   create schema crm;

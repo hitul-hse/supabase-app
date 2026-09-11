@@ -17,6 +17,7 @@
 import { readFileSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
 import { createClient } from "@supabase/supabase-js";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 const env = {};
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
@@ -27,11 +28,12 @@ const SITE = process.env.SITE ?? "https://hseportal.hs-experts.com";
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
-if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); process.exit(0); }
+if (!env.SUPABASE_SERVICE_ROLE_KEY) { console.log("SKIP: no service-role key"); notRun(); }
 const time = admin.schema("time");
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };
@@ -47,7 +49,7 @@ const { data: roster } = await time
 
 const boss = roster.find((r) => (r.display_name ?? "").toLowerCase().includes("björn")) ?? roster[0];
 const subordinate = roster.find((r) => r.id !== boss.id && r.user_id !== null && (r.email ?? "").includes("@"));
-if (!boss || !subordinate) { console.log("SKIP: could not pick two people"); process.exit(0); }
+if (!boss || !subordinate) { console.log("SKIP: could not pick two people"); notRun(); }
 
 const originalBoss = boss.supervisor_member_id;
 const originalSub = subordinate.supervisor_member_id;

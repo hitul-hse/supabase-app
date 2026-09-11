@@ -21,15 +21,16 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { record } from "./lib/gate-result.mjs";
 
 // Repo root resolved from this file, so these paths work on any machine and
-// from any working directory. They were previously hardcoded to C:/Supabase,
+// from any working directory. They were previously hardcoded to a drive-letter path,
 // which existed on exactly one developer's laptop and nowhere else.
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 
 
 let failures = 0;
-const check = (l, ok, d = "") => { console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
+const check = (l, ok, d = "") => { record(ok); console.log(`${ok ? "PASS" : "FAIL"}: ${l}${d ? `\n        ${d}` : ""}`); if (!ok) failures += 1; };
 
 const src = readFileSync(join(REPO, "src/lib/queries/management-project-risks.ts"), "utf8");
 

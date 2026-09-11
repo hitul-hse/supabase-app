@@ -64,14 +64,16 @@
 import { createServer } from "node:http";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 if (!existsSync("node_modules/next")) {
   console.log("SKIP: next is not installed");
-  process.exit(0);
+  notRun();
 }
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };

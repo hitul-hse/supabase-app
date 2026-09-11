@@ -44,6 +44,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 const read = (...p) => readFileSync(join(REPO, ...p), "utf8");
@@ -55,6 +56,7 @@ const userRowSrc = read("src/app/(app)/admin/users/UserRow.tsx");
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? `\n        ${detail}` : ""}`);
   if (!ok) failures += 1;
   return ok;
@@ -632,6 +634,7 @@ const env = loadEnv();
 if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
   console.log("SKIP: no live credentials — sections 1-3 above still ran and are the");
   console.log("      deterministic part of this gate. The live half cannot be faked green.");
+  recordNotRun(`no live credentials — ${3 + DEPARTED.length} live offboarding probes not evaluated`, 3 + DEPARTED.length);
 } else {
   const rest = async (path, schema) => {
     const headers = {

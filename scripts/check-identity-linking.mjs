@@ -6,6 +6,13 @@
  *   "a colleague signs in with Microsoft, then Google, and lands on ONE account
  *    — proven by a single auth.users row with two identities."
  *
+ * NOTE, 2026-09-08: Microsoft sign-in was removed from the product (board ticket
+ * 37), so that sentence names a second provider the app no longer offers, and the
+ * two-provider convergence half of this test is no longer performable against real
+ * accounts. It is reported as NOT PERFORMABLE rather than quietly passing. The
+ * fork detection below still runs and still matters: email invites and Google can
+ * fork one human across two rows without any second provider being involved.
+ *
  * Nothing asserted it. Grep the other OAuth checks for `identities` and there
  * are no hits: check-oauth-callback covers the URL contract, check-oauth-access
  * covers what an unprovisioned user may read, check-oauth-success-path covers
@@ -47,9 +54,11 @@
  */
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, existsSync } from "node:fs";
+import { record, recordNotRun } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -279,6 +288,7 @@ console.log("\nOBSERVED — the live project\n");
 const envPath = ".env.local";
 if (!existsSync(envPath)) {
   console.log("SKIP: no .env.local — the modelled half above still ran");
+  recordNotRun("no .env.local — the 2 live auth.users probes not evaluated", 2);
   console.log(
     failed
       ? "\nIDENTITY LINKING: the modelled defences do NOT hold"
@@ -296,6 +306,7 @@ const serviceKey = get("SUPABASE_SERVICE_ROLE_KEY");
 if (!url || !serviceKey) {
   console.log("SKIP: need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
   console.log("      (auth.users is reachable only through the Admin API, never PostgREST)");
+  recordNotRun("missing Supabase credentials — the 2 live auth.users probes not evaluated", 2);
   process.exit(failed ? 1 : 0);
 }
 
@@ -327,6 +338,7 @@ if (anon) {
 const listRes = await fetch(`${url}/auth/v1/admin/users?per_page=200`, { headers: H });
 if (!listRes.ok) {
   console.log(`SKIP: admin list returned HTTP ${listRes.status}`);
+  recordNotRun(`admin list returned HTTP ${listRes.status} — the 2 live auth.users probes not evaluated`, 2);
   process.exit(failed ? 1 : 0);
 }
 const listBody = await listRes.json();
@@ -402,19 +414,20 @@ if (exitTestMet) {
   console.log("  PHASE 0 EXIT TEST: MET — a real colleague holds one account with two providers.");
 } else if (providersOn < 2) {
   console.log(
-    "  PHASE 0 EXIT TEST: NOT YET PERFORMABLE.\n" +
-      "    Google and/or Microsoft are not enabled on this project, so nobody can\n" +
-      "    sign in with them. 'No fork found' above is therefore true but vacuous —\n" +
-      "    every account here was created by email invite.\n" +
-      "    Enable them (docs/architecture/SSO-GOOGLE-MICROSOFT.md), then have one\n" +
-      "    colleague sign in with BOTH and re-run this.",
+    "  PHASE 0 EXIT TEST: NOT PERFORMABLE AS WRITTEN.\n" +
+      "    It asks one human to sign in with two providers, and this project now\n" +
+      "    offers one: Microsoft was removed on 2026-09-08 (board ticket 37).\n" +
+      "    'No fork found' above is therefore true but weaker than it looks — most\n" +
+      "    accounts here were created by email invite.\n" +
+      "    To restore a real two-provider test the criterion needs rewriting around\n" +
+      "    a provider we actually ship, not around Microsoft.",
   );
 } else {
   console.log(
     "  PHASE 0 EXIT TEST: NOT YET DEMONSTRATED.\n" +
       "    Both providers are enabled and no fork exists, but no account yet carries\n" +
       "    two linked providers — so linking has not actually been exercised.\n" +
-      "    Have one colleague sign in with Microsoft, then Google, and re-run.",
+      "    Have one colleague sign in with both offered methods and re-run.",
   );
 }
 

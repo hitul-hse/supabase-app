@@ -4,8 +4,9 @@
 // logged", which is a meaningfully different denominator from "every week in
 // the window" and changes the number substantially for part-time or new staff.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/src/app/(app)/team-lead/TeamAnalysisSection.tsx";
+const path = `${REPO_ROOT}/src/app/(app)/team-lead/TeamAnalysisSection.tsx`;
 const src = readFileSync(path, "utf8");
 const eol = src.includes("\r\n") ? "\r\n" : "\n";
 

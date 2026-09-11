@@ -21,11 +21,16 @@
     "rolePermissions": "Rollenberechtigungen",
     "budgetAlerts": "Budget-Warnungen",
     "factorialIdentity": "Factorial-Identität",
-    "systemHealth": "Systemzustand"
+    "systemHealth": "Systemzustand",
+    "customers": "Kunden"
   },
   "common": {
     "logOut": "Abmelden",
-    "switchLanguage": "Language: English",
+    "language": {
+      "label": "Sprache",
+      "current": "Sprache: {language}",
+      "choose": "Sprache wählen"
+    },
     "notAvailable": "k. A.",
     "sync": {
       "label": "SYNC",
@@ -39,7 +44,20 @@
       "rows": "{count} ZEILEN"
     },
     "show": "ANZEIGEN",
-    "hide": "AUSBLENDEN"
+    "hide": "AUSBLENDEN",
+    "replayTour": "Tour erneut abspielen",
+    "signingOut": "Abmeldung läuft …",
+    "profile": "Profil",
+    "accountMenu": "Kontomenü — {name}",
+    "themeToDark": "Zum Dunkelmodus wechseln",
+    "themeToLight": "Zum Hellmodus wechseln",
+    "error": {
+      "title": "Diese Seite konnte nicht geladen werden",
+      "description": "Die Daten hinter dieser Ansicht konnten nicht geladen werden. Das ist meist vorübergehend — ein erneuter Versuch hilft oft. Tritt es weiterhin auf, hilft die Referenz unten bei der Ursachensuche.",
+      "tryAgain": "Erneut versuchen",
+      "backToOverview": "Zurück zur Übersicht",
+      "ref": "REF {digest}"
+    }
   },
   "overview": {
     "title": "Übersicht",
@@ -126,6 +144,14 @@
       "nothingLogged": "Nichts erfasst.",
       "footer": "JE TOP 8 NACH STUNDEN · GLEICHER UMFANG WIE DAS DIAGRAMM · ZUKÜNFTIG DATIERTE EINTRÄGE AUSGESCHLOSSEN"
     },
+    "heroBand": {
+      "kicker": "LETZTE WOCHE · {week} · TRACKINGTIME",
+      "headline": "Die Woche ist zu {share} abrechenbar",
+      "noWeek": "Noch keine Woche mit Stunden",
+      "hint": "{across} über {period} · {billable} abrechenbar von {total} gebucht · {people} Personen im Team",
+      "caption": "ABRECHENBARER ANTEIL · LETZTE WOCHE",
+      "figureLabel": "Abrechenbarer Anteil in der letzten Woche"
+    },
     "billableShare": {
       "title": "Abrechenbarer Anteil",
       "legend": "ABRECHENBAR %",
@@ -142,7 +168,23 @@
       "nobodyTeam": "Niemand mit hinterlegtem Team {team} hat Zeit erfasst.",
       "noMembers": "Keine Mitarbeiter mit erfasster Zeit.",
       "basis": "BASIS",
-      "basisNote": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, über die Wochen, in denen die Person aktiv war. TrackingTime hält keine Vertragsstunden. Diese Prozentwerte gelten für den Gesamtzeitraum, nicht für den gewählten Zeitraum — die Ansicht je Mitarbeiter ist nicht datumsgebunden."
+      "basisNote": "Erfasste Stunden gegen eine nominelle 40-Stunden-Woche, über die Wochen, in denen die Person aktiv war. TrackingTime hält keine Vertragsstunden. Diese Prozentwerte gelten für den Gesamtzeitraum, nicht für den gewählten Zeitraum — die Ansicht je Mitarbeiter ist nicht datumsgebunden.",
+      "columns": {
+        "person": "PERSON",
+        "team": "TEAM",
+        "hours": "STUNDEN",
+        "utilisation": "AUSLASTUNG",
+        "status": "STATUS"
+      },
+      "qualifier": "NIEDRIGSTE ZUERST",
+      "status": {
+        "overCapacity": "Über Kapazität",
+        "low": "Niedrig",
+        "onTrack": "Im Plan",
+        "noActivity": "Keine Aktivität",
+        "notMeasured": "Nicht messbar"
+      },
+      "teamNote": "TEAM zeigt —, wenn niemand eines hinterlegt hat. STUNDEN und AUSLASTUNG zeigen n/a, wenn es nichts zu messen gibt — keine Zeiteinträge oder keine Vertragsstunden — nie eine 0, die nach Leerlauf aussieht. STATUS nennt eine Person niedrig unter 60 % und über Kapazität über 110 %, dieselbe Grenze wie die Anzeige darunter."
     },
     "disclosure": {
       "title": "Abrechenbar-Aufteilung & Auslastung",
@@ -193,6 +235,25 @@
         "burn": "VERBRAUCH"
       },
       "budgetWithheld": "NICHT SICHTBAR"
+    },
+    "overBudget": {
+      "title": "Über Budget",
+      "columns": {
+        "project": "PROJEKT",
+        "customer": "KUNDE",
+        "burn": "VERBRAUCH",
+        "over": "ÜBER"
+      },
+      "hours": "{hours} h",
+      "underTenth": "< 0,1 h",
+      "qualifier": "SCHLECHTESTE ZUERST",
+      "footnote": "Verbrauch ist die gebuchte Zeit im Verhältnis zur Schätzung; ÜBER sind die Stunden jenseits davon. Dieselben Projekte, die die Kachel PROJEKTE ÜBER BUDGET zählt — jedes aktive Projekt mit einem Budget über null und mehr gebuchten als budgetierten Stunden, geplante Zeit ausgenommen. Manche Schätzungen sind Platzhalter: Das Diagramm BUDGETVERBRAUCH auf Projekte lässt Schätzungen unter 10 h weg, diese Liste behält sie, damit sie genau die Projekte nennt, die die Kachel zählt.",
+      "empty": "Kein aktives Projekt mit Budget hat mehr Stunden gebucht als budgetiert.",
+      "withheld": "Budgets sind für deine Rolle nicht sichtbar, deshalb kann nicht gezeigt werden, welche Projekte über Budget liegen."
+    },
+    "queues": {
+      "title": "Über Budget und Auslastung",
+      "summary": "{overBudget} Projekte über Budget · {people} Personen, niedrigste Auslastung zuerst"
     }
   },
   "drill": {
@@ -203,8 +264,8 @@
     "fetching": "Wird geladen …",
     "nothingLogged": "Nichts erfasst.",
     "page": "SEITE {page} / {count}",
-    "back": "← ZURÜCK",
-    "next": "WEITER →",
+    "back": "ZURÜCK",
+    "next": "WEITER",
     "noProject": "(ohne Projekt)",
     "noCustomer": "(ohne Kunde)",
     "noTask": "(ohne Aufgabe)",
@@ -540,7 +601,9 @@
       "pairTitle": "So viele Projekte fallen gemeinsam aus, wenn dieses Paar gleichzeitig fehlt",
       "pairSize": "×{count} im Paar",
       "cover": "{responsible} · Vertretung: {replacement}",
-      "samePerson": " (dieselbe Person)"
+      "samePerson": " (dieselbe Person)",
+      "pagerNoun": "Fälle",
+      "pagerNav": "Seiten der defekten Vertretungen"
     },
     "portfolio": {
       "title": "Customer Portfolio",
@@ -596,7 +659,9 @@
         "linkNa": "{label}: n/a",
         "linksNote": "Im aktuellen Projekt-Read-Model sind keine belastbaren URL-Felder für diese Linktypen vorhanden.",
         "replacementNa": "Replacement: n/a",
-        "replacementTitle": "Replacement benötigt ein bestätigtes servicebezogenes Modell"
+        "replacementTitle": "Replacement benötigt ein bestätigtes servicebezogenes Modell",
+        "customerProfile": "Kundenprofil {number}",
+        "customerProfileNa": "Kundenprofil: keine eindeutige Kundennummer"
       }
     },
     "multiService": {
@@ -1554,15 +1619,15 @@
     },
     "noAccess": {
       "title": "Sie haben keinen Zugriff auf das Projektportfolio",
-      "description": "Alle Projekte zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Ihre eigene Projektzeit sehen Sie unter Zeit. Eine Administratorin kann weiteren Zugriff unter Rollenberechtigungen erteilen.",
-      "action": "Zu Zeit →"
+      "description": "Alle Projekte zu sehen erfordert die Berechtigung „Alle Projekte sehen“, die Ihre Rolle nicht hat. Ihre Projektzeit finden Sie unter Zeit.",
+      "action": "Zu Zeit"
     },
     "filters": {
       "searchLabel": "Projekte nach Name, Kunde oder Code suchen",
       "searchPlaceholder": "Projekte suchen …",
-      "all": "Alle",
-      "billable": "Abrechenbar",
-      "nonBillable": "Nicht abr.",
+      "all": "ALLE",
+      "billable": "ABRECHENBAR",
+      "nonBillable": "NICHT ABRECHENBAR",
       "clear": "Zurücksetzen",
       "countAll": "{count} PROJEKTE",
       "countOf": "{shown} VON {total}",
@@ -1572,7 +1637,8 @@
         "healthy": "GESUND",
         "nobudget": "KEIN BUDGET",
         "idle": "KEINE AKTIVITÄT"
-      }
+      },
+      "billableGroup": "Abrechnungsfilter"
     },
     "customer": {
       "label": "KUNDE",
@@ -1628,7 +1694,7 @@
       }
     },
     "ledger": {
-      "title": "PROJEKTÜBERSICHT",
+      "title": "Projektübersicht",
       "count": "{count} PROJEKTE",
       "empty": {
         "title": "Keine Projekte gefunden",
@@ -1649,8 +1715,25 @@
         "logged": "ERFASST",
         "consumed": "VERBRAUCH",
         "people": "MITARBEITER",
-        "last": "ZULETZT"
-      }
+        "last": "ZULETZT",
+        "code": "CODE",
+        "billable": "ABRECHENBAR",
+        "hours": "STUNDEN",
+        "burn": "VERBRAUCH",
+        "status": "STATUS"
+      },
+      "billable": {
+        "yes": "Abrechenbar",
+        "no": "Nicht abrechenbar"
+      },
+      "status": {
+        "over": "Über Budget",
+        "risk": "Gefährdet",
+        "healthy": "Gesund",
+        "nobudget": "Kein Budget"
+      },
+      "csvTitle": "Diese Projekte als CSV laden — mit dem aktuellen Filter und der aktuellen Sortierung",
+      "pagerNav": "Seiten des Projektregisters"
     },
     "health": {
       "title": "Portfolio-Gesundheit",
@@ -1715,7 +1798,7 @@
       },
       "meta": "{customer}{code} · {entries} EINTRÄGE",
       "noCustomer": "KEIN KUNDE",
-      "allProjects": "← Alle Projekte",
+      "allProjects": "Alle Projekte",
       "pills": {
         "archived": "ARCHIVIERT",
         "billable": "ABRECHENBAR",
@@ -1922,22 +2005,346 @@
     "range": "{from, number}–{to, number} VON {count, number} {noun}",
     "perPage": "PRO SEITE",
     "all": "ALLE",
-    "prev": "← ZURÜCK",
-    "next": "WEITER →",
+    "prev": "ZURÜCK",
+    "next": "WEITER",
     "srAll": "Alle {count, number} {noun} werden angezeigt",
-    "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}"
+    "srRange": "{from, number} bis {to, number} von {count, number} {noun}, Seite {page, number} von {pages, number}",
+    "pageOf": "SEITE {page, number} VON {pages, number}",
+    "goToPage": "Seite {page, number}"
   },
   "dataTable": {
-    "noRows": "keine Zeilen",
-    "allRows": "alle {count, number} Zeilen",
-    "range": "{from, number}–{to, number} von {count, number}",
-    "filteredFrom": "gefiltert aus {count, number}",
+    "noRows": "KEINE ZEILEN",
+    "allRows": "ALLE {count, number} ZEILEN",
+    "range": "{from, number}–{to, number} VON {count, number}",
+    "filteredFrom": "GEFILTERT AUS {count, number}",
     "searchPlaceholder": "Zeilen durchsuchen…",
     "clearSearch": "Suche zurücksetzen",
     "showEveryRow": "Alle Zeilen anzeigen",
     "rowsPerPage": "{count, number} Zeilen pro Seite",
     "all": "ALLE",
     "csvTitle": "Diese Zeilen als CSV herunterladen — mit aktuellem Filter und aktueller Sortierung",
-    "empty": "Nichts anzuzeigen."
+    "empty": "Nichts anzuzeigen.",
+    "searchLabel": "{title} durchsuchen",
+    "rowsPerPageGroup": "Zeilen pro Seite",
+    "noMatch": "Keine Zeile passt zu „{query}“.",
+    "clearTheSearch": "Suche zurücksetzen",
+    "prev": "ZURÜCK",
+    "next": "WEITER",
+    "pagesOf": "Seiten von {title}",
+    "goToPage": "{title}, Seite {page, number}"
+  },
+  "myWork": {
+    "header": {
+      "linkedTo": "VERKNÜPFT MIT {name}"
+    },
+    "summary": {
+      "led": {
+        "label": "KUNDEN, DIE ICH LEITE",
+        "hint": "verantwortlich oder Betreuer"
+      },
+      "customers": {
+        "label": "KUNDEN GESAMT",
+        "hint": "kanonische Entitäten"
+      },
+      "projects": {
+        "label": "MEINE PROJEKTE",
+        "hint": "auf jeder Stufe"
+      },
+      "hours": {
+        "label": "STUNDEN · TEAM",
+        "hint": "alle Personen"
+      },
+      "services": {
+        "label": "SERVICES BEKANNT",
+        "hintAll": "deiner Projekte ({source})",
+        "hintOf": "von {total} Projekten ({source})"
+      }
+    },
+    "views": {
+      "label": "Ansicht",
+      "projects": "PROJEKTE",
+      "customers": "KUNDEN"
+    },
+    "filters": {
+      "role": "MEINE ROLLE",
+      "all": "ALLE",
+      "clearCustomer": "Kundenfilter zurücksetzen"
+    },
+    "tables": {
+      "projects": "Meine Projekte",
+      "customers": "Meine Kunden",
+      "coverage": "{measured} VON {total} GEMESSEN",
+      "coverageTitle": "Stunden sind für {measured} von {total} Projekten bekannt; diese Summe ist eine Untergrenze, nicht das Ganze.",
+      "emptyFiltered": "Keine Zeile passt zu Rolle oder Kunde. Oben zurücksetzen.",
+      "emptyCustomers": "Dir sind keine Kunden zugewiesen"
+    },
+    "empty": {
+      "browseProjects": "Alle Projekte ansehen",
+      "reload": "Neu laden",
+      "unlinked": {
+        "title": "Dein Konto ist noch keinem Personendatensatz zugeordnet",
+        "description": "Arbeit wird über einen Personendatensatz zugeordnet; dieses Konto hat noch keinen. Ein Administrator verknüpft ihn unter Benutzer & Rollen."
+      },
+      "loadFailed": {
+        "title": "Deine Arbeit konnte nicht geladen werden",
+        "description": "Die Projektabfrage ist fehlgeschlagen; statt einer Teilliste wird nichts angezeigt. Neu laden – bleibt es, prüft ein Administrator die Logs."
+      },
+      "none": {
+        "title": "Dir sind keine Projekte zugewiesen",
+        "description": "Nichts nennt {name} als verantwortlich, Betreuer, Vertretung oder zugewiesen. Weist dich eine Projektleitung zu, erscheint es hier."
+      }
+    },
+    "detail": {
+      "close": "Auswahl aufheben",
+      "empty": "Für diesen Auftrag gibt es noch keine Stammdaten.",
+      "withheld": "nicht freigegeben",
+      "historical": {
+        "label": "HISTORISCH",
+        "endedLabel": "VERTRAG BEENDET",
+        "ended": "Der Vertrag ist am {date} ausgelaufen.",
+        "gone": "Dieser Auftrag steht nicht mehr im Stammdatenblatt.",
+        "both": "Der Vertrag ist am {date} ausgelaufen und der Auftrag steht nicht mehr im Stammdatenblatt."
+      },
+      "service": {
+        "title": "SERVICE",
+        "customer": "KUNDE",
+        "customerName": "FIRMENNAME",
+        "language": "SPRACHE",
+        "address": "ADRESSE",
+        "contractStart": "VERTRAGSBEGINN",
+        "contractEnd": "VERTRAGSENDE",
+        "contractHours": "VERTRAGSSTUNDEN"
+      },
+      "language": {
+        "de": "Deutsch",
+        "en": "English"
+      },
+      "people": {
+        "title": "PERSONEN",
+        "responsible": "VERANTWORTLICH",
+        "role": "ROLLE",
+        "replacement": "VERTRETUNG",
+        "doctor": "Betriebsarzt",
+        "other": "Sonstige",
+        "unknown": "Name nicht verfügbar",
+        "responsibleTitle": "Laut Stammdatenblatt verantwortlich für diesen Auftrag",
+        "replacementTitle": "Laut Stammdatenblatt Vertretung für diesen Auftrag"
+      },
+      "delivery": {
+        "title": "LEISTUNGSBEDINGUNGEN",
+        "minOnsite": "MINDESTZEIT VOR ORT",
+        "travelFlatRate": "PAUSCHALE ANFAHRT",
+        "travelAsProjectTime": "REISEZEIT ALS PROJEKTZEIT",
+        "yes": "Ja",
+        "no": "Nein"
+      },
+      "contacts": {
+        "title": "ANSPRECHPARTNER BEIM KUNDEN",
+        "slot": "ANSPRECHPARTNER {slot}",
+        "none": "Kein Ansprechpartner hinterlegt"
+      },
+      "links": {
+        "title": "LINKS",
+        "fileStorage": "DATEIABLAGE",
+        "none": "Keine Links hinterlegt"
+      },
+      "source": "Aus dem Stammdatenblatt, Stand {when}",
+      "sourceUndated": "Aus dem Stammdatenblatt"
+    }
+  },
+  "customer": {
+    "header": {
+      "fallbackTitle": "Kunde {number}",
+      "metaAll": "KUNDENNUMMER {number} · ALLE AUFTRÄGE",
+      "metaVisible": "KUNDENNUMMER {number} · NUR SICHTBARE AUFTRÄGE"
+    },
+    "identity": {
+      "title": "Kunde",
+      "qualifier": "AUS DEM STAMMDATENBLATT",
+      "legalName": "FIRMENNAME",
+      "group": "KONZERN",
+      "language": "SPRACHE",
+      "spellings": "AUCH GESCHRIEBEN ALS",
+      "number": "KUNDENNUMMER"
+    },
+    "language": {
+      "de": "Deutsch",
+      "en": "English"
+    },
+    "tiles": {
+      "orders": "AUFTRÄGE",
+      "ordersHintAll": "im Stammdatenblatt",
+      "ordersHintVisible": "für dich sichtbar",
+      "running": "LAUFENDE VERTRÄGE",
+      "runningHint": "von {total} · Stand heute",
+      "runningHintUnknown": "von {total} · {unknown} ohne Enddatum",
+      "contract": "VERTRAGSSTUNDEN",
+      "contractHint": "über {measured} von {total} Aufträgen",
+      "contractNone": "für keinen Auftrag hinterlegt",
+      "withheld": "nicht freigegeben",
+      "withheldHint": "Deine Rolle sieht keine Vertragsstunden",
+      "logged": "ERFASSTE STUNDEN",
+      "loggedHint": "gemessen für {measured} von {total} Aufträgen · Stand {when}",
+      "loggedNone": "für keinen Auftrag gemessen"
+    },
+    "banner": {
+      "endedLabel": "ALLE VERTRÄGE BEENDET",
+      "ended": "Der letzte Vertrag lief am {date} aus.",
+      "historicalLabel": "HISTORISCH",
+      "historical": "{count, plural, one {# Auftrag steht} other {# Aufträge stehen}} nicht mehr im Stammdatenblatt.",
+      "both": "Der letzte Vertrag lief am {date} aus; {count, plural, one {# Auftrag steht} other {# Aufträge stehen}} nicht mehr im Stammdatenblatt."
+    },
+    "locations": {
+      "title": "Standorte",
+      "count": "{count, plural, one {# ADRESSE} other {# ADRESSEN}}",
+      "orders": "AUFTRÄGE {codes}",
+      "none": "Keine Adresse hinterlegt"
+    },
+    "orders": {
+      "title": "Aufträge",
+      "hint": "Stand {when}",
+      "search": "Aufträge durchsuchen…",
+      "termRange": "{start} – {end}",
+      "empty": "Kein sichtbarer Auftrag für diese Kundennummer.",
+      "col": {
+        "service": "LEISTUNG",
+        "serviceTitle": "Leistungsnummer und -name aus dem Stammdatenblatt, unverändert übernommen.",
+        "responsible": "VERANTWORTLICH",
+        "term": "LAUFZEIT",
+        "termTitle": "Vertragsbeginn bis Vertragsende. Sortiert nach Vertragsende; Aufträge ohne Enddatum stehen immer am Ende.",
+        "status": "STATUS",
+        "contract": "VERTRAGSSTUNDEN",
+        "logged": "ERFASST",
+        "loggedTitle": "Stunden aller Personen auf diesem Auftrag, Stand {when}. Ohne TrackingTime-Verknüpfung bleibt die Zelle leer."
+      },
+      "status": {
+        "running": "LAUFEND",
+        "ended": "BEENDET",
+        "unknownEnd": "ENDE UNBEKANNT",
+        "historical": "HISTORISCH"
+      },
+      "footnote": {
+        "visibility": "Diese Seite zeigt nur Aufträge, die du sehen darfst. Es können weitere existieren.",
+        "hours": "Stunden sind für {measured} von {total} Aufträgen bekannt; die Summe ist eine Untergrenze, nicht das Ganze.",
+        "hoursNone": "Für keinen dieser Aufträge sind Stunden gemessen.",
+        "budgets": "Vertragsstunden sind für deine Rolle nicht freigegeben und stehen deshalb nicht in dieser Tabelle.",
+        "unnumbered": "{count, plural, one {# weiterer Auftrag desselben Rechtsträgers trägt keine Kundennummer und steht nicht in dieser Liste.} other {# weitere Aufträge desselben Rechtsträgers tragen keine Kundennummer und stehen nicht in dieser Liste.}}",
+        "siblingsLead": "Derselbe Rechtsträger führt weitere Kundennummern:",
+        "terms": "Leistungsbedingungen – Mindestzeit vor Ort, Anfahrt, Reisezeit – stehen am einzelnen Auftrag, nicht hier.",
+        "truncated": "Ein Teil der Daten konnte nicht vollständig gelesen werden; die Zahlen sind Untergrenzen."
+      }
+    },
+    "contacts": {
+      "title": "Ansprechpartner beim Kunden",
+      "qualifier": "PERSONENBEZOGENE DATEN",
+      "privacy": "Nur zu Aufträgen, die du sehen darfst. Nicht im Export.",
+      "onOrders": "Genannt bei {codes}",
+      "noName": "Name nicht hinterlegt",
+      "none": "Kein Ansprechpartner hinterlegt",
+      "unavailable": "Die Ansprechpartner konnten nicht gelesen werden. Das ist ein Fehler, keine Aussage über den Kunden."
+    },
+    "care": {
+      "title": "Betreuung",
+      "qualifier": "LAUT STAMMDATENBLATT",
+      "responsible": "VERANTWORTLICH",
+      "replacement": "VERTRETUNG",
+      "onOrders": "{codes}",
+      "none": "Niemand hinterlegt",
+      "summary": "{count, plural, one {# Person} other {# Personen}}",
+      "gap": "{count, plural, one {# von {total} Aufträgen hat} other {# von {total} Aufträgen haben}} keinen benannten Verantwortlichen.",
+      "gapUnknown": "Ob auf allen Aufträgen jemand als verantwortlich benannt ist, konnte nicht geprüft werden.",
+      "noneNamed": "Auf keinem dieser Aufträge ist jemand als verantwortlich benannt."
+    },
+    "people": {
+      "doctor": "Betriebsarzt",
+      "other": "Sonstige",
+      "unknown": "Name nicht verfügbar"
+    },
+    "links": {
+      "title": "Links",
+      "qualifier": "JE ZIEL EINMAL",
+      "onOrders": "{codes}",
+      "fileStorage": "DATEIABLAGE",
+      "none": "Keine Links hinterlegt",
+      "unavailable": "Die Links konnten nicht gelesen werden. Das ist ein Fehler, keine Aussage über den Kunden.",
+      "summary": "{count, plural, one {# Link} other {# Links}}",
+      "summaryUnavailable": "Nicht lesbar"
+    },
+    "crm": {
+      "title": "Kundenstammsatz",
+      "qualifier": "LEXWARE · NUR GESCHÄFTSFÜHRUNG",
+      "withheldLabel": "NICHT FREIGEGEBEN",
+      "withheldBody": "Der kanonische Kundenstammsatz ist der Geschäftsführung vorbehalten. Diese Seite zeigt dir auch nicht, ob es ihn gibt. Alles darüber stammt aus dem Stammdatenblatt.",
+      "none": "Zu dieser Kundennummer gibt es keinen Kundenstammsatz.",
+      "unavailable": "Der Kundenstammsatz konnte nicht gelesen werden. Das ist ein Fehler, keine Sperre.",
+      "reviewRequired": "PRÜFUNG OFFEN",
+      "field": {
+        "displayName": "ANZEIGENAME",
+        "billingName": "RECHNUNGSNAME",
+        "billingAddress": "RECHNUNGSANSCHRIFT",
+        "vatId": "UST-IDNR.",
+        "legalEntity": "RECHTSTRÄGER",
+        "legalForm": "RECHTSFORM",
+        "country": "LAND",
+        "lifecycle": "LEBENSZYKLUS",
+        "review": "PRÜFSTATUS",
+        "locations": "STANDORTE (CRM)",
+        "aliases": "ALIASE"
+      },
+      "summary": {
+        "withheld": "Nicht freigegeben",
+        "none": "Kein Stammsatz",
+        "unavailable": "Nicht lesbar",
+        "present": "Lexware"
+      }
+    },
+    "empty": {
+      "invisible": {
+        "title": "Für diese Kundennummer ist dir kein Auftrag sichtbar",
+        "description": "Sichtbar sind Aufträge, bei denen du verantwortlich, Vertretung oder zugewiesen bist. Ob es die Nummer gibt, sagt diese Seite nicht.",
+        "action": "Zu meiner Arbeit"
+      },
+      "unknown": {
+        "title": "Kundennummer {number} ist unbekannt",
+        "description": "Weder im Kundenstammsatz noch in der Auftragswelt gibt es diese Nummer. Tippfehler – oder der Import hat sie noch nicht erreicht.",
+        "action": "Zur Import-Prüfung"
+      },
+      "noOrders": {
+        "title": "Kunde ohne Auftrag",
+        "description": "Die Nummer steht im Kundenstammsatz, trägt aber keinen Serviceauftrag. Der Stammsatz steht unten."
+      },
+      "unchecked": {
+        "title": "Kein Auftrag zu Kundennummer {number}",
+        "description": "In der Auftragswelt gibt es zu dieser Nummer nichts. Ob sie im Kundenstammsatz steht, konnte diese Seite nicht prüfen."
+      },
+      "failed": {
+        "title": "Das Kundenprofil konnte nicht geladen werden",
+        "description": "Die Abfrage ist fehlgeschlagen; statt einer Teilansicht wird nichts angezeigt. Neu laden – bleibt es, prüft ein Administrator die Logs.",
+        "action": "Neu laden"
+      }
+    },
+    "source": "Aus dem Stammdatenblatt, Stand {when}",
+    "sourceUndated": "Aus dem Stammdatenblatt",
+    "loading": "Kundenprofil wird geladen"
+  },
+  "customers": {
+    "title": "Kunden",
+    "metaAll": "{total} KUNDEN · {orders} AUFTRÄGE",
+    "metaVisible": "{total} KUNDEN, DIE SIE SEHEN KÖNNEN · {orders} AUFTRÄGE",
+    "colNumber": "Kundennummer",
+    "colName": "Kunde",
+    "colCity": "Ort",
+    "colLive": "Laufend",
+    "colOrders": "Aufträge",
+    "noName": "Kein Name hinterlegt",
+    "dormant": "Keine laufenden Aufträge",
+    "emptyTitle": "Keine Kunden sichtbar",
+    "emptyDescription": "Auf keinem Auftrag, den Sie sehen können, ist eine Kundennummer hinterlegt. Das ist eine Aussage über Ihre Sichtbarkeit, nicht über die Kundenliste.",
+    "truncated": "Die Leseobergrenze wurde erreicht. Die Zahlen unten sind Untergrenzen.",
+    "pagerNav": "Kundenseiten",
+    "pagerPrev": "Zurück",
+    "pagerNext": "Weiter",
+    "pagerPage": "Kunden, Seite {n}",
+    "pagerCount": "SEITE {page} VON {pageCount} · {total} KUNDEN"
   }
 }

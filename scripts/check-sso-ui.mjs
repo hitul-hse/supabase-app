@@ -28,10 +28,11 @@
  */
 import { existsSync } from "node:fs";
 import { launchChromium } from "./lib/launch-chromium.mjs";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 if (!existsSync(".next")) {
   console.log("SKIP: no production build — run `npm run build` first");
-  process.exit(0);
+  notRun();
 }
 
 const BASE = process.env.SSO_UI_BASE ?? "http://localhost:3000";
@@ -50,11 +51,12 @@ for (let i = 0; i < 10; i++) {
 }
 if (!reachable) {
   console.log(`SKIP: nothing serving ${BASE} — start it with \`npm run start\``);
-  process.exit(0);
+  notRun();
 }
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
@@ -122,26 +124,24 @@ async function capture(buttonText, loginPath = "/auth/login") {
 const first = await capture("Continue with Google");
 const t = first.bodyText;
 
-/**
- * Is Microsoft supposed to be on offer? Mirrors the component's own flag.
- *
- * The assertions below flip rather than disappear. A check that simply stopped
- * running when the button was hidden would let "Microsoft silently vanished from
- * a build that meant to offer it" pass unnoticed, which is the regression most
- * worth catching here.
- */
-const microsoftExpected = process.env.NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN === "true";
-
 check("the Google button is rendered", t.includes("Continue with Google"));
-if (microsoftExpected) {
-  check("the Microsoft button is rendered", t.includes("Continue with Microsoft"));
-} else {
-  check(
-    "the Microsoft button is absent while Azure is unconfigured",
-    !t.includes("Continue with Microsoft"),
-    "NEXT_PUBLIC_ENABLE_MICROSOFT_SIGNIN is not 'true', so offering a provider that cannot succeed would be a dead end",
-  );
-}
+
+/**
+ * Microsoft was REMOVED from the product on 2026-09-08 (board ticket 37), so this
+ * is now an unconditional assertion rather than one half of a flag.
+ *
+ * It is kept, not deleted, and the reason is the same one that made it conditional
+ * before: the regression worth catching is a build that offers a provider nobody
+ * finished. The old version could only catch that while the flag existed. Now the
+ * flag is gone, so "Continue with Microsoft" appearing on this page at all means
+ * either the removal was reverted without a decision, or a stale build is being
+ * served — and both are worth a red gate.
+ */
+check(
+  "the Microsoft button is absent",
+  !t.includes("Continue with Microsoft"),
+  "Microsoft sign-in was removed from the product; the page must not offer it",
+);
 check("the email/password form is still offered", t.includes("Password"));
 check("a divider separates SSO from email sign-in", t.includes("OR WITH EMAIL"));
 check(
@@ -184,22 +184,10 @@ if (first.url) {
   check("the challenge method is s256", u.searchParams.get("code_challenge_method") === "s256");
 }
 
-// Microsoft is the `azure` provider in Supabase's vocabulary — an easy and
-// silent thing to get wrong. Only reachable when the button is on offer; the
-// wiring is still covered by this check the moment the flag is turned on.
-if (microsoftExpected) {
-  const ms = await capture("Continue with Microsoft");
-  check("clicking Microsoft starts an authorize request", ms.url !== null, ms.url ?? "none seen");
-  if (ms.url) {
-    const u = new URL(ms.url);
-    check("Microsoft uses provider=azure", u.searchParams.get("provider") === "azure", u.searchParams.get("provider") ?? "");
-    check(
-      "profile scopes are requested for Azure (it returns no name/email otherwise)",
-      (u.searchParams.get("scopes") ?? "").includes("email"),
-      u.searchParams.get("scopes") ?? "none",
-    );
-  }
-}
+// The Microsoft authorize-wiring checks that used to live here went with the
+// provider on 2026-09-08. There is no button to click, so there is nothing to
+// assert about where it leads; the assertion that matters now is the absence
+// check above, which runs on every build rather than only when a flag was set.
 
 // ── The destination is carried, and cannot be hijacked ─────────────────────
 const withNext = await capture("Continue with Google", "/auth/login?redirect_to=%2Ftime");

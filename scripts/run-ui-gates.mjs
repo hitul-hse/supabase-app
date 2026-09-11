@@ -12,6 +12,10 @@ import { spawnSync } from "node:child_process";
 
 const GATES = [
   "check-design-system.mjs",
+  // Static, secret-free and one second: every message key the app asks for
+  // must exist in both catalogues. Added after a namespace collision deleted
+  // ten live keys and the whole suite stayed green (see the gate's header).
+  "check-i18n-key-references.mjs",
   "check-projects-module.mjs",
   "check-people-module.mjs",
   "check-people-and-filters-ui.mjs",

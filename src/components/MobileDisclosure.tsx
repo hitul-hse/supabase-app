@@ -53,6 +53,7 @@
 
 import { useTranslations } from "next-intl";
 import { useId, useState, type ReactNode } from "react";
+import { IconCaret } from "./nav-icons";
 
 export function MobileDisclosure({
   title,
@@ -91,37 +92,71 @@ export function MobileDisclosure({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={id}
-        className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left card-elev sm:hidden"
+        /*
+          The press is a TINT, not a translate, and not `control-motion`.
+          `.card-elev` already declares a `transition` covering transform at
+          250 ms (globals.css) and it is an unlayered rule, so it beats any
+          Tailwind utility on the same element: a `translate-y-px` press here
+          would ease over a quarter of a second, which reads as a lag rather
+          than as feedback. `background-color` is NOT in that list, so a tint
+          lands on the down event and leaves on the up event with nothing to
+          interpolate — instant, which is what §6.1 #1 asks for. This control
+          is `sm:hidden`, i.e. touch-only, where there is no hover to feel and
+          the press is the whole acknowledgement.
+        */
+        className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left card-elev active:bg-[var(--surface-hover)] sm:hidden"
       >
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-[var(--text-primary)]">
-            <span
-              aria-hidden
-              className={`mr-1.5 inline-block text-[8px] text-[var(--text-faint)] transition-transform ${
-                open ? "rotate-90" : ""
+          <span className="flex items-center gap-1.5 t-headline text-[var(--text-primary)]">
+            {/* The same caret DataTable's collapsible header rotates: one
+                disclosure dialect, drawn from the icon set rather than a glyph. */}
+            <IconCaret
+              className={`flex-none text-[var(--text-faint)] transition-transform duration-150 ${
+                open ? "" : "-rotate-90"
               }`}
-            >
-              ▶
-            </span>
-            {title.toUpperCase()}
+            />
+            {title}
           </span>
           {/* Stated whether open or shut: a collapsed panel must never read as
               an absent one. */}
-          <span className="text-[10px] leading-tight text-[var(--text-faint)]">{summary}</span>
+          <span className="t-subhead text-[var(--text-faint)]">{summary}</span>
         </span>
-        <span aria-hidden className="flex-none font-mono text-[10px] text-[var(--text-faint)]">
+        <span aria-hidden className="flex-none t-label text-[var(--text-faint)]">
           {open ? t("hide") : t("show")}
         </span>
       </button>
 
       {/*
-        `hidden sm:block` while shut: invisible on a phone, ALWAYS visible from
-        sm up regardless of `open`, which is what keeps the desktop at exactly
-        its previous height. `mt-2 sm:mt-0` so opening on a phone does not weld
-        the content to the trigger, while adding no desktop spacing.
+        THE PANEL OPENS, it no longer blinks. `.disclose` (globals.css) runs
+        the height (`grid-template-rows: 0fr → 1fr`, 220 ms on --ease-out) and
+        the content's opacity (150 ms) together, so the page below slides down
+        with the panel instead of jumping the panel's full height in one
+        frame. Height is a layout property, knowingly: a disclosure IS a
+        change of extent and a transform cannot express one -- the class
+        carries the ruling (APPLE_REF §6.1 #8's one-per-case exception, guarded
+        by a frame-time measurement rather than a property list) and the
+        Reduce Motion branch that makes it instant.
+
+        `.disclose-sm` is what keeps the CSS gate this component was built on:
+        from `sm` up the wrapper is a plain, unclipped block with no
+        transition and no clipping, exactly as `hidden sm:block` was, so the
+        desktop tree is byte-identical in behaviour and there is still no
+        hydration branch anywhere. `data-open` is server-rendered from state,
+        so a phone with slow JavaScript gets the correct resting state rather
+        than an invisible panel.
+
+        `mt-2 sm:mt-0` moved INSIDE the grid item: a margin on the grid
+        container itself would be 8 px of gap that never collapses, so a shut
+        panel would leave a visible dent under its trigger.
       */}
-      <div id={id} className={open ? "mt-2 sm:mt-0" : "hidden sm:block"}>
-        {children}
+      <div
+        id={id}
+        className="disclose disclose-sm"
+        data-open={open ? "true" : "false"}
+      >
+        <div>
+          <div className="mt-2 sm:mt-0">{children}</div>
+        </div>
       </div>
     </div>
   );

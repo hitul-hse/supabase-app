@@ -20,6 +20,7 @@
  */
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const db = await new PGlite();
 
@@ -38,6 +39,7 @@ await db.exec(readFileSync("supabase/schema.sql", "utf8"));
 
 let failed = false;
 const check = (label, ok, detail = "") => {
+  record(ok);
   if (!ok) failed = true;
   console.log(`${ok ? "PASS" : "FAIL"} | ${label}${!ok && detail ? `\n       ${detail}` : ""}`);
 };

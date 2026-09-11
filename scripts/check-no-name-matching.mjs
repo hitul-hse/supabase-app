@@ -78,6 +78,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { record } from "./lib/gate-result.mjs";
 
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 const SRC = join(REPO, "src");
@@ -353,6 +354,7 @@ const walk = (dir) => readdirSync(dir).flatMap((e) => {
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

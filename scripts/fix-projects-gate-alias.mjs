@@ -1,7 +1,8 @@
 // Same fix, done by line number so CRLF does not defeat the literal match.
 import { readFileSync, writeFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
-const path = "C:/Supabase/scripts/check-projects-module.mjs";
+const path = `${REPO_ROOT}/scripts/check-projects-module.mjs`;
 const src = readFileSync(path, "utf8");
 const eol = src.includes("\r\n") ? "\r\n" : "\n";
 

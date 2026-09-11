@@ -3,9 +3,12 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardHeader, ChartNote, StatTile } from "@/components/ui/Card";
+import { Meter } from "@/components/ui/Meter";
+import { OverBudgetQueue, UtilisationQueue } from "./OverviewQueues";
+import { EmptyState } from "@/components/EmptyState";
+import { fmtNum } from "@/lib/locale-format";
 import { Donut, Gauge, LegendDot } from "@/components/ui/Charts";
 import { Pill } from "@/components/ui/Segmented";
-import { TopBarChrome } from "@/components/TopBarChrome";
 import { IconWarning, IconArrowRight } from "@/components/nav-icons";
 import { SyncBar } from "@/components/SyncBar";
 import { MobileDisclosure } from "@/components/MobileDisclosure";
@@ -15,9 +18,34 @@ import {
   NO_TEAM,
   parseOverviewRange,
   parseOverviewTeam,
+  UTILISATION_BANDS,
   type OverviewMessage,
 } from "@/lib/queries/overview-live";
 import { OverviewFilters } from "./OverviewFilters";
+
+/*
+ * Every figure on this page is formatted de-DE, in both languages, and has been
+ * since it was rebuilt off the seeded tables (see the module note above:
+ * "Numbers keep their de-DE formatting … so the catalogue never reformats a
+ * figure the reader has already learned to read"). The regions added since then
+ * pass this to `fmtNum`/`fmtPct` rather than the request locale, because ONE
+ * page showing "2.999" in a tile and "1,953" in the card beside it is a defect
+ * a reader notices immediately, and the choice of dialect is a page-wide one.
+ */
+const NUMBER_LOCALE = "de";
+
+/**
+ * A percentage in this page's dialect: de-DE separators, and the sign tight
+ * against the figure.
+ *
+ * `fmtPct` puts a space before the sign in German, which is correct German
+ * typography and WRONG here: every existing figure on this page — the five
+ * tiles, the donut centre, the chart headline — has always been written "65%",
+ * and one card writing "65 %" beside four writing "65%" is a defect a reader
+ * notices before they notice anything else. The dialect is a property of the
+ * page, so it is stated once, here.
+ */
+const pct = (n: number, dp = 0) => `${fmtNum(n, NUMBER_LOCALE, dp)}%`;
 import { OverviewHero } from "./OverviewHero";
 import { requireUser } from "@/utils/supabase/require-user";
 import { enforceRoleRouteAccess } from "@/utils/supabase/require-profile";
@@ -80,6 +108,7 @@ export default async function OverviewPage({
     weeks,
     teams,
     projects,
+    overBudgetProjects,
     counts,
     unlinkedPeople,
     teamOptions,
@@ -181,12 +210,15 @@ export default async function OverviewPage({
     utilised.length > 0
       ? Math.round(utilised.reduce((s, t) => s + (t.percent ?? 0), 0) / utilised.length)
       : null;
+  /* The SAME cuts the utilisation queue words are drawn from, imported rather
+     than repeated: 40/105 here against 60/110 there let the page call a person
+     low at 54 % and paint a 53 % average healthy on the same screen. */
   const gaugeColor =
     avgUtilisation === null
       ? "var(--text-muted)"
-      : avgUtilisation < 40
+      : avgUtilisation < UTILISATION_BANDS.low
         ? "var(--warning)"
-        : avgUtilisation > 105
+        : avgUtilisation > UTILISATION_BANDS.overCapacity
           ? "var(--critical)"
           : "var(--accent)";
 
@@ -223,7 +255,6 @@ export default async function OverviewPage({
           projects: counts.activeProjects,
           customers: counts.customers,
         })}
-        chrome={<TopBarChrome />}
         actions={
           <ButtonLink variant="primary" href="/time/dashboard">
             {t("header.fullDashboard")}
@@ -287,6 +318,88 @@ export default async function OverviewPage({
         )}
 
         {/*
+          THE HERO BAND (APPLE_REF §5.5, §3.3 "Hero tone once per page").
+
+          One sentence and one figure. The page's opening question is "how did
+          the business do this week", and it was answered by an area chart with
+          a segmented control — a shape that rewards study rather than a glance,
+          and that made the reader derive the headline from a curve. The band
+          states it instead: the sentence carries the meaning, the fig-xl carries
+          the figure, and the meter carries the shape of it.
+
+          It ADDS a reading; it removes none. The chart below keeps every point,
+          every hover readout and its own control, and the numbers here are the
+          same ones it plots — `trendPoints`' last value, and the period
+          aggregate already computed for the split donut. Nothing new was
+          queried and no figure changed its basis.
+
+          `tone="hero"` moved here from that chart card, because there is exactly
+          one per page and the headline figure is now here. The chart card is an
+          ordinary panel below.
+        */}
+        <Card tone="hero" className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            {/*
+              The scope, stated before the claim. "The week is 73 % billable"
+              is a different sentence depending on WHICH week, and the meta line
+              of a hero that does not say so is how a stale figure keeps looking
+              current (§5.9).
+            */}
+            <span className="t-label text-[var(--text-faint)]">
+              {t("heroBand.kicker", {
+                week: trendPoints.length > 0 ? trendPoints[trendPoints.length - 1].label : "—",
+              })}
+            </span>
+            <h2 className="t-large text-[var(--text-primary)]">
+              {trendPoints.length > 0
+                ? t("heroBand.headline", {
+                    share: pct(trendPoints[trendPoints.length - 1].value),
+                  })
+                : t("heroBand.noWeek")}
+            </h2>
+            {/*
+              The period figure beside the weekly one, so the headline cannot be
+              read as the whole quarter. Both scopes are named (§8 F2).
+            */}
+            {billableShareAll !== null && (
+              <p className="t-subhead text-[var(--text-muted)]">
+                {t("heroBand.hint", {
+                  across: pct(billableShareAll),
+                  /* Not lower-cased. `periodLabel` is "W25–W36 · 12 WEEKS" /
+                     "· 12 Wochen": German capitalises the noun, and folding it
+                     turns the ISO week label into "w25" as well. */
+                  period: periodLabel,
+                  billable: fmtNum(billableHoursAll, NUMBER_LOCALE, 0),
+                  total: fmtNum(totalHoursAll, NUMBER_LOCALE, 0),
+                  people: counts.activeMembers,
+                })}
+              </p>
+            )}
+          </div>
+
+          {trendPoints.length > 0 && (
+            <div className="flex flex-none flex-col items-start gap-2 sm:items-end">
+              {/* The ONE teal figure on the page: fig-xl in --accent lives in
+                  the hero tile and nowhere else (§5.5, §8 #5). Verified rather
+                  than asserted — the "This period" card's BILLABLE figure was
+                  the second one, and it is in the text ladder now. Grep for
+                  `text-[var(--accent)]` before adding a third: everything else
+                  that matches on this page is a LINK, which is what teal is
+                  for. */}
+              <span className="fig-xl text-[var(--accent)]">
+                {pct(trendPoints[trendPoints.length - 1].value)}
+              </span>
+              <Meter
+                percent={trendPoints[trendPoints.length - 1].value}
+                color="var(--accent)"
+                className="w-full sm:w-60"
+              />
+              <span className="t-label text-[var(--text-faint)]">{t("heroBand.caption")}</span>
+            </div>
+          )}
+        </Card>
+
+        {/*
           KPI tiles — SEPARATE cards on a gap, not one fused grid.
 
           This was a single bordered box whose five cells shared hairlines, with
@@ -333,17 +446,136 @@ export default async function OverviewPage({
           })}
         </div>
 
+        {/*
+          THE TWO WORKED QUEUES (UI-CONVENTIONS rules 1, 3, 5, 6; APPLE_REF §5.4,
+          §8 #11). Ten rows each, worst first, the honest count in the card
+          header, and the page in the URL.
+
+          "Over budget" is NEW and answers a question this page could only count
+          before: the PROJECTS OVER BUDGET tile stated 11 and linked away, so
+          reading the names meant leaving the Overview. Its rows come out of the
+          same `getBudgetPosture` pass as that tile, so the count in the header
+          and the count in the tile are the same number by construction.
+
+          "Utilisation by person" is the same card as before, in a shape that
+          can answer with it. It was six rows sorted by hours DESCENDING — the
+          six people who logged the most — which put the eleven the figure exists
+          to surface out of reach entirely. It is all seventeen now, lowest
+          first, with the team, the hours and, for the first time, the status as
+          a word rather than only as the colour of a bar (§8 #5).
+
+          Neither figure changed its basis: the same query, the same denominator,
+          the same "all time" caveat, stated in the same words.
+        */}
+        {/*
+          COLLAPSED ON A PHONE ONLY, and for a measured reason.
+
+          Two ten-row tables stacked into one column at 390px added 854px to
+          this route (3,106px -> 3,960px measured, against
+          check-table-scroll-budget's four-screen ceiling). Nothing is hidden by
+          it: the summary states both headline figures, and the queues are one
+          tap away. `MobileDisclosure` keeps `sm:block` on its content, so at
+          1440 this is a bare wrapper and the desktop grid below is byte for
+          byte what it was — the same mechanism, and the same reasoning, as the
+          proportion strip further down this page.
+        */}
+        <MobileDisclosure
+          title={t("queues.title")}
+          summary={t("queues.summary", {
+            overBudget: overBudgetProjects === null ? tc("notAvailable") : overBudgetProjects.length,
+            people: teams.length,
+          })}
+        >
+        <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] xl:grid-cols-2">
+          {overBudgetProjects === null ? (
+            /*
+              Withheld or unreadable, NOT empty. An empty queue here would read
+              as "no project is over budget" — a confident claim about the
+              portfolio produced by a permission check, which is the exact
+              substitution the three-state budget posture exists to prevent.
+            */
+            <Card className="flex flex-col">
+              <CardHeader title={t("overBudget.title")} />
+              <div className="px-4 pb-4">
+                <EmptyState
+                  title={t("overBudget.title")}
+                  description={t("overBudget.withheld")}
+                />
+              </div>
+            </Card>
+          ) : (
+            <OverBudgetQueue
+              rows={overBudgetProjects}
+              hint={t("overBudget.qualifier")}
+              footnote={t("overBudget.footnote")}
+              emptyText={t("overBudget.empty")}
+              locale={NUMBER_LOCALE}
+            />
+          )}
+
+          <UtilisationQueue
+            rows={teams}
+            /*
+              "ALL TIME" is load-bearing and stays exactly as it was:
+              time.member_utilisation is not period-bounded, so this card
+              genuinely cannot honour the filter, and labelling it is the
+              difference between a mixed-scope page and a lying one. The team
+              filter DOES apply — it selects which people appear — so both facts
+              are stated.
+            */
+            hint={[
+              scopeNotes.utilisationAllTime ? t("qualifiers.allTime") : null,
+              teamLabelForScope?.toUpperCase(),
+              t("utilisationByPerson.qualifier"),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            emptyText={
+              team !== null
+                ? t("utilisationByPerson.nobodyTeam", { team: teamLabelForScope ?? "" })
+                : t("utilisationByPerson.noMembers")
+            }
+            footnote={
+              <>
+                {/*
+                  "Nominal 40-hour week", not "contracted". Every TrackingTime
+                  member reports exactly 40 h/week because that is the account
+                  default — describing it as contracted would present a default
+                  as a fact about someone's employment.
+                */}
+                {t("utilisationByPerson.basisNote")}{" "}
+                {t("utilisationByPerson.teamNote")}
+              </>
+            }
+            locale={NUMBER_LOCALE}
+          />
+        </div>
+        </MobileDisclosure>
+
         <div className="stagger grid grid-cols-1 gap-[var(--card-gap)] lg:grid-cols-12">
           {/*
             The hero figure: billable share per week, as a smooth area.
 
-            tone="hero" -- the ONE tinted card on this page. The previous version was a
-            bar strip FIXED at 140-160px inside a card its neighbour stretches to ~400px,
-            which left the bottom half of the tinted surface empty -- the "space at the
-            bottom of the graph" the user reported. The area chart fills the card's real
-            height instead, and the share headline sits where the reference puts it.
+            An ordinary panel now, not the hero. `tone="hero"` is once per page
+            (§3.3), and the headline figure moved up into the band at the top of
+            the page — a chart whose own headline is already stated three cards
+            above does not need the tinted material as well, and two tinted cards
+            would flatten the page back to wallpaper (Card.tsx "TONES").
+
+            Everything IN the card is unchanged: the same series, the same
+            per-point readouts, the same axis, the same three distinct
+            "no hours" sentences.
           */}
-          <Card tone="hero" className="flex flex-col lg:col-span-7">
+          {/* `data-chart="billable-share"` is the CHART's own hook.
+              check-charts-ui.mjs used to find this card by `data-card="hero"`,
+              which is how it asserted that the figure is an SVG filling at
+              least 45 % of its card rather than the old ~25 % bar strip. That
+              tone moved to the hero band above (one hero per page), and the
+              gate went on reading `data-card="hero"` — where it found a text
+              tile with no SVG in it and failed three assertions that are still
+              true of this card. A name that says what the element IS, rather
+              than what tone it happens to carry, cannot come loose that way. */}
+          <Card data-chart="billable-share" className="flex flex-col lg:col-span-12">
             <CardHeader
               title={t("billableShare.title")}
               qualifier={scopedQualifier(t("qualifiers.trackingTime"))}
@@ -400,110 +632,13 @@ export default async function OverviewPage({
                     />
                   </div>
 
-                  <div className="flex justify-between border-t border-[var(--surface-accent-border)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
+                  <div className="flex justify-between border-t border-[var(--divider)] pt-2 font-mono text-[10px] text-[var(--text-faint)]">
                     {axisTicks.map((tick, index) => (
                       <span key={`${tick}-${index}`}>{tick}</span>
                     ))}
                   </div>
                 </>
               )}
-            </div>
-          </Card>
-
-          {/* Utilisation per person, from time.member_utilisation */}
-          <Card className="flex flex-col lg:col-span-5">
-            {/*
-              "ALL TIME" is load-bearing. time.member_utilisation is not
-              period-bounded, so this card genuinely cannot honour the filter,
-              and labelling it is the difference between a mixed-scope page and
-              a lying one. The team filter DOES apply -- it selects which people
-              appear -- so both facts are stated.
-            */}
-            <CardHeader
-              title={t("utilisationByPerson.title")}
-              qualifier={[
-                t("qualifiers.topByHours", { count: 6 }),
-                scopeNotes.utilisationAllTime ? t("qualifiers.allTime") : null,
-                teamLabelForScope?.toUpperCase(),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            />
-
-            <div className="flex flex-col gap-2.5 px-4 pb-4">
-              {teams.length === 0 ? (
-                <p className="font-mono text-[11px] text-[var(--text-faint)]">
-                  {team !== null
-                    ? t("utilisationByPerson.nobodyTeam", { team: teamLabelForScope ?? "" })
-                    : t("utilisationByPerson.noMembers")}
-                </p>
-              ) : (
-                teams.map((team) => (
-                  /*
-                   * Each row names a real person who has a record on /people —
-                   * so it links there. A bar chart of colleagues where nothing
-                   * is clickable makes the reader go find the search box and
-                   * retype a name they are already looking at.
-                   */
-                  <Link
-                    key={team.name}
-                    href={`/people?q=${encodeURIComponent(team.name)}`}
-                    className="group -mx-1.5 flex flex-col gap-1 rounded-[var(--radius-sm)] px-1.5 py-1 transition-colors hover:bg-[var(--surface-hover)]"
-                  >
-                    <div className="flex justify-between text-[12px] text-[var(--text-secondary)]">
-                      <span className="truncate pr-2 group-hover:text-[var(--text-primary)]">
-                        {team.name}
-                      </span>
-                      <span className="shrink-0 font-mono font-medium text-[var(--text-primary)]">
-                        {/*
-                          "n/a" not "0%": no contracted hours means the ratio is
-                          undefined, and 0% would read as somebody idle.
-                        */}
-                        {team.percent !== null ? `${team.percent}%` : tc("notAvailable")}
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
-                      {team.percent !== null ? (
-                        <div
-                          className="h-full rounded-full transition-[filter] duration-150 group-hover:brightness-110"
-                          style={{
-                            width: `${Math.min(100, team.percent)}%`,
-                            background: toneColour(team.tone),
-                          }}
-                        />
-                      ) : (
-                        /*
-                         * Hatched, not empty and not zero-width: "we have no
-                         * basis to compute this" must look different from
-                         * "this person is at 0%".
-                         */
-                        <div
-                          className="h-full w-full"
-                          style={{
-                            background:
-                              "repeating-linear-gradient(45deg, var(--border), var(--border) 4px, var(--surface-2) 4px, var(--surface-2) 8px)",
-                          }}
-                        />
-                      )}
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-
-            <div className="mt-auto flex flex-col gap-1 border-t border-[var(--divider)] px-4 pb-4 pt-3">
-              <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">
-                {t("utilisationByPerson.basis")}
-              </span>
-              {/*
-                "Nominal 40-hour week", not "contracted". Every TrackingTime
-                member reports exactly 40 h/week because that is the account
-                default — describing it as contracted would present a default
-                as a fact about someone's employment.
-              */}
-              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                {t("utilisationByPerson.basisNote")}
-              </p>
             </div>
           </Card>
         </div>
@@ -647,7 +782,13 @@ export default async function OverviewPage({
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="font-mono text-[10px] tracking-[0.1em] text-[var(--text-faint)]">{t("thisPeriod.billable")}</span>
-                <span className="font-mono text-[18px] font-semibold text-[var(--accent)]">
+                {/* --text-primary, not --accent. This was the SECOND teal
+                    figure on the page, three cards under a hero whose comment
+                    claims to hold the only one — both above the fold at 1440.
+                    Teal on a figure is decoration, which §8 #5 and
+                    UI-CONVENTIONS forbid in the same words; the label beside it
+                    already says which of the two numbers is the billable one. */}
+                <span className="font-mono text-[18px] font-semibold text-[var(--text-primary)]">
                   {Math.round(billableHoursAll).toLocaleString("de-DE")}
                 </span>
               </div>

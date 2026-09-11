@@ -36,28 +36,30 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 // Repo root resolved from this file, so these paths work on any machine and
-// from any working directory. They were previously hardcoded to C:/Supabase,
+// from any working directory. They were previously hardcoded to a drive-letter path,
 // which existed on exactly one developer's laptop and nowhere else.
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` \u2014 ${detail}` : ""}`);
   if (!ok) failed = true;
 };
 
 const ENV = join(REPO, ".env.local");
-if (!existsSync(ENV)) { console.log("SKIP: no .env.local"); process.exit(0); }
+if (!existsSync(ENV)) { console.log("SKIP: no .env.local"); notRunInChain(); }
 
 const env = Object.fromEntries(
   readFileSync(ENV, "utf8").split(/\r?\n/)
     .filter((l) => l && !l.startsWith("#") && l.includes("="))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, "")]; }));
 
-if (!env.SUPABASE_DB_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) { console.log("SKIP: credentials not set"); process.exit(0); }
+if (!env.SUPABASE_DB_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) { console.log("SKIP: credentials not set"); notRunInChain(); }
 
 const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

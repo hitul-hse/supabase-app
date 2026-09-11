@@ -20,6 +20,7 @@ import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
+import { record } from "./lib/gate-result.mjs";
 
 // SWC's native bindings are loaded lazily; transform() throws "bindings not
 // loaded yet" without this.
@@ -27,6 +28,7 @@ await loadBindings();
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };

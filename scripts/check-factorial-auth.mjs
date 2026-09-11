@@ -10,9 +10,10 @@
 // Nothing here writes to the database, and the token is never printed.
 import { existsSync, readFileSync } from "node:fs";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 /* The shared loader: process.env first, then the repo's own .env.local found
- * by walking up from CWD. This file used to read C:/Supabase/.env.local -- an
+ * by walking up from CWD. This file used to read a drive-letter .env.local -- an
  * absolute path from the machine it was written on -- so on any other machine
  * it reported "no credential" while a perfectly good key sat in the repo's
  * .env.local: precisely the defect the comment below warns about. */
@@ -93,6 +94,7 @@ if (!TOKEN) {
 // From here the credential exists, so anything wrong with it is a real failure.
 const failures = [];
 const check = (ok, label, detail) => {
+  record(ok);
   console.log(`${ok ? "  ok  " : " FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures.push(label);
 };

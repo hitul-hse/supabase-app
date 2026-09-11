@@ -3,6 +3,7 @@
 // Resolved by walking the tree, because the files moved into an (app) route
 // group and parenthesised paths do not survive cmd.exe quoting.
 const fs = require("node:fs");
+const { record } = require("./lib/gate-result.mjs");
 const path = require("node:path");
 
 function walk(dir, acc = []) {
@@ -37,6 +38,7 @@ const checks = [
 
 let failed = 0;
 for (const [name, ok] of checks) {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}`);
   if (!ok) failed++;
 }

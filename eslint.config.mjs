@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import houseRules from "./eslint-rules/house-rules.mjs";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -44,6 +45,29 @@ const eslintConfig = defineConfig([
     // the three entries above did not cover it and all 152 warnings came
     // straight back the moment the mirror was created.
     ".v3code/**",
+    // And a third time, via the agent worktrees. Every `git worktree` an agent
+    // session opens lands under .claude/worktrees/ as a REAL checkout, each
+    // carrying its own copy of .claude/skills, .agents/skills, .github/skills
+    // and .v3code -- so the four entries above, which anchor at the repo root,
+    // miss all of them. Measured on 2026-09-07 with 25 worktrees present:
+    // `npm run lint` reported 77,782 problems (5,826 errors) across 3,523
+    // files, of which 3,513 were worktree copies. Ten files in the real tree
+    // had anything to say, and none of them an error. The run took over twenty
+    // minutes, emitted 14.6 MB, and exited 1 -- so the repo's own lint command
+    // was red on this machine for code that is not the app, while CI stayed
+    // green because a fresh checkout has no worktrees. That is the failure the
+    // .next-* and tmp-* entries above were written to prevent, arriving through
+    // a directory they do not cover: lint red for a file that is not part of
+    // the app trains you to ignore the output. Globbed, not listed, for the
+    // same reason .next-* is.
+    ".claude/worktrees/**",
+    // The house-rule fixtures. Each one contains a KNOWN number of deliberate
+    // violations — that is the whole point of it — so linting them in the
+    // ordinary run would add a permanent block of warnings that are not
+    // defects, which is precisely the "noise trains you to skim" failure the
+    // .next-* entries above exist to prevent. scripts/check-house-rules.mjs
+    // lints them on purpose, through its own config, and asserts the counts.
+    "scripts/fixtures/**",
   ]),
   // Plain Node CommonJS scripts (CI checks, etc.) — not app source, so the
   // app's ESM-only import rule doesn't apply.
@@ -51,6 +75,48 @@ const eslintConfig = defineConfig([
     files: ["scripts/**/*.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+
+  /*
+   * ── The house rules ────────────────────────────────────────────────────
+   *
+   * Six rules, each named after an incident this repo paid for. See
+   * eslint-rules/house-rules.mjs for what each one catches and why.
+   *
+   * SEVERITY IS `warn`, ON PURPOSE, FOR NOW.
+   * `npm run lint` and the CI Lint step (`npx eslint src scripts`) fail on
+   * ERRORS only, so none of these can turn the build red before anyone knows
+   * their false-positive rate. They report; the reviewdog step in
+   * .github/workflows/house-rules.yml puts them on the changed line of a PR.
+   * Promoting one to `error` is a separate, deliberate change, made once its
+   * pre-existing count is zero and its findings have been triaged.
+   */
+  {
+    files: ["src/**/*.{ts,tsx,js,jsx,mjs,cjs}", "scripts/**/*.{ts,mjs,cjs,js}"],
+    plugins: { house: houseRules },
+    rules: {
+      "house/paged-read-needs-order": "warn",
+      "house/honest-nulls-not-zero": "warn",
+      "house/no-silent-catch": "warn",
+      "house/no-name-join-across-systems": "warn",
+      "house/no-machine-absolute-path": "warn",
+    },
+  },
+  {
+    /*
+     * Gate-only. A `process.exit(0)` in a sync script or a hand-run diagnostic
+     * is ordinary; in a check-* gate it is the "silence read as success"
+     * failure that scripts/lib/gate-result.mjs was written to end.
+     */
+    files: ["scripts/**/check-*.mjs", "scripts/**/check-*.cjs"],
+    // Re-declared rather than inherited: a plugin namespace belongs to the
+    // config objects that name it, and relying on the block above to have
+    // matched the same file first is the kind of coupling that breaks the day
+    // someone narrows its glob.
+    plugins: { house: houseRules },
+    rules: {
+      "house/gate-skip-must-not-exit-zero": "warn",
     },
   },
 ]);

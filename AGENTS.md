@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # Use the knowledge graph first
 
 This project is mapped into a graphify knowledge graph committed at
-`graphify-out/` (6,050 nodes / 8,546 edges / 563 communities, built from
+`graphify-out/` (about 8,000 nodes and 13,200 edges across roughly 550 communities, built from
 tree-sitter AST so it is deterministic and costs nothing to rebuild).
 
 **Before grepping or opening files to answer a question about this codebase,
@@ -191,6 +191,27 @@ something the skill already knows.
 Skip it for plain conversation, a one-line answer, or a surgical typo fix. Do not
 load six skills speculatively — one or two that actually fit beats a stack that
 does not.
+
+### Running the gates: `npm run gates`
+
+`npm run gates` is the way to run the suite. It runs every gate in the `test:db`
+chain **independently** and judges each on its `RESULT pass=n fail=m notrun=k`
+line as well as its exit code, so a gate that exits 0 having asserted nothing is
+red rather than green, and one that cannot reach a dependency is NOT RUN rather
+than either. `npm run test:db` remains the raw `&&` chain: the first failure
+stops it and hides every gate after it, which is why CI no longer calls it.
+
+It also enforces **`scripts/gates/assertion-baseline.json`** — how many
+assertions each gate last evaluated. A gate that runs and evaluates fewer than
+its baseline is red and says by how much. The counts are recorded on a machine
+with live credentials, so they are **not** compared in CI, which has none and
+where thirteen gates legitimately evaluate fewer; CI says so rather than
+comparing anyway. That catches the failure the RESULT
+line cannot: forty checks quietly becoming six. When a drop is deliberate, run
+`npm run gates:baseline` and commit the file **in the same change that justified
+it**; never as a tidy-up. `--only <substring>` narrows a run to matching gates,
+and refuses to rewrite the baseline, because a filtered rewrite would erase every
+gate it did not select.
 
 ### These sit ON TOP of this repo's checks, never instead of them
 

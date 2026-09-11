@@ -4,10 +4,12 @@
  * pins the scoring rather than merely checking the module imports.
  */
 import { getPasswordStrength } from "../src/lib/password-strength.ts";
+import { record } from "./lib/gate-result.mjs";
 
 let failures = 0;
 const eq = (actual, expected, label) => {
   const ok = actual === expected;
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label} — got ${JSON.stringify(actual)}`);
   if (!ok) failures++;
 };

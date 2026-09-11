@@ -40,6 +40,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { launchChromium } from "./lib/launch-chromium.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 // :3002 was the health-portal worktree's dev server while that page was being
 // rebuilt; it was retired when the work merged on 2026-09-02, and the gate then
@@ -75,6 +76,7 @@ const ALLOWED_CONSOLE_PATTERNS = [];
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };

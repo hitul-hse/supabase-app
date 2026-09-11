@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Card, CardHeader, StatTile } from "@/components/ui/Card";
@@ -15,6 +16,7 @@ import type { ManagementCustomerPortfolio } from "@/lib/queries/management-custo
 import type { ManagementChangeRequest } from "@/lib/queries/management-change-requests";
 import type { BrokenCoverSummary } from "@/lib/queries/broken-cover";
 import { ManagementDrilldown, type Drill } from "./ManagementDrilldown";
+import type { DialogOrigin } from "@/components/ui/ModalShell";
 import { BrokenCoverPanel } from "./BrokenCoverPanel";
 import { EmployeeOwnershipOverview } from "./EmployeeOwnershipOverview";
 import { ManagementDataQuality } from "./ManagementDataQuality";
@@ -30,7 +32,21 @@ const planHours = ANNUAL_PLAN_HOURS.toLocaleString("de-DE");
 export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projectRiskRows, multiServiceModel, customerPortfolio, changeRequests, brokenCover }: { model: ManagementContractHours; ownershipRows: EmployeeOwnershipRow[]; dataQualityRows: ManagementDataQualityRow[]; projectRiskRows: ManagementProjectRiskRow[]; multiServiceModel: ManagementMultiServiceMatrixModel; customerPortfolio: ManagementCustomerPortfolio; changeRequests: ManagementChangeRequest[]; brokenCover: BrokenCoverSummary }) {
   const t = useTranslations("management");
   const [expanded, setExpanded] = useState<ManagementPerson | null>(null);
-  const [drill, setDrill] = useState<Drill | null>(null);
+  /*
+    THE DRILL AND WHERE IT CAME FROM (APPLE_REF §6.1 #6: an overlay
+    originates at its trigger). Four different controls open this dialog --
+    two stat tiles, a person row, a service row -- and none of them hands
+    over an element, so the origin is the last pointer-down anywhere in the
+    matrix, captured on the container below. It is frozen into the drill
+    state at OPEN time rather than read at render time: the exit has to run
+    the entrance's path in reverse, and a pointer-down inside the dialog
+    would otherwise re-aim it. A keyboard activation leaves it null and the
+    panel scales from the middle.
+  */
+  const pointRef = useRef<DialogOrigin | null>(null);
+  const [drill, setDrillState] = useState<{ drill: Drill; origin: DialogOrigin | null } | null>(null);
+  const setDrill = (next: Drill | null) =>
+    setDrillState(next ? { drill: next, origin: pointRef.current } : null);
   /*
    * The active tab lives in the URL (?tab=), not in useState: a management
    * reader shares "the risk view" as a link, and a reload must not dump them
@@ -124,7 +140,18 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
   };
 
   return (
-    <div className="flex flex-col gap-[var(--card-gap)]">
+    <div
+      className="flex flex-col gap-[var(--card-gap)]"
+      onPointerDownCapture={(e) => {
+        pointRef.current =
+          typeof window === "undefined"
+            ? null
+            : {
+                x: Math.max(-160, Math.min(160, e.clientX - window.innerWidth / 2)),
+                y: Math.max(-160, Math.min(160, e.clientY - window.innerHeight / 2)),
+              };
+      }}
+    >
       {/*
         Commercial contract hours are withheld from a caller without
         projects:contracts:read. This page is reached on hr:contract:read, which
@@ -294,20 +321,32 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
             const isOpen = expanded === person;
             return (
               <div key={person}>
-                <button type="button" className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--surface-hover)]" onClick={() => setExpanded(isOpen ? null : person)} aria-expanded={isOpen}>
+                <button type="button" className="flex w-full items-center justify-between px-4 py-3 text-left control-motion hover:bg-[var(--surface-hover)] active:translate-y-px" onClick={() => setExpanded(isOpen ? null : person)} aria-expanded={isOpen}>
                   <span className="font-medium text-[var(--text-primary)]">{person}</span>
                   <span className="font-mono text-[11px] text-[var(--text-muted)]">{t("drilldown.projectsHours", { count: String(projects.length), hours: fmt(totalByPerson[person]) })} <span className="ml-2 text-[var(--accent)]">{isOpen ? "−" : "+"}</span></span>
                 </button>
-                {isOpen && (
-                  <div className="bg-[var(--surface-2)] px-4 pb-3">
-                    {projects.length === 0 ? <p className="py-2 text-[11px] text-[var(--text-muted)]">{t("drilldown.empty")}</p> : projects.map((project) => (
-                      <div key={`${person}-${project.projectId}`} className="flex items-center justify-between gap-4 border-t border-[var(--divider)] py-2 text-[11px]">
-                        <span className="min-w-0 truncate text-[var(--text-secondary)]"><span className="text-[var(--text-primary)]">{project.projectName}</span><span className="ml-2 text-[var(--text-faint)]">{project.customerName}</span></span>
-                        <span className="shrink-0 font-mono tabular-nums text-[var(--text-muted)]">{fmt(project.allocatedHours)} h</span>
-                      </div>
-                    ))}
+                {/*
+                  The disclosure moves now: `.disclose` (globals.css) runs the
+                  panel's height and its opacity together over 220 ms on
+                  --ease-out, instead of the row appearing and disappearing in
+                  one frame. Height is a layout property and that is knowing
+                  -- a disclosure IS a change of extent and a transform cannot
+                  express one; see the class for the ruling and the frame-time
+                  guard. Shut, the panel is `visibility: hidden`, so it is
+                  neither a tab stop nor read aloud.
+                */}
+                <div className="disclose" data-open={isOpen ? "true" : "false"}>
+                  <div>
+                    <div className="bg-[var(--surface-2)] px-4 pb-3">
+                      {projects.length === 0 ? <p className="py-2 text-[11px] text-[var(--text-muted)]">{t("drilldown.empty")}</p> : projects.map((project) => (
+                        <div key={`${person}-${project.projectId}`} className="flex items-center justify-between gap-4 border-t border-[var(--divider)] py-2 text-[11px]">
+                          <span className="min-w-0 truncate text-[var(--text-secondary)]"><span className="text-[var(--text-primary)]">{project.projectName}</span><span className="ml-2 text-[var(--text-faint)]">{project.customerName}</span></span>
+                          <span className="shrink-0 font-mono tabular-nums text-[var(--text-muted)]">{fmt(project.allocatedHours)} h</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
@@ -315,7 +354,17 @@ export function ManagementMatrix({ model, ownershipRows, dataQualityRows, projec
       </Card>
       )}
 
-      {drill && <ManagementDrilldown drill={drill} onClose={() => setDrill(null)} />}
+      {/* AnimatePresence keeps the dialog mounted through its 150 ms exit, so
+          Escape plays the entrance in reverse instead of cutting to nothing. */}
+      <AnimatePresence>
+        {drill && (
+          <ManagementDrilldown
+            drill={drill.drill}
+            origin={drill.origin}
+            onClose={() => setDrill(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {model.unmappedContractHours > 0 && <p className="text-[11px] text-[var(--warning)]">{t("matrix.unmapped", { hours: fmt(model.unmappedContractHours) })}</p>}
     </div>

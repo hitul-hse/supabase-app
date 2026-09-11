@@ -65,6 +65,66 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      # FIRST, before checkout, before npm ci, before anything touches data.
+      #
+      # WHY (2026-09-06): FACTORIAL_API_KEY was rotated on the rig and not here.
+      # This job then ran on 2026-09-04 and 2026-09-05 and failed both times with
+      # "employees/employees page 0: HTTP 401" -- deep inside the sync step,
+      # after ~40 seconds of checkout and install, and looking exactly like a
+      # vendor outage to anyone skimming the log. Nobody was told. The only
+      # detector was check-factorial-freshness going red 36 hours later saying
+      # the data was STALE, which is the symptom and not the cause.
+      #
+      # One authenticated GET, one page, one row. It answers the only question
+      # worth asking before spending a runner on this job: is the credential in
+      # THIS repository still the one Factorial accepts? The status code goes in
+      # the log; the key never does.
+      - name: "preflight: Factorial auth"
+        env:
+          FACTORIAL_API_KEY: ${{ secrets.FACTORIAL_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${FACTORIAL_API_KEY:-}" ]; then
+            echo "FACTORIAL_API_KEY is not set -- add it as a repository secret."
+            exit 1
+          fi
+
+          # -o /dev/null: the response body is employee data. Only the status
+          # code is ever printed. `|| echo 000` keeps a transport failure from
+          # tripping `set -e` before it can be reported as what it is.
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "x-api-key: $FACTORIAL_API_KEY" \
+            -H 'Accept: application/json' \
+            'https://api.factorialhr.com/api/2026-07-01/resources/employees/employees?limit=1' \
+            || echo 000)
+
+          echo "GET /api/2026-07-01/resources/employees/employees?limit=1 -> HTTP $status"
+
+          case "$status" in
+            401|403)
+              echo ""
+              echo "Factorial rejected this repository's FACTORIAL_API_KEY (HTTP $status)."
+              echo "The key was rotated somewhere else and never pushed here. It is a"
+              echo "credential problem, not a Factorial outage and not stale data."
+              echo ""
+              echo "Fix it from the machine that holds the current key:"
+              echo "  node scripts/set-sync-secrets.mjs --only FACTORIAL_API_KEY"
+              echo "  node scripts/check-secret-parity.mjs"
+              exit 1
+              ;;
+            2*)
+              echo "credential accepted."
+              ;;
+            *)
+              # Deliberately not fatal. A 5xx or an unreachable host is the
+              # vendor having a bad minute, which the sync step reports on its
+              # own terms; failing here would blame the credential for it.
+              echo "note: unexpected status, not an auth failure. Continuing;"
+              echo "      the sync step will report whatever it actually hits."
+              ;;
+          esac
+
       - uses: actions/checkout@v4
 
       - name: Setup Node

@@ -12,6 +12,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { loadBindings, transform } from "next/dist/build/swc/index.js";
 import { createClient } from "@supabase/supabase-js";
 import { createRequire } from "node:module";
+import { record } from "./lib/gate-result.mjs";
 
 for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
   const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
@@ -54,6 +55,7 @@ const supabase = createClient(
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

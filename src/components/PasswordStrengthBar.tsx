@@ -11,7 +11,7 @@ export function PasswordStrengthBar({ password }: { password: string }) {
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="h-1 flex-1 rounded-full transition-all"
+            className="h-1 flex-1 rounded-full transition-colors duration-150"
             style={{ background: i <= score ? color : "var(--border)" }}
           />
         ))}

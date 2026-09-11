@@ -10,9 +10,10 @@
 //   - only 1,465 of 5,351 entries reach a hub project, so anything joined
 //     through hub_project_id silently omits hours
 import { readFileSync } from "node:fs";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
 
 const show = (rel, patterns, span = 3) => {
-  const s = readFileSync(`C:/Supabase/${rel}`, "utf8");
+  const s = readFileSync(`${REPO_ROOT}/${rel}`, "utf8");
   const lines = s.split("\n");
   console.log(`\n${"=".repeat(76)}\n${rel}`);
   lines.forEach((l, i) => {

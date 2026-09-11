@@ -22,11 +22,13 @@
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { record } from "./lib/gate-result.mjs";
 
 let pass = 0;
 let fail = 0;
 
 function check(label, ok, detail = "") {
+  record(ok);
   if (ok) {
     pass++;
     console.log(`PASS  ${label}${detail ? "  -- " + detail : ""}`);

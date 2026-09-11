@@ -27,6 +27,19 @@
 // each for Thorsten and Hendryk, 3 for Stephan. A mislabel, not a
 // disappearance, which is why this is a pinned tolerance and not a failure.
 //
+// SINCE 2026-09-10 the masterdata sheet promote (scripts/lib/masterdata-
+// promote.mjs, gated by check-masterdata-promote.mjs) maintains BOTH tables per
+// role from the sheet, so the 28 are expected to shrink on the first --apply
+// -- lower KNOWN_GAP then. A promote writes a role only when the sheet resolves
+// it to a person. When the sheet says DOC / OTHER / nothing, or names a person
+// the staging step could not match, the current holder is left alone -- and
+// the promote makes BOTH tables name that holder (a gap project's orphan 0/1
+// cover gets its role row), so no partial encoding is left behind and check 4
+// below stays true. The promote report lists every such role under
+// responsibility_notes ("... stays"); the remedy for an unmatched name is to
+// resolve it (public.people or the sheet) and promote again, not to lower
+// this check.
+//
 // The gate does not decide which table wins -- that is a data-ownership call.
 // It records the disagreement with an explicit tolerance so it cannot grow
 // unnoticed, and it fails outright on the one thing that is unambiguously wrong:
@@ -36,6 +49,7 @@
 
 import pg from "pg";
 import { loadEnv } from "./lib/gate-env.mjs";
+import { record, notRunInChain } from "./lib/gate-result.mjs";
 
 const env = loadEnv();
 
@@ -45,7 +59,7 @@ const env = loadEnv();
 // reads like a broken gate rather than an absent credential.
 if (!env.SUPABASE_DB_URL) {
   console.log("SKIP: no SUPABASE_DB_URL, so there is no live database to check");
-  process.exit(0);
+  notRunInChain();
 }
 
 // The known, accepted size of the gap. Raising this must be a deliberate edit
@@ -57,6 +71,7 @@ await c.connect();
 
 const failures = [];
 const check = (ok, label, detail) => {
+  record(ok);
   console.log(`${ok ? "  ok  " : " FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures.push(label);
 };

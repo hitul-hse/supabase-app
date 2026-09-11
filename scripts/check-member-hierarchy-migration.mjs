@@ -11,11 +11,13 @@
  */
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { record } from "./lib/gate-result.mjs";
 
 const db = await new PGlite();
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? `\n        ${detail}` : ""}`);
 };

@@ -27,16 +27,18 @@
 import fs, { existsSync, rmSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
+import { record, notRun } from "./lib/gate-result.mjs";
 
 let failed = false;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 };
 
 if (!existsSync("src/app/(app)/time/actions.ts")) {
   console.log("SKIP: no time actions to probe");
-  process.exit(0);
+  notRun();
 }
 
 const PORT = 54341;
@@ -141,7 +143,7 @@ const server = createServer((req, res) => {
   send([]);
 });
 
-if (!(await listenOrSkip(server, PORT))) process.exit(0);
+if (!(await listenOrSkip(server, PORT))) notRun(`port ${PORT} is already in use`);
 
 // A dedicated dist dir. The shared .next is never moved: parallel sessions run
 // their own servers out of it, and on Windows renaming it hits EPERM whenever a

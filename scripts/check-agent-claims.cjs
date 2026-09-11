@@ -3,12 +3,14 @@
 // doesn't exist will send the agent down a dead end, so these claims need the
 // same standard of evidence as code.
 const fs = require("node:fs");
+const { record } = require("./lib/gate-result.mjs");
 
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const schema = fs.readFileSync("supabase/schema.sql", "utf8");
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
   if (!ok) failed++;
 };

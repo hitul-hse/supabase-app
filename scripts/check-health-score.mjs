@@ -19,6 +19,7 @@
  * extensionless `./health-history` import resolves.
  */
 import "./ts-resolve.mjs";
+import { record } from "./lib/gate-result.mjs";
 
 const score = await import("../src/lib/health-score.ts");
 const history = await import("../src/lib/health-history.ts");
@@ -26,6 +27,7 @@ const sampler = await import("./sample-system-health.mjs");
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
+  record(ok);
   if (!ok) failed += 1;
   console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 };

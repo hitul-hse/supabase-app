@@ -11,12 +11,15 @@
  */
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
+import { REPO_ROOT } from "./lib/repo-root.mjs";
+import { record } from "./lib/gate-result.mjs";
 
-const sql = readFileSync("C:/Supabase/supabase/migrations/20260826120000_projects_admit_unmeasured_hours.sql", "utf8");
+const sql = readFileSync(`${REPO_ROOT}/supabase/migrations/20260826120000_projects_admit_unmeasured_hours.sql`, "utf8");
 const db = await new PGlite();
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

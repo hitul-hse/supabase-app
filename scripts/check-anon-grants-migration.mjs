@@ -31,6 +31,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
+import { record } from "./lib/gate-result.mjs";
 
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 const read = (...p) => readFileSync(join(REPO, ...p), "utf8");
@@ -39,6 +40,7 @@ const migration = read("supabase", "migrations", "20260903120000_anon_holds_no_w
 
 let failures = 0;
 const check = (label, ok, detail = "") => {
+  record(ok);
   console.log(`${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures += 1;
 };

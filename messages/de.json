@@ -2141,7 +2141,9 @@
       "contacts": {
         "title": "ANSPRECHPARTNER BEIM KUNDEN",
         "slot": "ANSPRECHPARTNER {slot}",
-        "none": "Kein Ansprechpartner hinterlegt"
+        "none": "Kein Ansprechpartner hinterlegt",
+        "loading": "Ansprechpartner werden geladen",
+        "failed": "Ansprechpartner konnten nicht geladen werden"
       },
       "links": {
         "title": "LINKS",

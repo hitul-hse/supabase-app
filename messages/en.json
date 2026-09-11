@@ -2141,7 +2141,9 @@
       "contacts": {
         "title": "CUSTOMER CONTACTS",
         "slot": "CONTACT {slot}",
-        "none": "No contact recorded"
+        "none": "No contact recorded",
+        "loading": "Loading contacts",
+        "failed": "Contacts could not be loaded"
       },
       "links": {
         "title": "LINKS",

@@ -48,9 +48,16 @@ export function ManagementDataQuality({ rows }: { rows: ManagementDataQualityRow
       key: "count",
       header: t("columns.count"),
       align: "right",
+      compact: true,
       compare: (a, b) => cmpNum(a.count, b.count),
+      // The finding count is what the row reports and the default sort: full
+      // contrast. An unknown ("n/a") stays faint -- it is not a finding.
       cell: (row) => (
-        <span className="font-mono tabular-nums text-[var(--text-secondary)]">
+        <span
+          className={`font-mono tabular-nums ${
+            row.count === null ? "text-[var(--text-faint)]" : "text-[var(--text-primary)]"
+          }`}
+        >
           {row.count === null ? na : row.count}
         </span>
       ),
@@ -59,6 +66,7 @@ export function ManagementDataQuality({ rows }: { rows: ManagementDataQualityRow
     {
       key: "rating",
       header: t("columns.rating"),
+      compact: true,
       className: "w-[7rem]",
       compare: (a, b) => cmpText(a.rating, b.rating),
       descFirst: false,

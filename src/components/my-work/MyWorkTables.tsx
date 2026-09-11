@@ -290,6 +290,16 @@ export function MyWorkTables({
     [filteredProjects],
   );
 
+  /*
+   * A CORRECTION TO THE "FITS 1280" NOTES BELOW (issue #99, 2026-09-11).
+   * Measured with the sidebar OPEN and a classic scrollbar -- a 993px card --
+   * this table is 1,153px wide in both languages (check-table-width.mjs), so it
+   * scrolls sideways at 1280 and fits from about 1440. Every token column was
+   * already `compact`; the gate pins the width as debt, and what would clear it
+   * (folding the five link columns below 1440) changes what the table shows,
+   * which is the owner's call. The notes below are right about the mechanisms,
+   * not about the verdict.
+   */
   const projectColumns: Column<MyProject>[] = useMemo(() => {
     const cols: Column<MyProject>[] = [
       {
@@ -537,6 +547,7 @@ export function MyWorkTables({
         key: "mine",
         header: "MINE",
         align: "right",
+        compact: true,
         compare: (a, b) => cmpNum(a.myLoggedHours, b.myLoggedHours),
         title: "Hours your own assignment row carries for this project",
         csv: (r) => r.myLoggedHours ?? "",
@@ -741,6 +752,8 @@ export function MyWorkTables({
       {
         key: "topRole",
         header: "MY STRONGEST ROLE",
+        // A role badge: a token, so the narrow gutter (DataTable's Column note).
+        compact: true,
         className: "w-[11rem]",
         compare: (a, b) => rank(b.topRole) - rank(a.topRole),
         title: "The strongest claim you hold on any project for this customer",
@@ -811,6 +824,7 @@ export function MyWorkTables({
         key: "logged",
         header: "LOGGED",
         align: "right",
+        compact: true,
         compare: (a, b) => a.loggedHours - b.loggedHours,
         title: "Team hours logged across your projects for this customer",
         csv: (r) => r.loggedHours,
@@ -842,6 +856,7 @@ export function MyWorkTables({
         key: "budget",
         header: "BUDGET",
         align: "right",
+        compact: true,
         compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
         title: budgetsWithheld
           ? "Project budgets are not visible to your role."
@@ -867,6 +882,7 @@ export function MyWorkTables({
         key: "mine",
         header: "MINE",
         align: "right",
+        compact: true,
         compare: (a, b) => a.myLoggedHours - b.myLoggedHours,
         title: "Hours your own assignment rows carry for this customer",
         csv: (r) => r.myLoggedHours,

@@ -81,9 +81,12 @@ export function EmployeeOwnershipOverview({ rows }: { rows: EmployeeOwnershipRow
       key: "contractHours",
       header: t("portfolio.columns.contractHours"),
       align: "right",
+      compact: true,
       compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
+      // The one figure in an owner's portfolio row, so it reads at full
+      // contrast instead of at the weight of the names around it.
       cell: (project) => (
-        <span className="font-mono tabular-nums text-[var(--text-secondary)]">{fmt(project.contractHours)} h</span>
+        <span className="font-mono tabular-nums text-[var(--text-primary)]">{fmt(project.contractHours)} h</span>
       ),
       csv: (project) => project.contractHours,
     },
@@ -135,7 +138,9 @@ export function EmployeeOwnershipOverview({ rows }: { rows: EmployeeOwnershipRow
                       {row.person}
                     </button>
                   </th>
-                  <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{row.openProjects}</td>
+                  {/* Open projects is the load this roster compares person to
+                      person, so it is the figure at full contrast. */}
+                  <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-primary)]">{row.openProjects}</td>
                   <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmt(row.contractHours)} h</td>
                   <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{row.servicesInPortfolio.length}</td>
                   <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--text-secondary)]">{row.replacementCoveragePercent === null ? na : `${fmt(row.replacementCoveragePercent)}%`}</td>

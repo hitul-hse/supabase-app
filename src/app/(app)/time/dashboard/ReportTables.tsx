@@ -21,6 +21,23 @@
  * The inherited rule still holds throughout: a missing number renders as "—",
  * never as 0, and the sort comparators put nulls last in both directions rather
  * than letting them pose as the smallest value.
+ *
+ * WHAT IS ON SCREEN BY DEFAULT (issue #99, 2026-09-11)
+ * ----------------------------------------------------
+ * The density ticket counted this file as "25 columns" and asked for a default
+ * set with the rest behind an opt-in. The 25 are FOUR tables -- breakdown 7,
+ * budget 5, economics 6, entries 6 -- and the opt-in already exists: only the
+ * breakdown opens by default, because it answers the question the group-by
+ * control just asked, and the other three are collapsed panels whose summary line
+ * states their headline while shut. No reader meets more than seven columns
+ * without choosing to. That default is kept, deliberately, rather than adding a
+ * column chooser to a table that has no column to spare.
+ *
+ * What changed instead is the width and the weight: every figure column is
+ * `compact`, the row's default-sort figure reads at full contrast (`lead`) with
+ * its neighbours a step down, and the entries table's project cell is capped at
+ * 21rem. All four now fit a 1280 screen with the sidebar open, in English and in
+ * German (scripts/check-table-width.mjs).
  */
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
@@ -97,6 +114,13 @@ function Bar({ percent, tone = "accent" }: { percent: number; tone?: "accent" | 
 }
 
 const mono = "font-mono tabular-nums text-[var(--text-secondary)]";
+/**
+ * The one figure per row a reader came to the table for -- its default sort --
+ * at full contrast, so it is found before its neighbours rather than read
+ * alongside them at the same weight (APPLE_REF §1 rule 7: emphasis is a step up
+ * the label ladder, never a size step).
+ */
+const lead = "font-mono tabular-nums text-[var(--text-primary)]";
 
 /* -------------------------------------------------------------- breakdown */
 
@@ -192,14 +216,18 @@ export function BreakdownTable({
       key: "hours",
       header: t("breakdown.hours"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.totalSeconds - b.totalSeconds,
       csv: (r) => r.totalHours,
-      cell: (r) => <span className={mono}>{hrs(r.totalHours)}</span>,
+      // The figure the row is about (and the default sort), so it is the one
+      // figure in the row at full contrast; the rest step down the ladder.
+      cell: (r) => <span className={lead}>{hrs(r.totalHours)}</span>,
     },
     {
       key: "billable",
       header: t("breakdown.billable"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.billableSeconds - b.billableSeconds,
       csv: (r) => r.billableHours,
       cell: (r) => <span className={mono}>{hrs(r.billableHours)}</span>,
@@ -208,6 +236,7 @@ export function BreakdownTable({
       key: "billpct",
       header: t("breakdown.billPct"),
       align: "right",
+      compact: true,
       compare: (a, b) => cmpNum(a.billablePercent, b.billablePercent),
       title: t("breakdown.billPctTitle"),
       csv: (r) => (r.billablePercent === null ? "" : r.billablePercent),
@@ -225,6 +254,7 @@ export function BreakdownTable({
       key: "entries",
       header: t("breakdown.entries"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.entryCount - b.entryCount,
       csv: (r) => r.entryCount,
       cell: (r) => (
@@ -237,6 +267,7 @@ export function BreakdownTable({
       key: "last",
       header: t("breakdown.last"),
       align: "right",
+      compact: true,
       // Sorted on the raw timestamp, not the rendered "3mo ago" string, which
       // would order lexically and put "9d" after "3mo".
       compare: (a, b) =>
@@ -343,6 +374,7 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
       key: "budget",
       header: t("budget.budget"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.estimatedHours - b.estimatedHours,
       csv: (r) => r.estimatedHours,
       cell: (r) => <span className={mono}>{hrs(r.estimatedHours)}</span>,
@@ -351,6 +383,7 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
       key: "actual",
       header: t("budget.actual"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.actualHours - b.actualHours,
       title: t("budget.actualTitle"),
       csv: (r) => r.actualHours,
@@ -360,6 +393,7 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
       key: "remaining",
       header: t("budget.remaining"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.remainingHours - b.remainingHours,
       descFirst: false,
       title: t("budget.remainingTitle"),
@@ -386,9 +420,12 @@ export function BudgetTable({ rows, period }: { rows: BudgetRow[]; period: strin
           <span className="flex-1">
             <Bar percent={r.burnPercent} tone={r.isOver ? "over" : "accent"} />
           </span>
+          {/* The burn is what this table is sorted by and exists to show, so
+              its figure reads at the row's own figure size and contrast, not
+              as a 10px caption beside the bar. */}
           <span
-            className={`w-[3.8rem] text-right font-mono text-[10px] tabular-nums ${
-              r.isOver ? "text-[var(--critical)]" : "text-[var(--text-faint)]"
+            className={`w-[3.8rem] text-right font-mono text-[11px] tabular-nums ${
+              r.isOver ? "text-[var(--critical)]" : "text-[var(--text-primary)]"
             }`}
           >
             {fmtPct(Math.round(r.burnPercent), locale)}
@@ -510,6 +547,7 @@ export function EconomicsTable({
       key: "hours",
       header: t("economics.colHours"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.totalSeconds - b.totalSeconds,
       csv: (r) => Math.round((r.totalSeconds / 3600) * 100) / 100,
       cell: (r) => (
@@ -520,16 +558,16 @@ export function EconomicsTable({
       key: "revenue",
       header: t("economics.colRevenue"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.revenue - b.revenue,
       csv: (r) => r.revenue,
-      cell: (r) => (
-        <span className="font-mono tabular-nums text-[var(--text-primary)]">{eur(r.revenue)}</span>
-      ),
+      cell: (r) => <span className={lead}>{eur(r.revenue)}</span>,
     },
     {
       key: "cost",
       header: t("economics.colCost"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.cost - b.cost,
       csv: (r) => r.cost,
       cell: (r) => <span className="font-mono tabular-nums text-[var(--text-muted)]">{eur(r.cost)}</span>,
@@ -538,12 +576,17 @@ export function EconomicsTable({
       key: "margin",
       header: t("economics.colMargin"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.margin - b.margin,
       csv: (r) => r.margin,
       cell: (r) => (
+        // A healthy margin sits on the text ladder, not in teal: teal on a
+        // figure means interactive or current (APPLE_REF §8 #5), and it made
+        // this column out-shout REVENUE, the one the table sorts by. A loss
+        // keeps --critical, which is information rather than decoration.
         <span
           className={`font-mono tabular-nums ${
-            r.margin < 0 ? "text-[var(--critical)]" : "text-[var(--accent)]"
+            r.margin < 0 ? "text-[var(--critical)]" : "text-[var(--text-secondary)]"
           }`}
         >
           {eur(r.margin)}
@@ -554,6 +597,7 @@ export function EconomicsTable({
       key: "marginpct",
       header: t("economics.colMarginPct"),
       align: "right",
+      compact: true,
       compare: (a, b) => cmpNum(a.marginPercent, b.marginPercent),
       title: t("economics.marginPctTitle"),
       csv: (r) => (r.marginPercent === null ? "" : r.marginPercent),
@@ -666,6 +710,7 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
     {
       key: "date",
       header: t("entries.date"),
+      compact: true,
       compare: (a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt),
       csv: (r) => r.startedAt,
       cell: (r) => (
@@ -689,7 +734,11 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
     {
       key: "project",
       header: t("entries.projectTask"),
-      className: "max-w-[24rem]",
+      // 21rem, down from 24: the 48px is what lets this six-column table fit a
+      // 1280 screen with the sidebar open (check-table-width.mjs measured it at
+      // 1068px in a 993px card in German). The name truncates a few characters
+      // sooner and carries the whole of itself in its tooltip.
+      className: "max-w-[21rem]",
       compare: (a, b) => cmpText(a.projectName, b.projectName),
       descFirst: false,
       search: (r) =>
@@ -697,7 +746,10 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
       csv: (r) => r.projectName ?? "",
       cell: (r) => (
         <>
-          <span className="block truncate text-[12px] text-[var(--text-secondary)]">
+          <span
+            className="block truncate text-[12px] text-[var(--text-secondary)]"
+            title={r.projectName ?? undefined}
+          >
             {r.projectName ?? "—"}
           </span>
           {(r.taskName || r.notes) && (
@@ -726,16 +778,18 @@ export function EntriesTable({ rows, period }: { rows: EntryRow[]; period: strin
       key: "duration",
       header: t("entries.duration"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.durationSeconds - b.durationSeconds,
       csv: (r) => Math.round((r.durationSeconds / 3600) * 100) / 100,
       cell: (r) => (
-        <span className={mono}>{hrs(Math.round((r.durationSeconds / 3600) * 10) / 10)}</span>
+        <span className={lead}>{hrs(Math.round((r.durationSeconds / 3600) * 10) / 10)}</span>
       ),
     },
     {
       key: "flags",
       header: t("entries.type"),
       align: "right",
+      compact: true,
       // Billable sorts above non-billable, and calendar placeholders below both.
       compare: (a, b) =>
         (a.isBillable ? 2 : a.isCalendar ? 0 : 1) - (b.isBillable ? 2 : b.isCalendar ? 0 : 1),

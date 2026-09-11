@@ -280,6 +280,7 @@ export function ManagementCustomerPortfolio({ model, changeRequests }: { model: 
       key: "projectCount",
       header: t("columns.projects"),
       align: "right",
+      compact: true,
       compare: (a, b) => a.projectCount - b.projectCount,
       cell: (row) => <span className="font-mono tabular-nums text-[var(--text-secondary)]">{row.projectCount}</span>,
       csv: (row) => row.projectCount,
@@ -288,9 +289,16 @@ export function ManagementCustomerPortfolio({ model, changeRequests }: { model: 
       key: "contractHours",
       header: t("columns.contractHours"),
       align: "right",
+      compact: true,
       compare: (a, b) => cmpNum(a.contractHours, b.contractHours),
+      // The size of the customer relationship, which is the figure a portfolio
+      // row is read for: full contrast. "n/a" stays faint -- unknown, not small.
       cell: (row) => (
-        <span className="font-mono tabular-nums text-[var(--text-secondary)]">
+        <span
+          className={`font-mono tabular-nums ${
+            row.contractHours === null ? "text-[var(--text-faint)]" : "text-[var(--text-primary)]"
+          }`}
+        >
           {row.contractHours === null ? na : `${fmt(row.contractHours)} h`}
         </span>
       ),
